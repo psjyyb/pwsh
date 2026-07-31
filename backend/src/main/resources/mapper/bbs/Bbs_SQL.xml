@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="bbsDAO">
+
+    <!-- 목록: 원글(공지 상단 고정 후 최신순)을 페이지 단위로 뽑고, 각 원글의 답글(스레드)을 재귀로 이어붙여 반환.
+         페이징은 원글 기준(totCnt=원글 수). bbs_depth=들여쓰기 레벨(0=원글). 답글은 원글 바로 아래 path 순으로 정렬. -->
+    <select id="selectList" parameterType="bbsVO" resultType="bbsVO">
+        WITH RECURSIVE paged_roots AS (
+            SELECT bbs_id,
+                   CASE WHEN notice_yn = 'Y'
+                         AND (notice_start_dt IS NULL OR notice_start_dt = '' OR notice_start_dt &lt;= TO_CHAR(NOW(),'YYYY-MM-DD'))
+                         AND (notice_end_dt   IS NULL OR notice_end_dt   = '' OR notice_end_dt   &gt;= TO_CHAR(NOW(),'YYYY-MM-DD'))
+                        THEN 'Y' ELSE 'N' END AS notice_eff
+            FROM t_bbs
+            WHERE use_yn = 'Y' AND p_bbs_id = 0 AND bbsinfo_id = #{bbsinfoId}::integer
+            <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+            ORDER BY notice_eff DESC, bbs_id DESC
+            LIMIT #{size} OFFSET #{offset}
+        ),
+        thread AS (
+            SELECT b.bbs_id, b.p_bbs_id, 0 AS lvl, pr.notice_eff AS root_notice, b.bbs_id AS root_id, ARRAY[b.bbs_id] AS path
+            FROM t_bbs b JOIN paged_roots pr ON pr.bbs_id = b.bbs_id
+            UNION ALL
+            SELECT c.bbs_id, c.p_bbs_id, t.lvl + 1, t.root_notice, t.root_id, t.path || c.bbs_id
+            FROM t_bbs c JOIN thread t ON c.p_bbs_id = t.bbs_id
+            WHERE c.use_yn = 'Y'
+        )
+        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.notice_yn, b.secret_yn,
+               b.view_cnt, b.good_cnt, b.reg_id, b.bbs_dt, t.lvl AS bbs_depth,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt,
+               (SELECT r.file_id FROM r_file r
+                 JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = b.bbs_id AND r.file_loc = 'BBS_IMG'
+                 ORDER BY r.ordr LIMIT 1) AS file_id,
+               (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
+               CASE WHEN t.lvl = 0 THEN t.root_notice ELSE 'N' END AS notice_eff
+        FROM thread t JOIN t_bbs b ON b.bbs_id = t.bbs_id
+        ORDER BY t.root_notice DESC, t.root_id DESC, t.path
+    </select>
+
+    <select id="selectListTotCnt" parameterType="bbsVO" resultType="int">
+        SELECT COUNT(*) FROM t_bbs
+        WHERE use_yn = 'Y' AND p_bbs_id = 0 AND bbsinfo_id = #{bbsinfoId}::integer
+        <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+    </select>
+
+    <select id="selectView" parameterType="bbsVO" resultType="bbsVO">
+        SELECT bbs_id::TEXT AS db_key, bbsinfo_id, title, context,
+               p_bbs_id, bbs_depth, bbs_ordr, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
+               notice_yn, notice_start_dt, notice_end_dt, bbs_dt, reg_id,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = t_bbs.reg_id) AS reg_nm,
+               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM t_bbs WHERE bbs_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="bbsVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="bbs_id">
+        INSERT INTO t_bbs (bbsinfo_id, title, context, p_bbs_id, bbs_depth,
+            bbs_ordr, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
+            notice_yn, notice_start_dt, notice_end_dt, bbs_dt, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{bbsinfoId}::integer, #{title}, #{context},
+            COALESCE(NULLIF(#{pBbsId}, '')::integer, 0), COALESCE(NULLIF(#{bbsDepth}, '')::integer, 1),
+            (SELECT COALESCE(MAX(bbs_ordr), 0) + 1 FROM t_bbs WHERE bbsinfo_id = #{bbsinfoId}::integer),
+            COALESCE(#{secretYn}, 'N'), NULLIF(#{bbsPw}, ''), 0, 0, 0,
+            COALESCE(#{noticeYn}, 'N'), NULLIF(#{noticeStartDt}, ''), NULLIF(#{noticeEndDt}, ''),
+            TO_CHAR(NOW(), 'YYYY-MM-DD'), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="bbsVO">
+        UPDATE t_bbs SET
+            title = #{title}, context = #{context},
+            secret_yn = COALESCE(#{secretYn}, 'N'),
+            bbs_pw = COALESCE(NULLIF(#{bbsPw}, ''), bbs_pw),
+            notice_yn = COALESCE(#{noticeYn}, 'N'),
+            notice_start_dt = NULLIF(#{noticeStartDt}, ''), notice_end_dt = NULLIF(#{noticeEndDt}, ''),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE bbs_id = #{dbKey}::integer
+    </update>
+
+    <update id="delete" parameterType="bbsVO">
+        UPDATE t_bbs SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE bbs_id = #{dbKey}::integer
+    </update>
+
+    <!-- 조회수 증가 -->
+    <update id="updateViewCnt" parameterType="bbsVO">
+        UPDATE t_bbs SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE bbs_id = #{dbKey}::integer
+    </update>
+
+</mapper>

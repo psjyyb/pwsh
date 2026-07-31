@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="menuDAO">
+
+    <!-- 목록 (관리 화면용, 특정 부모의 자식) -->
+    <select id="selectList" parameterType="menuVO" resultType="menuVO">
+        SELECT menu_id::TEXT AS db_key, p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id,
+               link_url, target_yn, use_yn, icon
+        FROM t_menu
+        WHERE use_yn = 'Y'
+        <if test="area != null and area != ''">AND area = #{area}</if>
+        <if test="pMenuId != null and pMenuId != ''">AND p_menu_id = #{pMenuId}::integer</if>
+        <if test="searchKeyword != null and searchKeyword != ''">AND menu_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        ORDER BY ordr
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="menuVO" resultType="int">
+        SELECT COUNT(*) FROM t_menu WHERE use_yn = 'Y'
+        <if test="area != null and area != ''">AND area = #{area}</if>
+        <if test="pMenuId != null and pMenuId != ''">AND p_menu_id = #{pMenuId}::integer</if>
+        <if test="searchKeyword != null and searchKeyword != ''">AND menu_nm LIKE '%' || #{searchKeyword} || '%'</if>
+    </select>
+
+    <!-- 트리 (사이드바용, area 전체 계층 → 프론트에서 p_menu_id로 중첩)
+         ADM: 슈퍼관리자(superYn=Y)는 전체, 그 외는 권한 메뉴+상위만. GEN(사용자 사이트): 권한필터 없이 전체 노출 -->
+    <select id="selectMenuTree" parameterType="menuVO" resultType="menuVO">
+        SELECT menu_id::TEXT AS db_key, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, link_url, target_yn, icon
+        FROM t_menu
+        WHERE use_yn = 'Y'
+        <if test="area != null and area != ''">AND area = #{area}</if>
+        <!-- 슈퍼관리자(superYn=Y)는 전체. 그 외는 권한 메뉴+상위만: 로그인=그 사용자 그룹, 비로그인=GUEST 그룹 -->
+        <if test='superYn != "Y"'>
+            AND menu_id IN (
+                WITH RECURSIVE permitted AS (
+                    SELECT a.menu_id
+                    FROM t_auth a
+                    <choose>
+                        <when test="userId != null and userId != ''">
+                            JOIN t_auth_user u ON u.authgrp_id = a.conn_id AND u.use_yn = 'Y'
+                            WHERE a.auth_gbn = 'GRP' AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+                              AND u.user_id = #{userId}
+                        </when>
+                        <otherwise>
+                            WHERE a.auth_gbn = 'GRP' AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+                              AND a.conn_id = 'GUEST'
+                        </otherwise>
+                    </choose>
+                ),
+                tree AS (
+                    SELECT menu_id, p_menu_id FROM t_menu WHERE menu_id IN (SELECT menu_id FROM permitted)
+                    UNION
+                    SELECT m.menu_id, m.p_menu_id FROM t_menu m JOIN tree t ON m.menu_id = t.p_menu_id
+                )
+                SELECT menu_id FROM tree
+            )
+        </if>
+        ORDER BY p_menu_id, ordr
+    </select>
+
+    <!-- API 권한강제용: 사용자가 특정 메뉴(link_url)에 대한 접근 권한을 가졌는지 카운트 -->
+    <select id="selectPermittedCount" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM t_auth a
+        JOIN t_auth_user u ON u.authgrp_id = a.conn_id AND u.use_yn = 'Y'
+        JOIN t_menu m ON m.menu_id = a.menu_id AND m.use_yn = 'Y'
+        WHERE a.auth_gbn = 'GRP' AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+          AND u.user_id = #{userId} AND m.link_url = #{linkUrl}
+    </select>
+
+    <!-- 콘텐츠 단위 인가: 실효그룹(로그인=본인 그룹, 비로그인 userId=null=GUEST)이
+         해당 GEN 콘텐츠(conn_ty+conn_id)를 노출하는 메뉴 권한을 가졌는지 카운트(>0이면 접근 허용). -->
+    <select id="countGenContentPerm" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM t_menu m
+        JOIN t_auth a ON a.menu_id = m.menu_id AND a.auth_gbn = 'GRP' AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+        <if test="userId != null and userId != ''">
+            JOIN t_auth_user u ON u.authgrp_id = a.conn_id AND u.use_yn = 'Y' AND u.user_id = #{userId}
+        </if>
+        WHERE m.area = 'GEN' AND m.use_yn = 'Y'
+          AND m.conn_ty = #{connTy} AND m.conn_id = #{connId}::integer
+        <if test="userId == null or userId == ''">AND a.conn_id = 'GUEST'</if>
+    </select>
+
+    <!-- 콘텐츠 단위 인가(댓글용): 게시글(bbs_id)이 속한 게시판을 노출하는 GEN 메뉴 권한 카운트. -->
+    <select id="countGenBoardPermByPost" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM t_bbs b
+        JOIN t_menu m ON m.conn_ty = 'MENU02' AND m.conn_id = b.bbsinfo_id AND m.area = 'GEN' AND m.use_yn = 'Y'
+        JOIN t_auth a ON a.menu_id = m.menu_id AND a.auth_gbn = 'GRP' AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+        <if test="userId != null and userId != ''">
+            JOIN t_auth_user u ON u.authgrp_id = a.conn_id AND u.use_yn = 'Y' AND u.user_id = #{userId}
+        </if>
+        WHERE b.bbs_id = #{bbsId}::integer
+        <if test="userId == null or userId == ''">AND a.conn_id = 'GUEST'</if>
+    </select>
+
+    <!-- 관리 화면용 계층 트리: 권한필터 없이 전체(프론트에서 p_menu_id로 중첩, 최상위=-1) -->
+    <select id="selectManageTree" parameterType="menuVO" resultType="menuVO">
+        SELECT menu_id::TEXT AS db_key, p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id,
+               link_url, target_yn, use_yn, icon
+        FROM t_menu
+        WHERE use_yn = 'Y'
+        <if test="area != null and area != ''">AND area = #{area}</if>
+        ORDER BY p_menu_id, ordr
+    </select>
+
+    <!-- 단건 -->
+    <select id="selectView" parameterType="menuVO" resultType="menuVO">
+        SELECT menu_id::TEXT AS db_key, p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id,
+               link_url, target_yn, use_yn, icon
+        FROM t_menu WHERE menu_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 등록 -->
+    <insert id="insert" parameterType="menuVO">
+        INSERT INTO t_menu (
+            p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id, link_url, target_yn, icon,
+            use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip
+        ) VALUES (
+            COALESCE(NULLIF(#{pMenuId}, '')::integer, 0),
+            COALESCE(NULLIF(#{area}, ''), 'ADM'),
+            #{menuNm}, #{menuDesc},
+            -- 같은 영역·부모 내 마지막(사용중) 순서+1로 자동 부여(빈 그룹은 1부터 시작)
+            (SELECT COALESCE(MAX(ordr), 0) + 1 FROM t_menu
+               WHERE area = COALESCE(NULLIF(#{area}, ''), 'ADM')
+                 AND p_menu_id = COALESCE(NULLIF(#{pMenuId}, '')::integer, 0) AND use_yn = 'Y'),
+            COALESCE(#{connTy}, 'MENU01'),
+            COALESCE(NULLIF(#{connId}, '')::integer, 0),
+            #{linkUrl},
+            COALESCE(#{targetYn}, 'N'),
+            NULLIF(#{icon}, ''),
+            'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp}
+        )
+    </insert>
+
+    <!-- 수정(정보만). 상위메뉴(부모)는 고정, 정렬순서는 ▲▼(updateordr)로만 변경 -->
+    <update id="update" parameterType="menuVO">
+        UPDATE t_menu SET
+            area = #{area}, menu_nm = #{menuNm}, menu_desc = #{menuDesc},
+            conn_ty = #{connTy}, conn_id = COALESCE(NULLIF(#{connId}, '')::integer, 0),
+            link_url = #{linkUrl}, target_yn = #{targetYn}, icon = NULLIF(#{icon}, ''),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE menu_id = #{dbKey}::integer
+    </update>
+
+    <!-- 순서 교환용: 같은 영역·부모(area, p_menu_id) 내 인접 메뉴 (UP=바로 위, 그 외=바로 아래) -->
+    <select id="selectAdjacentOrdr" parameterType="menuVO" resultType="menuVO">
+        SELECT menu_id::TEXT AS db_key, ordr
+        FROM t_menu
+        WHERE use_yn = 'Y' AND area = #{area} AND p_menu_id = #{pMenuId}::integer
+        <choose>
+            <when test="searchCondition == 'UP'">
+                AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
+            </when>
+            <otherwise>
+                AND ordr &gt; #{ordr}::integer ORDER BY ordr ASC
+            </otherwise>
+        </choose>
+        LIMIT 1
+    </select>
+
+    <!-- 정렬순서 변경 (updateMenuordr.do 분기용: 대상 행 ordr를 지정값으로 → 교환에 사용) -->
+    <update id="updateordr" parameterType="menuVO">
+        UPDATE t_menu SET
+            ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE menu_id = #{dbKey}::integer
+    </update>
+
+    <!-- 삭제(논리, 캐스케이드): 대상 메뉴 + 그 하위(자손) 메뉴 전체를 재귀로 함께 삭제 -->
+    <update id="delete" parameterType="menuVO">
+        WITH RECURSIVE descendants AS (
+            SELECT menu_id FROM t_menu WHERE menu_id = #{dbKey}::integer
+            UNION ALL
+            SELECT m.menu_id FROM t_menu m JOIN descendants d ON m.p_menu_id = d.menu_id
+        )
+        UPDATE t_menu SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE menu_id IN (SELECT menu_id FROM descendants)
+    </update>
+
+    <!-- 삭제 후 순서 당김: 같은 영역·부모에서 지운 행보다 큰 순서를 -1 (delete 직후 트랜잭션 내 호출) -->
+    <update id="shiftOrdrAfterDelete" parameterType="menuVO">
+        UPDATE t_menu SET ordr = ordr - 1, upd_dt = NOW()
+        WHERE use_yn = 'Y'
+          AND area = (SELECT area FROM t_menu WHERE menu_id = #{dbKey}::integer)
+          AND p_menu_id = (SELECT p_menu_id FROM t_menu WHERE menu_id = #{dbKey}::integer)
+          AND ordr > (SELECT ordr FROM t_menu WHERE menu_id = #{dbKey}::integer)
+    </update>
+
+</mapper>

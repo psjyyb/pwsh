@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userDAO">
+
+    <!-- 로그인/사용자 조회 (컬럼 snake → VO camel 자동 매핑)
+         pw_expired/pw_days_left는 pw_expire_dt 기준 계산값(만료 강제 아님, 알림용) -->
+    <select id="selectByUserId" parameterType="userVO" resultType="userVO">
+        SELECT user_id, user_pw, mem_cd, nickname, gen_cd, status_cd, use_yn, pw_expire_dt,
+               CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
+               CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
+               CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
+               CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS birth,
+               CASE WHEN pw_expire_dt IS NOT NULL AND pw_expire_dt &lt; NOW() THEN 'Y' ELSE 'N' END AS pw_expired,
+               CASE WHEN pw_expire_dt IS NULL THEN NULL
+                    ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (pw_expire_dt - NOW())) / 86400)::int) END AS pw_days_left,
+               CASE WHEN status_cd = 'STATUS02' AND is_account_non_locked_ti IS NOT NULL
+                     AND is_account_non_locked_ti + ((SELECT fail_cnt_denied_ti FROM t_config LIMIT 1) || ' minutes')::interval &gt; NOW()
+                    THEN 'Y' ELSE 'N' END AS lock_active,
+               fail_cnt, token_ver,
+               (SELECT fail_cnt_limit FROM t_config LIMIT 1) AS fail_cnt_limit,
+               (SELECT fail_cnt_denied_ti FROM t_config LIMIT 1) AS fail_cnt_denied_ti,
+               CASE WHEN status_cd = 'STATUS02' AND is_account_non_locked_ti IS NOT NULL
+                    THEN GREATEST(1, CEIL(EXTRACT(EPOCH FROM (is_account_non_locked_ti
+                         + ((SELECT fail_cnt_denied_ti FROM t_config LIMIT 1) || ' minutes')::interval - NOW())) / 60)::int)
+                    ELSE NULL END AS lock_remain_min
+        FROM t_user
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 존재 여부 -->
+    <select id="selectCount" parameterType="userVO" resultType="int">
+        SELECT COUNT(*) FROM t_user WHERE user_id = #{userId}
+    </select>
+
+    <!-- 닉네임 중복 확인(셀프가입) — 활성 계정 기준 -->
+    <select id="selectCountByNickname" parameterType="userVO" resultType="int">
+        SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND nickname = #{nickname}
+    </select>
+
+    <!-- 토큰 버전 +1 후 새 값 반환. 로그인(새 세션)·로그아웃·강제로그아웃 시 호출 →
+         기존 발급 토큰(ver 불일치)을 즉시 무효화(단일세션 last-wins / 로그아웃 revocation). -->
+    <select id="incrementTokenVer" parameterType="userVO" resultType="int">
+        UPDATE t_user SET token_ver = token_ver + 1 WHERE user_id = #{userId}
+        RETURNING token_ver
+    </select>
+
+    <!-- 목록 (비밀번호 제외, 코드명 조인) -->
+    <select id="selectList" parameterType="userVO" resultType="userVO">
+        SELECT u.user_id AS db_key, u.user_id, u.mem_cd, mc.code_nm AS mem_cd_nm, u.nickname, u.gen_cd,
+               CONVERT_FROM(DECRYPT(DECODE(u.user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
+               CONVERT_FROM(DECRYPT(DECODE(u.phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
+               CONVERT_FROM(DECRYPT(DECODE(u.email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
+               CONVERT_FROM(DECRYPT(DECODE(u.birth,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS birth,
+               u.status_cd, sc.code_nm AS status_cd_nm, u.use_yn
+        FROM t_user u
+        LEFT JOIN t_code mc ON mc.code_id = u.mem_cd    AND mc.p_code_id = 'MEM00'
+        LEFT JOIN t_code sc ON sc.code_id = u.status_cd AND sc.p_code_id = 'STATUS00'
+        WHERE u.use_yn = 'Y'
+        <if test="memCd != null and memCd != ''">AND u.mem_cd = #{memCd}</if>
+        <if test="statusCd != null and statusCd != ''">AND u.status_cd = #{statusCd}</if>
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND (u.user_id LIKE '%' || #{searchKeyword} || '%'
+                 OR CONVERT_FROM(DECRYPT(DECODE(u.user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') LIKE '%' || #{searchKeyword} || '%')
+        </if>
+        ORDER BY u.reg_dt DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="userVO" resultType="int">
+        SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y'
+        <if test="memCd != null and memCd != ''">AND mem_cd = #{memCd}</if>
+        <if test="statusCd != null and statusCd != ''">AND status_cd = #{statusCd}</if>
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND (user_id LIKE '%' || #{searchKeyword} || '%'
+                 OR CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') LIKE '%' || #{searchKeyword} || '%')
+        </if>
+    </select>
+
+    <!-- 단건 (비밀번호 제외) -->
+    <select id="selectView" parameterType="userVO" resultType="userVO">
+        SELECT user_id AS db_key, user_id, mem_cd, nickname, gen_cd, status_cd, use_yn,
+               CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
+               CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
+               CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
+               CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS birth
+        FROM t_user
+        WHERE user_id = #{dbKey} AND use_yn = 'Y'
+    </select>
+
+    <!-- 등록 (audit는 AuditInterceptor 자동. 비번은 Controller에서 BCrypt 인코딩 후 전달)
+         status_cd 미지정 시 STATUS01(정상) 기본 -->
+    <insert id="insert" parameterType="userVO">
+        INSERT INTO t_user (
+            user_id, user_pw, mem_cd, user_nm, nickname, phone, email, gen_cd, birth, status_cd, use_yn,
+            is_account_non_expired, is_account_non_locked, is_credentials_non_expired, is_enabled, fail_cnt,
+            last_upd_dt, pw_expire_dt,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip
+        ) VALUES (
+            #{userId}, #{userPw}, #{memCd},
+            ENCODE(ENCRYPT(CONVERT_TO(#{userNm},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            #{nickname},
+            ENCODE(ENCRYPT(CONVERT_TO(#{phone},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            #{genCd},
+            ENCODE(ENCRYPT(CONVERT_TO(#{birth},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            COALESCE(NULLIF(#{statusCd}, ''), 'STATUS01'), 'Y',
+            true, true, true, true, 0,
+            NOW(), NOW() + (COALESCE((SELECT pw_expire_cnt FROM t_config LIMIT 1), 90) * INTERVAL '1 day'),
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp}
+        )
+    </insert>
+
+    <!-- 정보 수정 (비밀번호 제외) -->
+    <update id="updateInfo" parameterType="userVO">
+        UPDATE t_user SET
+            mem_cd = #{memCd}, gen_cd = #{genCd}, status_cd = #{statusCd},
+            user_nm = ENCODE(ENCRYPT(CONVERT_TO(#{userNm},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            phone   = ENCODE(ENCRYPT(CONVERT_TO(#{phone},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            email   = ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            birth   = ENCODE(ENCRYPT(CONVERT_TO(#{birth},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{dbKey}
+    </update>
+
+    <!-- 비밀번호 변경 (Controller에서 BCrypt 인코딩 후 전달). 변경 시 만료일 재형성 -->
+    <update id="updatePw" parameterType="userVO">
+        UPDATE t_user SET
+            user_pw = #{userPw}, last_upd_dt = NOW(),
+            pw_expire_dt = NOW() + (COALESCE((SELECT pw_expire_cnt FROM t_config LIMIT 1), 90) * INTERVAL '1 day'),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{dbKey}
+    </update>
+
+    <!-- 로그인 성공 시 마지막 로그인 일시/IP 기록 + 실패횟수 초기화 (audit upd_dt는 건드리지 않음) -->
+    <update id="updateLoginInfo" parameterType="userVO">
+        UPDATE t_user SET last_login_dt = NOW(), last_login_ip = #{lastLoginIp}, fail_cnt = 0
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 로그인 실패 시 실패횟수 +1, 제한(t_config.fail_cnt_limit) 도달 시 잠금(STATUS02) + 잠금시각 기록 -->
+    <update id="increaseFailCnt" parameterType="userVO">
+        UPDATE t_user SET
+            fail_cnt = fail_cnt + 1,
+            status_cd = CASE WHEN fail_cnt + 1 &gt;= (SELECT fail_cnt_limit FROM t_config LIMIT 1)
+                             THEN 'STATUS02' ELSE status_cd END,
+            is_account_non_locked_ti = CASE WHEN fail_cnt + 1 &gt;= (SELECT fail_cnt_limit FROM t_config LIMIT 1)
+                                            THEN NOW() ELSE is_account_non_locked_ti END
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 잠금시간 경과 시 자동 해제(정상 복귀) -->
+    <update id="unlockAccount" parameterType="userVO">
+        UPDATE t_user SET status_cd = 'STATUS01', fail_cnt = 0, is_account_non_locked_ti = NULL
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 비밀번호 만료 연장(변경 강제 대신 "나중에" → 만료일만 재형성, last_upd_dt는 유지) -->
+    <update id="extendPwExpire" parameterType="userVO">
+        UPDATE t_user SET
+            pw_expire_dt = NOW() + (COALESCE((SELECT pw_expire_cnt FROM t_config LIMIT 1), 90) * INTERVAL '1 day'),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 삭제(논리, 탈퇴) -->
+    <update id="delete" parameterType="userVO">
+        UPDATE t_user SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{dbKey}
+    </update>
+
+    <!-- 사용자의 권한그룹 ID 목록 (t_auth_user) -->
+    <select id="selectAuthgrpIds" parameterType="userVO" resultType="string">
+        SELECT authgrp_id FROM t_auth_user WHERE use_yn = 'Y' AND user_id = #{userId}
+    </select>
+
+    <!-- 사용자의 권한그룹 전체 삭제(저장 전 초기화) -->
+    <delete id="deleteAuthUser" parameterType="userVO">
+        DELETE FROM t_auth_user WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 사용자-권한그룹 1건 등록 -->
+    <insert id="insertAuthUser" parameterType="userVO">
+        INSERT INTO t_auth_user (user_id, authgrp_id, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{userId}, #{authgrpId}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+</mapper>

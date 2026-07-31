@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="recruitDAO">
+
+    <!-- ===================== 모집 (t_recruit) ===================== -->
+    <sql id="listFilter">
+        WHERE r.use_yn = 'Y'
+        <if test="hobbyId != null and hobbyId != ''">AND r.hobby_id = #{hobbyId}::integer</if>
+        <if test="statusCd != null and statusCd != ''">AND r.status_cd = #{statusCd}</if>
+        <if test="region != null and region != ''">AND r.region LIKE '%' || #{region} || '%'</if>
+        <if test="searchKeyword != null and searchKeyword != ''">AND r.title LIKE '%' || #{searchKeyword} || '%'</if>
+    </sql>
+
+    <select id="selectList" parameterType="recruitVO" resultType="recruitVO">
+        SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.capacity, r.region, r.meet_dt,
+               r.status_cd, r.view_cnt, r.reg_id,
+               ho.hobby_nm,
+               sc.code_nm AS status_nm,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
+               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
+               TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_recruit r
+        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        <include refid="listFilter"/>
+        ORDER BY r.recruit_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="recruitVO" resultType="int">
+        SELECT COUNT(*) FROM t_recruit r
+        <include refid="listFilter"/>
+    </select>
+
+    <select id="selectView" parameterType="recruitVO" resultType="recruitVO">
+        SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.content, r.capacity, r.region, r.meet_dt,
+               r.status_cd, r.view_cnt, r.reg_id,
+               ho.hobby_nm,
+               sc.code_nm AS status_nm,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
+               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
+               TO_CHAR(r.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM t_recruit r
+        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        WHERE r.recruit_id = #{dbKey}::integer AND r.use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="recruitVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="recruit_id">
+        INSERT INTO t_recruit (hobby_id, title, content, capacity, region, meet_dt, status_cd, view_cnt, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{hobbyId}::integer, #{title}, #{content},
+            NULLIF(#{capacity}, '')::integer, NULLIF(#{region}, ''), NULLIF(#{meetDt}, ''),
+            COALESCE(NULLIF(#{statusCd}, ''), 'RECRUIT01'), 0, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="recruitVO">
+        UPDATE t_recruit SET
+            title = #{title}, content = #{content},
+            capacity = NULLIF(#{capacity}, '')::integer,
+            region = NULLIF(#{region}, ''), meet_dt = NULLIF(#{meetDt}, ''),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE recruit_id = #{dbKey}::integer
+    </update>
+
+    <update id="updateStatus" parameterType="recruitVO">
+        UPDATE t_recruit SET status_cd = #{statusCd}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE recruit_id = #{dbKey}::integer
+    </update>
+
+    <update id="updateViewCnt" parameterType="recruitVO">
+        UPDATE t_recruit SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE recruit_id = #{dbKey}::integer
+    </update>
+
+    <update id="delete" parameterType="recruitVO">
+        UPDATE t_recruit SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE recruit_id = #{dbKey}::integer
+    </update>
+
+    <!-- ===================== 참여 신청 (t_recruit_apply) ===================== -->
+    <!-- 특정 모집 신청자 목록(주최자용) -->
+    <select id="selectApplyList" parameterType="recruitApplyVO" resultType="recruitApplyVO">
+        SELECT a.apply_id::TEXT AS db_key, a.recruit_id, a.user_id, a.apply_status, a.apply_memo, a.reg_id,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = a.user_id) AS nickname,
+               sc.code_nm AS apply_status_nm,
+               TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM t_recruit_apply a
+        LEFT JOIN t_code sc ON sc.code_id = a.apply_status AND sc.p_code_id = 'APPLY00'
+        WHERE a.use_yn = 'Y' AND a.recruit_id = #{recruitId}::integer
+        ORDER BY a.apply_id
+    </select>
+
+    <!-- 내 신청 내역 -->
+    <select id="selectApplyListMine" parameterType="recruitApplyVO" resultType="recruitApplyVO">
+        SELECT a.apply_id::TEXT AS db_key, a.recruit_id, a.user_id, a.apply_status, a.apply_memo,
+               r.title AS recruit_title,
+               sc.code_nm AS apply_status_nm,
+               TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM t_recruit_apply a
+        JOIN t_recruit r ON r.recruit_id = a.recruit_id
+        LEFT JOIN t_code sc ON sc.code_id = a.apply_status AND sc.p_code_id = 'APPLY00'
+        WHERE a.use_yn = 'Y' AND a.user_id = #{userId}
+        ORDER BY a.apply_id DESC
+    </select>
+
+    <!-- 신청 단건(인가용: 신청자·소속 모집 확인) -->
+    <select id="selectApplyView" parameterType="recruitApplyVO" resultType="recruitApplyVO">
+        SELECT apply_id::TEXT AS db_key, recruit_id, user_id, apply_status
+        FROM t_recruit_apply WHERE apply_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 활성 중복신청 여부 -->
+    <select id="selectApplyCountByUser" parameterType="recruitApplyVO" resultType="int">
+        SELECT COUNT(*) FROM t_recruit_apply
+        WHERE use_yn = 'Y' AND recruit_id = #{recruitId}::integer AND user_id = #{userId}
+    </select>
+
+    <insert id="insertApply" parameterType="recruitApplyVO">
+        INSERT INTO t_recruit_apply (recruit_id, user_id, apply_status, apply_memo, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{recruitId}::integer, #{userId},
+            COALESCE(NULLIF(#{applyStatus}, ''), 'APPLY01'), NULLIF(#{applyMemo}, ''), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="updateApplyStatus" parameterType="recruitApplyVO">
+        UPDATE t_recruit_apply SET apply_status = #{applyStatus}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE apply_id = #{dbKey}::integer
+    </update>
+
+    <update id="deleteApply" parameterType="recruitApplyVO">
+        UPDATE t_recruit_apply SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE apply_id = #{dbKey}::integer
+    </update>
+
+    <!-- 모집 삭제 시 딸린 신청 일괄 비활성 -->
+    <update id="deleteApplyByRecruit" parameterType="recruitApplyVO">
+        UPDATE t_recruit_apply SET use_yn = 'N', upd_dt = NOW()
+        WHERE recruit_id = #{recruitId}::integer AND use_yn = 'Y'
+    </update>
+
+</mapper>

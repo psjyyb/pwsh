@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="hobbyDAO">
+
+    <sql id="thumb">
+        (SELECT r.file_id FROM r_file r
+          JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+          WHERE r.map_key = h.hobby_id AND r.file_loc = 'HOBBY'
+          ORDER BY r.ordr LIMIT 1)
+    </sql>
+
+    <select id="selectList" parameterType="hobbyVO" resultType="hobbyVO">
+        SELECT h.hobby_id::TEXT AS db_key, h.hobby_nm, h.summary, h.difficulty_cd, h.equipment, h.est_cost,
+               h.bbsinfo_id, h.sort_ordr,
+               dc.code_nm AS difficulty_nm,
+               bi.bbsinfo_nm,
+               <include refid="thumb"/> AS thumb_id,
+               (SELECT COUNT(*) FROM t_bbs b WHERE b.bbsinfo_id = h.bbsinfo_id AND b.use_yn = 'Y' AND b.p_bbs_id = 0) AS post_cnt
+        FROM t_hobby h
+        LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
+        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
+        WHERE h.use_yn = 'Y'
+        <if test="searchKeyword != null and searchKeyword != ''">AND h.hobby_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        ORDER BY h.sort_ordr, h.hobby_id
+    </select>
+
+    <select id="selectListTotCnt" parameterType="hobbyVO" resultType="int">
+        SELECT COUNT(*) FROM t_hobby h WHERE h.use_yn = 'Y'
+        <if test="searchKeyword != null and searchKeyword != ''">AND h.hobby_nm LIKE '%' || #{searchKeyword} || '%'</if>
+    </select>
+
+    <select id="selectView" parameterType="hobbyVO" resultType="hobbyVO">
+        SELECT h.hobby_id::TEXT AS db_key, h.hobby_nm, h.summary, h.intro, h.guide, h.difficulty_cd,
+               h.equipment, h.est_cost, h.bbsinfo_id, h.sort_ordr,
+               dc.code_nm AS difficulty_nm,
+               bi.bbsinfo_nm,
+               <include refid="thumb"/> AS thumb_id
+        FROM t_hobby h
+        LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
+        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
+        WHERE h.hobby_id = #{dbKey}::integer AND h.use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="hobbyVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="hobby_id">
+        INSERT INTO t_hobby (hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_ordr, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{hobbyNm}, NULLIF(#{summary}, ''), #{intro}, #{guide}, NULLIF(#{difficultyCd}, ''),
+            NULLIF(#{equipment}, ''), NULLIF(#{estCost}, ''),
+            NULLIF(#{bbsinfoId}, '')::integer, COALESCE(NULLIF(#{sortOrdr}, '')::integer, 0), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="hobbyVO">
+        UPDATE t_hobby SET
+            hobby_nm = #{hobbyNm}, summary = NULLIF(#{summary}, ''), intro = #{intro}, guide = #{guide},
+            difficulty_cd = NULLIF(#{difficultyCd}, ''), equipment = NULLIF(#{equipment}, ''), est_cost = NULLIF(#{estCost}, ''),
+            bbsinfo_id = NULLIF(#{bbsinfoId}, '')::integer, sort_ordr = COALESCE(NULLIF(#{sortOrdr}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE hobby_id = #{dbKey}::integer
+    </update>
+
+    <update id="delete" parameterType="hobbyVO">
+        UPDATE t_hobby SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE hobby_id = #{dbKey}::integer
+    </update>
+
+</mapper>

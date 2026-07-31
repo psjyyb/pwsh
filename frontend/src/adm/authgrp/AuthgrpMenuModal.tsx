@@ -1,0 +1,70 @@
+import { useEffect, useState } from 'react'
+import { Modal, Tree, message } from 'antd'
+import type { TreeDataNode } from 'antd'
+import { menuApi } from '../menu/menu.api'
+import type { Menu } from '../menu/menu.api'
+import { authgrpApi } from './authgrp.api'
+import type { Authgrp } from './authgrp.api'
+
+/** 플랫 메뉴 → AntD Tree 데이터 */
+function toTreeData(list: Menu[]): TreeDataNode[] {
+  const byParent = new Map<string, Menu[]>()
+  for (const m of list) {
+    const p = m.pMenuId ?? '0'
+    if (!byParent.has(p)) byParent.set(p, [])
+    byParent.get(p)!.push(m)
+  }
+  const build = (pid: string): TreeDataNode[] =>
+    (byParent.get(pid) ?? []).map((m) => ({ key: m.dbKey!, title: m.menuNm, children: build(m.dbKey!) }))
+  return build('0')
+}
+
+interface Props {
+  open: boolean
+  authgrp: Authgrp | null
+  onClose: () => void
+}
+
+/** 권한그룹의 접근 가능 메뉴를 트리 체크로 설정 (checkStrictly=상/하위 독립 선택) */
+export default function AuthgrpMenuModal({ open, authgrp, onClose }: Props) {
+  const [treeData, setTreeData] = useState<TreeDataNode[]>([])
+  const [checked, setChecked] = useState<string[]>([])
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!open || !authgrp) return
+    menuApi
+      .tree('ADM')
+      .then((list) => {
+        setTreeData(toTreeData(list))
+        setExpandedKeys(list.map((m) => m.dbKey!)) // 로드 후 전체 펼침
+      })
+      .catch(() => setTreeData([]))
+    authgrpApi.getMenuIds(authgrp.dbKey!).then(setChecked).catch(() => setChecked([]))
+  }, [open, authgrp])
+
+  const onOk = async () => {
+    if (!authgrp) return
+    try {
+      await authgrpApi.saveMenu(authgrp.dbKey!, checked)
+      message.success('저장되었습니다.')
+      onClose()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '저장에 실패했습니다.')
+    }
+  }
+
+  return (
+    <Modal open={open} title={`권한 설정 — ${authgrp?.authgrpNm ?? ''}`} onOk={onOk} onCancel={onClose} okText="저장" cancelText="취소">
+      <Tree
+        checkable
+        checkStrictly
+        treeData={treeData}
+        checkedKeys={checked}
+        expandedKeys={expandedKeys}
+        onExpand={(keys) => setExpandedKeys(keys.map(String))}
+        onCheck={(keys) => setChecked((Array.isArray(keys) ? keys : keys.checked).map(String))}
+      />
+    </Modal>
+  )
+}

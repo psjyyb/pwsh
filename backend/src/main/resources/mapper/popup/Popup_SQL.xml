@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="popupDAO">
+
+    <select id="selectList" parameterType="popupVO" resultType="popupVO">
+        SELECT pop_id::TEXT AS db_key, pop_nm, start_dt, end_dt, link, txt, ordr,
+               pop_width, pop_height, pop_top, pop_left, use_yn
+        FROM t_popup
+        WHERE use_yn = 'Y'
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND pop_nm LIKE '%' || #{searchKeyword} || '%'
+        </if>
+        ORDER BY ordr, pop_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="popupVO" resultType="int">
+        SELECT COUNT(*) FROM t_popup WHERE use_yn = 'Y'
+        <if test="searchKeyword != null and searchKeyword != ''">AND pop_nm LIKE '%' || #{searchKeyword} || '%'</if>
+    </select>
+
+    <!-- 사용자 메인 노출용: 사용중 + 오늘이 노출기간 내(기간 미설정은 항상 노출) + 순서 -->
+    <select id="selectMainList" parameterType="popupVO" resultType="popupVO">
+        SELECT pop_id::TEXT AS db_key, pop_nm, start_dt, end_dt, link, txt, ordr,
+               pop_width, pop_height, pop_top, pop_left,
+               (SELECT r.file_id FROM r_file r
+                 JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = t_popup.pop_id AND r.file_loc = 'POPUP'
+                 ORDER BY r.ordr LIMIT 1) AS file_id
+        FROM t_popup
+        WHERE use_yn = 'Y'
+          AND (start_dt IS NULL OR start_dt = '' OR start_dt &lt;= TO_CHAR(NOW(), 'YYYY-MM-DD'))
+          AND (end_dt   IS NULL OR end_dt   = '' OR end_dt   &gt;= TO_CHAR(NOW(), 'YYYY-MM-DD'))
+        ORDER BY ordr, pop_id
+    </select>
+
+    <select id="selectView" parameterType="popupVO" resultType="popupVO">
+        SELECT pop_id::TEXT AS db_key, pop_nm, start_dt, end_dt, link, txt, ordr,
+               pop_width, pop_height, pop_top, pop_left, use_yn,
+               (SELECT r.file_id FROM r_file r
+                 JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = t_popup.pop_id AND r.file_loc = 'POPUP'
+                 ORDER BY r.ordr LIMIT 1) AS file_id
+        FROM t_popup WHERE pop_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="popupVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="pop_id">
+        INSERT INTO t_popup (pop_nm, start_dt, end_dt, link, txt, ordr,
+            pop_width, pop_height, pop_top, pop_left, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{popNm}, #{startDt}, #{endDt}, #{link}, #{txt},
+            -- 전역 마지막(사용중) 순서+1 자동 부여
+            COALESCE(NULLIF(#{ordr}, '')::integer, (SELECT COALESCE(MAX(ordr), 0) + 1 FROM t_popup WHERE use_yn = 'Y')),
+            #{popWidth}, #{popHeight}, #{popTop}, #{popLeft}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="popupVO">
+        UPDATE t_popup SET
+            pop_nm = #{popNm}, start_dt = #{startDt}, end_dt = #{endDt},
+            link = #{link}, txt = #{txt},
+            pop_width = #{popWidth}, pop_height = #{popHeight}, pop_top = #{popTop}, pop_left = #{popLeft},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE pop_id = #{dbKey}::integer
+    </update>
+
+    <!-- 순서 교환용: 인접 팝업 (전역 ordr, UP=바로 위, 그 외=바로 아래) -->
+    <select id="selectAdjacentOrdr" parameterType="popupVO" resultType="popupVO">
+        SELECT pop_id::TEXT AS db_key, ordr
+        FROM t_popup
+        WHERE use_yn = 'Y'
+        <choose>
+            <when test="searchCondition == 'UP'">
+                AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
+            </when>
+            <otherwise>
+                AND ordr &gt; #{ordr}::integer ORDER BY ordr ASC
+            </otherwise>
+        </choose>
+        LIMIT 1
+    </select>
+
+    <!-- 정렬순서 변경 (updatePopupordr.do 분기용: 대상 행 ordr를 지정값으로 → 교환에 사용) -->
+    <update id="updateordr" parameterType="popupVO">
+        UPDATE t_popup SET
+            ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE pop_id = #{dbKey}::integer
+    </update>
+
+    <update id="delete" parameterType="popupVO">
+        UPDATE t_popup SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE pop_id = #{dbKey}::integer
+    </update>
+
+    <!-- 삭제 후 순서 당김: 전역에서 지운 행보다 큰 순서를 -1 -->
+    <update id="shiftOrdrAfterDelete" parameterType="popupVO">
+        UPDATE t_popup SET ordr = ordr - 1, upd_dt = NOW()
+        WHERE use_yn = 'Y'
+          AND ordr > (SELECT ordr FROM t_popup WHERE pop_id = #{dbKey}::integer)
+    </update>
+
+</mapper>

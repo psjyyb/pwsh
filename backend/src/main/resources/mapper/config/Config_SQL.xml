@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="configDAO">
+
+    <!-- 단일 행 설정 -->
+    <select id="selectView" parameterType="configVO" resultType="configVO">
+        SELECT fail_cnt_limit, fail_cnt_denied_ti, pw_expire_cnt, session_expire_cnt,
+               del_log_cnt, acc_ip_yn, title, menu_version,
+               (SELECT r.file_id FROM r_file r
+                 JOIN t_file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
+                 WHERE r.map_key = 1 AND r.file_loc = 'LOGO'
+                 ORDER BY r.ordr LIMIT 1) AS logo_file_id  <!-- 단일행 config(map_key=1)의 로고, 없으면 프론트 기본 로고 -->
+        FROM t_config
+        LIMIT 1
+    </select>
+
+    <update id="update" parameterType="configVO">
+        UPDATE t_config SET
+            fail_cnt_limit = NULLIF(#{failCntLimit}, '')::integer,
+            fail_cnt_denied_ti = NULLIF(#{failCntDeniedTi}, '')::integer,
+            pw_expire_cnt = NULLIF(#{pwExpireCnt}, '')::integer,
+            session_expire_cnt = NULLIF(#{sessionExpireCnt}, '')::integer,
+            del_log_cnt = NULLIF(#{delLogCnt}, '')::integer,
+            acc_ip_yn = #{accIpYn},
+            title = #{title}
+    </update>
+
+</mapper>

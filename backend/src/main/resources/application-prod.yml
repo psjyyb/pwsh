@@ -1,0 +1,22 @@
+# =====================================================================
+# 운영(prod) 프로파일
+# 모든 접속정보/시크릿은 환경변수로 주입 (코드/저장소에 값 저장 금지)
+# =====================================================================
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+jwt:
+  # 시크릿은 반드시 환경변수 JWT_SECRET로 주입(미주입 시 기동 실패 — 하드코딩 금지)
+  secret: ${JWT_SECRET}
+
+# DB 컬럼 암호화 키는 BaseVO가 환경변수 DB_ENC_KEY에서 읽는다. 운영은 반드시 DB_ENC_KEY를 주입할 것.
+# (미주입 시 dev 기본값으로 폴백되어 운영 데이터 복호화 불가/보안 취약 — 배포 스크립트에서 필수 설정)
+
+logging:
+  level:
+    root: info
+    com.pwsh: info

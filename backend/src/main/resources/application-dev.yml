@@ -1,0 +1,28 @@
+# =====================================================================
+# 개발(dev) 프로파일
+# DB 접속정보는 환경변수로 주입 (IDE Run Config 또는 OS 환경변수)
+#   DB_URL=jdbc:postgresql://localhost:5432/pwsh
+#   DB_USERNAME=...
+#   DB_PASSWORD=...
+# 접속정보 확정 후 값을 채우거나 환경변수로 설정
+# =====================================================================
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    # 값 직접 하드코딩 대신 환경변수 우선(미주입 시 dev 기본값). 운영은 application-prod.yml에서 env 강제.
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pwsh}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:qwer1234}
+
+jwt:
+  secret: ${JWT_SECRET:psjyyb}
+
+# 파일 업로드 저장 경로(dev): 실행 위치(IntelliJ=repo 루트 / gradle=backend)에 따라
+#   상대경로가 달라지는 문제를 막기 위해, dev에선 backend/uploads 절대경로로 고정한다.
+#   FILE_UPLOAD_DIR 환경변수를 주면 그 값으로 덮어쓴다. (운영은 application.yml의 ${FILE_UPLOAD_DIR})
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:D:/workspace/pwsh_work/pwsh/backend/uploads}
+
+logging:
+  level:
+    com.pwsh: debug

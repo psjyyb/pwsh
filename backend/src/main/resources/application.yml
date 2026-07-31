@@ -1,0 +1,44 @@
+# =====================================================================
+# 공통 설정 (프로파일 무관)
+# DB 접속정보는 프로파일별(application-{env}.yml)에서 환경변수로 주입
+# =====================================================================
+spring:
+  application:
+    name: pwsh
+  profiles:
+    active: dev
+
+  # 응답 JSON에서 null 필드 제외 (BaseVO의 페이징/검색 등 미사용 필드가 응답에 노출되지 않도록)
+  jackson:
+    default-property-inclusion: non_null
+
+  # 파일 업로드 크기 제한
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 50MB
+
+# 파일 업로드 저장 경로 (기본: 실행 디렉터리의 uploads. 운영은 환경변수 FILE_UPLOAD_DIR)
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:uploads}
+  # 고아 파일 정리(GC): 파일만 삭제(DB 기본데이터 행은 보존)
+  gc:
+    retention-days: 180  # C: 삭제된 엔티티 파일 보존기간(일)
+    abandon-hours: 24    # A: 업로드 후 미저장 파일 유예(시간)
+    cron: "0 0 4 * * *"  # 매일 새벽 4시 자동 실행
+
+# MyBatis: 컬럼(snake) → VO 필드(camel) 자동 매핑
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.pwsh
+  configuration:
+    map-underscore-to-camel-case: true
+
+server:
+  port: 8080
+
+# JWT (secret은 환경변수/시크릿으로 주입)
+jwt:
+  secret: ${JWT_SECRET:}
+  access-token-validity-ms: 1800000      # 30분
+  refresh-token-validity-ms: 1209600000  # 14일

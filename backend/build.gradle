@@ -1,0 +1,69 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.1.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
+}
+
+group = 'com.pwsh'
+version = '0.0.1-SNAPSHOT'
+description = 'pwsh'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// --- Spring Boot ---
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// AOP(행위 로그 EventLogAspect). spring-aop는 web 전이 의존, aspectjweaver 추가 시 Boot가 자동활성화.
+	implementation 'org.aspectj:aspectjweaver'
+
+	// --- MyBatis (Boot 4.1 호환 검증 대상) ---
+	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
+
+	// --- JWT (jjwt) ---
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+	// --- DB ---
+	runtimeOnly 'org.postgresql:postgresql'
+
+	// --- Lombok ---
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// --- Test ---
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		html.required = true
+		xml.required = false
+		csv.required = false
+	}
+}

@@ -1,0 +1,30 @@
+# =====================================================================
+# 테스트(test) 프로파일 — 로컬 전용 PostgreSQL(pwsh_test)
+# 실제 DB 엔진을 그대로 사용(모킹 0). pgcrypto·RETURNING·캐스팅 등 운영 SQL 그대로 검증.
+# 매 테스트 실행마다 스키마를 초기화(test-reset.sql → schema.sql → data.sql)해 깨끗한 상태 보장.
+# (Docker가 있으면 향후 Testcontainers로 전환 가능 — base 클래스만 교체)
+# =====================================================================
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/pwsh_test}
+    username: ${TEST_DB_USERNAME:postgres}
+    password: ${TEST_DB_PASSWORD:qwer1234}
+  sql:
+    init:
+      mode: always
+      # gradle test 작업 디렉터리 = backend/ → ../sql 는 리포지토리 루트의 sql/
+      schema-locations:
+        - classpath:test-reset.sql
+        - file:../sql/schema.sql
+      data-locations:
+        - file:../sql/data.sql
+      continue-on-error: false
+
+jwt:
+  secret: test-secret-framework-0123456789
+
+logging:
+  level:
+    com.pwsh: info
+    org.springframework.jdbc.datasource.init: info

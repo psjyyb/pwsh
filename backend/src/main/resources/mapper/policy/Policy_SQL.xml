@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="policyDAO">
+
+    <select id="selectList" parameterType="policyVO" resultType="policyVO">
+        SELECT p.policy_id::TEXT AS db_key, p.title, p.type_cd, c.code_nm AS type_cd_nm, p.req_yn, p.ordr, p.use_yn
+        FROM t_policy p
+        LEFT JOIN t_code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
+        WHERE p.use_yn = 'Y'
+        <if test="typeCd != null and typeCd != ''">AND p.type_cd = #{typeCd}</if>
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND p.title LIKE '%' || #{searchKeyword} || '%'
+        </if>
+        ORDER BY p.type_cd, p.ordr
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="policyVO" resultType="int">
+        SELECT COUNT(*) FROM t_policy WHERE use_yn = 'Y'
+        <if test="typeCd != null and typeCd != ''">AND type_cd = #{typeCd}</if>
+        <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+    </select>
+
+    <select id="selectView" parameterType="policyVO" resultType="policyVO">
+        SELECT policy_id::TEXT AS db_key, title, content, type_cd, req_yn, ordr, use_yn
+        FROM t_policy WHERE policy_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="policyVO">
+        INSERT INTO t_policy (title, content, type_cd, req_yn, ordr, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{title}, #{content}, #{typeCd}, COALESCE(#{reqYn}, 'Y'),
+            -- 같은 약관유형(type_cd) 내 마지막 순서+1 자동 부여
+            COALESCE(NULLIF(#{ordr}, '')::integer,
+                (SELECT COALESCE(MAX(ordr), 0) + 1 FROM t_policy WHERE type_cd = #{typeCd} AND use_yn = 'Y')),
+            'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="policyVO">
+        UPDATE t_policy SET
+            title = #{title}, content = #{content}, type_cd = #{typeCd}, req_yn = #{reqYn},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE policy_id = #{dbKey}::integer
+    </update>
+
+    <!-- 순서 교환용: 같은 약관유형(type_cd) 내 인접 약관 (UP=바로 위, 그 외=바로 아래) -->
+    <select id="selectAdjacentOrdr" parameterType="policyVO" resultType="policyVO">
+        SELECT policy_id::TEXT AS db_key, ordr
+        FROM t_policy
+        WHERE use_yn = 'Y' AND type_cd = #{typeCd}
+        <choose>
+            <when test="searchCondition == 'UP'">
+                AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
+            </when>
+            <otherwise>
+                AND ordr &gt; #{ordr}::integer ORDER BY ordr ASC
+            </otherwise>
+        </choose>
+        LIMIT 1
+    </select>
+
+    <!-- 정렬순서 변경 (updatePolicyordr.do 분기용: 대상 행 ordr를 지정값으로 → 교환에 사용) -->
+    <update id="updateordr" parameterType="policyVO">
+        UPDATE t_policy SET
+            ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE policy_id = #{dbKey}::integer
+    </update>
+
+    <update id="delete" parameterType="policyVO">
+        UPDATE t_policy SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE policy_id = #{dbKey}::integer
+    </update>
+
+    <!-- 삭제 후 순서 당김: 같은 약관유형(type_cd)에서 지운 행보다 큰 순서를 -1 -->
+    <update id="shiftOrdrAfterDelete" parameterType="policyVO">
+        UPDATE t_policy SET ordr = ordr - 1, upd_dt = NOW()
+        WHERE use_yn = 'Y'
+          AND type_cd = (SELECT type_cd FROM t_policy WHERE policy_id = #{dbKey}::integer)
+          AND ordr > (SELECT ordr FROM t_policy WHERE policy_id = #{dbKey}::integer)
+    </update>
+
+</mapper>

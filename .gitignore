@@ -1,0 +1,47 @@
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+out/
+bin/
+
+# Gradle / Java
+.gradle/
+build/
+*.class
+*.log
+
+# 로컬 실행 로그 (bootRun/vite 백그라운드 stdout·stderr 리다이렉트)
+*.out
+*.err
+boot.out
+boot.err
+dev.out
+dev.err
+
+# 업로드 파일 (로컬 저장소)
+uploads/
+backend/uploads/
+
+# Node (frontend)
+node_modules/
+dist/
+.pnp.*
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로컬 접속정보/시크릿 (커밋 금지)
+application-local.yml
+*.env
+.env
+
+# 로컬 Gradle 설정 (JDK 경로가 PC마다 다름 → 커밋 금지)
+gradle.properties

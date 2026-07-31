@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="commentDAO">
+
+    <select id="selectList" parameterType="commentVO" resultType="commentVO">
+        SELECT comment_id::TEXT AS db_key, bbs_id, context, good_cnt, bad_cnt, reg_id,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_nm,
+               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM t_comment
+        WHERE use_yn = 'Y' AND bbs_id = #{bbsId}::integer
+        ORDER BY comment_id
+    </select>
+
+    <!-- 단건(수정/삭제 인가용: 작성자·소속 게시글 확인) -->
+    <select id="selectView" parameterType="commentVO" resultType="commentVO">
+        SELECT comment_id::TEXT AS db_key, bbs_id, context, reg_id
+        FROM t_comment WHERE comment_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="commentVO">
+        INSERT INTO t_comment (bbs_id, context, good_cnt, bad_cnt, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{bbsId}::integer, #{context}, 0, 0, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="commentVO">
+        UPDATE t_comment SET context = #{context}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE comment_id = #{dbKey}::integer
+    </update>
+
+    <update id="delete" parameterType="commentVO">
+        UPDATE t_comment SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE comment_id = #{dbKey}::integer
+    </update>
+
+</mapper>

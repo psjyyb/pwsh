@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="eventlogDAO">
+
+    <select id="selectList" parameterType="eventlogVO" resultType="eventlogVO">
+        SELECT e.event_log_id::TEXT AS db_key, e.event_type, c.code_nm AS event_type_nm,
+               e.user_id, e.target_table, e.target_id, e.device_type, e.user_agent, e.reg_dt, e.reg_ip
+        FROM t_event_log e
+        LEFT JOIN t_code c ON c.code_id = e.event_type AND c.p_code_id = 'EVENT00'
+        <where>
+            <if test="eventType != null and eventType != ''">AND e.event_type = #{eventType}</if>
+            <include refid="searchCond" />
+        </where>
+        ORDER BY e.event_log_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="eventlogVO" resultType="int">
+        SELECT COUNT(*) FROM t_event_log
+        <where>
+            <if test="eventType != null and eventType != ''">AND event_type = #{eventType}</if>
+            <include refid="searchCond" />
+        </where>
+    </select>
+
+    <!-- 검색조건(searchCondition)에 따라 검색 컬럼 변경 -->
+    <sql id="searchCond">
+        <if test="searchKeyword != null and searchKeyword != ''">
+            <if test="searchCondition == 'user_id'">AND user_id LIKE '%' || #{searchKeyword} || '%'</if>
+            <if test="searchCondition == 'target_table'">AND target_table LIKE '%' || #{searchKeyword} || '%'</if>
+        </if>
+    </sql>
+
+    <select id="selectView" parameterType="eventlogVO" resultType="eventlogVO">
+        SELECT e.event_log_id::TEXT AS db_key, e.event_type, c.code_nm AS event_type_nm,
+               e.user_id, e.target_table, e.target_id, e.device_type, e.user_agent, e.reg_dt, e.reg_ip
+        FROM t_event_log e
+        LEFT JOIN t_code c ON c.code_id = e.event_type AND c.p_code_id = 'EVENT00'
+        WHERE e.event_log_id = #{dbKey}::integer
+    </select>
+
+    <!-- 행위 로그 기록(EventLogService). reg_ip는 AuditInterceptor 자동, reg_dt는 NOW() -->
+    <insert id="insert" parameterType="eventlogVO">
+        INSERT INTO t_event_log (event_type, user_id, target_table, target_id, device_type, user_agent, reg_dt, reg_ip)
+        VALUES (#{eventType}, #{userId}, #{targetTable}, #{targetId}, #{deviceType}, #{userAgent}, NOW(), #{regIp})
+    </insert>
+
+</mapper>

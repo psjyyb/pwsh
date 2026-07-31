@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="authgrpDAO">
+
+    <select id="selectList" parameterType="authgrpVO" resultType="authgrpVO">
+        SELECT authgrp_id AS db_key, authgrp_nm, authgrp_desc, use_yn
+        FROM t_auth_grp
+        WHERE use_yn = 'Y'
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND (authgrp_id LIKE '%' || #{searchKeyword} || '%' OR authgrp_nm LIKE '%' || #{searchKeyword} || '%')
+        </if>
+        ORDER BY authgrp_id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="authgrpVO" resultType="int">
+        SELECT COUNT(*) FROM t_auth_grp WHERE use_yn = 'Y'
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND (authgrp_id LIKE '%' || #{searchKeyword} || '%' OR authgrp_nm LIKE '%' || #{searchKeyword} || '%')
+        </if>
+    </select>
+
+    <!-- 콤보(사용자-그룹 지정용) -->
+    <select id="selectComboList" parameterType="authgrpVO" resultType="authgrpVO">
+        SELECT authgrp_id, authgrp_nm FROM t_auth_grp WHERE use_yn = 'Y' ORDER BY authgrp_id
+    </select>
+
+    <select id="selectView" parameterType="authgrpVO" resultType="authgrpVO">
+        SELECT authgrp_id AS db_key, authgrp_nm, authgrp_desc, use_yn
+        FROM t_auth_grp WHERE authgrp_id = #{dbKey} AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="authgrpVO">
+        INSERT INTO t_auth_grp (authgrp_id, authgrp_nm, authgrp_desc, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{dbKey}, #{authgrpNm}, #{authgrpDesc}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="authgrpVO">
+        UPDATE t_auth_grp SET
+            authgrp_nm = #{authgrpNm}, authgrp_desc = #{authgrpDesc},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE authgrp_id = #{dbKey}
+    </update>
+
+    <update id="delete" parameterType="authgrpVO">
+        UPDATE t_auth_grp SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE authgrp_id = #{dbKey}
+    </update>
+
+    <!-- 그룹의 권한(메뉴) ID 목록 -->
+    <select id="selectAuthMenuIds" parameterType="authgrpVO" resultType="string">
+        SELECT menu_id FROM t_auth
+        WHERE auth_gbn = 'GRP' AND menu_yn = 'Y' AND use_yn = 'Y' AND conn_id = #{authgrpId}
+    </select>
+
+    <!-- 그룹 권한 전체 삭제(저장 전 초기화) -->
+    <delete id="deleteAuthByGrp" parameterType="authgrpVO">
+        DELETE FROM t_auth WHERE auth_gbn = 'GRP' AND conn_id = #{authgrpId}
+    </delete>
+
+    <!-- 그룹-메뉴 권한 1건 등록(menu_yn='Y') -->
+    <insert id="insertAuthMenu" parameterType="authgrpVO">
+        INSERT INTO t_auth (menu_id, conn_id, auth_gbn, menu_yn, search_yn, mod_yn, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{menuId}::integer, #{authgrpId}, 'GRP', 'Y', 'Y', 'Y', 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <!-- ===== 그룹-사용자 지정 (t_auth_user) ===== -->
+    <select id="selectUserIdsByGrp" parameterType="authgrpVO" resultType="string">
+        SELECT user_id FROM t_auth_user WHERE use_yn = 'Y' AND authgrp_id = #{authgrpId}
+    </select>
+
+    <delete id="deleteAuthUserByGrp" parameterType="authgrpVO">
+        DELETE FROM t_auth_user WHERE authgrp_id = #{authgrpId}
+    </delete>
+
+    <insert id="insertAuthUserByGrp" parameterType="authgrpVO">
+        INSERT INTO t_auth_user (user_id, authgrp_id, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{userId}, #{authgrpId}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+</mapper>
