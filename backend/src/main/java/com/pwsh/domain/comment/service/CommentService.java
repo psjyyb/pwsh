@@ -3,6 +3,8 @@ package com.pwsh.domain.comment.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.bbs.service.BbsVO;
+import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -19,16 +21,27 @@ public class CommentService {
 
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
+    private final NotificationService notificationService;
 
     public List<CommentVO> selectList(CommentVO vo) {
         genAccessGuard.checkPost(vo.getBbsId());
+        String me = SecurityUtil.getCurrentUserId();
+        vo.setViewerId((me == null || "system".equals(me)) ? null : me); // 좋아요 여부(liked_yn) 판정용
         return commonDAO.selectList("commentDAO.selectList", vo);
     }
 
-    /** 등록 — 접근 불가 게시판(게시글)엔 댓글 작성 차단. */
+    /** 등록 — 접근 불가 게시판(게시글)엔 댓글 작성 차단. 등록 후 글 작성자에게 알림(본인 글이면 notify가 자체 스킵). */
     public void insert(CommentVO vo) {
         genAccessGuard.checkPost(vo.getBbsId());
         commonDAO.insert("commentDAO.insert", vo);
+        BbsVO key = new BbsVO();
+        key.setDbKey(vo.getBbsId());
+        BbsVO post = commonDAO.selectOne("bbsDAO.selectView", key);
+        if (post != null) {
+            notificationService.notify(post.getRegId(), "COMMENT",
+                    "'" + post.getTitle() + "' 글에 새 댓글이 달렸어요.",
+                    "/gen/board/" + post.getBbsinfoId() + "?post=" + vo.getBbsId());
+        }
     }
 
     /** 수정 — 작성자 본인·관리자만(IDOR 방지). */

@@ -15,6 +15,7 @@ export interface Bbs {
   secretLocked?: string // 'Y'=비밀글 잠금(비번 필요) — 서버 응답 전용
   viewCnt?: string
   goodCnt?: string
+  likedYn?: string // 내가 좋아요 눌렀는지(Y/N) — 상세 조회 응답
   regId?: string // 작성자(로그인 ID)
   regNm?: string // 작성자 표시명(닉네임). 없으면 regId로 폴백
   regDt?: string

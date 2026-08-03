@@ -5,6 +5,7 @@ import com.pwsh.common.util.PageUtil;
 import com.pwsh.common.util.Validate;
 import com.pwsh.domain.bbs.service.BbsService;
 import com.pwsh.domain.bbs.service.BbsVO;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,6 +34,12 @@ public class BbsController {
     @RequestMapping("/selectBbsView.do")
     public ApiResponse<BbsVO> selectView(@RequestBody BbsVO searchVO) {
         return ApiResponse.ok(bbsService.selectView(searchVO));
+    }
+
+    /** 내가 쓴 글(마이페이지) — 로그인 본인 기준, 전 게시판. */
+    @RequestMapping("/selectBbsListMine.do")
+    public ApiResponse<List<BbsVO>> selectListMine() {
+        return ApiResponse.ok(bbsService.selectListMine());
     }
 
     /** 등록 후 생성된 게시글 ID 반환(첨부 매핑 연결용) */

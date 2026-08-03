@@ -34,7 +34,7 @@
         FROM t_bbsinfo WHERE use_yn = 'Y' ORDER BY bbsinfo_id DESC
     </select>
 
-    <insert id="insert" parameterType="bbsinfoVO">
+    <insert id="insert" parameterType="bbsinfoVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="bbsinfo_id">
         INSERT INTO t_bbsinfo (bbsinfo_nm, bbsinfo_cd, bbsinfo_desc, list_cnt,
             file_yn, file_cnt, file_size, notice_yn, new_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)

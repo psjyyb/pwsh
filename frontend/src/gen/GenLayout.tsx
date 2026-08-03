@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Modal, Space } from 'antd'
+import { Badge, Button, ConfigProvider, Dropdown, Drawer, Grid, Layout, Menu, Modal, Popover, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { genTheme } from './theme'
+import { genTheme, gen } from './theme'
 import { tokenStore, isAdmin } from '../auth/token'
 import { logout as authLogout } from '../api/auth'
 import { configApi } from '../adm/config/config.api'
@@ -11,10 +11,53 @@ import type { Menu as MenuVO } from '../adm/menu/menu.api'
 import { useIdleLogout } from '../common/hooks/useIdleLogout'
 import { useDocumentTitle } from '../common/hooks/useDocumentTitle'
 import { genScreens } from './genScreens'
+import GenMain from './GenMain'
 import GenPageView from './GenPageView'
 import NotFound from '../common/NotFound'
+import defaultLogo from '../assets/logo.svg'
+import hobbyPattern from '../assets/hobby-pattern.svg'
+import MenuGlyph from '../common/adm/components/MenuGlyph'
+import { notificationApi } from '../api/notification'
+import type { Noti } from '../api/notification'
 
 type MenuItem = Required<MenuProps>['items'][number]
+
+/** 데스크톱 헤더용 커스텀 nav 노드(아이콘↑/라벨↓). */
+type NavNode = { key: string; label: string; iconKey: string; dest?: string; children?: NavNode[] }
+
+/** GEN 메뉴엔 아이콘 시드가 없어(icon CASE는 ADM만) 경로/이름으로 적절한 MenuGlyph 키를 유추. m.icon이 있으면 우선. */
+function iconFor(m: MenuVO): string {
+  if (m.icon) return m.icon
+  const u = m.linkUrl || ''
+  const nm = m.menuNm || ''
+  if (u.includes('/mypage')) return 'user'
+  if (u.includes('/recruit')) return 'group'
+  if (u.includes('/main')) return 'home'
+  if (nm.includes('공지')) return 'bell'
+  if (nm.includes('고객') || nm.includes('FAQ') || nm.includes('도움')) return 'help'
+  if (nm.includes('문의')) return 'mail'
+  if (m.connTy === 'MENU02') return 'board'
+  if (m.connTy === 'MENU03') return 'page'
+  return 'grid'
+}
+
+/** 플랫 메뉴(t_menu GEN) → 데스크톱 커스텀 nav 트리(아이콘 포함). */
+function toNav(list: MenuVO[]): NavNode[] {
+  const byParent = new Map<string, MenuVO[]>()
+  for (const m of list) {
+    const p = m.pMenuId ?? '0'
+    if (!byParent.has(p)) byParent.set(p, [])
+    byParent.get(p)!.push(m)
+  }
+  const build = (parentId: string): NavNode[] =>
+    (byParent.get(parentId) ?? []).map((m) => {
+      const children = byParent.get(m.dbKey!)
+      const base = { key: `n${m.dbKey}`, label: m.menuNm ?? '', iconKey: iconFor(m) }
+      if (children && children.length) return { ...base, children: build(m.dbKey!) }
+      return { ...base, dest: targetOf(m) || undefined }
+    })
+  return build('0')
+}
 
 /** conn_ty별 이동 경로. 페이지→/gen/page/{connId}, URL→link_url, 게시판→/gen/board/{connId}, 그룹→없음 */
 function targetOf(m: MenuVO): string | null {
@@ -64,10 +107,16 @@ export default function GenLayout() {
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const [items, setItems] = useState<MenuItem[]>([])
+  const [nav, setNav] = useState<NavNode[]>([])
   const [labels, setLabels] = useState<Map<string, string>>(new Map())
-  const [siteTitle, setSiteTitle] = useState('PWSH')
+  const [siteTitle, setSiteTitle] = useState('취만사')
+  const [logoFileId, setLogoFileId] = useState<string | undefined>()
+  const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
   const [idleMinutes, setIdleMinutes] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [notiUnread, setNotiUnread] = useState(0)
+  const [notiList, setNotiList] = useState<Noti[]>([])
+  const [notiOpen, setNotiOpen] = useState(false)
   const loggedIn = !!tokenStore.get() // 비로그인(게스트)도 /gen 접근 가능 — 메뉴는 GUEST 권한그룹 기준
   const { warningOpen, remainingSec, extend, logoutNow } = useIdleLogout(loggedIn ? idleMinutes : 0)
 
@@ -76,6 +125,7 @@ export default function GenLayout() {
       .tree('GEN')
       .then((list) => {
         setItems(buildItems(list))
+        setNav(toNav(list))
         setLabels(labelMap(list))
       })
       .catch(() => {
@@ -86,9 +136,55 @@ export default function GenLayout() {
       .then((c) => {
         setIdleMinutes(Number(c.sessionExpireCnt) || 30)
         if (c.title) setSiteTitle(c.title)
+        setLogoFileId(c.logoFileId ?? undefined)
       })
       .catch(() => setIdleMinutes(30))
+    if (loggedIn) notificationApi.unreadCnt().then(setNotiUnread).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const openNoti = async (open: boolean) => {
+    setNotiOpen(open)
+    if (open) {
+      try {
+        setNotiList(await notificationApi.list())
+        setNotiUnread(await notificationApi.unreadCnt())
+      } catch { /* 무시 */ }
+    }
+  }
+  const clickNoti = async (n: Noti) => {
+    setNotiOpen(false)
+    if (n.readYn !== 'Y') {
+      try { await notificationApi.read(n.dbKey!); setNotiUnread((u) => Math.max(0, u - 1)) } catch { /* 무시 */ }
+    }
+    if (n.linkUrl) navigate(n.linkUrl)
+  }
+  const readAllNoti = async () => {
+    try {
+      await notificationApi.readAll()
+      setNotiUnread(0)
+      setNotiList((l) => l.map((n) => ({ ...n, readYn: 'Y' })))
+    } catch { /* 무시 */ }
+  }
+  const notiContent = (
+    <div style={{ width: 300, maxHeight: 380, overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <b>알림</b>
+        {notiList.some((n) => n.readYn !== 'Y') && <a onClick={readAllNoti}>모두 읽음</a>}
+      </div>
+      {notiList.length === 0 ? (
+        <div style={{ color: '#999', padding: '16px 0', textAlign: 'center' }}>새 알림이 없어요</div>
+      ) : (
+        notiList.map((n) => (
+          <div key={n.dbKey} onClick={() => clickNoti(n)}
+            style={{ padding: '8px 8px', marginTop: 4, borderRadius: 8, cursor: 'pointer', background: n.readYn === 'Y' ? '#fff' : '#f2ecff' }}>
+            <div style={{ fontSize: 13, color: '#333' }}>{n.content}</div>
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{n.regDt}</div>
+          </div>
+        ))
+      )}
+    </div>
+  )
 
   // 현재 경로의 메뉴명을 문서 제목에 반영(없으면 사이트명만)
   useDocumentTitle(labels.get(location.pathname), siteTitle)
@@ -103,35 +199,82 @@ export default function GenLayout() {
     setDrawerOpen(false)
   }
 
+  // 로그인 회원 전용 '나의 취미' 탭을 nav에 주입(마이페이지 앞). t_menu 변경 없이 코드로 노출(헤더 마이페이지 버튼과 동일 방식).
+  const myHobbyNode: NavNode = { key: 'myhobby', label: '나의 취미', iconKey: 'star', dest: '/gen/myhobby' }
+  const displayNav: NavNode[] = loggedIn
+    ? (() => {
+        const idx = nav.findIndex((n) => n.dest === '/gen/mypage')
+        return idx < 0 ? [...nav, myHobbyNode] : [...nav.slice(0, idx), myHobbyNode, ...nav.slice(idx)]
+      })()
+    : nav
+  const displayItems: MenuItem[] = loggedIn ? [...items, { key: '/gen/myhobby', label: '나의 취미' }] : items
+
   return (
     <ConfigProvider theme={genTheme}>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Layout.Header style={{ background: '#fff', display: 'flex', alignItems: 'center', paddingInline: 16, gap: 16 }}>
+      <Layout style={{ minHeight: '100vh', backgroundColor: gen.pageBg, backgroundImage: `url(${hobbyPattern})`, backgroundAttachment: 'fixed' }}>
+        <Layout.Header style={{ background: gen.headerBg, display: 'flex', alignItems: 'center', height: 72, paddingInline: 22, gap: 18, boxShadow: '0 1px 0 rgba(108,78,227,.10)', position: 'sticky', top: 0, zIndex: 20 }}>
           {isMobile && (
-            <Button aria-label="메뉴 열기" onClick={() => setDrawerOpen(true)}>
-              ☰
-            </Button>
+            <Button aria-label="메뉴 열기" onClick={() => setDrawerOpen(true)}>☰</Button>
           )}
-          <span style={{ fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => navigate('/gen')}>
-            {siteTitle}
-          </span>
+          <img src={logoSrc} alt={siteTitle} style={{ height: 38, cursor: 'pointer' }} onClick={() => navigate('/gen')} />
           {!isMobile && (
-            <Menu
-              mode="horizontal"
-              selectedKeys={[location.pathname]}
-              items={items}
-              style={{ flex: 1, minWidth: 0 }}
-              onClick={onMenuClick}
-            />
+            <nav className="gen-nav" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+              {displayNav.map((n) => {
+                const active = n.dest
+                  ? location.pathname === n.dest
+                  : !!n.children?.some((c) => c.dest === location.pathname)
+                const inner = (
+                  <>
+                    <MenuGlyph name={n.iconKey} size={20} />
+                    <span className="gen-nav-label">{n.label}</span>
+                    <i className="gen-nav-bar" />
+                  </>
+                )
+                if (n.children?.length) {
+                  return (
+                    <Dropdown
+                      key={n.key}
+                      menu={{
+                        items: n.children.map((c) => ({
+                          key: c.dest || c.key,
+                          label: c.label,
+                          onClick: () => c.dest && navigate(c.dest),
+                        })),
+                      }}
+                    >
+                      <button type="button" className={`gen-nav-btn${active ? ' is-active' : ''}`}>
+                        {inner}
+                      </button>
+                    </Dropdown>
+                  )
+                }
+                return (
+                  <button
+                    key={n.key}
+                    type="button"
+                    className={`gen-nav-btn${active ? ' is-active' : ''}`}
+                    onClick={() => n.dest && navigate(n.dest)}
+                  >
+                    {inner}
+                  </button>
+                )
+              })}
+            </nav>
           )}
-          <Space style={{ marginLeft: 'auto' }}>
+          <Space size={8} style={{ marginLeft: 'auto' }}>
             {loggedIn ? (
               <>
+                <Popover content={notiContent} trigger="click" open={notiOpen} onOpenChange={openNoti} placement="bottomRight">
+                  <Badge count={notiUnread} size="small">
+                    <Button shape="circle" aria-label="알림">🔔</Button>
+                  </Badge>
+                </Popover>
+                <Button onClick={() => navigate('/gen/mypage')}>마이페이지</Button>
                 {isAdmin() && <Button onClick={() => navigate('/adm/dashboard')}>관리자 페이지</Button>}
                 <Button onClick={logout}>로그아웃</Button>
               </>
             ) : (
-              <Button type="primary" onClick={() => navigate('/login')}>로그인</Button>
+              <Button type="primary" onClick={() => navigate('/login')} style={{ borderRadius: 14, fontWeight: 700 }}>로그인</Button>
             )}
           </Space>
         </Layout.Header>
@@ -144,12 +287,12 @@ export default function GenLayout() {
           onClose={() => setDrawerOpen(false)}
           styles={{ body: { padding: 0 } }}
         >
-          <Menu mode="inline" selectedKeys={[location.pathname]} items={items} onClick={onMenuClick} />
+          <Menu mode="inline" selectedKeys={[location.pathname]} items={displayItems} onClick={onMenuClick} />
         </Drawer>
 
         <Layout.Content style={{ margin: 16 }}>
           <Routes>
-            <Route index element={<div>환영합니다. 상단 메뉴에서 원하는 항목을 선택하세요.</div>} />
+            <Route index element={<GenMain />} />
             <Route path="page/:pageId" element={<GenPageView />} />
             {genScreens.map((s) => (
               <Route key={s.path} path={s.path.replace(/^\/gen\/?/, '')} element={s.element} />
@@ -158,8 +301,27 @@ export default function GenLayout() {
           </Routes>
         </Layout.Content>
 
-        <Layout.Footer style={{ textAlign: 'center', color: '#888' }}>
-          © {new Date().getFullYear()} {siteTitle}. All rights reserved.
+        <Layout.Footer style={{ background: gen.headerBg, borderTop: '1px solid rgba(108,78,227,.12)', padding: '30px 24px 24px' }}>
+          <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <img src={logoSrc} alt={siteTitle} style={{ height: 28, cursor: 'pointer' }} onClick={() => navigate('/gen')} />
+              <div style={{ fontSize: 13, color: '#8078A8', marginTop: 10 }}>취미로 만나는 사람들 — 함께할 사람을 찾아보세요 💜</div>
+            </div>
+            <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 18 }}>
+              {nav
+                .map((n) => ({ label: n.label, dest: n.dest || n.children?.find((c) => c.dest)?.dest }))
+                .filter((l) => l.dest)
+                .map((l) => (
+                  <span key={l.dest} className="gen-foot-link" onClick={() => navigate(l.dest!)}>
+                    {l.label}
+                  </span>
+                ))}
+            </nav>
+          </div>
+          <div style={{ maxWidth: 1080, margin: '20px auto 0', paddingTop: 16, borderTop: '1px dashed rgba(108,78,227,.18)', display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', fontSize: 12.5, color: '#9A93B8' }}>
+            <span>© {new Date().getFullYear()} {siteTitle}. All rights reserved.</span>
+            <span>Made with 💜 for hobby lovers</span>
+          </div>
         </Layout.Footer>
       </Layout>
       <Modal

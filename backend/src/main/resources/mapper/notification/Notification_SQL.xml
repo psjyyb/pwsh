@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="notificationDAO">
+
+    <!-- 내 알림 최근 30건 -->
+    <select id="selectMyList" parameterType="notificationVO" resultType="notificationVO">
+        SELECT noti_id::TEXT AS db_key, noti_type, content, link_url, read_yn,
+               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM t_notification
+        WHERE use_yn = 'Y' AND user_id = #{userId}
+        ORDER BY noti_id DESC
+        LIMIT 30
+    </select>
+
+    <!-- 내 미읽음 수(헤더 배지) -->
+    <select id="selectUnreadCnt" parameterType="notificationVO" resultType="int">
+        SELECT COUNT(*) FROM t_notification
+        WHERE use_yn = 'Y' AND user_id = #{userId} AND read_yn = 'N'
+    </select>
+
+    <insert id="insert" parameterType="notificationVO">
+        INSERT INTO t_notification (user_id, noti_type, content, link_url, read_yn, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{userId}, #{notiType}, #{content}, #{linkUrl}, 'N', 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <!-- 단건 읽음(본인 것만) -->
+    <update id="markRead" parameterType="notificationVO">
+        UPDATE t_notification SET read_yn = 'Y', upd_dt = NOW()
+        WHERE noti_id = #{dbKey}::integer AND user_id = #{userId}
+    </update>
+
+    <!-- 전체 읽음(본인) -->
+    <update id="markAllRead" parameterType="notificationVO">
+        UPDATE t_notification SET read_yn = 'Y', upd_dt = NOW()
+        WHERE user_id = #{userId} AND read_yn = 'N'
+    </update>
+
+</mapper>

@@ -138,6 +138,44 @@ public class AuthService {
         commonDAO.insert("userDAO.insertAuthUser", authUser);
     }
 
+    /** 내 정보(userId·nickname·memCd). 마이페이지 표시용. */
+    public java.util.Map<String, String> me() {
+        String userId = SecurityUtil.getCurrentUserId();
+        UserVO u = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(userId));
+        java.util.Map<String, String> m = new java.util.HashMap<>();
+        m.put("userId", userId);
+        m.put("nickname", u != null ? u.getNickname() : null);
+        m.put("memCd", u != null ? u.getMemCd() : null);
+        m.put("profileFileId", u != null ? u.getProfileFileId() : null);
+        return m;
+    }
+
+    /** 본인 프로필 사진 파일 설정/해제 — user_id는 서버가 강제(위변조 차단). fileId 없으면 해제(NULL). */
+    @Transactional
+    public void updateProfileImage(String fileId) {
+        UserVO upd = new UserVO();
+        upd.setDbKey(SecurityUtil.getCurrentUserId());
+        upd.setProfileFileId(fileId == null || fileId.isBlank() ? null : fileId);
+        commonDAO.update("userDAO.updateProfileImage", upd);
+    }
+
+    /** 본인 닉네임 변경 — 다른 회원이 쓰는 닉네임과 중복 금지. */
+    @Transactional
+    public void changeNickname(NicknameRequest request) {
+        String userId = SecurityUtil.getCurrentUserId();
+        UserVO chk = new UserVO();
+        chk.setNickname(request.nickname());
+        chk.setUserId(userId);
+        Integer cnt = commonDAO.selectOne("userDAO.selectCountByNicknameExcept", chk);
+        if (cnt != null && cnt > 0) {
+            throw new BusinessException(ErrorCode.DUPLICATE, "이미 사용 중인 닉네임입니다.");
+        }
+        UserVO upd = new UserVO();
+        upd.setDbKey(userId);
+        upd.setNickname(request.nickname());
+        commonDAO.update("userDAO.updateNickname", upd);
+    }
+
     /** 비밀번호 만료 연장("나중에") — 본인 pw_expire_dt 재형성. */
     public void pwExtend() {
         UserVO param = new UserVO();

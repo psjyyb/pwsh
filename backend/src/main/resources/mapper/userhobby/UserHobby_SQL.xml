@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userHobbyDAO">
+
+    <select id="selectMyList" parameterType="userHobbyVO" resultType="userHobbyVO">
+        SELECT uh.hobby_id::TEXT AS db_key, uh.hobby_id, uh.level_cd,
+               h.hobby_nm,
+               lc.code_nm AS level_nm
+        FROM t_user_hobby uh
+        JOIN t_hobby h ON h.hobby_id = uh.hobby_id AND h.use_yn = 'Y'
+        LEFT JOIN t_code lc ON lc.code_id = uh.level_cd AND lc.p_code_id = 'HOBBYLV00'
+        WHERE uh.use_yn = 'Y' AND uh.user_id = #{userId}
+        ORDER BY h.sort_ordr, h.hobby_id
+    </select>
+
+    <select id="selectCountActive" parameterType="userHobbyVO" resultType="int">
+        SELECT COUNT(*) FROM t_user_hobby
+        WHERE use_yn = 'Y' AND user_id = #{userId} AND hobby_id = #{hobbyId}::integer
+    </select>
+
+    <insert id="insert" parameterType="userHobbyVO">
+        INSERT INTO t_user_hobby (user_id, hobby_id, level_cd, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{userId}, #{hobbyId}::integer, #{levelCd}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="updateLevel" parameterType="userHobbyVO">
+        UPDATE t_user_hobby SET level_cd = #{levelCd}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE use_yn = 'Y' AND user_id = #{userId} AND hobby_id = #{hobbyId}::integer
+    </update>
+
+    <update id="deleteMy" parameterType="userHobbyVO">
+        UPDATE t_user_hobby SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{userId} AND hobby_id = #{hobbyId}::integer
+    </update>
+
+</mapper>

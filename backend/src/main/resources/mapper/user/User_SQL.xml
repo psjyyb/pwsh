@@ -5,7 +5,7 @@
     <!-- 로그인/사용자 조회 (컬럼 snake → VO camel 자동 매핑)
          pw_expired/pw_days_left는 pw_expire_dt 기준 계산값(만료 강제 아님, 알림용) -->
     <select id="selectByUserId" parameterType="userVO" resultType="userVO">
-        SELECT user_id, user_pw, mem_cd, nickname, gen_cd, status_cd, use_yn, pw_expire_dt,
+        SELECT user_id, user_pw, mem_cd, nickname, profile_file_id, gen_cd, status_cd, use_yn, pw_expire_dt,
                CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
                CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
                CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
@@ -35,6 +35,11 @@
     <!-- 닉네임 중복 확인(셀프가입) — 활성 계정 기준 -->
     <select id="selectCountByNickname" parameterType="userVO" resultType="int">
         SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND nickname = #{nickname}
+    </select>
+
+    <!-- 닉네임 중복 확인(본인 제외) — 닉네임 변경 시 -->
+    <select id="selectCountByNicknameExcept" parameterType="userVO" resultType="int">
+        SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND nickname = #{nickname} AND user_id &lt;&gt; #{userId}
     </select>
 
     <!-- 토큰 버전 +1 후 새 값 반환. 로그인(새 세션)·로그아웃·강제로그아웃 시 호출 →
@@ -119,6 +124,18 @@
             email   = ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
             birth   = ENCODE(ENCRYPT(CONVERT_TO(#{birth},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{dbKey}
+    </update>
+
+    <!-- 닉네임 변경(본인) -->
+    <update id="updateNickname" parameterType="userVO">
+        UPDATE t_user SET nickname = #{nickname}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE user_id = #{dbKey}
+    </update>
+
+    <!-- 프로필 사진 변경(본인). profileFileId null → 해제(NULL) -->
+    <update id="updateProfileImage" parameterType="userVO">
+        UPDATE t_user SET profile_file_id = #{profileFileId}::integer, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE user_id = #{dbKey}
     </update>
 

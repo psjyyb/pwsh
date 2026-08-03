@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Form, Input, message } from 'antd'
+import { Button, Card, ConfigProvider, Form, Input, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../api/auth'
 import { configApi } from '../adm/config/config.api'
 import { tokenStore, isAdmin } from './token'
+import { genTheme } from '../gen/theme'
 import defaultLogo from '../assets/logo.svg'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const [siteTitle, setSiteTitle] = useState('PWSH')
+  const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
 
@@ -35,20 +36,21 @@ export default function LoginPage() {
   }
 
   return (
+    <ConfigProvider theme={genTheme}>
     <div
       style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh',
-        background: 'linear-gradient(135deg, #eef2f7 0%, #e2ebf6 100%)', padding: 16,
+        background: 'linear-gradient(160deg, #8B72F5 0%, #B9A6F7 100%)', padding: 16,
       }}
     >
-      <Card style={{ width: 380, boxShadow: '0 8px 30px rgba(0,0,0,.08)', borderRadius: 12 }}>
+      <Card style={{ width: 380, boxShadow: '0 20px 50px rgba(43,32,87,.4)', borderRadius: 24 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <img
             src={logoSrc}
             alt={siteTitle}
             style={{ width: 300, height: 56, objectFit: 'contain', marginBottom: 6 }}
           />
-          <div style={{ color: '#888', fontSize: 13 }}>로그인</div>
+          <div style={{ color: '#888', fontSize: 13 }}>반가워요 💜 로그인</div>
         </div>
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
@@ -68,5 +70,6 @@ export default function LoginPage() {
         </Form>
       </Card>
     </div>
+    </ConfigProvider>
   )
 }

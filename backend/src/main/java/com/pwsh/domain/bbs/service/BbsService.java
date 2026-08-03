@@ -8,6 +8,7 @@ import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,18 @@ public class BbsService {
 
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
+    private final PasswordEncoder passwordEncoder;
 
     public List<BbsVO> selectList(BbsVO vo) {
         genAccessGuard.checkBoard(vo.getBbsinfoId());
         return commonDAO.selectList("bbsDAO.selectList", vo);
+    }
+
+    /** 내가 쓴 글(마이페이지) — 본인 reg_id 기준 전 게시판(원글). */
+    public List<BbsVO> selectListMine() {
+        BbsVO vo = new BbsVO();
+        vo.setRegId(SecurityUtil.getCurrentUserId());
+        return commonDAO.selectList("bbsDAO.selectListMine", vo);
     }
 
     public int selectListTotCnt(BbsVO vo) {
@@ -38,6 +47,7 @@ public class BbsService {
      * 잠금 상태면 내용을 비우고 secretLocked='Y'. 열람 허용 + viewUp='Y'일 때만 조회수 증가.
      */
     public BbsVO selectView(BbsVO vo) {
+        vo.setViewerId(viewerId()); // 좋아요 여부(liked_yn) 판정용
         BbsVO post = commonDAO.selectOne("bbsDAO.selectView", vo);
         if (post == null) {
             return null;
@@ -49,7 +59,8 @@ public class BbsService {
             boolean admin = "MEM02".equals(SecurityUtil.getCurrentMemCd());
             if (!owner && !admin) {
                 String inputPw = vo.getBbsPw();
-                boolean pwOk = inputPw != null && inputPw.equals(post.getBbsPw());
+                boolean pwOk = inputPw != null && post.getBbsPw() != null
+                        && passwordEncoder.matches(inputPw, post.getBbsPw());
                 if (!pwOk) {
                     BbsVO locked = new BbsVO();
                     locked.setDbKey(post.getDbKey());
@@ -88,12 +99,21 @@ public class BbsService {
         } else {
             genAccessGuard.checkBoard(vo.getBbsinfoId());
         }
+        encodeBbsPw(vo);
         commonDAO.insert("bbsDAO.insert", vo);
+    }
+
+    /** 비밀글 비번은 BCrypt로 저장(계정 비번과 동일). 값이 있을 때만 인코딩(빈값=변경없음). */
+    private void encodeBbsPw(BbsVO vo) {
+        if (vo.getBbsPw() != null && !vo.getBbsPw().isEmpty()) {
+            vo.setBbsPw(passwordEncoder.encode(vo.getBbsPw()));
+        }
     }
 
     /** 수정 — 작성자 본인·관리자만(IDOR 방지), 소속 게시판 접근권 확인. */
     public void update(BbsVO vo) {
         loadForModify(vo);
+        encodeBbsPw(vo);
         commonDAO.update("bbsDAO.update", vo);
     }
 
@@ -104,6 +124,12 @@ public class BbsService {
         commonDAO.delete("bbsDAO.delete", vo);
         commonDAO.update("fileDAO.deactivateFilesByOwner",
                 Map.of("mapKey", vo.getDbKey(), "locs", List.of("BBS", "BBS_IMG", "BBS_EDITOR")));
+    }
+
+    /** 현재 조회자 id(비로그인/system은 null → liked_yn 'N'). */
+    private String viewerId() {
+        String me = SecurityUtil.getCurrentUserId();
+        return (me == null || "system".equals(me)) ? null : me;
     }
 
     /** 수정/삭제 공통: 대상 로드 + 게시판 접근권 + 작성자/관리자 인가. 없으면 예외. */

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Card, Checkbox, Empty, Form, Input, Popconfirm, Space, Spin, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
+import { useSearchParams } from 'react-router-dom'
 import { apiPost } from '../../api/http'
 import type { ListResult } from '../../api/http'
 import { getClaims, isAdmin } from '../../auth/token'
@@ -15,6 +16,7 @@ import RichTextEditor from '../../common/adm/components/RichTextEditor'
 import SafeHtml from '../../common/SafeHtml'
 import type { RichTextEditorHandle } from '../../common/adm/components/RichTextEditor'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
+import { likeApi } from '../../api/like'
 import { extractEditorImageIds } from '../../common/util/editorImages'
 import type { Bbsinfo } from '../../adm/bbsinfo/bbsinfo.api'
 import { BBS_LIST_URL, bbsApi } from '../../adm/bbs/bbs.api'
@@ -33,6 +35,7 @@ const EDITOR_LOC = 'BBS_EDITOR' // 본문 에디터 삽입 이미지(고아 추�
  */
 export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const bbsinfoId = board.dbKey
+  const [searchParams] = useSearchParams()
   const isGallery = board.bbsinfoCd === 'BBSINFO004'
   const isQna = board.bbsinfoCd === 'BBSINFO003'
 
@@ -46,6 +49,8 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const [post, setPost] = useState<Bbs | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [commentText, setCommentText] = useState('')
+  const [editCommentKey, setEditCommentKey] = useState<string | null>(null)
+  const [editCommentText, setEditCommentText] = useState('')
   const [viewFiles, setViewFiles] = useState<FileMeta[]>([])
 
   const [form] = Form.useForm()
@@ -124,6 +129,13 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       message.error(e instanceof Error ? e.message : '조회 실패')
     }
   }
+
+  // 딥링크: ?post=bbsId 로 진입 시 해당 글 바로 열기(위 목록 리셋 effect 뒤에 실행되도록 openView 이후에 선언)
+  useEffect(() => {
+    const postId = searchParams.get('post')
+    if (postId) openView(postId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, bbsinfoId])
 
   const openWrite = () => {
     setEditKey(null)
@@ -248,6 +260,34 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       if (post) setComments(await commentApi.list(post.dbKey!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '댓글 삭제 실패')
+    }
+  }
+  const saveEditComment = async () => {
+    if (!editCommentKey || !editCommentText.trim()) return
+    try {
+      await commentApi.update(editCommentKey, editCommentText.trim())
+      setEditCommentKey(null)
+      setEditCommentText('')
+      if (post) setComments(await commentApi.list(post.dbKey!))
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '댓글 수정 실패')
+    }
+  }
+  const toggleLikePost = async () => {
+    if (!post) return
+    try {
+      const r = await likeApi.toggle('BBS', post.dbKey!)
+      setPost({ ...post, likedYn: r.likedYn, goodCnt: r.goodCnt })
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
+    }
+  }
+  const toggleLikeComment = async (c: Comment) => {
+    try {
+      const r = await likeApi.toggle('COMMENT', c.dbKey!)
+      setComments(comments.map((x) => (x.dbKey === c.dbKey ? { ...x, likedYn: r.likedYn, goodCnt: r.goodCnt } : x)))
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
     }
   }
 
@@ -400,6 +440,16 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         )}
         <SafeHtml className="toastui-editor-contents" style={{ minHeight: isGallery ? 0 : 120 }} html={post.context ?? ''} />
 
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          {meId ? (
+            <Button shape="round" type={post.likedYn === 'Y' ? 'primary' : 'default'} onClick={toggleLikePost}>
+              {post.likedYn === 'Y' ? '♥' : '♡'} 좋아요 {Number(post.goodCnt) || 0}
+            </Button>
+          ) : (
+            <span style={{ color: '#888' }}>♥ {Number(post.goodCnt) || 0}</span>
+          )}
+        </div>
+
         {viewFiles.length > 0 && (
           <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 8 }}>
             <b>첨부파일</b>
@@ -419,9 +469,33 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
               <div style={{ fontSize: 12, color: '#888' }}>
                 {c.regNm || c.regId} · {c.regDt}
-                {canEdit(c.regId) && <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.dbKey!)}>삭제</a>}
+                {canEdit(c.regId) && editCommentKey !== c.dbKey && (
+                  <>
+                    <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.dbKey!); setEditCommentText(c.context ?? '') }}>수정</a>
+                    <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.dbKey!)}>삭제</a>
+                  </>
+                )}
               </div>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>
+              {editCommentKey === c.dbKey ? (
+                <Space.Compact style={{ width: '100%', marginTop: 4 }}>
+                  <Input.TextArea value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} autoSize={{ minRows: 1, maxRows: 4 }} />
+                  <Button type="primary" onClick={saveEditComment}>저장</Button>
+                  <Button onClick={() => { setEditCommentKey(null); setEditCommentText('') }}>취소</Button>
+                </Space.Compact>
+              ) : (
+                <>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>
+                  <div style={{ marginTop: 2 }}>
+                    {meId ? (
+                      <a onClick={() => toggleLikeComment(c)} style={{ color: c.likedYn === 'Y' ? '#6C4EE3' : '#999', fontSize: 12 }}>
+                        {c.likedYn === 'Y' ? '♥' : '♡'} {Number(c.goodCnt) || 0}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#bbb', fontSize: 12 }}>♥ {Number(c.goodCnt) || 0}</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           ))}
           <Space.Compact style={{ width: '100%', marginTop: 8 }}>

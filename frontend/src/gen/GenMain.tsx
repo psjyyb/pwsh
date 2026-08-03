@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Col, Empty, Row, Tag } from 'antd'
+import { Button, Card, Col, Empty, Row, Tag, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { fileApi } from '../api/file'
 import { apiPost } from '../api/http'
 import type { ListResult } from '../api/http'
-import { tokenStore } from '../auth/token'
 import { popupApi } from '../adm/popup/popup.api'
 import type { Popup } from '../adm/popup/popup.api'
-import { configApi } from '../adm/config/config.api'
-import { hobbyApi } from '../adm/hobby/hobby.api'
+import { hobbyApi, userHobbyApi } from '../adm/hobby/hobby.api'
+import { tokenStore } from '../auth/token'
 import { BBS_LIST_URL } from '../adm/bbs/bbs.api'
 import type { Bbs } from '../adm/bbs/bbs.api'
 import { recruitApi } from './recruit/recruit.api'
 import type { Recruit } from './recruit/recruit.api'
+import { gen, cardGradients } from './theme'
 
-const TEAL = '#00897b'
+const TEAL = gen.primary
 const STATUS_OPEN = 'RECRUIT01'
 
-interface Category { hobbyId: string; bbsinfoId?: string; name: string; count: number }
+interface Category { hobbyId: string; bbsinfoId?: string; name: string; count: number; thumbId?: string; difficultyNm?: string; summary?: string; memberCnt?: number }
 interface RecentPost extends Bbs { catName?: string }
 
 /** '오늘 하루 보지 않기' 쿠키(익일 자정 만료) */
@@ -84,21 +84,22 @@ function PopupLayer({ popup, onClose }: { popup: Popup; onClose: () => void }) {
 export default function GenMain() {
   const navigate = useNavigate()
   const [popups, setPopups] = useState<Popup[]>([])
-  const [siteTitle, setSiteTitle] = useState('PWSH')
   const [categories, setCategories] = useState<Category[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [posts, setPosts] = useState<RecentPost[]>([])
   const loggedIn = !!tokenStore.get()
+  const [myIds, setMyIds] = useState<Set<string>>(new Set()) // 내가 담은 취미 id
 
   useEffect(() => {
     popupApi.mainList().then((list) => setPopups(list.filter((p) => !isHidden(p.dbKey)))).catch(() => {})
-    configApi.view().then((c) => { if (c.title) setSiteTitle(c.title) }).catch(() => {})
+    if (loggedIn) userHobbyApi.list().then((l) => setMyIds(new Set(l.map((u) => u.hobbyId!).filter(Boolean)))).catch(() => {})
     recruitApi.list({ statusCd: STATUS_OPEN, pageIndex: 1, size: 4 })
       .then((r) => setRecruits(r.list)).catch(() => {})
 
     hobbyApi.listAll().then(async (hobbies) => {
       const cats: Category[] = hobbies.map((h) => ({
         hobbyId: h.dbKey!, bbsinfoId: h.bbsinfoId, name: h.hobbyNm ?? '', count: Number(h.postCnt ?? 0),
+        thumbId: h.thumbId, difficultyNm: h.difficultyNm, summary: h.summary, memberCnt: Number(h.memberCnt ?? 0),
       }))
       setCategories(cats)
 
@@ -119,47 +120,96 @@ export default function GenMain() {
   }, [])
 
   const close = (dbKey?: string) => setPopups((prev) => prev.filter((p) => p.dbKey !== dbKey))
+
+  const toggleMy = async (hobbyId: string) => {
+    const has = myIds.has(hobbyId)
+    try {
+      if (has) await userHobbyApi.remove(hobbyId)
+      else await userHobbyApi.save(hobbyId)
+      setMyIds((prev) => { const n = new Set(prev); if (has) n.delete(hobbyId); else n.add(hobbyId); return n })
+      message.success(has ? '담기를 취소했습니다.' : '내 취미에 담았습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '처리 실패')
+    }
+  }
   const statusTag = (cd?: string, nm?: string) =>
     cd === STATUS_OPEN ? <Tag color="green">{nm ?? '모집중'}</Tag> : <Tag>{nm ?? '마감'}</Tag>
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
       {/* 히어로 */}
-      <div style={{ background: '#e6f4f1', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: 28, fontWeight: 700, color: '#004d40', marginBottom: 8 }}>취미로 만나는 사람들</div>
-        <div style={{ fontSize: 15, color: '#00695c', marginBottom: 24 }}>
-          {siteTitle}에서 등산 · 보드게임 · 낚시… 취미를 나누고, 함께할 사람을 찾아보세요.
+      <div style={{ background: gen.heroTint, borderRadius: 24, padding: '36px 24px', textAlign: 'center' }}>
+        <div aria-hidden style={{ fontSize: 26, marginBottom: 8 }}>✨💜⭐️</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: gen.heroText, marginBottom: 8, letterSpacing: '-.5px' }}>취미로 만나는 사람들</div>
+        <div style={{ fontSize: 15, color: '#7A72A8', marginBottom: 22 }}>
+          관심사가 같은 사람들과 이야기하고, 함께할 사람을 찾아보세요.
         </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          {!loggedIn && <Button type="primary" size="large" onClick={() => navigate('/signup')}>회원가입</Button>}
-          <Button size="large" onClick={() => navigate('/gen/recruit')}>모집 둘러보기</Button>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {!loggedIn && (
+            <Button type="primary" size="large" onClick={() => navigate('/signup')}
+              style={{ borderRadius: 16, fontWeight: 700, paddingInline: 28 }}>회원가입</Button>
+          )}
+          <Button size="large" onClick={() => navigate('/gen/recruit')}
+            style={{ borderRadius: 16, paddingInline: 24 }}>모집 둘러보기</Button>
         </div>
       </div>
 
-      {/* 취미 카테고리 */}
+      {/* 취미 목록(유닛형 컬러 카드) */}
       <section>
-        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 14 }}>취미 카테고리</h3>
+        <h3 style={{ fontSize: 22, fontWeight: 800, color: gen.heroText, margin: '0 0 16px' }}>어떤 취미부터 시작할까?</h3>
         {categories.length === 0 ? (
-          <Empty description="등록된 취미 게시판이 없습니다." />
+          <Empty description="등록된 취미가 없습니다." />
         ) : (
-          <Row gutter={[16, 16]}>
-            {categories.map((c) => (
-              <Col key={c.bbsinfoId} xs={12} sm={8} md={6}>
-                <Card hoverable style={{ textAlign: 'center', borderTop: `3px solid ${TEAL}` }}
-                  onClick={() => navigate(`/gen/hobby/${c.hobbyId}`)} styles={{ body: { padding: '20px 12px' } }}>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: '#00695c' }}>{c.name}</div>
-                  <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>글 {c.count}</div>
-                </Card>
-              </Col>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: 12 }}>
+            {categories.map((c, i) => (
+              <div key={c.hobbyId} onClick={() => navigate(`/gen/hobby/${c.hobbyId}`)} className="gen-hobby-card"
+                style={{ background: cardGradients[i % cardGradients.length], borderRadius: 22, cursor: 'pointer', color: '#fff', boxShadow: '0 6px 18px rgba(108,78,227,.18)', position: 'relative', overflow: 'hidden' }}>
+                {/* 상단 광택 */}
+                <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 90% at 0% 0%, rgba(255,255,255,.25), transparent 58%)', pointerEvents: 'none' }} />
+                {/* 배경 워터마크 — 우측에 작은 라운드 사각형(썸네일)/이니셜. 버튼에 가려져도 무방 */}
+                {c.thumbId
+                  ? <img aria-hidden src={`/api/pub/image/${c.thumbId}`} alt="" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%) rotate(15deg)', width: 66, height: 66, objectFit: 'cover', borderRadius: 16, opacity: 0.18, pointerEvents: 'none' }} />
+                  : <span aria-hidden style={{ position: 'absolute', right: 28, bottom: -24, fontSize: 96, fontWeight: 800, color: 'rgba(255,255,255,.13)', lineHeight: 1, pointerEvents: 'none' }}>{c.name.slice(0, 1)}</span>}
+                <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 16, padding: '20px 22px' }}>
+                  <div style={{ width: 54, height: 54, borderRadius: 17, background: 'rgba(255,255,255,.24)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, fontWeight: 800, flexShrink: 0, overflow: 'hidden' }}>
+                    {c.thumbId
+                      ? <img src={`/api/pub/image/${c.thumbId}`} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : c.name.slice(0, 1)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>{c.name}</div>
+                    {c.summary && (
+                      <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.summary}</div>
+                    )}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      {c.difficultyNm && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>⭐ {c.difficultyNm}</span>
+                      )}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>👥 {c.memberCnt ?? 0}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>📝 글 {c.count}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    {loggedIn && (
+                      <button type="button" className="gen-heart" aria-label={myIds.has(c.hobbyId) ? '담기 취소' : '내 취미 담기'}
+                        onClick={(e) => { e.stopPropagation(); toggleMy(c.hobbyId) }}
+                        style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,.22)', color: '#fff', fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {myIds.has(c.hobbyId) ? '♥' : '♡'}
+                      </button>
+                    )}
+                    <span aria-hidden className="gen-hobby-go" style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>›</span>
+                  </div>
+                </div>
+              </div>
             ))}
-          </Row>
+          </div>
         )}
       </section>
 
       {/* 지금 모집 중 */}
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>지금 모집 중</h3>
+          <h3 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: gen.heroText }}>🔥 지금 모집 중</h3>
           <a style={{ color: TEAL }} onClick={() => navigate('/gen/recruit')}>전체 보기</a>
         </div>
         {recruits.length === 0 ? (
@@ -168,7 +218,7 @@ export default function GenMain() {
           <Row gutter={[16, 16]}>
             {recruits.map((r) => (
               <Col key={r.dbKey} xs={24} sm={12}>
-                <Card hoverable onClick={() => navigate('/gen/recruit')} styles={{ body: { padding: 16 } }}>
+                <Card hoverable onClick={() => navigate(`/gen/recruit/${r.dbKey}`)} styles={{ body: { padding: 16 } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Tag color="cyan">{r.hobbyNm}</Tag>
                     {statusTag(r.statusCd, r.statusNm)}
@@ -188,14 +238,14 @@ export default function GenMain() {
 
       {/* 최근 이야기 */}
       <section>
-        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 14 }}>최근 이야기</h3>
+        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 14, color: gen.heroText }}>💬 최근 이야기</h3>
         {posts.length === 0 ? (
           <Empty description="등록된 글이 없습니다." />
         ) : (
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
               <div key={p.dbKey}
-                onClick={() => navigate(`/gen/board/${p.bbsinfoId}`)}
+                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer',
                   borderTop: i === 0 ? 'none' : '1px solid #f0f0f0',

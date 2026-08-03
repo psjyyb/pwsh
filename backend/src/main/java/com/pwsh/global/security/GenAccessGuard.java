@@ -21,9 +21,24 @@ public class GenAccessGuard {
 
     private final CommonDAO commonDAO;
 
-    /** 게시판(MENU02) 접근 인가. bbsinfoId = t_bbsinfo PK */
+    /** 게시판(MENU02) 접근 인가. bbsinfoId = t_bbsinfo PK.
+     *  취미(t_hobby)에 연결된 게시판은 커뮤니티 공개 게시판이므로 메뉴 권한과 무관하게 열람 허용(쓰기는 로그인 필요). */
     public void checkBoard(String bbsinfoId) {
+        if (isHobbyBoard(bbsinfoId)) {
+            return;
+        }
         checkContent("MENU02", bbsinfoId);
+    }
+
+    /** 해당 게시판이 어떤 취미의 연결 게시판인지 */
+    private boolean isHobbyBoard(String bbsinfoId) {
+        if (bbsinfoId == null || bbsinfoId.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> p = new HashMap<>();
+        p.put("bbsinfoId", bbsinfoId);
+        Integer cnt = commonDAO.selectOne("hobbyDAO.countByBbsinfo", p);
+        return cnt != null && cnt > 0;
     }
 
     /** 페이지(MENU03) 접근 인가. pageId = t_page PK */
@@ -47,6 +62,13 @@ public class GenAccessGuard {
             return false;
         }
         if (isPrivileged()) {
+            return true;
+        }
+        // 취미(t_hobby) 연결 게시판의 글은 커뮤니티 공개 — checkBoard와 동일 규칙(메뉴 권한 무관).
+        Map<String, Object> bk = new HashMap<>();
+        bk.put("bbsId", bbsId);
+        String bbsinfoId = commonDAO.selectOne("bbsDAO.selectBbsinfoIdByBbsId", bk);
+        if (isHobbyBoard(bbsinfoId)) {
             return true;
         }
         Map<String, Object> p = new HashMap<>();

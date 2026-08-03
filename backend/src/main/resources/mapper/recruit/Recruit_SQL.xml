@@ -17,6 +17,7 @@
                ho.hobby_nm,
                sc.code_nm AS status_nm,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = r.reg_id) AS reg_profile_file_id,
                (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
                (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt
@@ -33,12 +34,27 @@
         <include refid="listFilter"/>
     </select>
 
+    <!-- 내가 연 모집(마이페이지): 본인 reg_id, 전체 상태 -->
+    <select id="selectListMine" parameterType="recruitVO" resultType="recruitVO">
+        SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.capacity, r.region, r.meet_dt,
+               r.status_cd, ho.hobby_nm, sc.code_nm AS status_nm,
+               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
+               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
+               TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_recruit r
+        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        WHERE r.use_yn = 'Y' AND r.reg_id = #{regId}
+        ORDER BY r.recruit_id DESC
+    </select>
+
     <select id="selectView" parameterType="recruitVO" resultType="recruitVO">
         SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.content, r.capacity, r.region, r.meet_dt,
                r.status_cd, r.view_cnt, r.reg_id,
                ho.hobby_nm,
                sc.code_nm AS status_nm,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = r.reg_id) AS reg_profile_file_id,
                (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
                (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt

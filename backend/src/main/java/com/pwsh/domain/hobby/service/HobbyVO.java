@@ -23,4 +23,5 @@ public class HobbyVO extends BaseVO {
     private String thumbId;       // 대표이미지 file_id(r_file, loc HOBBY)
     private String bbsinfoNm;     // 연결 게시판명
     private String postCnt;       // 연결 게시판 글 수
+    private String memberCnt;      // 이 취미를 담은 회원 수(t_user_hobby, 인기도)
 }

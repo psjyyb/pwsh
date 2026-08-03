@@ -16,6 +16,7 @@ export interface Recruit {
   statusNm?: string // 모집상태명
   regId?: string // 주최자 ID
   regNm?: string // 주최자 닉네임
+  regProfileFileId?: string // 주최자 프로필 사진 file_id
   regDt?: string
   applyCnt?: string // 활성 신청 수
   acceptedCnt?: string // 수락 수
@@ -47,7 +48,8 @@ export const RECRUIT_LIST_URL = '/adm/recruit/selectRecruitList.do'
 
 export const recruitApi = {
   list: (params: RecruitListParams) => apiPost<ListResult<Recruit>>(RECRUIT_LIST_URL, params),
-  view: (dbKey: string) => apiPost<Recruit>('/adm/recruit/selectRecruitView.do', { dbKey }),
+  view: (dbKey: string, viewUp = false) =>
+    apiPost<Recruit>('/adm/recruit/selectRecruitView.do', { dbKey, viewUp: viewUp ? 'Y' : 'N' }),
   insert: (vo: Partial<Recruit>) => apiPost<string>('/adm/recruit/insertRecruit.do', vo),
   update: (vo: Partial<Recruit>) => apiPost<void>('/adm/recruit/updateRecruit.do', vo),
   /** 모집상태 변경(마감 RECRUIT02 / 재개 RECRUIT01) */

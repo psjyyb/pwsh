@@ -21,6 +21,8 @@ public class RecruitVO extends BaseVO {
     private String hobbyNm;     // 취미명(t_hobby 조인)
     private String statusNm;    // 모집상태명(t_code 조인)
     private String regNm;       // 주최자 닉네임(t_user 조인). 없으면 reg_id 폴백
+    private String regProfileFileId; // 주최자 프로필 사진(t_user.profile_file_id)
     private String applyCnt;    // 활성 신청 수(대기+수락)
     private String acceptedCnt; // 수락 수
+    private String viewUp;      // 조회수 증가 플래그('Y'일 때만 증가 — 새로고침 중복증가 방지)
 }

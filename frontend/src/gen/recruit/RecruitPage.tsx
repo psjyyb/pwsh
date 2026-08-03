@@ -4,14 +4,29 @@ import {
   Select, Space, Table, Tag, message,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
+import { useParams, useSearchParams } from 'react-router-dom'
 import DateField from '../../common/adm/components/DateField'
 import { getClaims, isAdmin, tokenStore } from '../../auth/token'
 import { hobbyApi } from '../../adm/hobby/hobby.api'
 import { recruitApi, applyApi } from './recruit.api'
 import type { Recruit, RecruitApply } from './recruit.api'
+import { gen } from '../theme'
+import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 
 type Mode = 'list' | 'view' | 'write'
 interface Category { hobbyId: string; name: string }
+
+/** 회원 아바타(프로필 이미지 or 닉네임 이니셜) + 이름. */
+function HostAvatar({ fileId, name, size = 26 }: { fileId?: string; name?: string; size?: number }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <span style={{ width: size, height: size, borderRadius: '50%', background: gen.primary, color: '#fff', fontSize: Math.round(size * 0.42), fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+        {fileId ? <img src={`/api/pub/image/${fileId}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name || '?').slice(0, 1)}
+      </span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '-'}</span>
+    </span>
+  )
+}
 
 const STATUS_OPEN = 'RECRUIT01' // 모집중
 const STATUS_CLOSED = 'RECRUIT02' // 마감
@@ -28,6 +43,8 @@ const applyTag = (cd?: string, nm?: string) => {
  * 조회는 공개, 등록/신청/수락은 로그인 필요(백엔드가 강제).
  */
 export default function RecruitPage() {
+  const { id: routeId } = useParams()
+  const [searchParams] = useSearchParams()
   const [mode, setMode] = useState<Mode>('list')
   const [categories, setCategories] = useState<Category[]>([])
 
@@ -86,7 +103,9 @@ export default function RecruitPage() {
 
   const openView = async (dbKey: string) => {
     try {
-      const r = await recruitApi.view(dbKey)
+      const countUp = !hasViewedRecently(`recruit-${dbKey}`) // 새로고침 중복증가 방지
+      const r = await recruitApi.view(dbKey, countUp)
+      if (countUp) markViewed(`recruit-${dbKey}`)
       setRecruit(r)
       const owner = admin || (!!meId && r.regId === meId)
       setApplies(owner ? await applyApi.listByRecruit(dbKey) : [])
@@ -102,6 +121,15 @@ export default function RecruitPage() {
       message.error(e instanceof Error ? e.message : '조회 실패')
     }
   }
+
+  // 외부 진입: /gen/recruit/:id → 해당 모집 상세, ?hobby=id → 취미 필터
+  useEffect(() => {
+    const hobbyParam = searchParams.get('hobby')
+    if (hobbyParam) setFilterCat(hobbyParam)
+    if (routeId) openView(routeId)
+    else setMode('list')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId, searchParams])
 
   const openWrite = (r?: Recruit) => {
     if (r) {
@@ -180,6 +208,19 @@ export default function RecruitPage() {
     }
   }
 
+  // 거절된 신청 → 기존 신청 취소 후 재신청(중복신청 차단 우회, 직관적 재도전)
+  const reApply = async () => {
+    if (!myApply || !recruit) return
+    try {
+      await applyApi.cancel(myApply.dbKey!)
+      await applyApi.apply(recruit.dbKey!, applyMemo.trim() || undefined)
+      message.success('다시 신청했습니다.')
+      openView(recruit.dbKey!)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '재신청 실패')
+    }
+  }
+
   const decideApply = async (dbKey: string, applyStatus: string) => {
     try {
       await applyApi.changeStatus(dbKey, applyStatus)
@@ -199,10 +240,10 @@ export default function RecruitPage() {
       { title: '일정', dataIndex: 'meetDt', width: 120, render: (v) => v || '-' },
       {
         title: '인원', width: 90, align: 'center',
-        render: (_, r) => `${r.acceptedCnt ?? 0}${r.capacity ? ` / ${r.capacity}` : ''}`,
+        render: (_, r) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`,
       },
       { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusNm) },
-      { title: '주최자', width: 120, render: (_, r) => r.regNm || r.regId },
+      { title: '주최자', width: 150, render: (_, r) => <HostAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} size={24} /> },
     ]
     return (
       <Card
@@ -270,11 +311,11 @@ export default function RecruitPage() {
           <Descriptions.Item label="상태">{statusTag(recruit.statusCd, recruit.statusNm)}</Descriptions.Item>
           <Descriptions.Item label="지역">{recruit.region || '-'}</Descriptions.Item>
           <Descriptions.Item label="일정">{recruit.meetDt || '-'}</Descriptions.Item>
-          <Descriptions.Item label="모집 인원">{recruit.capacity ? `${recruit.capacity}명` : '제한 없음'}</Descriptions.Item>
+          <Descriptions.Item label="모집 인원">{Number(recruit.capacity) > 0 ? `${recruit.capacity}명` : '제한 없음 (0명)'}</Descriptions.Item>
           <Descriptions.Item label="신청 현황">
             수락 {recruit.acceptedCnt ?? 0} · 신청 {recruit.applyCnt ?? 0}
           </Descriptions.Item>
-          <Descriptions.Item label="주최자">{recruit.regNm || recruit.regId}</Descriptions.Item>
+          <Descriptions.Item label="주최자"><HostAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || recruit.regId} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
         </Descriptions>
 
@@ -286,8 +327,11 @@ export default function RecruitPage() {
             {!loggedIn ? (
               <span style={{ color: '#888' }}>로그인 후 참여 신청할 수 있습니다.</span>
             ) : myApply ? (
-              <Space>
+              <Space wrap>
                 <span>내 신청 상태: {applyTag(myApply.applyStatus, myApply.applyStatusNm)}</span>
+                {myApply.applyStatus === 'APPLY03' && open && (
+                  <Button size="small" type="primary" onClick={reApply}>다시 신청</Button>
+                )}
                 {myApply.applyStatus !== 'APPLY02' && (
                   <Popconfirm title="신청을 취소하시겠습니까?" onConfirm={cancelApply} okText="취소" cancelText="닫기">
                     <Button size="small">신청 취소</Button>
@@ -362,7 +406,7 @@ export default function RecruitPage() {
         </Form.Item>
         <Space size={16} wrap align="start">
           <Form.Item name="capacity" label="모집 인원">
-            <InputNumber min={1} max={999} addonAfter="명" style={{ width: 140 }} />
+            <InputNumber min={0} max={999} addonAfter="명" style={{ width: 140 }} placeholder="0=제한없음" />
           </Form.Item>
           <Form.Item name="region" label="활동 지역">
             <Input style={{ width: 220 }} maxLength={100} placeholder="예: 서울/경기" />

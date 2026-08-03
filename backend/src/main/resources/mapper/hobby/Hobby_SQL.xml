@@ -15,13 +15,19 @@
                dc.code_nm AS difficulty_nm,
                bi.bbsinfo_nm,
                <include refid="thumb"/> AS thumb_id,
-               (SELECT COUNT(*) FROM t_bbs b WHERE b.bbsinfo_id = h.bbsinfo_id AND b.use_yn = 'Y' AND b.p_bbs_id = 0) AS post_cnt
+               (SELECT COUNT(*) FROM t_bbs b WHERE b.bbsinfo_id = h.bbsinfo_id AND b.use_yn = 'Y' AND b.p_bbs_id = 0) AS post_cnt,
+               (SELECT COUNT(*) FROM t_user_hobby uh WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y') AS member_cnt
         FROM t_hobby h
         LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
         WHERE h.use_yn = 'Y'
         <if test="searchKeyword != null and searchKeyword != ''">AND h.hobby_nm LIKE '%' || #{searchKeyword} || '%'</if>
         ORDER BY h.sort_ordr, h.hobby_id
+    </select>
+
+    <!-- 특정 게시판이 취미 게시판인지(취미 커뮤니티 공개 판정용) -->
+    <select id="countByBbsinfo" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM t_hobby WHERE use_yn = 'Y' AND bbsinfo_id = #{bbsinfoId}::integer
     </select>
 
     <select id="selectListTotCnt" parameterType="hobbyVO" resultType="int">
@@ -46,7 +52,9 @@
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{hobbyNm}, NULLIF(#{summary}, ''), #{intro}, #{guide}, NULLIF(#{difficultyCd}, ''),
             NULLIF(#{equipment}, ''), NULLIF(#{estCost}, ''),
-            NULLIF(#{bbsinfoId}, '')::integer, COALESCE(NULLIF(#{sortOrdr}, '')::integer, 0), 'Y',
+            NULLIF(#{bbsinfoId}, '')::integer,
+            COALESCE(NULLIF(#{sortOrdr}, '')::integer, (SELECT COALESCE(MAX(sort_ordr), 0) + 1 FROM t_hobby WHERE use_yn = 'Y')),
+            'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 

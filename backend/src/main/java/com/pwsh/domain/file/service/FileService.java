@@ -113,6 +113,11 @@ public class FileService {
         if (SecurityUtil.isAdmin()) {
             return;
         }
+        // 프로필 사진은 공개 서빙(r_file 매핑 없이 t_user.profile_file_id 직접 참조 — 게시글 작성자 아바타 등)
+        Integer profileRefs = commonDAO.selectOne("fileDAO.countProfileRefs", file);
+        if (profileRefs != null && profileRefs > 0) {
+            return;
+        }
         List<FileVO> refs = commonDAO.selectList("fileDAO.selectRefsByFileId", file);
         if (refs.isEmpty()) {
             if (!SecurityUtil.isAuthenticated()) {
@@ -122,8 +127,8 @@ public class FileService {
         }
         for (FileVO r : refs) {
             String loc = r.getFileLoc();
-            if ("POPUP".equals(loc) || "LOGO".equals(loc) || "HOBBY".equals(loc)) {
-                return; // 공개 콘텐츠(팝업·로고·취미 대표이미지는 비로그인에도 노출)
+            if ("POPUP".equals(loc) || "LOGO".equals(loc) || (loc != null && loc.startsWith("HOBBY"))) {
+                return; // 공개 콘텐츠(팝업·로고·취미 대표이미지·취미 본문이미지는 비로그인에도 노출)
             }
             if (loc != null && loc.startsWith("BBS") && genAccessGuard.canAccessPost(r.getMapKey())) {
                 return;

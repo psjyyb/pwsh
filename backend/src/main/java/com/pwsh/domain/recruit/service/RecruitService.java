@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RecruitService {
 
     private final CommonDAO commonDAO;
+    private final com.pwsh.domain.notification.service.NotificationService notificationService;
 
     // ===== 모집 =====
     public List<RecruitVO> selectList(RecruitVO vo) {
@@ -30,13 +31,22 @@ public class RecruitService {
         return commonDAO.selectOne("recruitDAO.selectListTotCnt", vo);
     }
 
-    /** 상세 + 조회수 증가. */
+    /** 내가 연 모집(마이페이지) — 본인 reg_id 기준. */
+    public List<RecruitVO> selectMyList() {
+        RecruitVO vo = new RecruitVO();
+        vo.setRegId(SecurityUtil.getCurrentUserId());
+        return commonDAO.selectList("recruitDAO.selectListMine", vo);
+    }
+
+    /** 상세. 조회수는 viewUp='Y'(프론트 dedup 통과)일 때만 증가 — 새로고침·내부조회 중복증가 방지. */
     public RecruitVO selectView(RecruitVO vo) {
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", vo);
         if (recruit == null) {
             return null;
         }
-        commonDAO.update("recruitDAO.updateViewCnt", vo);
+        if ("Y".equals(vo.getViewUp())) {
+            commonDAO.update("recruitDAO.updateViewCnt", vo);
+        }
         return recruit;
     }
 
@@ -101,16 +111,56 @@ public class RecruitService {
         }
         vo.setUserId(me);
         commonDAO.insert("recruitDAO.insertApply", vo);
+        notificationService.notify(recruit.getRegId(), "APPLY",
+                "'" + recruit.getTitle() + "' 모집에 새 참여 신청이 도착했어요.",
+                "/gen/recruit/" + vo.getRecruitId());
     }
 
-    /** 신청 수락/거절 — 대상 모집 주최자·관리자만. */
+    /** 신청 수락/거절 — 대상 모집 주최자·관리자만. 수락 시 정원 초과 차단 + 정원 충족 시 자동 마감(capacity>0일 때만). */
+    @Transactional
     public void applyUpdate(RecruitApplyVO vo) {
         RecruitApplyVO apply = commonDAO.selectOne("recruitDAO.selectApplyView", vo);
         if (apply == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
         }
         assertOwner(apply.getRecruitId());
-        commonDAO.update("recruitDAO.updateApplyStatus", vo);
+        RecruitVO key = new RecruitVO();
+        key.setDbKey(apply.getRecruitId());
+        RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
+        boolean accept = "APPLY02".equals(vo.getApplyStatus());
+
+        if (accept) {
+            int cap = parseCnt(recruit.getCapacity());
+            int accepted = parseCnt(recruit.getAcceptedCnt());
+            if (cap > 0 && accepted >= cap) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, "정원이 가득 찼습니다. 모집을 마감해 주세요.");
+            }
+            commonDAO.update("recruitDAO.updateApplyStatus", vo);
+            if (cap > 0 && accepted + 1 >= cap) { // 정원 충족 → 자동 마감
+                RecruitVO close = new RecruitVO();
+                close.setDbKey(apply.getRecruitId());
+                close.setStatusCd("RECRUIT02");
+                commonDAO.update("recruitDAO.updateStatus", close);
+            }
+        } else {
+            commonDAO.update("recruitDAO.updateApplyStatus", vo);
+        }
+        // 신청자에게 결과 알림
+        notificationService.notify(apply.getUserId(), accept ? "ACCEPT" : "REJECT",
+                "'" + recruit.getTitle() + "' 모집 참여가 " + (accept ? "수락되었어요! 🎉" : "아쉽게 거절되었어요."),
+                "/gen/recruit/" + apply.getRecruitId());
+    }
+
+    /** 문자열 수치를 int로(널·공백·비수치는 0). */
+    private int parseCnt(String s) {
+        if (s == null || s.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     /** 신청 취소 — 신청자 본인·관리자만. */

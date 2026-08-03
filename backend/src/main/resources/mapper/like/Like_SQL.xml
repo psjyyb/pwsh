@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="likeDAO">
+
+    <select id="selectActiveCnt" parameterType="likeVO" resultType="int">
+        SELECT COUNT(*) FROM t_content_like
+        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+    </select>
+
+    <insert id="insert" parameterType="likeVO">
+        INSERT INTO t_content_like (user_id, target_type, target_id, reg_id, reg_dt, reg_ip)
+        VALUES (#{userId}, #{targetType}, #{targetId}::integer, #{regId}, NOW(), #{regIp})
+    </insert>
+
+    <delete id="delete" parameterType="likeVO">
+        DELETE FROM t_content_like
+        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+    </delete>
+
+    <!-- 표시용 good_cnt 트랜잭션 동기화 -->
+    <update id="incBbsGood" parameterType="likeVO">
+        UPDATE t_bbs SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE bbs_id = #{targetId}::integer
+    </update>
+    <update id="decBbsGood" parameterType="likeVO">
+        UPDATE t_bbs SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE bbs_id = #{targetId}::integer
+    </update>
+    <update id="incCommentGood" parameterType="likeVO">
+        UPDATE t_comment SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE comment_id = #{targetId}::integer
+    </update>
+    <update id="decCommentGood" parameterType="likeVO">
+        UPDATE t_comment SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE comment_id = #{targetId}::integer
+    </update>
+
+    <select id="selectBbsGood" parameterType="likeVO" resultType="int">
+        SELECT COALESCE(good_cnt, 0) FROM t_bbs WHERE bbs_id = #{targetId}::integer
+    </select>
+    <select id="selectCommentGood" parameterType="likeVO" resultType="int">
+        SELECT COALESCE(good_cnt, 0) FROM t_comment WHERE comment_id = #{targetId}::integer
+    </select>
+
+</mapper>

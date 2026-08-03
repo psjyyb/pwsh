@@ -5,6 +5,7 @@ import com.pwsh.common.util.PageUtil;
 import com.pwsh.common.util.Validate;
 import com.pwsh.domain.recruit.service.RecruitService;
 import com.pwsh.domain.recruit.service.RecruitVO;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,12 @@ public class RecruitController {
     @RequestMapping("/selectRecruitView.do")
     public ApiResponse<RecruitVO> selectView(@RequestBody RecruitVO searchVO) {
         return ApiResponse.ok(recruitService.selectView(searchVO));
+    }
+
+    /** 내가 연 모집(마이페이지) — 로그인 본인 기준. */
+    @RequestMapping("/selectRecruitListMine.do")
+    public ApiResponse<List<RecruitVO>> selectListMine() {
+        return ApiResponse.ok(recruitService.selectMyList());
     }
 
     /** 등록 후 생성된 모집 ID 반환. */

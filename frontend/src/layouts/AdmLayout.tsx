@@ -69,7 +69,7 @@ export default function AdmLayout() {
   const [openPaths, setOpenPaths] = useState<string[]>([DEFAULT_PATH])
   const [pwModalOpen, setPwModalOpen] = useState(false)
   const [idleMinutes, setIdleMinutes] = useState(0)
-  const [siteTitle, setSiteTitle] = useState('PWSH')
+  const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo

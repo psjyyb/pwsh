@@ -75,7 +75,7 @@ INSERT INTO t_code (code_id, p_code_id, code_nm, ordr, use_yn, reg_id, upd_id, r
 
 -- ============================ 환경설정 (t_config, 단일 행) ============================
 INSERT INTO t_config (fail_cnt_limit, fail_cnt_denied_ti, pw_expire_cnt, session_expire_cnt, del_log_cnt, acc_ip_yn, title, menu_version)
-VALUES (5, 5, 90, 30, 365, 'N', 'PWSH', 1);
+VALUES (5, 5, 90, 30, 365, 'N', '취만사', 1);
 
 -- ============================ 관리자 권한그룹 (t_auth_grp) ============================
 INSERT INTO t_auth_grp (authgrp_id, authgrp_nm, authgrp_desc, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
@@ -109,22 +109,18 @@ INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, l
 (40, 26, 'ADM', '낚시',           8, 'MENU02', 7, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (41,  0, 'ADM', '취미관리',       6, 'MENU01', 0, '/adm/hobby',     'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
--- 사용자(GEN) 메뉴 — 취미 커뮤니티.
---  · 취미게시판(그룹) 하위 등산/보드게임/낚시 = 게시판(MENU02)+conn_id=bbsinfo_id → /gen/board/{id} (범용 라우트, 코드 불필요)
---  · 모집 = URL(MENU01) /gen/recruit (전용 화면). 마이페이지·1:1문의는 회원 전용(GUEST 권한 제외).
+-- 사용자(GEN) 메뉴 — 취미 커뮤니티(도감 중심).
+--  · 취미는 상단 메뉴가 아니라 메인(도감 카드) → 취미 허브(/gen/hobby/{id})로 진입 → 게시판/모집/레벨.
+--    취미를 상단에 나열하지 않으므로 취미가 늘어도 메뉴가 깔끔.
+--  · 모집 = URL(MENU01) /gen/recruit. 마이페이지·1:1문의는 회원 전용(GUEST 권한 제외).
 INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, link_url, target_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 (20,  0, 'GEN', '메인',       1, 'MENU01', 0, '/gen/main',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(33,  0, 'GEN', '취미게시판', 2, 'MENU04', 0, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(34, 33, 'GEN', '등산',       1, 'MENU02', 5, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(35, 33, 'GEN', '보드게임',   2, 'MENU02', 6, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(36, 33, 'GEN', '낚시',       3, 'MENU02', 7, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(37,  0, 'GEN', '모집',       3, 'MENU01', 0, '/gen/recruit', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(21,  0, 'GEN', '공지사항',   4, 'MENU02', 1, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(32,  0, 'GEN', '갤러리',     5, 'MENU02', 3, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(22,  0, 'GEN', '고객센터',   6, 'MENU04', 0, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(37,  0, 'GEN', '모집',       2, 'MENU01', 0, '/gen/recruit', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(21,  0, 'GEN', '공지사항',   3, 'MENU02', 1, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(22,  0, 'GEN', '고객센터',   4, 'MENU04', 0, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (23, 22, 'GEN', 'FAQ',        1, 'MENU02', 2, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (24, 22, 'GEN', '1:1문의',    2, 'MENU02', 4, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(25,  0, 'GEN', '마이페이지', 7, 'MENU01', 0, '/gen/mypage',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+(25,  0, 'GEN', '마이페이지', 5, 'MENU01', 0, '/gen/mypage',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- menu_id를 명시 삽입했으므로 IDENTITY 시퀀스를 현재 최대값으로 보정
 SELECT setval(pg_get_serial_sequence('t_menu', 'menu_id'), (SELECT MAX(menu_id) FROM t_menu));
@@ -168,11 +164,13 @@ INSERT INTO t_auth (menu_id, conn_id, auth_gbn, menu_yn, search_yn, mod_yn, use_
 SELECT menu_id, 'MEMBER', 'GRP', 'Y', 'Y', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'
 FROM t_menu WHERE area = 'GEN';
 
--- GUEST(비회원): GEN 공개 메뉴(메인·취미게시판·모집·공지·갤러리·고객센터/FAQ). 1:1문의(24)·마이페이지(25)는 회원 전용이라 제외.
+-- GUEST(비회원): GEN 상단 공개 메뉴 = 메인(20)·모집(37)·공지사항(21)·고객센터(22)·FAQ(23).
+--   ※ 취미 게시판·갤러리는 상단 메뉴에 두지 않고 '도감 중심'으로 접근(메인 카드→취미 허브→게시판).
+--     공개 취미 게시판 열람 인가는 GenAccessGuard가 담당(메뉴 grant 불필요). 1:1문의(24)·마이페이지(25)는 회원 전용 제외.
 -- 열람은 공개, 글쓰기·모집·신청 등 쓰기는 백엔드가 로그인 요구.
 INSERT INTO t_auth (menu_id, conn_id, auth_gbn, menu_yn, search_yn, mod_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
 SELECT menu_id, 'GUEST', 'GRP', 'Y', 'Y', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'
-FROM t_menu WHERE area = 'GEN' AND menu_id IN (20, 33, 34, 35, 36, 37, 21, 32, 22, 23);
+FROM t_menu WHERE area = 'GEN' AND menu_id IN (20, 37, 21, 22, 23);
 
 -- ============================ 기본 게시판 (t_bbsinfo) ============================
 -- 공용: id 1 공지(001)/2 FAQ(002)/3 갤러리(004)/4 1:1(003).

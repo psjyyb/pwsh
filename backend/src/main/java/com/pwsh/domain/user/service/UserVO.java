@@ -16,6 +16,7 @@ public class UserVO extends BaseVO {
     private String memCd;
     private String userNm;
     private String nickname; // 커뮤니티 표시명(평문). 셀프가입 필수, 작성자 표기용
+    private String profileFileId; // 프로필 사진 파일(t_file.file_id 직접 참조)
     private String phone;
     private String email;
     private String genCd;

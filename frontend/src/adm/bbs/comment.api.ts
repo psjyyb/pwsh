@@ -8,6 +8,8 @@ export interface Comment {
   regId?: string
   regNm?: string // 작성자 표시명(닉네임). 없으면 regId로 폴백
   regDt?: string
+  goodCnt?: string // 좋아요 수
+  likedYn?: string // 내가 좋아요 눌렀는지(Y/N)
 }
 
 export const commentApi = {

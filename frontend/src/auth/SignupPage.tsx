@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Form, Input, message } from 'antd'
+import { Button, Card, ConfigProvider, Form, Input, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import { signup } from '../api/auth'
+import { signup, login } from '../api/auth'
+import { tokenStore } from './token'
 import { configApi } from '../adm/config/config.api'
+import { genTheme } from '../gen/theme'
 import defaultLogo from '../assets/logo.svg'
 
 /**
@@ -11,7 +13,7 @@ import defaultLogo from '../assets/logo.svg'
  */
 export default function SignupPage() {
   const navigate = useNavigate()
-  const [siteTitle, setSiteTitle] = useState('PWSH')
+  const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
@@ -35,8 +37,11 @@ export default function SignupPage() {
         nickname: values.nickname,
         email: values.email,
       })
-      message.success('회원가입이 완료되었습니다. 로그인해 주세요.')
-      navigate('/login', { replace: true })
+      // 가입 성공 → 바로 로그인 처리 후 메인으로(재로그인 불필요)
+      const token = await login(values.userId, values.userPw)
+      tokenStore.set(token.accessToken, token.refreshToken)
+      message.success('환영합니다! 회원가입이 완료되었습니다.')
+      navigate('/gen', { replace: true })
     } catch (e) {
       message.error(e instanceof Error ? e.message : '회원가입에 실패했습니다.')
     } finally {
@@ -45,20 +50,21 @@ export default function SignupPage() {
   }
 
   return (
+    <ConfigProvider theme={genTheme}>
     <div
       style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh',
-        background: 'linear-gradient(135deg, #eef2f7 0%, #e2ebf6 100%)', padding: 16,
+        background: 'linear-gradient(160deg, #8B72F5 0%, #B9A6F7 100%)', padding: 16,
       }}
     >
-      <Card style={{ width: 420, boxShadow: '0 8px 30px rgba(0,0,0,.08)', borderRadius: 12 }}>
+      <Card style={{ width: 420, boxShadow: '0 20px 50px rgba(43,32,87,.4)', borderRadius: 24 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <img
             src={logoSrc}
             alt={siteTitle}
             style={{ width: 300, height: 56, objectFit: 'contain', marginBottom: 6 }}
           />
-          <div style={{ color: '#888', fontSize: 13 }}>회원가입</div>
+          <div style={{ color: '#888', fontSize: 13 }}>함께 시작해요 ✨ 회원가입</div>
         </div>
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
@@ -121,5 +127,6 @@ export default function SignupPage() {
         </Form>
       </Card>
     </div>
+    </ConfigProvider>
   )
 }

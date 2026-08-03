@@ -4,11 +4,13 @@ import com.pwsh.common.response.ApiResponse;
 import com.pwsh.common.util.PasswordPolicy;
 import com.pwsh.domain.auth.service.AuthService;
 import com.pwsh.domain.auth.service.LoginRequest;
+import com.pwsh.domain.auth.service.NicknameRequest;
 import com.pwsh.domain.auth.service.PwChangeRequest;
 import com.pwsh.domain.auth.service.RefreshRequest;
 import com.pwsh.domain.auth.service.SignupRequest;
 import com.pwsh.domain.auth.service.TokenResponse;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,6 +53,26 @@ public class AuthController {
     public ApiResponse<Void> pwChange(@Valid @RequestBody PwChangeRequest request) {
         PasswordPolicy.validate(request.newPw()); // 복잡도 정책(인코딩 전 원문)
         authService.pwChange(request);
+        return ApiResponse.ok();
+    }
+
+    /** 내 정보(userId·nickname·memCd) — 마이페이지 표시용 */
+    @PostMapping("/me")
+    public ApiResponse<Map<String, String>> me() {
+        return ApiResponse.ok(authService.me());
+    }
+
+    /** 본인 닉네임 변경 */
+    @PostMapping("/nickname")
+    public ApiResponse<Void> nickname(@Valid @RequestBody NicknameRequest request) {
+        authService.changeNickname(request);
+        return ApiResponse.ok();
+    }
+
+    /** 본인 프로필 사진 설정/해제 — 서버가 user_id 강제. body {fileId} 없으면 해제. */
+    @PostMapping("/updateProfileImage")
+    public ApiResponse<Void> updateProfileImage(@RequestBody Map<String, String> body) {
+        authService.updateProfileImage(body.get("fileId"));
         return ApiResponse.ok();
     }
 

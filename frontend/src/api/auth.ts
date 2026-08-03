@@ -26,6 +26,17 @@ export function signup(params: SignupParams): Promise<void> {
   return apiPost<void>('/auth/signup', params)
 }
 
+export interface MeInfo { userId?: string; nickname?: string; memCd?: string; profileFileId?: string }
+/** 내 정보(마이페이지) */
+export function me(): Promise<MeInfo> {
+  return apiPost<MeInfo>('/auth/me', {})
+}
+
+/** 본인 프로필 사진 설정/해제 — fileId 없으면 해제 */
+export function updateProfileImage(fileId?: string): Promise<void> {
+  return apiPost<void>('/auth/updateProfileImage', { fileId: fileId ?? null })
+}
+
 /** 비밀번호 만료 연장("나중에") — 본인 pw_expire_dt 재형성 */
 export function extendPw(): Promise<void> {
   return apiPost<void>('/auth/pwExtend', {})

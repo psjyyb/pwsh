@@ -5,6 +5,7 @@
     <select id="selectList" parameterType="commentVO" resultType="commentVO">
         SELECT comment_id::TEXT AS db_key, bbs_id, context, good_cnt, bad_cnt, reg_id,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_nm,
+               (CASE WHEN EXISTS (SELECT 1 FROM t_content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = t_comment.comment_id AND l.user_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM t_comment
         WHERE use_yn = 'Y' AND bbs_id = #{bbsId}::integer

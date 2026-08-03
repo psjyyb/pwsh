@@ -42,9 +42,9 @@ class GenAccessControlTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("비회원도 공개 게시판(board3 갤러리, GUEST 메뉴32)을 볼 수 있다")
-    void guestCanReadGalleryBoard() throws Exception {
-        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"3\"}", null).statusCode()).isEqualTo(200);
+    @DisplayName("비회원은 연결 메뉴 없는 게시판(board3)에 접근하면 403")
+    void guestBlockedFromUnlinkedBoard() throws Exception {
+        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"3\"}", null).statusCode()).isEqualTo(403);
     }
 
     @Test

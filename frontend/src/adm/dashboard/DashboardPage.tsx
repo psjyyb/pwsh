@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const [counts, setCounts] = useState<Record<string, number | null>>({}) // undefined=로딩, null=실패
   const [logs, setLogs] = useState<Eventlog[]>([])
   const [logLoading, setLogLoading] = useState(true)
-  const [siteTitle, setSiteTitle] = useState('PWSH')
+  const [siteTitle, setSiteTitle] = useState('취만사')
 
   useEffect(() => {
     CARDS.forEach((c) => {

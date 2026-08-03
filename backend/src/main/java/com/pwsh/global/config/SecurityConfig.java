@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/pwExtend", "/api/auth/pwChange", "/api/auth/logout").authenticated() // 본인 인증 필요(순서상 permitAll보다 먼저)
+                        .requestMatchers("/api/auth/pwExtend", "/api/auth/pwChange", "/api/auth/logout", "/api/auth/nickname", "/api/auth/me").authenticated() // 본인 인증 필요(순서상 permitAll보다 먼저)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/pub/**").permitAll() // 공개 읽기 전용(에디터 이미지 서빙 등)
                         // 사용자(GEN) 사이트의 조회 엔드포인트는 비로그인 허용(공개 범위는 GUEST 권한그룹이 메뉴로 결정).
