@@ -3,13 +3,16 @@
 <mapper namespace="commentDAO">
 
     <select id="selectList" parameterType="commentVO" resultType="commentVO">
-        SELECT comment_id::TEXT AS db_key, bbs_id, context, good_cnt, bad_cnt, reg_id,
+        SELECT comment_id::TEXT AS db_key, bbs_id, p_comment_id, context, good_cnt, bad_cnt, reg_id,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_nm,
+               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_profile_file_id,
                (CASE WHEN EXISTS (SELECT 1 FROM t_content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = t_comment.comment_id AND l.user_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM t_comment
         WHERE use_yn = 'Y' AND bbs_id = #{bbsId}::integer
-        ORDER BY comment_id
+        ORDER BY CASE WHEN p_comment_id = 0 THEN comment_id ELSE p_comment_id END,  -- 스레드(부모) 기준
+                 CASE WHEN p_comment_id = 0 THEN 0 ELSE 1 END,                       -- 부모 먼저, 답글 뒤
+                 comment_id
     </select>
 
     <!-- 단건(수정/삭제 인가용: 작성자·소속 게시글 확인) -->
@@ -19,9 +22,9 @@
     </select>
 
     <insert id="insert" parameterType="commentVO">
-        INSERT INTO t_comment (bbs_id, context, good_cnt, bad_cnt, use_yn,
+        INSERT INTO t_comment (bbs_id, p_comment_id, context, good_cnt, bad_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{bbsId}::integer, #{context}, 0, 0, 'Y',
+        VALUES (#{bbsId}::integer, COALESCE(NULLIF(#{pCommentId}, '')::integer, 0), #{context}, 0, 0, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 

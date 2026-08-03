@@ -30,17 +30,28 @@ public class CommentService {
         return commonDAO.selectList("commentDAO.selectList", vo);
     }
 
-    /** 등록 — 접근 불가 게시판(게시글)엔 댓글 작성 차단. 등록 후 글 작성자에게 알림(본인 글이면 notify가 자체 스킵). */
+    /** 등록 — 접근 불가 게시판(게시글)엔 댓글 작성 차단. 등록 후 알림(답글=부모 댓글 작성자, 아니면 글 작성자). */
     public void insert(CommentVO vo) {
         genAccessGuard.checkPost(vo.getBbsId());
         commonDAO.insert("commentDAO.insert", vo);
         BbsVO key = new BbsVO();
         key.setDbKey(vo.getBbsId());
         BbsVO post = commonDAO.selectOne("bbsDAO.selectView", key);
-        if (post != null) {
+        String link = post != null ? "/gen/board/" + post.getBbsinfoId() + "?post=" + vo.getBbsId() : null;
+
+        String pid = vo.getPCommentId();
+        if (pid != null && !pid.isEmpty() && !"0".equals(pid)) {
+            // 대댓글 → 부모 댓글 작성자에게
+            CommentVO pk = new CommentVO();
+            pk.setDbKey(pid);
+            CommentVO parent = commonDAO.selectOne("commentDAO.selectView", pk);
+            if (parent != null) {
+                notificationService.notify(parent.getRegId(), "COMMENT", "내 댓글에 답글이 달렸어요.", link);
+            }
+        } else if (post != null) {
+            // 최상위 댓글 → 글 작성자에게
             notificationService.notify(post.getRegId(), "COMMENT",
-                    "'" + post.getTitle() + "' 글에 새 댓글이 달렸어요.",
-                    "/gen/board/" + post.getBbsinfoId() + "?post=" + vo.getBbsId());
+                    "'" + post.getTitle() + "' 글에 새 댓글이 달렸어요.", link);
         }
     }
 

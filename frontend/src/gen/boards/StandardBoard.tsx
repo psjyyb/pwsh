@@ -17,6 +17,8 @@ import SafeHtml from '../../common/SafeHtml'
 import type { RichTextEditorHandle } from '../../common/adm/components/RichTextEditor'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import { likeApi } from '../../api/like'
+import UserAvatar from '../../common/gen/components/UserAvatar'
+import ReportAction from '../../common/gen/components/ReportAction'
 import { extractEditorImageIds } from '../../common/util/editorImages'
 import type { Bbsinfo } from '../../adm/bbsinfo/bbsinfo.api'
 import { BBS_LIST_URL, bbsApi } from '../../adm/bbs/bbs.api'
@@ -51,6 +53,8 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const [commentText, setCommentText] = useState('')
   const [editCommentKey, setEditCommentKey] = useState<string | null>(null)
   const [editCommentText, setEditCommentText] = useState('')
+  const [replyKey, setReplyKey] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState('')
   const [viewFiles, setViewFiles] = useState<FileMeta[]>([])
 
   const [form] = Form.useForm()
@@ -290,6 +294,18 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
     }
   }
+  const submitReply = async (parent: Comment) => {
+    if (!post || !replyText.trim()) return
+    const parentId = Number(parent.pCommentId) > 0 ? parent.pCommentId! : parent.dbKey! // 대댓글은 원 댓글(root) 아래로
+    try {
+      await commentApi.insert(post.dbKey!, replyText.trim(), parentId)
+      setReplyKey(null)
+      setReplyText('')
+      setComments(await commentApi.list(post.dbKey!))
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '답글 등록 실패')
+    }
+  }
 
   const titleCell = (r: Bbs) => {
     const depth = Number(r.bbsDepth) || 0
@@ -425,8 +441,9 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
           </Space>
         }
       >
-        <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
-          작성자 {post.regNm || post.regId} · {post.regDt} · 조회 {post.viewCnt}
+        <div style={{ color: '#888', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <UserAvatar fileId={post.regProfileFileId} name={post.regNm || post.regId} size={24} />
+          <span>· {post.regDt} · 조회 {post.viewCnt}</span>
         </div>
         {isGallery && viewGallery.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16, marginBottom: 16 }}>
@@ -448,6 +465,9 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
           ) : (
             <span style={{ color: '#888' }}>♥ {Number(post.goodCnt) || 0}</span>
           )}
+          {meId && post.regId !== meId && (
+            <span style={{ marginLeft: 14 }}><ReportAction targetType="BBS" targetId={post.dbKey!} /></span>
+          )}
         </div>
 
         {viewFiles.length > 0 && (
@@ -465,10 +485,14 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
 
         <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
           <b>{isQna ? `답변 ${comments.length}` : `댓글 ${comments.length}`}</b>
-          {comments.map((c) => (
-            <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <div style={{ fontSize: 12, color: '#888' }}>
-                {c.regNm || c.regId} · {c.regDt}
+          {comments.map((c) => {
+            const isReply = Number(c.pCommentId) > 0
+            return (
+            <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
+              <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {isReply && <span style={{ color: '#bbb' }}>↳</span>}
+                <UserAvatar fileId={c.regProfileFileId} name={c.regNm || c.regId} size={18} />
+                <span>· {c.regDt}</span>
                 {canEdit(c.regId) && editCommentKey !== c.dbKey && (
                   <>
                     <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.dbKey!); setEditCommentText(c.context ?? '') }}>수정</a>
@@ -485,7 +509,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
               ) : (
                 <>
                   <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>
-                  <div style={{ marginTop: 2 }}>
+                  <div style={{ marginTop: 2, display: 'flex', gap: 12, alignItems: 'center' }}>
                     {meId ? (
                       <a onClick={() => toggleLikeComment(c)} style={{ color: c.likedYn === 'Y' ? '#6C4EE3' : '#999', fontSize: 12 }}>
                         {c.likedYn === 'Y' ? '♥' : '♡'} {Number(c.goodCnt) || 0}
@@ -493,11 +517,20 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
                     ) : (
                       <span style={{ color: '#bbb', fontSize: 12 }}>♥ {Number(c.goodCnt) || 0}</span>
                     )}
+                    {meId && <a style={{ color: '#999', fontSize: 12 }} onClick={() => { setReplyKey(replyKey === c.dbKey ? null : c.dbKey!); setReplyText('') }}>답글</a>}
+                    {meId && c.regId !== meId && <ReportAction targetType="COMMENT" targetId={c.dbKey!} />}
                   </div>
+                  {replyKey === c.dbKey && (
+                    <Space.Compact style={{ width: '100%', marginTop: 6 }}>
+                      <Input.TextArea value={replyText} onChange={(e) => setReplyText(e.target.value)} autoSize={{ minRows: 1, maxRows: 4 }} placeholder="답글을 입력하세요" />
+                      <Button type="primary" onClick={() => submitReply(c)}>등록</Button>
+                      <Button onClick={() => { setReplyKey(null); setReplyText('') }}>취소</Button>
+                    </Space.Compact>
+                  )}
                 </>
               )}
             </div>
-          ))}
+          )})}
           <Space.Compact style={{ width: '100%', marginTop: 8 }}>
             <Input.TextArea
               value={commentText}

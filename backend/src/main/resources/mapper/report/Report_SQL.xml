@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reportDAO">
+
+    <!-- 중복신고 여부(같은 신고자·대상) -->
+    <select id="selectDupCnt" parameterType="reportVO" resultType="int">
+        SELECT COUNT(*) FROM t_report
+        WHERE use_yn = 'Y' AND reg_id = #{regId}
+          AND target_type = #{targetType} AND target_id = #{targetId}::integer
+    </select>
+
+    <insert id="insert" parameterType="reportVO">
+        INSERT INTO t_report (target_type, target_id, reason, status, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{targetType}, #{targetId}::integer, #{reason}, 'PENDING', 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <!-- 관리자 신고 목록(상태 필터 옵션) + 대상 제목·신고자 닉네임 -->
+    <select id="selectList" parameterType="reportVO" resultType="reportVO">
+        SELECT r.report_id::TEXT AS db_key, r.target_type, r.target_id, r.reason, r.status,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               TO_CHAR(r.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt,
+               CASE r.target_type
+                   WHEN 'BBS'     THEN (SELECT title FROM t_bbs WHERE bbs_id = r.target_id)
+                   WHEN 'RECRUIT' THEN (SELECT title FROM t_recruit WHERE recruit_id = r.target_id)
+                   WHEN 'COMMENT' THEN (SELECT LEFT(context, 40) FROM t_comment WHERE comment_id = r.target_id)
+               END AS target_title
+        FROM t_report r
+        WHERE r.use_yn = 'Y'
+        <if test="status != null and status != ''">AND r.status = #{status}</if>
+        ORDER BY r.report_id DESC
+        LIMIT 200
+    </select>
+
+    <update id="updateStatus" parameterType="reportVO">
+        UPDATE t_report SET status = #{status}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE report_id = #{dbKey}::integer
+    </update>
+
+</mapper>

@@ -107,7 +107,8 @@ INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, l
 (38, 26, 'ADM', '등산',           6, 'MENU02', 5, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (39, 26, 'ADM', '보드게임',       7, 'MENU02', 6, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (40, 26, 'ADM', '낚시',           8, 'MENU02', 7, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(41,  0, 'ADM', '취미관리',       6, 'MENU01', 0, '/adm/hobby',     'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+(41,  0, 'ADM', '취미관리',       6, 'MENU01', 0, '/adm/hobby',     'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(42,  0, 'ADM', '신고관리',       7, 'MENU01', 0, '/adm/report',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- 사용자(GEN) 메뉴 — 취미 커뮤니티(도감 중심).
 --  · 취미는 상단 메뉴가 아니라 메인(도감 카드) → 취미 허브(/gen/hobby/{id})로 진입 → 게시판/모집/레벨.
@@ -139,6 +140,7 @@ UPDATE t_menu SET icon = CASE
     WHEN link_url LIKE '%/file%'    THEN 'file'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'
     WHEN link_url LIKE '%/config%'  THEN 'setting'
+    WHEN link_url LIKE '%/report%'  THEN 'flag'
     WHEN link_url LIKE '%/dashboard%' THEN 'grid'
     ELSE icon END
 WHERE area = 'ADM' AND link_url IS NOT NULL AND link_url <> '';

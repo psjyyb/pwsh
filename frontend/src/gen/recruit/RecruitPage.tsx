@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, Card, Descriptions, Empty, Form, Input, InputNumber, Popconfirm,
+  Button, Card, Descriptions, Empty, Form, Grid, Input, InputNumber, Pagination, Popconfirm,
   Select, Space, Table, Tag, message,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
@@ -10,23 +10,12 @@ import { getClaims, isAdmin, tokenStore } from '../../auth/token'
 import { hobbyApi } from '../../adm/hobby/hobby.api'
 import { recruitApi, applyApi } from './recruit.api'
 import type { Recruit, RecruitApply } from './recruit.api'
-import { gen } from '../theme'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
+import UserAvatar from '../../common/gen/components/UserAvatar'
+import ReportAction from '../../common/gen/components/ReportAction'
 
 type Mode = 'list' | 'view' | 'write'
 interface Category { hobbyId: string; name: string }
-
-/** 회원 아바타(프로필 이미지 or 닉네임 이니셜) + 이름. */
-function HostAvatar({ fileId, name, size = 26 }: { fileId?: string; name?: string; size?: number }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-      <span style={{ width: size, height: size, borderRadius: '50%', background: gen.primary, color: '#fff', fontSize: Math.round(size * 0.42), fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-        {fileId ? <img src={`/api/pub/image/${fileId}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name || '?').slice(0, 1)}
-      </span>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '-'}</span>
-    </span>
-  )
-}
 
 const STATUS_OPEN = 'RECRUIT01' // 모집중
 const STATUS_CLOSED = 'RECRUIT02' // 마감
@@ -46,6 +35,7 @@ export default function RecruitPage() {
   const { id: routeId } = useParams()
   const [searchParams] = useSearchParams()
   const [mode, setMode] = useState<Mode>('list')
+  const screens = Grid.useBreakpoint()
   const [categories, setCategories] = useState<Category[]>([])
 
   const [rows, setRows] = useState<Recruit[]>([])
@@ -243,7 +233,7 @@ export default function RecruitPage() {
         render: (_, r) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`,
       },
       { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusNm) },
-      { title: '주최자', width: 150, render: (_, r) => <HostAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} size={24} /> },
+      { title: '주최자', width: 150, render: (_, r) => <UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} size={24} /> },
     ]
     return (
       <Card
@@ -268,6 +258,29 @@ export default function RecruitPage() {
         </Space>
         {rows.length === 0 && !loading ? (
           <Empty description="등록된 모집이 없습니다." />
+        ) : !screens.md ? (
+          <>
+            <Space direction="vertical" style={{ width: '100%' }} size={10}>
+              {rows.map((r) => (
+                <Card key={r.dbKey} size="small" hoverable onClick={() => openView(r.dbKey!)} styles={{ body: { padding: 12 } }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600 }}>{r.title}</span>
+                    {statusTag(r.statusCd, r.statusNm)}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <span>{r.hobbyNm ?? catName(r.hobbyId) ?? '-'}</span>
+                    <span>{r.region || '-'}</span>
+                    <span>{r.meetDt || '-'}</span>
+                    <span>인원 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
+                  </div>
+                  <div style={{ marginTop: 6 }}><UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} size={20} /></div>
+                </Card>
+              ))}
+            </Space>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <Pagination current={pageIndex} pageSize={size} total={total} onChange={(p) => loadList(p)} showSizeChanger={false} simple />
+            </div>
+          </>
         ) : (
           <Table<Recruit>
             rowKey="dbKey" size="small" loading={loading} columns={columns} dataSource={rows}
@@ -315,11 +328,14 @@ export default function RecruitPage() {
           <Descriptions.Item label="신청 현황">
             수락 {recruit.acceptedCnt ?? 0} · 신청 {recruit.applyCnt ?? 0}
           </Descriptions.Item>
-          <Descriptions.Item label="주최자"><HostAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || recruit.regId} /></Descriptions.Item>
+          <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || recruit.regId} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
         </Descriptions>
 
         <div style={{ whiteSpace: 'pre-wrap', marginTop: 16, minHeight: 60 }}>{recruit.content}</div>
+        {loggedIn && !owner && (
+          <div style={{ marginTop: 8, textAlign: 'right' }}><ReportAction targetType="RECRUIT" targetId={recruit.dbKey!} /></div>
+        )}
 
         {/* 참여 신청 영역(비주최자) */}
         {!owner && (

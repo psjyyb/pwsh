@@ -76,6 +76,13 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
+    /** 회원 탈퇴(셀프) — 현재 비밀번호 확인 필요. */
+    @PostMapping("/withdraw")
+    public ApiResponse<Void> withdraw(@RequestBody Map<String, String> body) {
+        authService.withdraw(body.get("currentPw"));
+        return ApiResponse.ok();
+    }
+
     /** Access 만료 시 Refresh 토큰으로 재발급 */
     @PostMapping("/refresh")
     public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {

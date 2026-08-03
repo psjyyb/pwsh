@@ -3,7 +3,7 @@ import { Button, Card, Empty, Form, Input, Modal, Space, Table, Tag, message } f
 import type { TableColumnsType } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { tokenStore } from '../../auth/token'
-import { me, changePw, updateProfileImage } from '../../api/auth'
+import { me, changePw, updateProfileImage, withdraw } from '../../api/auth'
 import { fileApi } from '../../api/file'
 import { applyApi } from '../recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../recruit/recruit.api'
@@ -28,6 +28,8 @@ export default function MyPage() {
   const [profileFileId, setProfileFileId] = useState<string | undefined>()
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
+  const [withdrawPw, setWithdrawPw] = useState('')
 
   const [posts, setPosts] = useState<Bbs[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
@@ -75,6 +77,19 @@ export default function MyPage() {
       navigate('/login', { replace: true })
     } catch (e) {
       message.error(e instanceof Error ? e.message : '변경 실패')
+    }
+  }
+
+  const doWithdraw = async () => {
+    if (!withdrawPw) { message.warning('비밀번호를 입력하세요.'); return }
+    try {
+      await withdraw(withdrawPw)
+      setWithdrawOpen(false)
+      message.success('탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.')
+      tokenStore.clear()
+      navigate('/login', { replace: true })
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '탈퇴 실패')
     }
   }
 
@@ -174,7 +189,7 @@ export default function MyPage() {
       {/* 내가 쓴 글 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('📝', '내가 쓴 글', posts.length)}>
         {posts.length === 0 ? <Empty description="작성한 글이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<Bbs> rowKey="dbKey" size="small" columns={postCols} dataSource={posts} pagination={false}
+          <Table<Bbs> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={postCols} dataSource={posts} pagination={false}
             onRow={(r) => ({ onClick: () => navigate(`/gen/board/${r.bbsinfoId}?post=${r.dbKey}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
@@ -182,7 +197,7 @@ export default function MyPage() {
       {/* 내가 연 모집 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('📣', '내가 연 모집', recruits.length)}>
         {recruits.length === 0 ? <Empty description="등록한 모집이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<Recruit> rowKey="dbKey" size="small" columns={recruitCols} dataSource={recruits} pagination={false}
+          <Table<Recruit> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={recruitCols} dataSource={recruits} pagination={false}
             onRow={(r) => ({ onClick: () => navigate(`/gen/recruit/${r.dbKey}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
@@ -190,10 +205,22 @@ export default function MyPage() {
       {/* 내가 신청한 모집 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('✋', '내가 신청한 모집', applies.length)}>
         {applies.length === 0 ? <Empty description="신청한 모집이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<RecruitApply> rowKey="dbKey" size="small" columns={applyCols} dataSource={applies} pagination={false}
+          <Table<RecruitApply> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={applyCols} dataSource={applies} pagination={false}
             onRow={(r) => ({ onClick: () => navigate(`/gen/recruit/${r.recruitId}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
+
+      <div style={{ textAlign: 'center', marginTop: 4 }}>
+        <Button type="text" danger onClick={() => { setWithdrawPw(''); setWithdrawOpen(true) }}>회원 탈퇴</Button>
+      </div>
+
+      {/* 회원 탈퇴 */}
+      <Modal title="회원 탈퇴" open={withdrawOpen} onCancel={() => setWithdrawOpen(false)} onOk={doWithdraw}
+        okText="탈퇴" cancelText="취소" okButtonProps={{ danger: true }}>
+        <p>탈퇴하면 계정이 비활성화되어 다시 로그인할 수 없습니다. 계속하려면 현재 비밀번호를 입력하세요.</p>
+        <Input.Password value={withdrawPw} onChange={(e) => setWithdrawPw(e.target.value)}
+          placeholder="현재 비밀번호" autoComplete="current-password" onPressEnter={doWithdraw} />
+      </Modal>
 
       {/* 닉네임 변경 */}
       <Modal title="닉네임 변경" open={nickOpen} onCancel={() => setNickOpen(false)} onOk={saveNickname} okText="변경" cancelText="취소">

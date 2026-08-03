@@ -65,7 +65,8 @@ public class SecurityConfig {
                                 "/api/adm/recruit/selectRecruitList.do",
                                 "/api/adm/recruit/selectRecruitView.do",
                                 "/api/adm/hobby/selectHobbyList.do",
-                                "/api/adm/hobby/selectHobbyView.do").permitAll()
+                                "/api/adm/hobby/selectHobbyView.do",
+                                "/api/adm/search/selectSearchAll.do").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(authenticationEntryPoint)   // 미인증 → 401

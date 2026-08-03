@@ -150,6 +150,23 @@ public class AuthService {
         return m;
     }
 
+    /** 회원 탈퇴(셀프) — 현재 비번 확인 후 계정 비활성(use_yn='N') + 세션 무효화(재로그인·복구 불가). */
+    @Transactional
+    public void withdraw(String currentPw) {
+        String userId = SecurityUtil.getCurrentUserId();
+        if (userId == null || "system".equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        UserVO user = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(userId));
+        if (user == null || !passwordEncoder.matches(currentPw, user.getUserPw())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "현재 비밀번호가 일치하지 않습니다.");
+        }
+        UserVO upd = new UserVO();
+        upd.setDbKey(userId);
+        commonDAO.update("userDAO.delete", upd);            // use_yn='N' (로그인 차단)
+        commonDAO.selectOne("userDAO.incrementTokenVer", userIdParam(userId)); // 현재 토큰 즉시 무효화
+    }
+
     /** 본인 프로필 사진 파일 설정/해제 — user_id는 서버가 강제(위변조 차단). fileId 없으면 해제(NULL). */
     @Transactional
     public void updateProfileImage(String fileId) {

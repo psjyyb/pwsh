@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="searchDAO">
+
+    <!-- 취미: 이름·소개 부분일치 -->
+    <select id="searchHobbies" parameterType="map" resultType="hobbyVO">
+        SELECT h.hobby_id::TEXT AS db_key, h.hobby_nm, h.summary,
+               dc.code_nm AS difficulty_nm
+        FROM t_hobby h
+        LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
+        WHERE h.use_yn = 'Y'
+          AND (h.hobby_nm LIKE '%' || #{keyword} || '%' OR h.summary LIKE '%' || #{keyword} || '%')
+        ORDER BY h.sort_ordr, h.hobby_id
+        LIMIT 10
+    </select>
+
+    <!-- 모집: 모임명·설명 부분일치 -->
+    <select id="searchRecruits" parameterType="map" resultType="recruitVO">
+        SELECT r.recruit_id::TEXT AS db_key, r.title, r.region, r.meet_dt, r.status_cd,
+               ho.hobby_nm, sc.code_nm AS status_nm
+        FROM t_recruit r
+        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        WHERE r.use_yn = 'Y'
+          AND (r.title LIKE '%' || #{keyword} || '%' OR r.content LIKE '%' || #{keyword} || '%')
+        ORDER BY r.recruit_id DESC
+        LIMIT 10
+    </select>
+
+    <!-- 게시글: 취미(공개) 게시판의 비밀글 아닌 원글만, 제목 부분일치 -->
+    <select id="searchPosts" parameterType="map" resultType="bbsVO">
+        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
+               bi.bbsinfo_nm,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_bbs b
+        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
+        WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
+          AND b.title LIKE '%' || #{keyword} || '%'
+          AND EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y')
+        ORDER BY b.bbs_id DESC
+        LIMIT 10
+    </select>
+
+</mapper>

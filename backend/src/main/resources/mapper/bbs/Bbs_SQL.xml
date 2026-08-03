@@ -28,6 +28,7 @@
         SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.notice_yn, b.secret_yn,
                b.view_cnt, b.good_cnt, b.reg_id, b.bbs_dt, t.lvl AS bbs_depth,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
+               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = b.reg_id) AS reg_profile_file_id,
                TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt,
                (SELECT r.file_id FROM r_file r
                  JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
@@ -64,6 +65,7 @@
                (CASE WHEN EXISTS (SELECT 1 FROM t_content_like l WHERE l.target_type = 'BBS' AND l.target_id = t_bbs.bbs_id AND l.user_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                notice_yn, notice_start_dt, notice_end_dt, bbs_dt, reg_id,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = t_bbs.reg_id) AS reg_nm,
+               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = t_bbs.reg_id) AS reg_profile_file_id,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM t_bbs WHERE bbs_id = #{dbKey}::integer AND use_yn = 'Y'
     </select>

@@ -61,7 +61,9 @@ public class PermissionInterceptor implements HandlerInterceptor {
                 || path.startsWith("/api/adm/recruitApply/")
                 || path.startsWith("/api/adm/userHobby/")
                 || path.startsWith("/api/adm/notification/")
-                || path.startsWith("/api/adm/like/")) {
+                || path.startsWith("/api/adm/like/")
+                || path.startsWith("/api/adm/search/")
+                || path.startsWith("/api/adm/report/")) {
             return true;
         }
         for (String s : EXEMPT_SUFFIX) {

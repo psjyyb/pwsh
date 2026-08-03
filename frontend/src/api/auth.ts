@@ -37,6 +37,11 @@ export function updateProfileImage(fileId?: string): Promise<void> {
   return apiPost<void>('/auth/updateProfileImage', { fileId: fileId ?? null })
 }
 
+/** 회원 탈퇴(셀프) — 현재 비밀번호 확인 필요. 성공 시 계정 비활성 + 세션 무효화. */
+export function withdraw(currentPw: string): Promise<void> {
+  return apiPost<void>('/auth/withdraw', { currentPw })
+}
+
 /** 비밀번호 만료 연장("나중에") — 본인 pw_expire_dt 재형성 */
 export function extendPw(): Promise<void> {
   return apiPost<void>('/auth/pwExtend', {})

@@ -18,9 +18,11 @@ export interface Bbs {
   likedYn?: string // 내가 좋아요 눌렀는지(Y/N) — 상세 조회 응답
   regId?: string // 작성자(로그인 ID)
   regNm?: string // 작성자 표시명(닉네임). 없으면 regId로 폴백
+  regProfileFileId?: string // 작성자 프로필 사진 file_id
   regDt?: string
   bbsDt?: string
   commentCnt?: string
+  bbsinfoNm?: string // 게시판명(마이페이지·검색 결과 표시)
   noticeEff?: string // 'Y'=공지 유효(목록 상단)
   pBbsId?: string // 답글: 원글 bbs_id(작성 시 전송)
   bbsDepth?: string // 스레드 들여쓰기 레벨(0=원글) — 목록 조회 응답

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, ConfigProvider, Dropdown, Drawer, Grid, Layout, Menu, Modal, Popover, Space } from 'antd'
+import { Badge, Button, ConfigProvider, Dropdown, Drawer, Grid, Input, Layout, Menu, Modal, Popover, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { genTheme, gen } from './theme'
@@ -261,7 +261,14 @@ export default function GenLayout() {
               })}
             </nav>
           )}
-          <Space size={8} style={{ marginLeft: 'auto' }}>
+          {!isMobile && (
+            <Input.Search
+              placeholder="취미·모집·글 검색" allowClear
+              style={{ width: 190, marginLeft: 'auto' }}
+              onSearch={(v) => { const q = v.trim(); if (q) navigate(`/gen/search?q=${encodeURIComponent(q)}`) }}
+            />
+          )}
+          <Space size={8} style={{ marginLeft: isMobile ? 'auto' : 12 }}>
             {loggedIn ? (
               <>
                 <Popover content={notiContent} trigger="click" open={notiOpen} onOpenChange={openNoti} placement="bottomRight">
