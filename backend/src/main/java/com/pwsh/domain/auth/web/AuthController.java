@@ -6,6 +6,7 @@ import com.pwsh.domain.auth.service.AuthService;
 import com.pwsh.domain.auth.service.LoginRequest;
 import com.pwsh.domain.auth.service.NicknameRequest;
 import com.pwsh.domain.auth.service.PwChangeRequest;
+import com.pwsh.domain.auth.service.PwResetRequest;
 import com.pwsh.domain.auth.service.RefreshRequest;
 import com.pwsh.domain.auth.service.SignupRequest;
 import com.pwsh.domain.auth.service.TokenResponse;
@@ -33,11 +34,33 @@ public class AuthController {
         return ApiResponse.ok(authService.login(request));
     }
 
-    /** 셀프 회원가입 — 비로그인 공개(SecurityConfig /api/auth/** permitAll). MEMBER 권한그룹으로 생성. */
+    /** 가입 이메일 인증코드 발송(공개) — 입력 이메일로 6자리 코드 발송. */
+    @PostMapping("/sendSignupCode")
+    public ApiResponse<Void> sendSignupCode(@RequestBody Map<String, String> body) {
+        authService.sendSignupCode(body.get("email"));
+        return ApiResponse.ok();
+    }
+
+    /** 셀프 회원가입 — 비로그인 공개(SecurityConfig /api/auth/** permitAll). 이메일 인증코드 검증 후 MEMBER로 생성. */
     @PostMapping("/signup")
     public ApiResponse<Void> signup(@Valid @RequestBody SignupRequest request) {
         PasswordPolicy.validate(request.userPw()); // 복잡도 정책(인코딩 전 원문)
         authService.signup(request);
+        return ApiResponse.ok();
+    }
+
+    /** 비밀번호 재설정 코드 발송(공개) — user_id로 조회해 등록 이메일로 발송. 계정 열거 방지 위해 항상 성공 응답. */
+    @PostMapping("/sendResetCode")
+    public ApiResponse<Void> sendResetCode(@RequestBody Map<String, String> body) {
+        authService.sendResetCode(body.get("userId"));
+        return ApiResponse.ok();
+    }
+
+    /** 비밀번호 재설정(공개) — 인증코드 검증 후 새 비번 적용. */
+    @PostMapping("/resetPassword")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody PwResetRequest request) {
+        PasswordPolicy.validate(request.newPw()); // 복잡도 정책(인코딩 전 원문)
+        authService.resetPassword(request);
         return ApiResponse.ok();
     }
 
@@ -60,6 +83,12 @@ public class AuthController {
     @PostMapping("/me")
     public ApiResponse<Map<String, String>> me() {
         return ApiResponse.ok(authService.me());
+    }
+
+    /** 회원 공개 프로필(닉네임·프로필사진·담은취미·주최모집·작성글) — 비로그인 공개. PII 미노출. */
+    @PostMapping("/userProfile")
+    public ApiResponse<Map<String, Object>> userProfile(@RequestBody Map<String, String> body) {
+        return ApiResponse.ok(authService.selectUserProfile(body.get("userId")));
     }
 
     /** 본인 닉네임 변경 */

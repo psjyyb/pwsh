@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Empty, Form, Input, Modal, Space, Table, Tag, message } from 'antd'
+import { Button, Card, Empty, Form, Input, Modal, Rate, Space, Switch, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { tokenStore } from '../../auth/token'
@@ -9,6 +9,12 @@ import { applyApi } from '../recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../recruit/recruit.api'
 import type { Bbs } from '../../adm/bbs/bbs.api'
 import { myPosts, myRecruits, changeNickname } from './mypage.api'
+import { reviewApi } from '../../api/review'
+import type { ReviewTarget } from '../../api/review'
+import { bookmarkApi } from '../../api/bookmark'
+import type { Bookmark } from '../../api/bookmark'
+import { notificationApi } from '../../api/notification'
+import type { NotiSetting } from '../../api/notification'
 import { gen } from '../theme'
 
 /**
@@ -34,6 +40,50 @@ export default function MyPage() {
   const [posts, setPosts] = useState<Bbs[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [applies, setApplies] = useState<RecruitApply[]>([])
+  // 후기 쓰기(종료된 모임에서 함께한 회원)
+  const [reviewTargets, setReviewTargets] = useState<ReviewTarget[]>([])
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null)
+  const [rating, setRating] = useState(5)
+  const [reviewText, setReviewText] = useState('')
+  const [reviewSaving, setReviewSaving] = useState(false)
+
+  // 북마크(스크랩) / 알림 수신 설정
+  const [bmPosts, setBmPosts] = useState<Bookmark[]>([])
+  const [bmRecruits, setBmRecruits] = useState<Bookmark[]>([])
+  const [notiSet, setNotiSet] = useState<NotiSetting>({})
+  const [notiSaving, setNotiSaving] = useState(false)
+
+  const loadReviewTargets = () => { reviewApi.myTargets().then(setReviewTargets).catch(() => {}) }
+  const loadBookmarks = () => {
+    bookmarkApi.list('BBS').then(setBmPosts).catch(() => {})
+    bookmarkApi.list('RECRUIT').then(setBmRecruits).catch(() => {})
+  }
+
+  /** 알림 수신 설정 토글 — 즉시 저장(낙관적 반영, 실패 시 롤백). */
+  const toggleNoti = async (key: keyof NotiSetting, on: boolean) => {
+    const next = { ...notiSet, [key]: on ? 'Y' : 'N' }
+    setNotiSet(next)
+    setNotiSaving(true)
+    try {
+      await notificationApi.saveSetting(next)
+    } catch (e) {
+      setNotiSet(notiSet) // 롤백
+      message.error(e instanceof Error ? e.message : '설정 저장 실패')
+    } finally {
+      setNotiSaving(false)
+    }
+  }
+
+  const removeBookmark = async (type: 'BBS' | 'RECRUIT', targetId: string) => {
+    try {
+      await bookmarkApi.toggle(type, targetId)
+      message.success('북마크를 해제했습니다.')
+      loadBookmarks()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '해제 실패')
+    }
+  }
 
   useEffect(() => {
     if (!loggedIn) return
@@ -41,8 +91,26 @@ export default function MyPage() {
     myPosts().then(setPosts).catch(() => {})
     myRecruits().then(setRecruits).catch(() => {})
     applyApi.mine().then(setApplies).catch(() => {})
+    loadReviewTargets()
+    loadBookmarks()
+    notificationApi.setting().then((s) => setNotiSet(s ?? {})).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn])
+
+  const submitReview = async () => {
+    if (!reviewTarget?.recruitId || !reviewTarget?.targetId) return
+    setReviewSaving(true)
+    try {
+      await reviewApi.insert(reviewTarget.recruitId, reviewTarget.targetId, rating, reviewText)
+      message.success('후기를 등록했습니다.')
+      setReviewOpen(false); setReviewText(''); setRating(5)
+      loadReviewTargets()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '후기 등록 실패')
+    } finally {
+      setReviewSaving(false)
+    }
+  }
 
   if (!loggedIn) {
     return (
@@ -134,8 +202,11 @@ export default function MyPage() {
     return <Tag color={color}>{nm ?? '대기'}</Tag>
   }
 
-  const cardTitle = (emoji: string, text: string, count: number) => (
-    <span style={{ fontWeight: 700 }}>{emoji} {text} <Tag style={{ marginLeft: 4 }} color="purple">{count}</Tag></span>
+  const cardTitle = (emoji: string, text: string, count?: number) => (
+    <span style={{ fontWeight: 700 }}>
+      {emoji} {text}
+      {count !== undefined && <Tag style={{ marginLeft: 4 }} color="purple">{count}</Tag>}
+    </span>
   )
 
   const postCols: TableColumnsType<Bbs> = [
@@ -210,9 +281,100 @@ export default function MyPage() {
         )}
       </Card>
 
+      {/* 북마크(스크랩) */}
+      <Card style={{ borderRadius: 18 }} title={cardTitle('🔖', '북마크', bmPosts.length + bmRecruits.length)}>
+        {bmPosts.length + bmRecruits.length === 0 ? (
+          <Empty description="북마크한 글·모집이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={6}>
+            {bmPosts.map((b) => (
+              <div key={`b-${b.dbKey}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Tag color="cyan" style={{ flexShrink: 0 }}>{b.subNm || '게시판'}</Tag>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                  onClick={() => navigate(`/gen/board/${b.bbsinfoId}?post=${b.targetId}`)}>{b.title}</span>
+                <a style={{ fontSize: 12, color: '#999', flexShrink: 0 }} onClick={() => removeBookmark('BBS', b.targetId!)}>해제</a>
+              </div>
+            ))}
+            {bmRecruits.map((b) => (
+              <div key={`r-${b.dbKey}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Tag color="purple" style={{ flexShrink: 0 }}>{b.subNm || '모집'}</Tag>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                  onClick={() => navigate(`/gen/recruit/${b.targetId}`)}>{b.title}</span>
+                {b.statusNm && <Tag style={{ flexShrink: 0 }}>{b.statusNm}</Tag>}
+                <a style={{ fontSize: 12, color: '#999', flexShrink: 0 }} onClick={() => removeBookmark('RECRUIT', b.targetId!)}>해제</a>
+              </div>
+            ))}
+          </Space>
+        )}
+      </Card>
+
+      {/* 알림 수신 설정 */}
+      <Card style={{ borderRadius: 18 }} title={cardTitle('🔔', '알림 설정')}>
+        <Space direction="vertical" style={{ width: '100%' }} size={10}>
+          {([
+            ['notiApply', '모집 신청·수락·거절'],
+            ['notiComment', '댓글·답글'],
+            ['notiMessage', '쪽지'],
+            ['notiReview', '모임 후기'],
+          ] as [keyof NotiSetting, string][]).map(([key, label]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>{label}</span>
+              <Switch
+                checked={notiSet[key] !== 'N'} disabled={notiSaving}
+                onChange={(on) => toggleNoti(key, on)}
+                checkedChildren="수신" unCheckedChildren="끔"
+              />
+            </div>
+          ))}
+        </Space>
+      </Card>
+
+      {/* 후기 쓰기 — 종료된 모임에서 함께한 회원 */}
+      <Card style={{ borderRadius: 18 }} title={cardTitle('⭐', '함께한 회원 후기', reviewTargets.filter((t) => t.writtenYn !== 'Y').length)}>
+        {reviewTargets.length === 0 ? (
+          <Empty description="후기를 쓸 수 있는 모임이 없습니다. (모임이 마감·종료되면 표시됩니다)" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {reviewTargets.map((t) => (
+              <div key={`${t.recruitId}-${t.targetId}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <span
+                    style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }}
+                    onClick={() => navigate(`/gen/user/${t.targetId}`)}
+                  >
+                    {t.targetNm || t.targetId}
+                  </span>
+                  <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>{t.recruitTitle}</span>
+                </div>
+                {t.writtenYn === 'Y'
+                  ? <Tag color="green">후기 작성 완료</Tag>
+                  : <Button size="small" type="primary" ghost onClick={() => { setReviewTarget(t); setRating(5); setReviewText(''); setReviewOpen(true) }}>후기 쓰기</Button>}
+              </div>
+            ))}
+          </Space>
+        )}
+      </Card>
+
       <div style={{ textAlign: 'center', marginTop: 4 }}>
         <Button type="text" danger onClick={() => { setWithdrawPw(''); setWithdrawOpen(true) }}>회원 탈퇴</Button>
       </div>
+
+      {/* 후기 작성 */}
+      <Modal
+        open={reviewOpen} title={`후기 쓰기 — ${reviewTarget?.targetNm || reviewTarget?.targetId || ''}`}
+        onOk={submitReview} onCancel={() => setReviewOpen(false)}
+        okText="등록" cancelText="취소" confirmLoading={reviewSaving}
+      >
+        <div style={{ color: '#888', fontSize: 13, marginBottom: 10 }}>모임: {reviewTarget?.recruitTitle}</div>
+        <div style={{ marginBottom: 12 }}>
+          <Rate value={rating} onChange={setRating} />
+          <span style={{ marginLeft: 8, color: gen.primary, fontWeight: 700 }}>{rating}점</span>
+        </div>
+        <Input.TextArea
+          value={reviewText} onChange={(e) => setReviewText(e.target.value)}
+          placeholder="함께한 경험을 남겨주세요. (선택, 500자)" maxLength={500} autoSize={{ minRows: 3, maxRows: 6 }}
+        />
+      </Modal>
 
       {/* 회원 탈퇴 */}
       <Modal title="회원 탈퇴" open={withdrawOpen} onCancel={() => setWithdrawOpen(false)} onOk={doWithdraw}

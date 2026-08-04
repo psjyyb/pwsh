@@ -37,4 +37,31 @@
         WHERE user_id = #{userId} AND read_yn = 'N'
     </update>
 
+    <!-- ===== 알림 수신 설정(t_noti_setting). 행이 없으면 전부 수신(기본 ON) ===== -->
+    <select id="selectSetting" parameterType="notificationVO" resultType="notificationVO">
+        SELECT COALESCE(s.noti_apply,   'Y') AS noti_apply,
+               COALESCE(s.noti_comment, 'Y') AS noti_comment,
+               COALESCE(s.noti_message, 'Y') AS noti_message,
+               COALESCE(s.noti_review,  'Y') AS noti_review
+        FROM (SELECT 1) d
+        LEFT JOIN t_noti_setting s ON s.user_id = #{userId}
+    </select>
+
+    <!-- 설정 저장(없으면 생성) -->
+    <insert id="upsertSetting" parameterType="notificationVO">
+        INSERT INTO t_noti_setting (user_id, noti_apply, noti_comment, noti_message, noti_review, upd_dt)
+        VALUES (#{userId},
+                COALESCE(NULLIF(#{notiApply}, ''), 'Y'),
+                COALESCE(NULLIF(#{notiComment}, ''), 'Y'),
+                COALESCE(NULLIF(#{notiMessage}, ''), 'Y'),
+                COALESCE(NULLIF(#{notiReview}, ''), 'Y'),
+                NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+            noti_apply   = EXCLUDED.noti_apply,
+            noti_comment = EXCLUDED.noti_comment,
+            noti_message = EXCLUDED.noti_message,
+            noti_review  = EXCLUDED.noti_review,
+            upd_dt       = NOW()
+    </insert>
+
 </mapper>

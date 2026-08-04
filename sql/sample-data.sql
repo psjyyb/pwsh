@@ -4,22 +4,8 @@
 -- 실행: PGCLIENTENCODING=UTF8; psql -d pwsh -f sql/sample-data.sql
 -- =====================================================================
 
--- 취미 카탈로그(등산=hobby1/보드게임=2/낚시=3). bbsinfo_id로 소통 게시판(5/6/7) 연결.
-INSERT INTO t_hobby (hobby_id, hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_ordr, use_yn,
-    reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
-(1, '등산', '가까운 산부터 시작하는 건강한 취미',
- '<p>등산은 장비 부담이 적고 어디서나 시작할 수 있는 대표적인 야외 취미입니다. 체력 향상과 스트레스 해소에 좋습니다.</p>',
- '<p>1) 동네 뒷산·낮은 코스부터 시작하세요.<br>2) 편한 운동화 → 익숙해지면 등산화.<br>3) 물·간식·여벌옷을 챙기세요.</p>',
- 'HOBBYLV01', '운동화(입문)/등산화, 배낭, 물통', '입문 5만원 내외', 5, 1, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(2, '보드게임', '실내에서 함께 즐기는 두뇌 놀이',
- '<p>보드게임은 남녀노소 함께 즐길 수 있는 실내 취미입니다. 카페에서 부담 없이 시작할 수 있어요.</p>',
- '<p>1) 보드게임 카페에서 다양한 게임을 경험해 보세요.<br>2) 입문용(스플렌더·카탄 등)부터.<br>3) 모임에 참여하면 룰을 쉽게 배웁니다.</p>',
- 'HOBBYLV01', '없음(카페 이용) / 소장 시 게임 구매', '카페 2~3시간 1만원대', 6, 2, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(3, '낚시', '기다림의 여유를 즐기는 취미',
- '<p>낚시는 자연 속에서 여유를 즐기는 취미입니다. 민물·바다 등 종류가 다양합니다.</p>',
- '<p>1) 가까운 낚시터·좌대에서 시작.<br>2) 입문 세트(낚싯대+릴)로 충분.<br>3) 지역 물때·어종 정보를 확인하세요.</p>',
- 'HOBBYLV02', '낚싯대, 릴, 채비, 아이스박스', '입문 세트 10만원 내외', 7, 3, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
-SELECT setval(pg_get_serial_sequence('t_hobby','hobby_id'), (SELECT MAX(hobby_id) FROM t_hobby));
+-- 취미 카탈로그(등산=hobby1/보드게임=2/낚시=3)는 base(data.sql)로 이관됨 — 여기선 시드하지 않는다(중복 PK 방지).
+-- 아래 샘플 글/모집은 그 취미(hobby 1/2/3)·게시판(5/6/7)을 참조한다(data.sql 선적재 전제).
 
 -- 취미 게시판 글: 등산(5)/보드게임(6)/낚시(7)
 INSERT INTO t_bbs (bbs_id, bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_ordr,

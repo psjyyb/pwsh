@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 북마크(스크랩). 모든 조회/변경은 로그인 본인(user_id) 기준. -->
+<mapper namespace="bookmarkDAO">
+
+    <select id="selectActiveCnt" parameterType="bookmarkVO" resultType="int">
+        SELECT COUNT(*) FROM t_bookmark
+        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+    </select>
+
+    <insert id="insert" parameterType="bookmarkVO">
+        INSERT INTO t_bookmark (user_id, target_type, target_id, reg_dt, reg_ip)
+        VALUES (#{userId}, #{targetType}, #{targetId}::integer, NOW(), #{regIp})
+        ON CONFLICT (user_id, target_type, target_id) DO NOTHING
+    </insert>
+
+    <delete id="delete" parameterType="bookmarkVO">
+        DELETE FROM t_bookmark
+        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+    </delete>
+
+    <!-- 내 북마크 목록(게시글) — 삭제된 대상은 제외 -->
+    <select id="selectMyBbsList" parameterType="bookmarkVO" resultType="bookmarkVO">
+        SELECT bm.bookmark_id::TEXT AS db_key, bm.target_type, bm.target_id,
+               b.title, b.bbsinfo_id, bi.bbsinfo_nm AS sub_nm,
+               TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_bookmark bm
+        JOIN t_bbs b ON b.bbs_id = bm.target_id AND b.use_yn = 'Y'
+        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
+        WHERE bm.user_id = #{userId} AND bm.target_type = 'BBS'
+        ORDER BY bm.bookmark_id DESC
+    </select>
+
+    <!-- 내 북마크 목록(모집) -->
+    <select id="selectMyRecruitList" parameterType="bookmarkVO" resultType="bookmarkVO">
+        SELECT bm.bookmark_id::TEXT AS db_key, bm.target_type, bm.target_id,
+               r.title, ho.hobby_nm AS sub_nm, sc.code_nm AS status_nm,
+               TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_bookmark bm
+        JOIN t_recruit r ON r.recruit_id = bm.target_id AND r.use_yn = 'Y'
+        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        WHERE bm.user_id = #{userId} AND bm.target_type = 'RECRUIT'
+        ORDER BY bm.bookmark_id DESC
+    </select>
+
+    <!-- 특정 대상들에 대한 내 북마크 여부(목록 화면 하트 표시용) -->
+    <select id="selectMyIdsByType" parameterType="bookmarkVO" resultType="string">
+        SELECT target_id::TEXT FROM t_bookmark
+        WHERE user_id = #{userId} AND target_type = #{targetType}
+    </select>
+
+</mapper>

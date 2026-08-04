@@ -30,6 +30,11 @@ public class BbsService {
         return commonDAO.selectList("bbsDAO.selectList", vo);
     }
 
+    /** 주간 인기글(메인 '이번 주 베스트') — 취미 공개 게시판·비밀글 제외라 접근가드 불필요(공개). */
+    public List<BbsVO> selectListWeeklyBest() {
+        return commonDAO.selectList("bbsDAO.selectListWeeklyBest", new BbsVO());
+    }
+
     /** 내가 쓴 글(마이페이지) — 본인 reg_id 기준 전 게시판(원글). */
     public List<BbsVO> selectListMine() {
         BbsVO vo = new BbsVO();

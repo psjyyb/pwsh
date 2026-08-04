@@ -31,13 +31,18 @@ public class LikeService {
 
         Integer active = commonDAO.selectOne("likeDAO.selectActiveCnt", key);
         boolean nowLiked;
+        // good_cnt 증감은 '실제로 바뀐 행 수'에만 반영 — 동시요청(더블클릭)에서 카운트 드리프트 방지.
         if (active != null && active > 0) { // 이미 눌렀음 → 취소
-            commonDAO.delete("likeDAO.delete", key);
-            commonDAO.update(bbs ? "likeDAO.decBbsGood" : "likeDAO.decCommentGood", key);
+            int removed = commonDAO.delete("likeDAO.delete", key);
+            if (removed > 0) {
+                commonDAO.update(bbs ? "likeDAO.decBbsGood" : "likeDAO.decCommentGood", key);
+            }
             nowLiked = false;
-        } else { // 좋아요 추가
-            commonDAO.insert("likeDAO.insert", key);
-            commonDAO.update(bbs ? "likeDAO.incBbsGood" : "likeDAO.incCommentGood", key);
+        } else { // 좋아요 추가 (ON CONFLICT DO NOTHING → 동시요청 중복은 0행, 500 대신 멱등 처리)
+            int added = commonDAO.insert("likeDAO.insert", key);
+            if (added > 0) {
+                commonDAO.update(bbs ? "likeDAO.incBbsGood" : "likeDAO.incCommentGood", key);
+            }
             nowLiked = true;
         }
         Integer good = commonDAO.selectOne(bbs ? "likeDAO.selectBbsGood" : "likeDAO.selectCommentGood", key);

@@ -10,22 +10,31 @@
     </select>
 
     <insert id="insert" parameterType="reportVO">
-        INSERT INTO t_report (target_type, target_id, reason, status, use_yn,
+        INSERT INTO t_report (target_type, target_id, reason_cd, reason, status, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{targetType}, #{targetId}::integer, #{reason}, 'PENDING', 'Y',
+        VALUES (#{targetType}, #{targetId}::integer, NULLIF(#{reasonCd}, ''), #{reason}, 'PENDING', 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <!-- 관리자 신고 목록(상태 필터 옵션) + 대상 제목·신고자 닉네임 -->
     <select id="selectList" parameterType="reportVO" resultType="reportVO">
-        SELECT r.report_id::TEXT AS db_key, r.target_type, r.target_id, r.reason, r.status,
+        SELECT r.report_id::TEXT AS db_key, r.target_type, r.target_id, r.reason_cd, r.reason, r.status,
+               (SELECT c.code_nm FROM t_code c WHERE c.code_id = r.reason_cd AND c.p_code_id = 'REPORT00') AS reason_nm,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt,
                CASE r.target_type
                    WHEN 'BBS'     THEN (SELECT title FROM t_bbs WHERE bbs_id = r.target_id)
                    WHEN 'RECRUIT' THEN (SELECT title FROM t_recruit WHERE recruit_id = r.target_id)
                    WHEN 'COMMENT' THEN (SELECT LEFT(context, 40) FROM t_comment WHERE comment_id = r.target_id)
-               END AS target_title
+               END AS target_title,
+               -- 대상으로 이동할 링크(관리자가 신고 내용을 직접 확인). 대상 삭제 시 NULL/미존재.
+               CASE r.target_type
+                   WHEN 'BBS'     THEN (SELECT '/gen/board/' || b.bbsinfo_id || '?post=' || b.bbs_id FROM t_bbs b WHERE b.bbs_id = r.target_id)
+                   WHEN 'RECRUIT' THEN '/gen/recruit/' || r.target_id
+                   WHEN 'COMMENT' THEN (SELECT '/gen/board/' || b.bbsinfo_id || '?post=' || b.bbs_id
+                                          FROM t_comment c JOIN t_bbs b ON b.bbs_id = c.bbs_id
+                                         WHERE c.comment_id = r.target_id)
+               END AS link_url
         FROM t_report r
         WHERE r.use_yn = 'Y'
         <if test="status != null and status != ''">AND r.status = #{status}</if>
@@ -36,6 +45,26 @@
     <update id="updateStatus" parameterType="reportVO">
         UPDATE t_report SET status = #{status}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE report_id = #{dbKey}::integer
+    </update>
+
+    <!-- 신고 단건(대상 조치용): 유형·대상 PK -->
+    <select id="selectView" parameterType="reportVO" resultType="reportVO">
+        SELECT report_id::TEXT AS db_key, target_type, target_id, status
+        FROM t_report WHERE report_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 신고 대상 콘텐츠 숨김/복원(삭제조치=useYn 'N', 되돌리기='Y') -->
+    <update id="setBbsUseYn" parameterType="reportVO">
+        UPDATE t_bbs SET use_yn = #{useYn}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE bbs_id = #{targetId}::integer
+    </update>
+    <update id="setCommentUseYn" parameterType="reportVO">
+        UPDATE t_comment SET use_yn = #{useYn}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE comment_id = #{targetId}::integer
+    </update>
+    <update id="setRecruitUseYn" parameterType="reportVO">
+        UPDATE t_recruit SET use_yn = #{useYn}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE recruit_id = #{targetId}::integer
     </update>
 
 </mapper>

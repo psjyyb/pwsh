@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 모임 후기·평점(t_review). 같은 모집의 '함께한 사람'끼리 상호 1회 평가. -->
+<mapper namespace="reviewDAO">
+
+    <!-- 회원이 받은 후기 목록(공개 프로필) -->
+    <select id="selectListByTarget" parameterType="reviewVO" resultType="reviewVO">
+        SELECT r.review_id::TEXT AS db_key, r.recruit_id, r.target_id, r.rating, r.content,
+               TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt,
+               (SELECT nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT profile_file_id::TEXT FROM t_user u WHERE u.user_id = r.reg_id) AS reg_profile_file_id,
+               (SELECT title FROM t_recruit rc WHERE rc.recruit_id = r.recruit_id) AS recruit_title
+        FROM t_review r
+        WHERE r.use_yn = 'Y' AND r.target_id = #{targetId}
+        ORDER BY r.review_id DESC
+        LIMIT 30
+    </select>
+
+    <!-- 회원의 평균 별점·후기 수(공개 프로필 신뢰지표) -->
+    <select id="selectStatsByTarget" parameterType="reviewVO" resultType="reviewVO">
+        SELECT ROUND(AVG(rating)::numeric, 1)::TEXT AS avg_rating, COUNT(*)::TEXT AS review_cnt
+        FROM t_review WHERE use_yn = 'Y' AND target_id = #{targetId}
+    </select>
+
+    <!--
+      후기 작성 대상 목록: 내가 '함께한' 모임(주최 or 수락된 참여)에서, 나를 제외한 함께한 사람들.
+      종료 조건 = 모집 마감(RECRUIT02) 또는 모임일(meet_dt)이 지난 모임.
+      written_yn = 내가 그 사람에게 이미 후기를 썼는지.
+    -->
+    <select id="selectTargets" parameterType="reviewVO" resultType="reviewVO">
+        WITH my_meets AS ( -- 내가 함께한(종료된) 모임
+            SELECT rc.recruit_id, rc.title, rc.reg_id AS host_id
+            FROM t_recruit rc
+            WHERE rc.use_yn = 'Y'
+              AND (rc.status_cd = 'RECRUIT02'
+                   OR (rc.meet_dt IS NOT NULL AND rc.meet_dt &lt;&gt; '' AND rc.meet_dt &lt; TO_CHAR(NOW(), 'YYYY-MM-DD')))
+              AND (rc.reg_id = #{regId}
+                   OR EXISTS (SELECT 1 FROM t_recruit_apply a
+                               WHERE a.recruit_id = rc.recruit_id AND a.use_yn = 'Y'
+                                 AND a.apply_status = 'APPLY02' AND a.user_id = #{regId}))
+        ), members AS ( -- 그 모임의 함께한 사람(주최자 + 수락 참여자)
+            SELECT m.recruit_id, m.title, m.host_id AS member_id FROM my_meets m
+            UNION
+            SELECT m.recruit_id, m.title, a.user_id
+            FROM my_meets m
+            JOIN t_recruit_apply a ON a.recruit_id = m.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02'
+        )
+        SELECT mb.recruit_id, mb.title AS recruit_title, mb.member_id AS target_id,
+               u.nickname AS target_nm,
+               CASE WHEN EXISTS (SELECT 1 FROM t_review r
+                                  WHERE r.use_yn = 'Y' AND r.recruit_id = mb.recruit_id
+                                    AND r.reg_id = #{regId} AND r.target_id = mb.member_id)
+                    THEN 'Y' ELSE 'N' END AS written_yn
+        FROM members mb
+        LEFT JOIN t_user u ON u.user_id = mb.member_id AND u.use_yn = 'Y'
+        WHERE mb.member_id &lt;&gt; #{regId}
+        ORDER BY mb.recruit_id DESC, mb.member_id
+    </select>
+
+    <!-- 작성 자격 확인: (모집이 종료됨) AND (나와 대상이 모두 그 모임의 함께한 사람) -->
+    <select id="selectEligibleCnt" parameterType="reviewVO" resultType="int">
+        SELECT COUNT(*)
+        FROM t_recruit rc
+        WHERE rc.recruit_id = #{recruitId}::integer AND rc.use_yn = 'Y'
+          AND (rc.status_cd = 'RECRUIT02'
+               OR (rc.meet_dt IS NOT NULL AND rc.meet_dt &lt;&gt; '' AND rc.meet_dt &lt; TO_CHAR(NOW(), 'YYYY-MM-DD')))
+          AND (rc.reg_id = #{regId}
+               OR EXISTS (SELECT 1 FROM t_recruit_apply a WHERE a.recruit_id = rc.recruit_id AND a.use_yn = 'Y'
+                            AND a.apply_status = 'APPLY02' AND a.user_id = #{regId}))
+          AND (rc.reg_id = #{targetId}
+               OR EXISTS (SELECT 1 FROM t_recruit_apply a WHERE a.recruit_id = rc.recruit_id AND a.use_yn = 'Y'
+                            AND a.apply_status = 'APPLY02' AND a.user_id = #{targetId}))
+    </select>
+
+    <!-- 중복 작성 여부(같은 모임·같은 대상) -->
+    <select id="selectDupCnt" parameterType="reviewVO" resultType="int">
+        SELECT COUNT(*) FROM t_review
+        WHERE use_yn = 'Y' AND recruit_id = #{recruitId}::integer
+          AND reg_id = #{regId} AND target_id = #{targetId}
+    </select>
+
+    <insert id="insert" parameterType="reviewVO">
+        INSERT INTO t_review (recruit_id, target_id, rating, content, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{recruitId}::integer, #{targetId}, #{rating}::integer, NULLIF(#{content}, ''), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <select id="selectView" parameterType="reviewVO" resultType="reviewVO">
+        SELECT review_id::TEXT AS db_key, recruit_id, target_id, rating, content, reg_id
+        FROM t_review WHERE review_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 삭제(논리) — 작성자·관리자 -->
+    <update id="delete" parameterType="reviewVO">
+        UPDATE t_review SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE review_id = #{dbKey}::integer
+    </update>
+
+</mapper>

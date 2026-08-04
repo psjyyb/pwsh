@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 관리자 대시보드 통계(집계 전용, 저장 테이블 없음). 관리자만 호출(StatsService.assertAdmin). -->
+<mapper namespace="statsDAO">
+
+    <!--
+      최근 N일 일자별 추이: 가입/게시글/모집. 데이터가 없는 날도 0으로 채운다(막대 간격 유지).
+      #{days}는 조회 일수(서버에서 상수 주입).
+    -->
+    <select id="selectDailyTrend" parameterType="map" resultType="map">
+        WITH d AS (
+            SELECT (CURRENT_DATE - (n || ' days')::interval)::date AS day
+            FROM generate_series(#{days}::integer - 1, 0, -1) AS n
+        )
+        SELECT TO_CHAR(d.day, 'MM-DD') AS label,
+               (SELECT COUNT(*) FROM t_user u   WHERE u.reg_dt::date = d.day) AS signups,
+               (SELECT COUNT(*) FROM t_bbs b    WHERE b.reg_dt::date = d.day AND b.use_yn = 'Y' AND b.p_bbs_id = 0) AS posts,
+               (SELECT COUNT(*) FROM t_recruit r WHERE r.reg_dt::date = d.day AND r.use_yn = 'Y') AS recruits
+        FROM d
+        ORDER BY d.day
+    </select>
+
+    <!--
+      전체 현황 요약(누적/현재).
+      ★ resultType="map"은 map-underscore-to-camel-case가 적용되지 않아 컬럼 라벨이 그대로 키가 된다.
+        프론트가 camelCase로 읽으므로 별칭을 큰따옴표로 감싸 대소문자를 보존한다(Postgres는 미인용 식별자를 소문자화).
+    -->
+    <select id="selectTotals" resultType="map">
+        SELECT (SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y')                                    AS "userCnt",
+               (SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND status_cd = 'STATUS03')          AS "suspendedCnt",
+               (SELECT COUNT(*) FROM t_bbs WHERE use_yn = 'Y' AND p_bbs_id = 0)                     AS "postCnt",
+               (SELECT COUNT(*) FROM t_comment WHERE use_yn = 'Y')                                  AS "commentCnt",
+               (SELECT COUNT(*) FROM t_recruit WHERE use_yn = 'Y')                                  AS "recruitCnt",
+               (SELECT COUNT(*) FROM t_recruit WHERE use_yn = 'Y' AND status_cd = 'RECRUIT01')       AS "recruitOpenCnt",
+               (SELECT COUNT(*) FROM t_hobby WHERE use_yn = 'Y')                                    AS "hobbyCnt",
+               (SELECT COUNT(*) FROM t_report WHERE use_yn = 'Y' AND status = 'PENDING')             AS "reportPendingCnt"
+    </select>
+
+</mapper>

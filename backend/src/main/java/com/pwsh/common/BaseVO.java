@@ -34,7 +34,13 @@ public class BaseVO implements Serializable {
     // 운영은 환경변수 DB_ENC_KEY로 주입(미설정 시 기본값). 표준 CMS의 BaseVO enc_key 계승 방식.
     private static final String ENC_KEY = System.getenv().getOrDefault("DB_ENC_KEY", "psjyyb");
 
-    /** MyBatis #{encKey} 바인딩용 (모든 VO 공통). 읽기 전용이라 로그/응답 노출 없음 */
+    /**
+     * MyBatis #{encKey} 바인딩용 (모든 VO 공통).
+     * ★ @JsonIgnore 필수 — 이 게터가 직렬화되면 DB 개인정보 암호화 키가 API 응답으로 유출된다
+     *   (VO가 그대로 응답 body에 실리는 구조이고 공개 조회 엔드포인트도 있음).
+     *   MyBatis는 리플렉션으로 게터를 읽으므로 Jackson 제외는 파라미터 바인딩에 영향 없음.
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getEncKey() {
         return ENC_KEY;
     }

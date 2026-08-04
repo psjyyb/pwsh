@@ -32,6 +32,7 @@ public class AuthService {
     private final CommonDAO commonDAO;
     private final PasswordEncoder passwordEncoder;
     private final EventLogService eventLogService;
+    private final EmailVerifyService emailVerifyService;
 
     public TokenResponse login(LoginRequest request) {
         // 계정 상태 사전 점검: 정지=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
@@ -108,6 +109,10 @@ public class AuthService {
         if (!request.userPw().equals(request.pwConfirm())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호 확인이 일치하지 않습니다.");
         }
+        // 이메일 인증코드 검증(발급받은 유효 코드여야 가입 진행)
+        if (!emailVerifyService.verify(request.email(), "SIGNUP", request.code())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일 인증코드가 올바르지 않거나 만료되었습니다.");
+        }
         // 아이디 중복
         UserVO idCheck = new UserVO();
         idCheck.setUserId(request.userId());
@@ -136,6 +141,52 @@ public class AuthService {
         authUser.setUserId(request.userId());
         authUser.setAuthgrpId("MEMBER");
         commonDAO.insert("userDAO.insertAuthUser", authUser);
+        // 사용한 인증코드 소비(재사용 방지)
+        emailVerifyService.consume(request.email(), "SIGNUP");
+    }
+
+    /** 가입 이메일 인증코드 발송(공개) — 형식만 확인하고 코드 발송. */
+    public void sendSignupCode(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일을 입력해 주세요.");
+        }
+        emailVerifyService.issue(email.trim(), "SIGNUP", email.trim());
+    }
+
+    /**
+     * 비밀번호 재설정 코드 발송(공개) — user_id로 회원 조회 → 등록된 이메일로 코드 발송.
+     * 계정/이메일 존재 여부는 응답으로 노출하지 않는다(계정 열거 방지): 없으면 조용히 무시하고 성공처럼 응답.
+     */
+    public void sendResetCode(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        UserVO u = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(userId.trim()));
+        if (u == null || !"Y".equals(u.getUseYn()) || u.getEmail() == null || u.getEmail().isBlank()) {
+            return; // 열거 방지: 존재/미존재 구분 없이 동일 응답
+        }
+        emailVerifyService.issue(userId.trim(), "RESET", u.getEmail());
+    }
+
+    /** 비밀번호 재설정(공개) — 인증코드 검증 후 새 비번 적용 + 세션 무효화(token_ver +1). */
+    @Transactional
+    public void resetPassword(PwResetRequest request) {
+        if (!request.newPw().equals(request.pwConfirm())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호 확인이 일치하지 않습니다.");
+        }
+        if (!emailVerifyService.verify(request.userId(), "RESET", request.code())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "인증코드가 올바르지 않거나 만료되었습니다.");
+        }
+        UserVO u = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(request.userId()));
+        if (u == null || !"Y".equals(u.getUseYn())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "인증코드가 올바르지 않거나 만료되었습니다.");
+        }
+        UserVO upd = new UserVO();
+        upd.setDbKey(request.userId());
+        upd.setUserPw(passwordEncoder.encode(request.newPw()));
+        commonDAO.update("userDAO.updatePw", upd);
+        commonDAO.selectOne("userDAO.incrementTokenVer", userIdParam(request.userId())); // 기존 세션 전부 무효화
+        emailVerifyService.consume(request.userId(), "RESET");
     }
 
     /** 내 정보(userId·nickname·memCd). 마이페이지 표시용. */
@@ -147,6 +198,37 @@ public class AuthService {
         m.put("nickname", u != null ? u.getNickname() : null);
         m.put("memCd", u != null ? u.getMemCd() : null);
         m.put("profileFileId", u != null ? u.getProfileFileId() : null);
+        return m;
+    }
+
+    /**
+     * 회원 공개 프로필 — 닉네임·프로필사진 + 담은 취미 + 주최 모집 + 작성글(공개 취미게시판·비밀글 제외).
+     * PII(이메일/이름/연락처)는 절대 노출하지 않는다. 비로그인도 조회 가능(공개).
+     */
+    public java.util.Map<String, Object> selectUserProfile(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "회원을 찾을 수 없습니다.");
+        }
+        UserVO u = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(userId));
+        if (u == null || !"Y".equals(u.getUseYn())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "회원을 찾을 수 없습니다.");
+        }
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("userId", userId);
+        m.put("nickname", u.getNickname());
+        m.put("profileFileId", u.getProfileFileId());
+        // 담은 취미(공개)
+        com.pwsh.domain.userhobby.service.UserHobbyVO hp = new com.pwsh.domain.userhobby.service.UserHobbyVO();
+        hp.setUserId(userId);
+        m.put("hobbies", commonDAO.selectList("userHobbyDAO.selectMyList", hp));
+        // 주최한 모집(전부 공개)
+        com.pwsh.domain.recruit.service.RecruitVO rp = new com.pwsh.domain.recruit.service.RecruitVO();
+        rp.setRegId(userId);
+        m.put("recruits", commonDAO.selectList("recruitDAO.selectListMine", rp));
+        // 작성글(취미 공개게시판·비밀글 제외)
+        com.pwsh.domain.bbs.service.BbsVO bp = new com.pwsh.domain.bbs.service.BbsVO();
+        bp.setRegId(userId);
+        m.put("posts", commonDAO.selectList("bbsDAO.selectListByAuthor", bp));
         return m;
     }
 
@@ -167,12 +249,29 @@ public class AuthService {
         commonDAO.selectOne("userDAO.incrementTokenVer", userIdParam(userId)); // 현재 토큰 즉시 무효화
     }
 
-    /** 본인 프로필 사진 파일 설정/해제 — user_id는 서버가 강제(위변조 차단). fileId 없으면 해제(NULL). */
+    /**
+     * 본인 프로필 사진 파일 설정/해제 — user_id는 서버가 강제. fileId 없으면 해제(NULL).
+     * 프로필로 지정한 파일은 공개 서빙되므로, 반드시 '본인이 업로드한 파일'만 허용(타인 비공개 이미지 id 지정 IDOR 차단).
+     */
     @Transactional
     public void updateProfileImage(String fileId) {
+        String userId = SecurityUtil.getCurrentUserId();
+        if (userId == null || "system".equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        String normalized = (fileId == null || fileId.isBlank()) ? null : fileId;
+        if (normalized != null) {
+            java.util.Map<String, Object> p = new java.util.HashMap<>();
+            p.put("fileId", normalized);
+            p.put("userId", userId);
+            Integer owned = commonDAO.selectOne("fileDAO.countOwnedFileByUser", p);
+            if (owned == null || owned == 0) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED, "본인이 업로드한 이미지만 프로필로 설정할 수 있습니다.");
+            }
+        }
         UserVO upd = new UserVO();
-        upd.setDbKey(SecurityUtil.getCurrentUserId());
-        upd.setProfileFileId(fileId == null || fileId.isBlank() ? null : fileId);
+        upd.setDbKey(userId);
+        upd.setProfileFileId(normalized);
         commonDAO.update("userDAO.updateProfileImage", upd);
     }
 

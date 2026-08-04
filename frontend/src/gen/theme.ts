@@ -1,5 +1,9 @@
 import type { ThemeConfig } from 'antd'
 
+/** 앱 공통 폰트 스택 — Pretendard(부드러운 라운드) 우선, 실패 시 시스템 폰트 폴백. */
+export const fontStack =
+  "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', Roboto, sans-serif"
+
 /** 사용자(gen) 영역 색상 팔레트 — 퍼플/라운드(관리자와 확연히 다른 캐주얼 톤). */
 export const gen = {
   primary: '#6C4EE3',   // 메인 퍼플(포인트)
@@ -29,10 +33,12 @@ export const genTheme: ThemeConfig = {
     colorLinkHover: gen.accentText,
     borderRadius: 14,
     fontSize: 15,
+    fontFamily: fontStack,
+    lineHeight: 1.6,
   },
   components: {
     Card: { borderRadiusLG: 18 },
-    Button: { controlHeight: 38, fontWeight: 600 },
+    Button: { controlHeight: 38, fontWeight: 500 }, // 600은 과해서 500(부드럽게)
     Tag: { borderRadiusSM: 10 },
   },
 }

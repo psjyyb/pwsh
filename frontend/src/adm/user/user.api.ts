@@ -34,6 +34,9 @@ export const userApi = {
   /** 강제 로그아웃 — token_ver를 올려 해당 사용자의 발급 토큰 즉시 무효화 (update{path=ForceLogout}) */
   forceLogout: (userId: string) =>
     apiPost<void>('/adm/user/updateUserForceLogout.do', { userId }),
+  /** 제재: 정지(STATUS03)/해제(STATUS01) — 정지 시 세션 즉시 무효화 (update{path=Status}) */
+  changeStatus: (userId: string, statusCd: 'STATUS01' | 'STATUS03') =>
+    apiPost<void>('/adm/user/updateUserStatus.do', { userId, statusCd }),
 }
 
 export const USER_LIST_URL = userApi.listUrl

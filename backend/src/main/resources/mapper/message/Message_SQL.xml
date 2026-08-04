@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 쪽지(1:1 메시지). 모든 조회/변경은 로그인 본인(myId) 기준으로 서버가 강제. -->
+<mapper namespace="messageDAO">
+
+    <!-- 내 대화 목록: 상대별 최근 메시지 1건 + 안읽음 수. 내가 삭제한 방향은 제외. -->
+    <select id="selectConvList" parameterType="messageVO" resultType="messageVO">
+        SELECT sub.other_id AS db_key, sub.other_id,
+               u.nickname AS other_nm, u.profile_file_id AS other_file_id,
+               lm.content AS last_content,
+               TO_CHAR(lm.reg_dt, 'YYYY-MM-DD HH24:MI') AS last_dt,
+               sub.unread_cnt,
+               CASE WHEN lm.sender_id = #{myId} THEN 'Y' ELSE 'N' END AS last_mine
+        FROM (
+            SELECT other_id, MAX(message_id) AS last_id,
+                   SUM(CASE WHEN receiver_id = #{myId} AND read_yn = 'N' THEN 1 ELSE 0 END) AS unread_cnt
+            FROM (
+                SELECT message_id, receiver_id, read_yn,
+                       CASE WHEN sender_id = #{myId} THEN receiver_id ELSE sender_id END AS other_id
+                FROM t_message
+                WHERE (sender_id = #{myId} AND del_sender = 'N')
+                   OR (receiver_id = #{myId} AND del_receiver = 'N')
+            ) x
+            GROUP BY other_id
+        ) sub
+        JOIN t_message lm ON lm.message_id = sub.last_id
+        LEFT JOIN t_user u ON u.user_id = sub.other_id
+        ORDER BY sub.last_id DESC
+    </select>
+
+    <!-- 특정 상대와의 대화(오래된→최신). 내가 삭제한 방향은 제외. -->
+    <select id="selectThread" parameterType="messageVO" resultType="messageVO">
+        SELECT m.message_id::TEXT AS db_key, m.sender_id, m.receiver_id, m.content, m.read_yn,
+               TO_CHAR(m.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt,
+               CASE WHEN m.sender_id = #{myId} THEN 'Y' ELSE 'N' END AS mine
+        FROM t_message m
+        WHERE ((m.sender_id = #{myId}    AND m.receiver_id = #{otherId} AND m.del_sender = 'N')
+            OR (m.sender_id = #{otherId} AND m.receiver_id = #{myId}    AND m.del_receiver = 'N'))
+        ORDER BY m.message_id ASC
+    </select>
+
+    <!-- 상대와의 대화 읽음 처리(내가 받은 안읽음 → 읽음) -->
+    <update id="markThreadRead" parameterType="messageVO">
+        UPDATE t_message SET read_yn = 'Y'
+        WHERE receiver_id = #{myId} AND sender_id = #{otherId} AND read_yn = 'N'
+    </update>
+
+    <!-- 전체 안읽음 수(헤더 배지) -->
+    <select id="selectUnreadCnt" parameterType="messageVO" resultType="int">
+        SELECT COUNT(*) FROM t_message
+        WHERE receiver_id = #{myId} AND read_yn = 'N' AND del_receiver = 'N'
+    </select>
+
+    <!-- 쪽지 보내기 -->
+    <insert id="insert" parameterType="messageVO">
+        INSERT INTO t_message (sender_id, receiver_id, content, read_yn, del_sender, del_receiver, reg_dt, reg_ip)
+        VALUES (#{senderId}, #{receiverId}, #{content}, 'N', 'N', 'N', NOW(), #{regIp})
+    </insert>
+
+    <!-- 대화 삭제(내 화면에서만) -->
+    <update id="deleteConv" parameterType="messageVO">
+        UPDATE t_message
+        SET del_sender   = CASE WHEN sender_id   = #{myId} THEN 'Y' ELSE del_sender   END,
+            del_receiver = CASE WHEN receiver_id = #{myId} THEN 'Y' ELSE del_receiver END
+        WHERE (sender_id = #{myId} AND receiver_id = #{otherId})
+           OR (sender_id = #{otherId} AND receiver_id = #{myId})
+    </update>
+
+</mapper>

@@ -17,6 +17,7 @@ import SafeHtml from '../../common/SafeHtml'
 import type { RichTextEditorHandle } from '../../common/adm/components/RichTextEditor'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import { likeApi } from '../../api/like'
+import { bookmarkApi } from '../../api/bookmark'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import ReportAction from '../../common/gen/components/ReportAction'
 import { extractEditorImageIds } from '../../common/util/editorImages'
@@ -49,6 +50,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const [loading, setLoading] = useState(false)
 
   const [post, setPost] = useState<Bbs | null>(null)
+  const [bookmarked, setBookmarked] = useState(false) // 이 글의 내 북마크 여부
   const [comments, setComments] = useState<Comment[]>([])
   const [commentText, setCommentText] = useState('')
   const [editCommentKey, setEditCommentKey] = useState<string | null>(null)
@@ -119,6 +121,12 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       }
       if (countUp) markViewed(bbsId)
       setPost(p)
+      // 북마크 여부(로그인 시) — 실패해도 본문 표시엔 영향 없음
+      if (meId) {
+        bookmarkApi.ids('BBS').then((ids) => setBookmarked(ids.includes(bbsId))).catch(() => setBookmarked(false))
+      } else {
+        setBookmarked(false)
+      }
       setComments(await commentApi.list(bbsId))
       if (isGallery) {
         const imgs = await fileApi.listByMap(bbsId, IMG_LOC)
@@ -286,6 +294,18 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
     }
   }
+  /** 북마크 토글 — 결과 상태를 서버 응답(markedYn)으로 반영. */
+  const toggleBookmark = async () => {
+    if (!post) return
+    try {
+      const r = await bookmarkApi.toggle('BBS', post.dbKey!)
+      const on = r.markedYn === 'Y'
+      setBookmarked(on)
+      message.success(on ? '북마크에 저장했습니다.' : '북마크를 해제했습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '북마크 처리 실패')
+    }
+  }
   const toggleLikeComment = async (c: Comment) => {
     try {
       const r = await likeApi.toggle('COMMENT', c.dbKey!)
@@ -442,7 +462,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         }
       >
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <UserAvatar fileId={post.regProfileFileId} name={post.regNm || post.regId} size={24} />
+          <UserAvatar fileId={post.regProfileFileId} name={post.regNm || post.regId} userId={post.regId} size={24} />
           <span>· {post.regDt} · 조회 {post.viewCnt}</span>
         </div>
         {isGallery && viewGallery.length > 0 && (
@@ -464,6 +484,15 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             </Button>
           ) : (
             <span style={{ color: '#888' }}>♥ {Number(post.goodCnt) || 0}</span>
+          )}
+          {meId && (
+            <Button
+              shape="round" style={{ marginLeft: 8 }}
+              type={bookmarked ? 'primary' : 'default'} ghost={bookmarked}
+              onClick={toggleBookmark}
+            >
+              {bookmarked ? '🔖 북마크됨' : '🔖 북마크'}
+            </Button>
           )}
           {meId && post.regId !== meId && (
             <span style={{ marginLeft: 14 }}><ReportAction targetType="BBS" targetId={post.dbKey!} /></span>
@@ -491,7 +520,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
               <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {isReply && <span style={{ color: '#bbb' }}>↳</span>}
-                <UserAvatar fileId={c.regProfileFileId} name={c.regNm || c.regId} size={18} />
+                <UserAvatar fileId={c.regProfileFileId} name={c.regNm || c.regId} userId={c.regId} size={18} />
                 <span>· {c.regDt}</span>
                 {canEdit(c.regId) && editCommentKey !== c.dbKey && (
                   <>

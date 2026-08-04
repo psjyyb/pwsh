@@ -30,6 +30,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// 메일 발송(이메일 인증코드). SMTP 계정은 환경변수(MAIL_USERNAME/MAIL_PASSWORD)로 주입.
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	// AOP(행위 로그 EventLogAspect). spring-aop는 web 전이 의존, aspectjweaver 추가 시 Boot가 자동활성화.
 	implementation 'org.aspectj:aspectjweaver'
 

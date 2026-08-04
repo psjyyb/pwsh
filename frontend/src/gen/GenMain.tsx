@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Col, Empty, Row, Tag, message } from 'antd'
+import { Card, Col, Empty, Row, Tag, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { fileApi } from '../api/file'
 import { apiPost } from '../api/http'
@@ -87,6 +87,7 @@ export default function GenMain() {
   const [categories, setCategories] = useState<Category[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [posts, setPosts] = useState<RecentPost[]>([])
+  const [best, setBest] = useState<Bbs[]>([]) // 이번 주 베스트(참여도 상위)
   const loggedIn = !!tokenStore.get()
   const [myIds, setMyIds] = useState<Set<string>>(new Set()) // 내가 담은 취미 id
 
@@ -95,6 +96,7 @@ export default function GenMain() {
     if (loggedIn) userHobbyApi.list().then((l) => setMyIds(new Set(l.map((u) => u.hobbyId!).filter(Boolean)))).catch(() => {})
     recruitApi.list({ statusCd: STATUS_OPEN, pageIndex: 1, size: 4 })
       .then((r) => setRecruits(r.list)).catch(() => {})
+    apiPost<Bbs[]>('/adm/bbs/selectBbsListWeeklyBest.do', {}).then(setBest).catch(() => {})
 
     hobbyApi.listAll().then(async (hobbies) => {
       const cats: Category[] = hobbies.map((h) => ({
@@ -138,21 +140,21 @@ export default function GenMain() {
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
       {/* 히어로 */}
-      <div style={{ background: gen.heroTint, borderRadius: 24, padding: '36px 24px', textAlign: 'center' }}>
-        <div aria-hidden style={{ fontSize: 26, marginBottom: 8 }}>✨💜⭐️</div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: gen.heroText, marginBottom: 8, letterSpacing: '-.5px' }}>취미로 만나는 사람들</div>
-        <div style={{ fontSize: 15, color: '#7A72A8', marginBottom: 22 }}>
-          관심사가 같은 사람들과 이야기하고, 함께할 사람을 찾아보세요.
-        </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-          {!loggedIn && (
-            <Button type="primary" size="large" onClick={() => navigate('/signup')}
-              style={{ borderRadius: 16, fontWeight: 700, paddingInline: 28 }}>회원가입</Button>
-          )}
-          <Button size="large" onClick={() => navigate('/gen/recruit')}
-            style={{ borderRadius: 16, paddingInline: 24 }}>모집 둘러보기</Button>
-        </div>
-      </div>
+      {/*<div style={{ background: gen.heroTint, borderRadius: 24, padding: '36px 24px', textAlign: 'center' }}>*/}
+      {/*  <div aria-hidden style={{ fontSize: 26, marginBottom: 8 }}>✨💜⭐️</div>*/}
+      {/*  <div style={{ fontSize: 26, fontWeight: 800, color: gen.heroText, marginBottom: 8, letterSpacing: '-.5px' }}>취미로 만나는 사람들</div>*/}
+      {/*  <div style={{ fontSize: 15, color: '#7A72A8', marginBottom: 22 }}>*/}
+      {/*    관심사가 같은 사람들과 이야기하고, 함께할 사람을 찾아보세요.*/}
+      {/*  </div>*/}
+      {/*  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>*/}
+      {/*    {!loggedIn && (*/}
+      {/*      <Button type="primary" size="large" onClick={() => navigate('/signup')}*/}
+      {/*        style={{ borderRadius: 16, fontWeight: 700, paddingInline: 28 }}>회원가입</Button>*/}
+      {/*    )}*/}
+      {/*    <Button size="large" onClick={() => navigate('/gen/recruit')}*/}
+      {/*      style={{ borderRadius: 16, paddingInline: 24 }}>모집 둘러보기</Button>*/}
+      {/*  </div>*/}
+      {/*</div>*/}
 
       {/* 취미 목록(유닛형 컬러 카드) */}
       <section>
@@ -227,7 +229,7 @@ export default function GenMain() {
                   <div style={{ fontSize: 13, color: '#888', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                     <span>📍 {r.region || '-'}</span>
                     <span>🗓 {r.meetDt || '-'}</span>
-                    <span>👥 {r.acceptedCnt ?? 0}{r.capacity ? ` / ${r.capacity}` : ''}</span>
+                    <span>👥 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
                   </div>
                 </Card>
               </Col>
@@ -235,6 +237,33 @@ export default function GenMain() {
           </Row>
         )}
       </section>
+
+      {/* 이번 주 베스트 — 최근 7일 참여도(좋아요·댓글·조회) 상위 */}
+      {best.length > 0 && (
+        <section>
+          <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 14, color: gen.heroText }}>🔥 이번 주 베스트</h3>
+          <Card styles={{ body: { padding: 0 } }}>
+            {best.map((p, i) => (
+              <div key={p.dbKey}
+                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer',
+                  borderTop: i === 0 ? 'none' : '1px solid #f0f0f0',
+                }}>
+                <span style={{
+                  flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: i < 3 ? gen.primary : '#ddd',
+                  color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>{i + 1}</span>
+                <Tag color="purple" style={{ flexShrink: 0 }}>{p.bbsinfoNm}</Tag>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                <span style={{ fontSize: 12, color: '#aaa', flexShrink: 0 }}>
+                  ❤ {Number(p.goodCnt) || 0} · 💬 {Number(p.commentCnt) || 0}
+                </span>
+              </div>
+            ))}
+          </Card>
+        </section>
+      )}
 
       {/* 최근 이야기 */}
       <section>

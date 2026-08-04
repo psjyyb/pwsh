@@ -10,6 +10,7 @@ import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 댓글 업무 로직. 컨트롤러는 매핑만(단일 @Service). 게시글 하위라 단건뷰 없음(목록만).
@@ -31,6 +32,7 @@ public class CommentService {
     }
 
     /** 등록 — 접근 불가 게시판(게시글)엔 댓글 작성 차단. 등록 후 알림(답글=부모 댓글 작성자, 아니면 글 작성자). */
+    @Transactional
     public void insert(CommentVO vo) {
         genAccessGuard.checkPost(vo.getBbsId());
         commonDAO.insert("commentDAO.insert", vo);

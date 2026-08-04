@@ -1,17 +1,29 @@
+import type { MouseEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { gen } from '../../../gen/theme'
 
-/** 회원 아바타(프로필 이미지 or 닉네임 이니셜) + 선택적 이름. 게시글/댓글/모집 작성자 표시 공용. */
+/**
+ * 회원 아바타(프로필 이미지 or 닉네임 이니셜) + 선택적 이름. 게시글/댓글/모집 작성자 표시 공용.
+ * userId를 주면 클릭 시 해당 회원 공개 프로필(/gen/user/:userId)로 이동한다.
+ */
 export default function UserAvatar({
   fileId,
   name,
   size = 26,
   showName = true,
+  userId,
 }: {
   fileId?: string
   name?: string
   size?: number
   showName?: boolean
+  userId?: string
 }) {
+  const navigate = useNavigate()
+  const clickable = !!userId && userId !== 'system'
+  const goProfile = clickable
+    ? (e: MouseEvent) => { e.stopPropagation(); navigate(`/gen/user/${userId}`) }
+    : undefined
   const avatar = (
     <span
       style={{
@@ -25,11 +37,19 @@ export default function UserAvatar({
         : (name || '?').slice(0, 1)}
     </span>
   )
-  if (!showName) return avatar
+  if (!showName) {
+    return clickable
+      ? <span onClick={goProfile} title="프로필 보기" style={{ cursor: 'pointer', display: 'inline-flex' }}>{avatar}</span>
+      : avatar
+  }
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+    <span
+      onClick={goProfile}
+      title={clickable ? '프로필 보기' : undefined}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, cursor: clickable ? 'pointer' : undefined }}
+    >
       {avatar}
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '-'}</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: clickable ? gen.primary : undefined }}>{name || '-'}</span>
     </span>
   )
 }

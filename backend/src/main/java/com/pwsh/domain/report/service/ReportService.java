@@ -7,6 +7,7 @@ import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 신고(단일 @Service). 신고 등록은 로그인 회원(중복신고 차단, reg_id 서버 세팅),
@@ -39,12 +40,34 @@ public class ReportService {
         return commonDAO.selectList("reportDAO.selectList", vo);
     }
 
-    /** 신고 처리(RESOLVED/DISMISSED) — 관리자만. */
+    /**
+     * 신고 처리 — 관리자만.
+     * RESOLVED(삭제조치): 대상 콘텐츠를 숨김(use_yn='N'). PENDING(되돌리기): 대상 복원(use_yn='Y').
+     * DISMISSED(반려): 콘텐츠는 건드리지 않음(오신고 처리).
+     */
+    @Transactional
     public void updateStatus(ReportVO vo) {
         assertAdmin();
-        if (!"RESOLVED".equals(vo.getStatus()) && !"DISMISSED".equals(vo.getStatus())
-                && !"PENDING".equals(vo.getStatus())) {
+        String status = vo.getStatus();
+        if (!"RESOLVED".equals(status) && !"DISMISSED".equals(status) && !"PENDING".equals(status)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 상태입니다.");
+        }
+        // 삭제조치/되돌리기는 대상 콘텐츠의 노출 여부까지 변경(대상 유형은 서버에서 재조회 — 위변조 차단)
+        if ("RESOLVED".equals(status) || "PENDING".equals(status)) {
+            ReportVO report = commonDAO.selectOne("reportDAO.selectView", vo);
+            if (report != null) {
+                ReportVO t = new ReportVO();
+                t.setTargetId(report.getTargetId());
+                t.setUseYn("RESOLVED".equals(status) ? "N" : "Y");
+                String type = report.getTargetType();
+                if ("BBS".equals(type)) {
+                    commonDAO.update("reportDAO.setBbsUseYn", t);
+                } else if ("COMMENT".equals(type)) {
+                    commonDAO.update("reportDAO.setCommentUseYn", t);
+                } else if ("RECRUIT".equals(type)) {
+                    commonDAO.update("reportDAO.setRecruitUseYn", t);
+                }
+            }
         }
         commonDAO.update("reportDAO.updateStatus", vo);
     }

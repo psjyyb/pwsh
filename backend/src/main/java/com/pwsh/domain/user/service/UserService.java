@@ -75,6 +75,23 @@ public class UserService {
         commonDAO.selectOne("userDAO.incrementTokenVer", vo);
     }
 
+    /**
+     * 관리자 제재(계정 상태 변경) — STATUS03(정지) / STATUS01(정상 해제).
+     * 정지 시 token_ver를 올려 이미 발급된 access 토큰까지 즉시 무효화한다
+     * (JWT 필터는 상태가 아니라 token_ver로 판정하므로, 올리지 않으면 만료 전까지 계속 접근 가능).
+     */
+    @Transactional
+    public void updateStatus(UserVO vo) {
+        String status = vo.getStatusCd();
+        if (!"STATUS01".equals(status) && !"STATUS03".equals(status)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "정상(STATUS01) 또는 정지(STATUS03)만 지정할 수 있습니다.");
+        }
+        commonDAO.update("userDAO.updateStatus", vo);
+        if ("STATUS03".equals(status)) {
+            commonDAO.selectOne("userDAO.incrementTokenVer", vo); // 정지 즉시 접근 차단
+        }
+    }
+
     /** 사용자-권한그룹 매핑 저장 — 기존 삭제 후 재등록 */
     @Transactional
     public void saveAuthgrp(UserVO vo) {

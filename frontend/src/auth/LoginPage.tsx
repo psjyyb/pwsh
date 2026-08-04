@@ -55,17 +55,19 @@ export default function LoginPage() {
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
           <Form.Item name="userId" label="아이디" rules={[{ required: true, message: '아이디를 입력하세요.' }]}>
-            <Input size="large" autoFocus placeholder="아이디" />
+            <Input autoFocus placeholder="아이디" />
           </Form.Item>
           <Form.Item name="userPw" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력하세요.' }]}>
-            <Input.Password size="large" placeholder="비밀번호" />
+            <Input.Password placeholder="비밀번호" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" size="large" block>
+          <Button type="primary" htmlType="submit" block>
             로그인
           </Button>
           <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13 }}>
             아직 회원이 아니신가요?{' '}
             <a onClick={() => navigate('/signup')}>회원가입</a>
+            <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+            <a onClick={() => navigate('/forgot')}>비밀번호 찾기</a>
           </div>
         </Form>
       </Card>

@@ -63,7 +63,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
                 || path.startsWith("/api/adm/notification/")
                 || path.startsWith("/api/adm/like/")
                 || path.startsWith("/api/adm/search/")
-                || path.startsWith("/api/adm/report/")) {
+                || path.startsWith("/api/adm/report/")
+                || path.startsWith("/api/adm/message/")
+                || path.startsWith("/api/adm/review/")
+                || path.startsWith("/api/adm/bookmark/")
+                || path.startsWith("/api/adm/stats/")) { // stats는 대응 메뉴 없음 — 서비스에서 관리자 인가
             return true;
         }
         for (String s : EXEMPT_SUFFIX) {

@@ -42,6 +42,12 @@ public class BbsController {
         return ApiResponse.ok(bbsService.selectListMine());
     }
 
+    /** 주간 인기글(메인 '이번 주 베스트') — 공개(비로그인 포함). */
+    @RequestMapping("/selectBbsListWeeklyBest.do")
+    public ApiResponse<List<BbsVO>> selectListWeeklyBest() {
+        return ApiResponse.ok(bbsService.selectListWeeklyBest());
+    }
+
     /** 등록 후 생성된 게시글 ID 반환(첨부 매핑 연결용) */
     @RequestMapping("/insertBbs.do")
     public ApiResponse<String> insert(@RequestBody BbsVO searchVO) {

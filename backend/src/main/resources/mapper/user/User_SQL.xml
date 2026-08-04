@@ -171,6 +171,16 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!-- 관리자 제재: 정지(STATUS03)/해제(STATUS01). 해제 시 실패횟수·잠금시간도 초기화 -->
+    <update id="updateStatus" parameterType="userVO">
+        UPDATE t_user
+           SET status_cd = #{statusCd},
+               fail_cnt = CASE WHEN #{statusCd} = 'STATUS01' THEN 0 ELSE fail_cnt END,
+               is_account_non_locked_ti = CASE WHEN #{statusCd} = 'STATUS01' THEN NULL ELSE is_account_non_locked_ti END,
+               upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+         WHERE user_id = #{userId}
+    </update>
+
     <!-- 비밀번호 만료 연장(변경 강제 대신 "나중에" → 만료일만 재형성, last_upd_dt는 유지) -->
     <update id="extendPwExpire" parameterType="userVO">
         UPDATE t_user SET

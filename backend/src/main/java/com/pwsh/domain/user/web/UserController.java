@@ -68,6 +68,10 @@ public class UserController {
         } else if ("ForceLogout".equals(path)) {
             Validate.required(searchVO.getUserId(), "사용자");
             userService.forceLogout(searchVO);
+        } else if ("Status".equals(path)) { // 제재: 정지(STATUS03)/해제(STATUS01)
+            Validate.required(searchVO.getUserId(), "사용자");
+            Validate.required(searchVO.getStatusCd(), "상태");
+            userService.updateStatus(searchVO);
         } else if (StringUtil.isEmpty(path)) {
             Validate.required(searchVO.getUserNm(), "이름");
             Validate.required(searchVO.getMemCd(), "회원유형");

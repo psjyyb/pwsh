@@ -41,6 +41,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(({ height = '480p
       previewStyle: 'vertical',
       initialValue: '',
       language: 'ko-KR',
+      autofocus: false, // 마운트 시 자동 포커스로 페이지가 에디터 위치로 스크롤되는 현상 방지(사용자가 스크롤해야 이동)
     }
     // uploadImage 주입 시에만 훅 등록(서버 업로드 후 URL 삽입).
     // 미주입 시 훅을 아예 두지 않아 에디터 기본 동작(base64 인라인) 유지.
@@ -57,7 +58,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(({ height = '480p
       }
     }
     const editor = new Editor(options)
-    if (initialHtml) editor.setHTML(initialHtml)
+    // 두 번째 인자 cursorToEnd=false: 초기 HTML 주입 시 커서를 끝으로 옮기지 않음
+    // (기본 true면 포커스가 잡히며 페이지가 에디터 위치로 스크롤됨 — 상세 진입 시 자동 스크롤 원인)
+    if (initialHtml) editor.setHTML(initialHtml, false)
     // 초기 로드 직후 상태를 기준선으로 저장 → 이후 내용이 기준선과 달라질 때(=실제 편집)만 onChange
     const baseline = editor.getHTML()
     editor.on('change', () => {

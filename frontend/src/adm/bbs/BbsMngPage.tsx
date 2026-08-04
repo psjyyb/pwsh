@@ -217,7 +217,7 @@ export default function BbsMngPage() {
 
   // ===== 목록 (유형별 컬럼 분화) =====
   if (mode === 'list') {
-    const regCol = { title: '작성자', dataIndex: 'regId' as const, width: 130 }
+    const regCol = { title: '작성자', width: 130, render: (_: unknown, r: Bbs) => r.regNm || r.regId }
     const dtCol = { title: '작성일', dataIndex: 'regDt' as const, width: 120 }
     let columns: TableColumnsType<Bbs>
     if (isGallery) {
@@ -322,7 +322,7 @@ export default function BbsMngPage() {
         }
       >
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
-          작성자 {post.regId} · {post.regDt} · 조회 {post.viewCnt}
+          작성자 {post.regNm || post.regId} · {post.regDt} · 조회 {post.viewCnt}
           {post.secretYn === 'Y' && <Tag style={{ marginLeft: 8 }}>비밀글</Tag>}
           {isQna && <Tag color={comments.length > 0 ? 'blue' : undefined} style={{ marginLeft: 8 }}>{comments.length > 0 ? '답변완료' : '답변대기'}</Tag>}
         </div>
@@ -358,7 +358,7 @@ export default function BbsMngPage() {
             {comments.map((c) => (
               <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
                 <div style={{ fontSize: 12, color: '#888' }}>
-                  {c.regId} · {c.regDt}
+                  {c.regNm || c.regId} · {c.regDt}
                   <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.dbKey!)}>삭제</a>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>

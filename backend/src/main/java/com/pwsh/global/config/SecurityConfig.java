@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/pwExtend", "/api/auth/pwChange", "/api/auth/logout", "/api/auth/nickname", "/api/auth/me").authenticated() // 본인 인증 필요(순서상 permitAll보다 먼저)
+                        .requestMatchers("/api/auth/pwExtend", "/api/auth/pwChange", "/api/auth/logout", "/api/auth/nickname", "/api/auth/me", "/api/auth/updateProfileImage", "/api/auth/withdraw").authenticated() // 본인 인증 필요(순서상 permitAll보다 먼저)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/pub/**").permitAll() // 공개 읽기 전용(에디터 이미지 서빙 등)
                         // 사용자(GEN) 사이트의 조회 엔드포인트는 비로그인 허용(공개 범위는 GUEST 권한그룹이 메뉴로 결정).
@@ -58,6 +58,7 @@ public class SecurityConfig {
                                 "/api/adm/bbsinfo/selectBbsinfoView.do",
                                 "/api/adm/bbsinfo/selectBbsinfoListCombo.do",
                                 "/api/adm/bbs/selectBbsList.do",
+                                "/api/adm/bbs/selectBbsListWeeklyBest.do",
                                 "/api/adm/bbs/selectBbsView.do",
                                 "/api/adm/comment/selectCommentList.do",
                                 "/api/adm/page/selectPageView.do",
@@ -66,7 +67,9 @@ public class SecurityConfig {
                                 "/api/adm/recruit/selectRecruitView.do",
                                 "/api/adm/hobby/selectHobbyList.do",
                                 "/api/adm/hobby/selectHobbyView.do",
-                                "/api/adm/search/selectSearchAll.do").permitAll()
+                                "/api/adm/search/selectSearchAll.do",
+                                "/api/adm/review/selectReviewList.do",
+                                "/api/adm/review/selectReviewListStats.do").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(authenticationEntryPoint)   // 미인증 → 401

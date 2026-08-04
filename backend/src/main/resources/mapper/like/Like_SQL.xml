@@ -10,6 +10,7 @@
     <insert id="insert" parameterType="likeVO">
         INSERT INTO t_content_like (user_id, target_type, target_id, reg_id, reg_dt, reg_ip)
         VALUES (#{userId}, #{targetType}, #{targetId}::integer, #{regId}, NOW(), #{regIp})
+        ON CONFLICT (user_id, target_type, target_id) DO NOTHING
     </insert>
 
     <delete id="delete" parameterType="likeVO">

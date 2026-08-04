@@ -18,6 +18,7 @@ import defaultLogo from '../assets/logo.svg'
 import hobbyPattern from '../assets/hobby-pattern.svg'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
 import { notificationApi } from '../api/notification'
+import { messageApi } from '../api/message'
 import type { Noti } from '../api/notification'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -115,6 +116,7 @@ export default function GenLayout() {
   const [idleMinutes, setIdleMinutes] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notiUnread, setNotiUnread] = useState(0)
+  const [msgUnread, setMsgUnread] = useState(0)
   const [notiList, setNotiList] = useState<Noti[]>([])
   const [notiOpen, setNotiOpen] = useState(false)
   const loggedIn = !!tokenStore.get() // 비로그인(게스트)도 /gen 접근 가능 — 메뉴는 GUEST 권한그룹 기준
@@ -139,7 +141,10 @@ export default function GenLayout() {
         setLogoFileId(c.logoFileId ?? undefined)
       })
       .catch(() => setIdleMinutes(30))
-    if (loggedIn) notificationApi.unreadCnt().then(setNotiUnread).catch(() => {})
+    if (loggedIn) {
+      notificationApi.unreadCnt().then(setNotiUnread).catch(() => {})
+      messageApi.unreadCnt().then(setMsgUnread).catch(() => {})
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -212,78 +217,88 @@ export default function GenLayout() {
   return (
     <ConfigProvider theme={genTheme}>
       <Layout style={{ minHeight: '100vh', backgroundColor: gen.pageBg, backgroundImage: `url(${hobbyPattern})`, backgroundAttachment: 'fixed' }}>
-        <Layout.Header style={{ background: gen.headerBg, display: 'flex', alignItems: 'center', height: 72, paddingInline: 22, gap: 18, boxShadow: '0 1px 0 rgba(108,78,227,.10)', position: 'sticky', top: 0, zIndex: 20 }}>
-          {isMobile && (
-            <Button aria-label="메뉴 열기" onClick={() => setDrawerOpen(true)}>☰</Button>
-          )}
-          <img src={logoSrc} alt={siteTitle} style={{ height: 38, cursor: 'pointer' }} onClick={() => navigate('/gen')} />
-          {!isMobile && (
-            <nav className="gen-nav" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-              {displayNav.map((n) => {
-                const active = n.dest
-                  ? location.pathname === n.dest
-                  : !!n.children?.some((c) => c.dest === location.pathname)
-                const inner = (
-                  <>
-                    <MenuGlyph name={n.iconKey} size={20} />
-                    <span className="gen-nav-label">{n.label}</span>
-                    <i className="gen-nav-bar" />
-                  </>
-                )
-                if (n.children?.length) {
-                  return (
-                    <Dropdown
-                      key={n.key}
-                      menu={{
-                        items: n.children.map((c) => ({
-                          key: c.dest || c.key,
-                          label: c.label,
-                          onClick: () => c.dest && navigate(c.dest),
-                        })),
-                      }}
-                    >
-                      <button type="button" className={`gen-nav-btn${active ? ' is-active' : ''}`}>
-                        {inner}
-                      </button>
-                    </Dropdown>
-                  )
-                }
-                return (
-                  <button
-                    key={n.key}
-                    type="button"
-                    className={`gen-nav-btn${active ? ' is-active' : ''}`}
-                    onClick={() => n.dest && navigate(n.dest)}
-                  >
-                    {inner}
-                  </button>
-                )
-              })}
-            </nav>
-          )}
-          {!isMobile && (
-            <Input.Search
-              placeholder="취미·모집·글 검색" allowClear
-              style={{ width: 190, marginLeft: 'auto' }}
-              onSearch={(v) => { const q = v.trim(); if (q) navigate(`/gen/search?q=${encodeURIComponent(q)}`) }}
-            />
-          )}
-          <Space size={8} style={{ marginLeft: isMobile ? 'auto' : 12 }}>
-            {loggedIn ? (
-              <>
-                <Popover content={notiContent} trigger="click" open={notiOpen} onOpenChange={openNoti} placement="bottomRight">
-                  <Badge count={notiUnread} size="small">
-                    <Button shape="circle" aria-label="알림">🔔</Button>
-                  </Badge>
-                </Popover>
-                <Button onClick={() => navigate('/gen/mypage')}>마이페이지</Button>
-                {isAdmin() && <Button onClick={() => navigate('/adm/dashboard')}>관리자 페이지</Button>}
-                <Button onClick={logout}>로그아웃</Button>
-              </>
-            ) : (
-              <Button type="primary" onClick={() => navigate('/login')} style={{ borderRadius: 14, fontWeight: 700 }}>로그인</Button>
+        <Layout.Header style={{ background: gen.headerBg, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', height: 72, paddingInline: 22, columnGap: 18, boxShadow: '0 1px 0 rgba(108,78,227,.10)', position: 'sticky', top: 0, zIndex: 20 }}>
+          {/* 좌: 로고(모바일은 햄버거 포함) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'start', minWidth: 0 }}>
+            {isMobile && (
+              <Button aria-label="메뉴 열기" onClick={() => setDrawerOpen(true)}>☰</Button>
             )}
-          </Space>
+            <img src={logoSrc} alt={siteTitle} style={{ height: 38, cursor: 'pointer' }} onClick={() => navigate('/gen')} />
+          </div>
+
+          {/* 중: 메뉴 — 그리드 가운데 열(auto)이라 좌우 요소 폭과 무관하게 항상 뷰포트 정중앙. 데스크톱만 렌더 */}
+          <nav className="gen-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+            {!isMobile && displayNav.map((n) => {
+              const active = n.dest
+                ? location.pathname === n.dest
+                : !!n.children?.some((c) => c.dest === location.pathname)
+              const inner = (
+                <>
+                  <MenuGlyph name={n.iconKey} size={20} />
+                  <span className="gen-nav-label">{n.label}</span>
+                  <i className="gen-nav-bar" />
+                </>
+              )
+              if (n.children?.length) {
+                return (
+                  <Dropdown
+                    key={n.key}
+                    menu={{
+                      items: n.children.map((c) => ({
+                        key: c.dest || c.key,
+                        label: c.label,
+                        onClick: () => c.dest && navigate(c.dest),
+                      })),
+                    }}
+                  >
+                    <button type="button" className={`gen-nav-btn${active ? ' is-active' : ''}`}>
+                      {inner}
+                    </button>
+                  </Dropdown>
+                )
+              }
+              return (
+                <button
+                  key={n.key}
+                  type="button"
+                  className={`gen-nav-btn${active ? ' is-active' : ''}`}
+                  onClick={() => n.dest && navigate(n.dest)}
+                >
+                  {inner}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* 우: 검색 + 컨트롤(알림/마이페이지/로그인 등) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'end', minWidth: 0 }}>
+            {!isMobile && (
+              <Input.Search
+                placeholder="취미·모집·글 검색" allowClear
+                style={{ width: 190 }}
+                onSearch={(v) => { const q = v.trim(); if (q) navigate(`/gen/search?q=${encodeURIComponent(q)}`) }}
+              />
+            )}
+            <Space size={8}>
+              {loggedIn ? (
+                <>
+                  <Popover content={notiContent} trigger="click" open={notiOpen} onOpenChange={openNoti} placement="bottomRight">
+                    <Badge count={notiUnread} size="small">
+                      <Button shape="circle" aria-label="알림">🔔</Button>
+                    </Badge>
+                  </Popover>
+                  <Badge count={msgUnread} size="small">
+                    <Button shape="circle" aria-label="쪽지" onClick={() => navigate('/gen/message')}>✉️</Button>
+                  </Badge>
+                  <Button onClick={() => navigate('/gen/mypage')}>마이페이지</Button>
+                  {isAdmin() && <Button onClick={() => navigate('/adm/dashboard')}>관리자 페이지</Button>}
+                  <Button onClick={logout}>로그아웃</Button>
+                </>
+              ) : (
+                <Button type="primary" onClick={() => navigate('/login')} style={{ borderRadius: 14, fontWeight: 700 }}>로그인</Button>
+              )}
+            </Space>
+          </div>
         </Layout.Header>
 
         {/* 모바일 메뉴 서랍 */}

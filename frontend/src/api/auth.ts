@@ -18,12 +18,30 @@ export interface SignupParams {
   userPw: string
   pwConfirm: string
   nickname: string
-  email?: string
+  email: string
+  code: string // 이메일 인증코드(6자리)
 }
 
-/** 셀프 회원가입 — 성공 시 MEMBER 권한으로 계정 생성(자동 로그인은 아님). */
+/** 셀프 회원가입 — 이메일 인증코드 검증 후 MEMBER 권한으로 계정 생성(자동 로그인은 아님). */
 export function signup(params: SignupParams): Promise<void> {
   return apiPost<void>('/auth/signup', params)
+}
+
+/** 가입 이메일 인증코드 발송 — 입력 이메일로 6자리 코드 전송. */
+export function sendSignupCode(email: string): Promise<void> {
+  return apiPost<void>('/auth/sendSignupCode', { email })
+}
+
+/** 비밀번호 재설정 코드 발송 — 아이디에 등록된 이메일로 코드 전송(계정 열거 방지: 항상 성공 응답). */
+export function sendResetCode(userId: string): Promise<void> {
+  return apiPost<void>('/auth/sendResetCode', { userId })
+}
+
+/** 비밀번호 재설정 — 인증코드 검증 후 새 비밀번호 적용. */
+export function resetPassword(params: {
+  userId: string; code: string; newPw: string; pwConfirm: string
+}): Promise<void> {
+  return apiPost<void>('/auth/resetPassword', params)
 }
 
 export interface MeInfo { userId?: string; nickname?: string; memCd?: string; profileFileId?: string }

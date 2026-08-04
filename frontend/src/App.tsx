@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './auth/LoginPage'
 import SignupPage from './auth/SignupPage'
+import ForgotPasswordPage from './auth/ForgotPasswordPage'
 import ProtectedRoute from './auth/ProtectedRoute'
 import AdmLayout from './layouts/AdmLayout'
 import GenLayout from './gen/GenLayout'
@@ -11,6 +12,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
 
       {/* 관리자 영역 (/adm/*) — 로그인 + 관리자(MEM02)만. 화면은 AdmLayout 내부 탭에서 렌더 */}
       <Route

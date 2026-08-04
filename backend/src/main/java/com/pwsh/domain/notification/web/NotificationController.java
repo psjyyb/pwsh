@@ -42,4 +42,17 @@ public class NotificationController {
         notificationService.markAllRead();
         return ApiResponse.ok();
     }
+
+    /** 내 알림 수신 설정 조회(유형별 Y/N. 미설정이면 전부 Y) */
+    @RequestMapping("/selectNotificationListSetting.do")
+    public ApiResponse<NotificationVO> selectSetting() {
+        return ApiResponse.ok(notificationService.selectMySetting());
+    }
+
+    /** 내 알림 수신 설정 저장 */
+    @RequestMapping("/updateNotificationSetting.do")
+    public ApiResponse<Void> updateSetting(@RequestBody NotificationVO vo) {
+        notificationService.saveMySetting(vo);
+        return ApiResponse.ok();
+    }
 }

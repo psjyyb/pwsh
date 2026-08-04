@@ -76,6 +76,12 @@
         SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND profile_file_id = #{fileId}::integer
     </select>
 
+    <!-- 이 파일이 해당 사용자가 업로드한 파일인지(프로필 지정 IDOR 차단용) -->
+    <select id="countOwnedFileByUser" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM t_file
+        WHERE use_yn = 'Y' AND file_id = #{fileId}::integer AND reg_id = #{userId}
+    </select>
+
     <!-- 이 파일을 아직 참조하는 r_file 매핑 수. 모든 파일참조는 r_file로 통일되므로 이것만 보면 됨. 0이면 물리삭제 안전 -->
     <select id="countActiveRefs" parameterType="fileVO" resultType="int">
         SELECT COUNT(*) FROM r_file WHERE file_id = #{fileId}::integer

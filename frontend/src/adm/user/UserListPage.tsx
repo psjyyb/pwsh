@@ -54,6 +54,18 @@ export default function UserListPage() {
     }
   }
 
+  /** 제재: 정지(STATUS03) / 해제(STATUS01). 정지 시 서버가 세션도 즉시 무효화한다. */
+  const changeStatus = async (statusCd: 'STATUS01' | 'STATUS03') => {
+    try {
+      await userApi.changeStatus(selectedKey!, statusCd)
+      message.success(statusCd === 'STATUS03' ? '계정을 정지했습니다. (즉시 접근 차단)' : '정지를 해제했습니다.')
+      reload()
+      openRow(selectedKey!)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '제재 처리에 실패했습니다.')
+    }
+  }
+
   const columns: TableColumnsType<User> = [
     { title: '아이디', dataIndex: 'userId', width: 140 },
     { title: '이름', dataIndex: 'userNm' },
@@ -101,6 +113,22 @@ export default function UserListPage() {
           >
             <Button disabled={!isEdit}>강제 로그아웃</Button>
           </Popconfirm>
+          {/* 제재: 현재 상태에 따라 정지/해제 토글 (정지 시 서버가 세션도 즉시 무효화) */}
+          {form.getFieldValue('statusCd') === 'STATUS03' ? (
+            <Popconfirm
+              title="정지 해제" description="이 계정의 정지를 해제하고 로그인을 허용합니다."
+              onConfirm={() => changeStatus('STATUS01')} okText="해제" cancelText="취소" disabled={!isEdit}
+            >
+              <Button disabled={!isEdit}>정지 해제</Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="계정 정지" description="로그인을 차단하고 현재 세션도 즉시 종료합니다."
+              onConfirm={() => changeStatus('STATUS03')} okText="정지" okButtonProps={{ danger: true }} cancelText="취소" disabled={!isEdit}
+            >
+              <Button danger disabled={!isEdit}>계정 정지</Button>
+            </Popconfirm>
+          )}
           <Button onClick={openNew}>신규</Button>
           <Button type="primary" onClick={saveUser} disabled={mode === 'none'}>저장</Button>
           <Popconfirm title="삭제하시겠습니까?" onConfirm={remove} okText="삭제" cancelText="취소" disabled={!isEdit}>

@@ -90,7 +90,8 @@ public class RecruitService {
         return commonDAO.selectList("recruitDAO.selectApplyListMine", vo);
     }
 
-    /** 참여 신청(로그인 회원). 마감 모집·본인 모집·중복 신청 차단. */
+    /** 참여 신청(로그인 회원). 마감 모집·본인 모집·중복 신청 차단. 상태는 항상 대기(APPLY01) 강제. */
+    @Transactional
     public void applyInsert(RecruitApplyVO vo) {
         String me = currentUserId();
         RecruitVO key = new RecruitVO();
@@ -110,6 +111,7 @@ public class RecruitService {
             throw new BusinessException(ErrorCode.DUPLICATE, "이미 신청한 모집입니다.");
         }
         vo.setUserId(me);
+        vo.setApplyStatus("APPLY01"); // 신청은 항상 대기로 생성 — 수락(APPLY02)은 주최자만(applyUpdate). 클라이언트 위조 차단.
         commonDAO.insert("recruitDAO.insertApply", vo);
         notificationService.notify(recruit.getRegId(), "APPLY",
                 "'" + recruit.getTitle() + "' 모집에 새 참여 신청이 도착했어요.",

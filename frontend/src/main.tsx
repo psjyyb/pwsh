@@ -5,6 +5,7 @@ import { ConfigProvider, Empty } from 'antd'
 import koKR from 'antd/locale/ko_KR'
 import App from './App.tsx'
 import ErrorBoundary from './common/ErrorBoundary'
+import { fontStack } from './gen/theme'
 import './index.css'
 
 // 빈 Table만 한국어 Empty로 통일(관리자 목록). Select 등 나머지는 AntD 기본(compact)로 두어 과하지 않게.
@@ -14,7 +15,7 @@ const renderEmpty = (componentName?: string) =>
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider locale={koKR} renderEmpty={renderEmpty}>
+    <ConfigProvider locale={koKR} renderEmpty={renderEmpty} theme={{ token: { fontFamily: fontStack, lineHeight: 1.6 } }}>
       <ErrorBoundary>
         <BrowserRouter>
           <App />

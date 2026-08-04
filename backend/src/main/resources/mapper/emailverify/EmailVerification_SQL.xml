@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 이메일 인증코드(t_email_verification). 가입 이메일 인증 / 비밀번호 재설정 공용. -->
+<mapper namespace="emailVerifyDAO">
+
+    <!-- 대상+용도의 기존 코드 삭제(재발급 전 정리 / 검증 성공 후 소비) -->
+    <delete id="deleteByTarget" parameterType="emailVerificationVO">
+        DELETE FROM t_email_verification
+         WHERE target = #{target} AND purpose = #{purpose}
+    </delete>
+
+    <!-- 코드 발급. 만료 = NOW() + ttlMin 분 -->
+    <insert id="insert" parameterType="emailVerificationVO">
+        INSERT INTO t_email_verification (target, purpose, code, expire_dt)
+        VALUES (#{target}, #{purpose}, #{code},
+                NOW() + (#{ttlMin} || ' minutes')::interval)
+    </insert>
+
+    <!-- 유효(미만료) 코드 일치 건수 -->
+    <select id="selectValidCount" parameterType="emailVerificationVO" resultType="int">
+        SELECT COUNT(*)
+          FROM t_email_verification
+         WHERE target = #{target} AND purpose = #{purpose}
+           AND code = #{code}
+           AND expire_dt > NOW()
+    </select>
+
+    <!-- 최근 발급 코드의 누적 실패 시도 횟수(없으면 NULL) -->
+    <select id="selectAttemptCnt" parameterType="emailVerificationVO" resultType="int">
+        SELECT COALESCE(attempt_cnt, 0)
+          FROM t_email_verification
+         WHERE target = #{target} AND purpose = #{purpose}
+         ORDER BY verify_id DESC LIMIT 1
+    </select>
+
+    <!-- 실패 시도 +1 (대상+용도의 단일 코드행) -->
+    <update id="incAttempt" parameterType="emailVerificationVO">
+        UPDATE t_email_verification
+           SET attempt_cnt = COALESCE(attempt_cnt, 0) + 1
+         WHERE target = #{target} AND purpose = #{purpose}
+    </update>
+
+    <!-- 마지막 발급 후 경과 초(재발송 throttle용). 없으면 NULL -->
+    <select id="selectSecondsSinceLast" parameterType="emailVerificationVO" resultType="int">
+        SELECT EXTRACT(EPOCH FROM (NOW() - reg_dt))::int
+          FROM t_email_verification
+         WHERE target = #{target} AND purpose = #{purpose}
+         ORDER BY verify_id DESC LIMIT 1
+    </select>
+
+</mapper>

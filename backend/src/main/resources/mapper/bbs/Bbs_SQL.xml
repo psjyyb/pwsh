@@ -53,6 +53,43 @@
         LIMIT 50
     </select>
 
+    <!--
+      주간 인기글(메인 '이번 주 베스트') — 최근 7일, 취미 공개 게시판·비밀글 제외.
+      점수 = 좋아요*3 + 댓글*2 + 조회*0.1 (참여도 가중).
+    -->
+    <select id="selectListWeeklyBest" parameterType="bbsVO" resultType="bbsVO">
+        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.view_cnt, b.good_cnt,
+               bi.bbsinfo_nm,
+               (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
+               (SELECT u.profile_file_id::TEXT FROM t_user u WHERE u.user_id = b.reg_id) AS reg_profile_file_id,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_bbs b
+        JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
+        JOIN t_hobby h ON h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y'
+        WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
+          AND b.reg_dt >= NOW() - INTERVAL '7 days'
+        ORDER BY (COALESCE(b.good_cnt,0) * 3
+                  + (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') * 2
+                  + COALESCE(b.view_cnt,0) * 0.1) DESC,
+                 b.bbs_id DESC
+        LIMIT 5
+    </select>
+
+    <!-- 회원 공개 프로필용: 그 회원이 '취미(공개) 게시판'에 쓴 글만(비밀글·비공개 게시판 제외). -->
+    <select id="selectListByAuthor" parameterType="bbsVO" resultType="bbsVO">
+        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.view_cnt, b.good_cnt,
+               bi.bbsinfo_nm,
+               (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM t_bbs b
+        JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
+        JOIN t_hobby h ON h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y'
+        WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N' AND b.reg_id = #{regId}
+        ORDER BY b.bbs_id DESC
+        LIMIT 20
+    </select>
+
     <select id="selectListTotCnt" parameterType="bbsVO" resultType="int">
         SELECT COUNT(*) FROM t_bbs
         WHERE use_yn = 'Y' AND p_bbs_id = 0 AND bbsinfo_id = #{bbsinfoId}::integer

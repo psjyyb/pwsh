@@ -6,8 +6,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
@@ -22,6 +24,10 @@ public abstract class IntegrationTest {
 
     @Value("${local.server.port}")
     protected int port;
+
+    /** 실 DB 직접 조작용(테스트 전제 데이터 준비). 프로덕션 경로는 항상 HTTP로 태운다. */
+    @Autowired
+    protected JdbcTemplate jdbc;
 
     protected final HttpClient http = HttpClient.newHttpClient();
 
@@ -59,6 +65,22 @@ public abstract class IntegrationTest {
     /** 로그인 후 access 토큰 추출(성공 전제). */
     protected String accessToken(String userId, String userPw) throws Exception {
         return JsonPath.read(login(userId, userPw).body(), "$.data.accessToken");
+    }
+
+    /**
+     * 셀프 회원가입(이메일 인증 포함). 실제 메일 발송 없이 검증 경로를 그대로 태우기 위해
+     * t_email_verification에 유효 코드를 직접 심고(테스트 전제 데이터) /api/auth/signup을 호출한다.
+     * (SMTP 발송은 EmailVerifyService.issue 경로이며, 여기서는 검증(verify) 경로를 테스트한다)
+     */
+    protected HttpResponse<String> signup(String userId, String nickname, String email) throws Exception {
+        String code = "123456";
+        jdbc.update("DELETE FROM t_email_verification WHERE target = ? AND purpose = 'SIGNUP'", email);
+        jdbc.update("INSERT INTO t_email_verification (target, purpose, code, expire_dt) VALUES (?, 'SIGNUP', ?, NOW() + INTERVAL '10 minutes')",
+                email, code);
+        return post("/api/auth/signup",
+                "{\"userId\":\"" + userId + "\",\"userPw\":\"Test1234!@\",\"pwConfirm\":\"Test1234!@\","
+                        + "\"nickname\":\"" + nickname + "\",\"email\":\"" + email + "\",\"code\":\"" + code + "\"}",
+                null);
     }
 
     /** 테스트용 회원(MEM01) 생성. 비번은 정책 충족값(Test1234!@). 관리자 토큰 필요. */

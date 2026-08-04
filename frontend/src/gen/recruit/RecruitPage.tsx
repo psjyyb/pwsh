@@ -13,6 +13,7 @@ import type { Recruit, RecruitApply } from './recruit.api'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import ReportAction from '../../common/gen/components/ReportAction'
+import { bookmarkApi } from '../../api/bookmark'
 
 type Mode = 'list' | 'view' | 'write'
 interface Category { hobbyId: string; name: string }
@@ -47,6 +48,7 @@ export default function RecruitPage() {
   const [loading, setLoading] = useState(false)
 
   const [recruit, setRecruit] = useState<Recruit | null>(null)
+  const [bookmarked, setBookmarked] = useState(false) // 이 모집의 내 북마크 여부
   const [applies, setApplies] = useState<RecruitApply[]>([]) // 주최자용 신청자 목록
   const [myApply, setMyApply] = useState<RecruitApply | null>(null) // 현재 모집에 대한 내 신청
   const [applyMemo, setApplyMemo] = useState('')
@@ -68,11 +70,11 @@ export default function RecruitPage() {
   }, [])
 
   const loadList = useCallback(
-    async (p = 1) => {
+    async (p = 1, kw = keyword) => {
       setLoading(true)
       try {
         const res = await recruitApi.list({
-          hobbyId: filterCat, statusCd: filterStatus, searchKeyword: keyword, pageIndex: p, size,
+          hobbyId: filterCat, statusCd: filterStatus, searchKeyword: kw, pageIndex: p, size,
         })
         setRows(res.list)
         setTotal(res.totCnt)
@@ -97,6 +99,11 @@ export default function RecruitPage() {
       const r = await recruitApi.view(dbKey, countUp)
       if (countUp) markViewed(`recruit-${dbKey}`)
       setRecruit(r)
+      if (meId) {
+        bookmarkApi.ids('RECRUIT').then((ids) => setBookmarked(ids.includes(dbKey))).catch(() => setBookmarked(false))
+      } else {
+        setBookmarked(false)
+      }
       const owner = admin || (!!meId && r.regId === meId)
       setApplies(owner ? await applyApi.listByRecruit(dbKey) : [])
       if (loggedIn && !owner) {
@@ -162,6 +169,19 @@ export default function RecruitPage() {
       loadList(1)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '삭제 실패')
+    }
+  }
+
+  /** 북마크 토글 — 결과 상태를 서버 응답(markedYn)으로 반영. */
+  const toggleBookmark = async () => {
+    if (!recruit) return
+    try {
+      const r = await bookmarkApi.toggle('RECRUIT', recruit.dbKey!)
+      const on = r.markedYn === 'Y'
+      setBookmarked(on)
+      message.success(on ? '북마크에 저장했습니다.' : '북마크를 해제했습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '북마크 처리 실패')
     }
   }
 
@@ -233,7 +253,7 @@ export default function RecruitPage() {
         render: (_, r) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`,
       },
       { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusNm) },
-      { title: '주최자', width: 150, render: (_, r) => <UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} size={24} /> },
+      { title: '주최자', width: 150, render: (_, r) => <UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} userId={r.regId} size={24} /> },
     ]
     return (
       <Card
@@ -253,7 +273,7 @@ export default function RecruitPage() {
           />
           <Input.Search
             placeholder="모임명 검색" allowClear style={{ width: 220 }}
-            onSearch={(v) => { setKeyword(v); loadList(1) }}
+            onSearch={(v) => { setKeyword(v); loadList(1, v) }}
           />
         </Space>
         {rows.length === 0 && !loading ? (
@@ -273,7 +293,7 @@ export default function RecruitPage() {
                     <span>{r.meetDt || '-'}</span>
                     <span>인원 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
                   </div>
-                  <div style={{ marginTop: 6 }}><UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} size={20} /></div>
+                  <div style={{ marginTop: 6 }}><UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} userId={r.regId} size={20} /></div>
                 </Card>
               ))}
             </Space>
@@ -315,6 +335,11 @@ export default function RecruitPage() {
                 </Popconfirm>
               </>
             )}
+            {meId && (
+              <Button type={bookmarked ? 'primary' : 'default'} ghost={bookmarked} onClick={toggleBookmark}>
+                {bookmarked ? '🔖 북마크됨' : '🔖 북마크'}
+              </Button>
+            )}
             <Button onClick={() => { setMode('list'); loadList(pageIndex) }}>목록</Button>
           </Space>
         }
@@ -328,7 +353,7 @@ export default function RecruitPage() {
           <Descriptions.Item label="신청 현황">
             수락 {recruit.acceptedCnt ?? 0} · 신청 {recruit.applyCnt ?? 0}
           </Descriptions.Item>
-          <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || recruit.regId} /></Descriptions.Item>
+          <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || recruit.regId} userId={recruit.regId} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
         </Descriptions>
 
