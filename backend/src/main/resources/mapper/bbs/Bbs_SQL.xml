@@ -51,6 +51,7 @@
         WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.reg_id = #{regId}
         ORDER BY b.bbs_id DESC
         LIMIT 50
+        -- 커밋
     </select>
 
     <!--
