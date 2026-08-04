@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Card, Empty, List, Rate, Result, Space, Spin, Tag } from 'antd'
+import { Button, Card, Empty, List, Popconfirm, Rate, Result, Space, Spin, Tag, message } from 'antd'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import { getUserProfile } from '../../api/profile'
 import type { UserProfile } from '../../api/profile'
 import { reviewApi } from '../../api/review'
 import type { Review, ReviewStats } from '../../api/review'
+import { blockApi } from '../../api/block'
 import { me } from '../../api/auth'
 import { tokenStore } from '../../auth/token'
 import { gen } from '../theme'
 
 /** 회원 공개 프로필 — 닉네임·프로필사진 + 담은 취미 + 주최 모집 + 작성글. 닉네임 클릭 진입(/gen/user/:userId). */
 export default function UserProfilePage() {
-  const { userId } = useParams()
+  const { userId: handle } = useParams() // 라우트 파라미터는 공개 식별자(handle)
   const navigate = useNavigate()
   const [data, setData] = useState<UserProfile | null>(null)
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -22,20 +23,40 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     setStatus('loading'); setData(null); setStats(null); setReviews([])
-    if (!userId) { setStatus('error'); return }
-    getUserProfile(userId)
+    if (!handle) { setStatus('error'); return }
+    getUserProfile(handle)
       .then((d) => { setData(d); setStatus('ok') })
       .catch(() => setStatus('error'))
     // 신뢰지표(평균 별점)·받은 후기 — 실패해도 프로필 본문은 표시
-    reviewApi.stats(userId).then(setStats).catch(() => {})
-    reviewApi.listByTarget(userId).then(setReviews).catch(() => {})
-  }, [userId])
+    reviewApi.stats(handle).then(setStats).catch(() => {})
+    reviewApi.listByTarget(handle).then(setReviews).catch(() => {})
+  }, [handle])
 
-  // 본인 프로필에는 쪽지 버튼을 숨기기 위해 로그인 사용자 확인
+  const [blocked, setBlocked] = useState(false)
+
+  // 본인 프로필에는 쪽지/차단 버튼을 숨기기 위해 로그인 사용자 확인
   useEffect(() => {
     if (!tokenStore.get()) return
-    me().then((m) => setMyId(m.userId)).catch(() => {})
+    me().then((m) => setMyId(m.handle)).catch(() => {}) // 내 handle로 본인 판정
   }, [])
+
+  // 차단 여부(로그인 + 타인 프로필일 때만)
+  useEffect(() => {
+    if (!handle || !myId || myId === handle) { setBlocked(false); return }
+    blockApi.check(handle).then((v) => setBlocked(v === 'Y')).catch(() => {})
+  }, [handle, myId])
+
+  const toggleBlock = async () => {
+    if (!handle) return
+    try {
+      const r = await blockApi.toggle(handle)
+      const on = r.blockedYn === 'Y'
+      setBlocked(on)
+      message.success(on ? '차단했습니다. 이 회원은 나에게 쪽지를 보낼 수 없습니다.' : '차단을 해제했습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '차단 처리 실패')
+    }
+  }
 
   if (status === 'loading') return <div style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" /></div>
   if (status === 'error' || !data) return <Result status="warning" title="회원을 찾을 수 없습니다." />
@@ -62,9 +83,28 @@ export default function UserProfilePage() {
             <div style={{ color: '#888', fontSize: 13, marginTop: 4 }}>
               담은 취미 {hobbies.length} · 작성글 {posts.length} · 주최 모집 {recruits.length}
             </div>
+            {/* 참석 신뢰지표 — 주최자가 기록한 모임만 집계. 노쇼가 있으면 눈에 띄게 */}
+            {(Number(data.attend?.attendedCnt) + Number(data.attend?.absentCnt) + Number(data.attend?.noshowCnt)) > 0 && (
+              <Space size={6} style={{ marginTop: 6 }} wrap>
+                <Tag color="green">참석 {Number(data.attend?.attendedCnt) || 0}</Tag>
+                {Number(data.attend?.absentCnt) > 0 && <Tag>불참 {data.attend?.absentCnt}</Tag>}
+                {Number(data.attend?.noshowCnt) > 0 && <Tag color="red">노쇼 {data.attend?.noshowCnt}</Tag>}
+              </Space>
+            )}
           </div>
-          {myId && myId !== data.userId && (
-            <Button type="primary" onClick={() => navigate(`/gen/message?with=${data.userId}`)}>쪽지 보내기</Button>
+          {myId && myId !== data.handle && (
+            <Space>
+              <Button type="primary" onClick={() => navigate(`/gen/message?with=${data.handle}`)}>쪽지 보내기</Button>
+              {blocked ? (
+                <Popconfirm title="차단 해제" description="이 회원의 쪽지를 다시 받습니다." onConfirm={toggleBlock} okText="해제" cancelText="취소">
+                  <Button>차단 해제</Button>
+                </Popconfirm>
+              ) : (
+                <Popconfirm title="회원 차단" description="이 회원은 나에게 쪽지를 보낼 수 없게 됩니다." onConfirm={toggleBlock} okText="차단" okButtonProps={{ danger: true }} cancelText="취소">
+                  <Button danger>차단</Button>
+                </Popconfirm>
+              )}
+            </Space>
           )}
         </div>
       </Card>
@@ -79,7 +119,7 @@ export default function UserProfilePage() {
               renderItem={(r) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<UserAvatar fileId={r.regProfileFileId} name={r.regNm} userId={undefined} size={32} showName={false} />}
+                    avatar={<UserAvatar fileId={r.regProfileFileId} name={r.regNm} handle={r.regHandle} size={32} showName={false} />}
                     title={
                       <Space size={8}>
                         <span>{r.regNm || '회원'}</span>

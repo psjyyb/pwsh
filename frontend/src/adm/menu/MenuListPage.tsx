@@ -147,6 +147,7 @@ export default function MenuListPage() {
       />
       <Table<Menu>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={treeData}

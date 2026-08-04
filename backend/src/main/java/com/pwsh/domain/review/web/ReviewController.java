@@ -25,21 +25,21 @@ public class ReviewController {
     @PostMapping("/selectReviewList{path}.do")
     public ApiResponse<?> selectList(@PathVariable String path, @RequestBody ReviewVO vo) {
         if ("Stats".equals(path)) {
-            Validate.required(vo.getTargetId(), "대상 회원");
-            return ApiResponse.ok(reviewService.selectStats(vo.getTargetId()));
+            Validate.required(vo.getTargetHandle(), "대상 회원");
+            return ApiResponse.ok(reviewService.selectStats(vo.getTargetHandle()));
         }
         if ("Targets".equals(path)) {
             return ApiResponse.ok(reviewService.selectMyTargets());
         }
-        Validate.required(vo.getTargetId(), "대상 회원");
-        return ApiResponse.ok(reviewService.selectListByTarget(vo.getTargetId()));
+        Validate.required(vo.getTargetHandle(), "대상 회원");
+        return ApiResponse.ok(reviewService.selectListByTarget(vo.getTargetHandle()));
     }
 
     /** 후기 등록 — 종료된 모임에서 함께한 회원에게만(서비스에서 자격·중복 검증). */
     @PostMapping("/insertReview.do")
     public ApiResponse<Void> insert(@RequestBody ReviewVO vo) {
         Validate.required(vo.getRecruitId(), "모임");
-        Validate.required(vo.getTargetId(), "대상 회원");
+        Validate.required(vo.getTargetHandle(), "대상 회원");
         Validate.required(vo.getRating(), "별점");
         reviewService.insert(vo);
         return ApiResponse.ok();

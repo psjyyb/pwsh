@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  통합 검색(공개 엔드포인트). 키워드는 서비스에서 LIKE 특수문자(% _ \)를 이스케이프하므로
+  모든 LIKE에 ESCAPE '\' 를 명시한다.
+-->
 <mapper namespace="searchDAO">
 
     <!-- 취미: 이름·소개 부분일치 -->
@@ -9,7 +13,8 @@
         FROM t_hobby h
         LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         WHERE h.use_yn = 'Y'
-          AND (h.hobby_nm LIKE '%' || #{keyword} || '%' OR h.summary LIKE '%' || #{keyword} || '%')
+          AND (h.hobby_nm LIKE '%' || #{keyword} || '%' ESCAPE '\'
+               OR h.summary LIKE '%' || #{keyword} || '%' ESCAPE '\')
         ORDER BY h.sort_ordr, h.hobby_id
         LIMIT 10
     </select>
@@ -22,12 +27,18 @@
         LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
         LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
         WHERE r.use_yn = 'Y'
-          AND (r.title LIKE '%' || #{keyword} || '%' OR r.content LIKE '%' || #{keyword} || '%')
+          AND (r.title LIKE '%' || #{keyword} || '%' ESCAPE '\'
+               OR r.content LIKE '%' || #{keyword} || '%' ESCAPE '\')
         ORDER BY r.recruit_id DESC
         LIMIT 10
     </select>
 
-    <!-- 게시글: 취미(공개) 게시판의 비밀글 아닌 원글만, 제목 부분일치 -->
+    <!--
+      게시글: 취미 연결 게시판의 비밀글 아닌 원글만.
+      이 범위는 GenAccessGuard.checkBoard의 isHobbyBoard 규칙과 동일하다
+      (취미 게시판 = 커뮤니티 공개, 메뉴 권한 무관) → 검색이 열람 불가 콘텐츠를 노출하지 않는다.
+      ※ GEN 메뉴 GUEST 권한으로 한 번 더 좁히면 안 된다 — 취미 게시판엔 GEN 메뉴가 없어서 결과가 0이 됨.
+    -->
     <select id="searchPosts" parameterType="map" resultType="bbsVO">
         SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
@@ -36,7 +47,7 @@
         FROM t_bbs b
         LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
         WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
-          AND b.title LIKE '%' || #{keyword} || '%'
+          AND b.title LIKE '%' || #{keyword} || '%' ESCAPE '\'
           AND EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y')
         ORDER BY b.bbs_id DESC
         LIMIT 10

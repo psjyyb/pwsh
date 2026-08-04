@@ -3,11 +3,12 @@
 <!-- 모임 후기·평점(t_review). 같은 모집의 '함께한 사람'끼리 상호 1회 평가. -->
 <mapper namespace="reviewDAO">
 
-    <!-- 회원이 받은 후기 목록(공개 프로필) -->
+    <!-- 회원이 받은 후기 목록(공개 프로필). 작성자/대상 로그인 ID 미노출 — 표시는 닉네임, 링크는 handle -->
     <select id="selectListByTarget" parameterType="reviewVO" resultType="reviewVO">
-        SELECT r.review_id::TEXT AS db_key, r.recruit_id, r.target_id, r.rating, r.content,
+        SELECT r.review_id::TEXT AS db_key, r.recruit_id, r.rating, r.content,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt,
                (SELECT nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT handle FROM t_user u WHERE u.user_id = r.reg_id) AS reg_handle,
                (SELECT profile_file_id::TEXT FROM t_user u WHERE u.user_id = r.reg_id) AS reg_profile_file_id,
                (SELECT title FROM t_recruit rc WHERE rc.recruit_id = r.recruit_id) AS recruit_title
         FROM t_review r
@@ -45,7 +46,8 @@
             FROM my_meets m
             JOIN t_recruit_apply a ON a.recruit_id = m.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02'
         )
-        SELECT mb.recruit_id, mb.title AS recruit_title, mb.member_id AS target_id,
+        SELECT mb.recruit_id, mb.title AS recruit_title,
+               u.handle AS target_handle, <!-- 대상은 handle로만 지목(로그인 ID 미노출) -->
                u.nickname AS target_nm,
                CASE WHEN EXISTS (SELECT 1 FROM t_review r
                                   WHERE r.use_yn = 'Y' AND r.recruit_id = mb.recruit_id

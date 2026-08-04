@@ -18,11 +18,25 @@ public class SearchService {
 
     public Map<String, Object> searchAll(String keyword) {
         Map<String, Object> p = new HashMap<>();
-        p.put("keyword", keyword == null ? "" : keyword.trim());
+        p.put("keyword", escapeLike(keyword));
         Map<String, Object> result = new HashMap<>();
         result.put("hobbies", commonDAO.selectList("searchDAO.searchHobbies", p));
         result.put("recruits", commonDAO.selectList("searchDAO.searchRecruits", p));
         result.put("posts", commonDAO.selectList("searchDAO.searchPosts", p));
         return result;
+    }
+
+    /**
+     * LIKE 패턴 특수문자 이스케이프. 사용자가 넣은 % _ \ 를 리터럴로 취급한다
+     * (미처리 시 '%' 한 글자로 전체 조회되는 등 검색 결과가 왜곡됨). 매퍼는 ESCAPE '\' 를 명시.
+     */
+    private String escapeLike(String keyword) {
+        if (keyword == null) {
+            return "";
+        }
+        return keyword.trim()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     }
 }

@@ -25,8 +25,8 @@ public class MessageController {
     @PostMapping("/selectMessageList{path}.do")
     public ApiResponse<?> selectList(@PathVariable String path, @RequestBody MessageVO vo) {
         if ("Thread".equals(path)) {
-            Validate.required(vo.getOtherId(), "상대");
-            return ApiResponse.ok(messageService.selectThread(vo.getOtherId()));
+            Validate.required(vo.getOtherHandle(), "상대");
+            return ApiResponse.ok(messageService.selectThread(vo.getOtherHandle()));
         }
         if ("UnreadCnt".equals(path)) {
             return ApiResponse.ok(messageService.unreadCnt());
@@ -41,19 +41,19 @@ public class MessageController {
         return ApiResponse.ok();
     }
 
-    /** 상대와의 대화 읽음 처리 */
+    /** 상대와의 대화 읽음 처리 (상대는 handle) */
     @PostMapping("/updateMessageRead.do")
     public ApiResponse<Void> updateRead(@RequestBody MessageVO vo) {
-        Validate.required(vo.getOtherId(), "상대");
-        messageService.markRead(vo.getOtherId());
+        Validate.required(vo.getOtherHandle(), "상대");
+        messageService.markRead(vo.getOtherHandle());
         return ApiResponse.ok();
     }
 
-    /** 대화 삭제(내 화면에서만) */
+    /** 대화 삭제(내 화면에서만, 상대는 handle) */
     @PostMapping("/deleteMessage.do")
     public ApiResponse<Void> delete(@RequestBody MessageVO vo) {
-        Validate.required(vo.getOtherId(), "상대");
-        messageService.deleteConv(vo.getOtherId());
+        Validate.required(vo.getOtherHandle(), "상대");
+        messageService.deleteConv(vo.getOtherHandle());
         return ApiResponse.ok();
     }
 }

@@ -15,6 +15,8 @@ import { bookmarkApi } from '../../api/bookmark'
 import type { Bookmark } from '../../api/bookmark'
 import { notificationApi } from '../../api/notification'
 import type { NotiSetting } from '../../api/notification'
+import { blockApi } from '../../api/block'
+import type { Block } from '../../api/block'
 import { gen } from '../theme'
 
 /**
@@ -53,6 +55,19 @@ export default function MyPage() {
   const [bmRecruits, setBmRecruits] = useState<Bookmark[]>([])
   const [notiSet, setNotiSet] = useState<NotiSetting>({})
   const [notiSaving, setNotiSaving] = useState(false)
+
+  const [blocks, setBlocks] = useState<Block[]>([])
+
+  const loadBlocks = () => { blockApi.list().then(setBlocks).catch(() => {}) }
+  const unblock = async (blockedHandle: string) => {
+    try {
+      await blockApi.toggle(blockedHandle)
+      message.success('차단을 해제했습니다.')
+      loadBlocks()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '해제 실패')
+    }
+  }
 
   const loadReviewTargets = () => { reviewApi.myTargets().then(setReviewTargets).catch(() => {}) }
   const loadBookmarks = () => {
@@ -93,15 +108,37 @@ export default function MyPage() {
     applyApi.mine().then(setApplies).catch(() => {})
     loadReviewTargets()
     loadBookmarks()
+    loadBlocks()
     notificationApi.setting().then((s) => setNotiSet(s ?? {})).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn])
 
+  /**
+   * 내 모임 일정 — 주최한 모집 + 참여 확정(APPLY02)된 모집을 합쳐 '오늘 이후' 일정만 가까운 순으로.
+   * 별도 저장 없이 기존 데이터로 구성(모임일이 비었거나 지난 모임은 제외).
+   */
+  const schedule = (() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const mine = recruits
+      .filter((r) => r.meetDt && r.meetDt >= today)
+      .map((r) => ({ key: `h-${r.dbKey}`, id: r.dbKey!, title: r.title ?? '', meetDt: r.meetDt!, region: r.region, role: '주최' as const }))
+    const joined = applies
+      .filter((a) => a.applyStatus === 'APPLY02' && a.meetDt && a.meetDt >= today)
+      .map((a) => ({ key: `a-${a.dbKey}`, id: a.recruitId!, title: a.recruitTitle ?? '', meetDt: a.meetDt!, region: a.region, role: '참여' as const }))
+    return [...mine, ...joined].sort((x, y) => x.meetDt.localeCompare(y.meetDt))
+  })()
+
+  /** 오늘까지 남은 일수 표기(D-day). */
+  const dday = (meetDt: string) => {
+    const d = Math.ceil((new Date(`${meetDt}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000)
+    return d === 0 ? '오늘' : d > 0 ? `D-${d}` : ''
+  }
+
   const submitReview = async () => {
-    if (!reviewTarget?.recruitId || !reviewTarget?.targetId) return
+    if (!reviewTarget?.recruitId || !reviewTarget?.targetHandle) return
     setReviewSaving(true)
     try {
-      await reviewApi.insert(reviewTarget.recruitId, reviewTarget.targetId, rating, reviewText)
+      await reviewApi.insert(reviewTarget.recruitId, reviewTarget.targetHandle, rating, reviewText)
       message.success('후기를 등록했습니다.')
       setReviewOpen(false); setReviewText(''); setRating(5)
       loadReviewTargets()
@@ -257,6 +294,27 @@ export default function MyPage() {
         </Space>
       </div>
 
+      {/* 내 모임 일정 — 주최·참여확정 모임 중 다가오는 것만 */}
+      <Card style={{ borderRadius: 18 }} title={cardTitle('📅', '내 모임 일정', schedule.length)}>
+        {schedule.length === 0 ? (
+          <Empty description="다가오는 모임이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {schedule.map((s) => (
+              <div key={s.key}
+                onClick={() => navigate(`/gen/recruit/${s.id}`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexWrap: 'wrap' }}>
+                <Tag color={s.role === '주최' ? 'purple' : 'blue'} style={{ flexShrink: 0 }}>{s.role}</Tag>
+                <span style={{ fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+                {s.region && <span style={{ fontSize: 12, color: '#888' }}>{s.region}</span>}
+                <span style={{ fontSize: 12, color: '#666' }}>{s.meetDt}</span>
+                <Tag color={dday(s.meetDt) === '오늘' ? 'red' : 'default'} style={{ flexShrink: 0, marginInlineEnd: 0 }}>{dday(s.meetDt)}</Tag>
+              </div>
+            ))}
+          </Space>
+        )}
+      </Card>
+
       {/* 내가 쓴 글 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('📝', '내가 쓴 글', posts.length)}>
         {posts.length === 0 ? <Empty description="작성한 글이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
@@ -308,6 +366,27 @@ export default function MyPage() {
         )}
       </Card>
 
+      {/* 차단한 회원 — 차단 시 상대는 나에게 쪽지를 보낼 수 없음 */}
+      <Card style={{ borderRadius: 18 }} title={cardTitle('🚫', '차단한 회원', blocks.length)}>
+        {blocks.length === 0 ? (
+          <Empty description="차단한 회원이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {blocks.map((b) => (
+              <div key={b.dbKey} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }} onClick={() => navigate(`/gen/user/${b.blockedHandle}`)}>
+                  {b.blockedNm || '-'}
+                </span>
+                <Space size={8}>
+                  <span style={{ fontSize: 12, color: '#aaa' }}>{b.regDt}</span>
+                  <Button size="small" onClick={() => unblock(b.blockedHandle!)}>차단 해제</Button>
+                </Space>
+              </div>
+            ))}
+          </Space>
+        )}
+      </Card>
+
       {/* 알림 수신 설정 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('🔔', '알림 설정')}>
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
@@ -336,13 +415,13 @@ export default function MyPage() {
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             {reviewTargets.map((t) => (
-              <div key={`${t.recruitId}-${t.targetId}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div key={`${t.recruitId}-${t.targetHandle}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0 }}>
                   <span
                     style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }}
-                    onClick={() => navigate(`/gen/user/${t.targetId}`)}
+                    onClick={() => navigate(`/gen/user/${t.targetHandle}`)}
                   >
-                    {t.targetNm || t.targetId}
+                    {t.targetNm || '-'}
                   </span>
                   <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>{t.recruitTitle}</span>
                 </div>
@@ -361,7 +440,7 @@ export default function MyPage() {
 
       {/* 후기 작성 */}
       <Modal
-        open={reviewOpen} title={`후기 쓰기 — ${reviewTarget?.targetNm || reviewTarget?.targetId || ''}`}
+        open={reviewOpen} title={`후기 쓰기 — ${reviewTarget?.targetNm || ''}`}
         onOk={submitReview} onCancel={() => setReviewOpen(false)}
         okText="등록" cancelText="취소" confirmLoading={reviewSaving}
       >

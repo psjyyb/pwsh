@@ -32,6 +32,11 @@ public class BookmarkService {
         key.setUserId(currentUserId());
         key.setTargetType(targetType);
         key.setTargetId(targetId);
+        // 대상 존재 확인 — 삭제/없는 콘텐츠 북마크로 고아행이 생기지 않도록
+        Integer targetExists = commonDAO.selectOne("bookmarkDAO.countTarget", key);
+        if (targetExists == null || targetExists == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대상을 찾을 수 없습니다.");
+        }
 
         Integer active = commonDAO.selectOne("bookmarkDAO.selectActiveCnt", key);
         boolean marked;

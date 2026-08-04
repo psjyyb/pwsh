@@ -14,7 +14,13 @@ public class RecruitApplyVO extends BaseVO {
     private String applyStatus;  // 신청상태(APPLY00)
     private String applyMemo;    // 신청 메모
     // 조회 표시용(조인)
+    private String attendCd;      // 참석 결과(t_code ATTEND00). NULL=미기록
+    private String attendNm;      // 참석 결과명(t_code 조인)
+    private String userHandle;    // 신청자 공개 식별자(프로필 링크용)
     private String applyStatusNm; // 신청상태명(t_code 조인)
-    private String nickname;      // 신청자 닉네임(t_user 조인). 없으면 userId 폴백
+    private String nickname;      // 신청자 닉네임(t_user 조인)
     private String recruitTitle;  // 모집 모임명(t_recruit 조인)
+    private String meetDt;        // 모임 일정(t_recruit 조인) — '내 모임 일정'용
+    private String region;        // 모임 지역(t_recruit 조인)
+    private String recruitStatusCd; // 모집 상태(t_recruit 조인)
 }

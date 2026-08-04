@@ -16,6 +16,8 @@ public class CommentVO extends BaseVO {
     private String badCnt;
     private String likedYn;   // 조회 표시: 내가 좋아요 눌렀는지(Y/N)
     private String viewerId;  // 좋아요 여부 판정용 현재 조회자(서버 세팅, 비로그인 null)
-    private String regNm;   // 작성자 표시명(닉네임, t_user 조인). 없으면 프론트가 reg_id로 폴백
+    private String regNm;   // 작성자 표시명(닉네임, t_user 조인)
+    private String regHandle; // 작성자 공개 식별자(t_user.handle) — 프로필 링크용. 로그인 ID 대체
+    private String mineYn;    // 'Y'=내가 쓴 댓글(서버 계산). 수정/삭제·신고노출 판정용
     private String regProfileFileId; // 작성자 프로필 사진(t_user.profile_file_id)
 }

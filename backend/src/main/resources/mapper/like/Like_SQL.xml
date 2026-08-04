@@ -32,6 +32,14 @@
         UPDATE t_comment SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE comment_id = #{targetId}::integer
     </update>
 
+    <!-- 대상 존재 확인(고아 좋아요 방지) -->
+    <select id="countBbs" parameterType="likeVO" resultType="int">
+        SELECT COUNT(*) FROM t_bbs WHERE bbs_id = #{targetId}::integer AND use_yn = 'Y'
+    </select>
+    <select id="countComment" parameterType="likeVO" resultType="int">
+        SELECT COUNT(*) FROM t_comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y'
+    </select>
+
     <select id="selectBbsGood" parameterType="likeVO" resultType="int">
         SELECT COALESCE(good_cnt, 0) FROM t_bbs WHERE bbs_id = #{targetId}::integer
     </select>

@@ -138,7 +138,7 @@ export default function RecruitMngPage() {
             <Descriptions.Item label="제목">{sel.title}</Descriptions.Item>
             <Descriptions.Item label="취미">{sel.hobbyNm ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="주최자">{sel.regNm || sel.regId}</Descriptions.Item>
-            <Descriptions.Item label="지역">{sel.region || '-'}</Descriptions.Item>
+            <Descriptions.Item label="지역">{[sel.areaNm, sel.region].filter(Boolean).join(' ') || '-'}</Descriptions.Item>
             <Descriptions.Item label="일정">{sel.meetDt || '-'}</Descriptions.Item>
             <Descriptions.Item label="인원">{cap(sel)}</Descriptions.Item>
             <Descriptions.Item label="상태">{statusTag(sel.statusCd, sel.statusNm)}</Descriptions.Item>

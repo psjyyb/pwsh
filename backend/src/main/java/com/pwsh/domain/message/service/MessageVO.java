@@ -17,8 +17,10 @@ public class MessageVO extends BaseVO {
     private String readYn;
 
     // 조회/파라미터 보조
-    private String myId;       // 현재 로그인 회원(서버 세팅)
-    private String otherId;    // 대화 상대
+    private String myId;       // 현재 로그인 회원(서버 세팅, 로그인 ID)
+    private String otherId;    // 대화 상대(서버 내부용 로그인 ID — 응답에는 넣지 않음)
+    private String otherHandle;// 대화 상대 공개 식별자(handle) — 클라이언트가 쓰는 대화 키
+    private String receiverHandle; // 발송 요청 파라미터(받는 사람 handle)
     private String otherNm;    // 상대 닉네임(조회)
     private String otherFileId;// 상대 프로필 사진 file_id(조회)
     private String lastContent;// 대화 목록: 최근 메시지 내용

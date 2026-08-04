@@ -10,9 +10,13 @@ export interface ProfileRecruit {
   acceptedCnt?: string; capacity?: string; regDt?: string
 }
 
-/** 회원 공개 프로필(PII 미포함). */
+/** 참석 통계(신뢰지표) — 주최자가 기록한 모임만 집계. */
+export interface AttendStats { attendedCnt?: string; absentCnt?: string; noshowCnt?: string }
+
+/** 회원 공개 프로필(PII·로그인 ID 미포함). 회원 지목은 공개 식별자(handle). */
 export interface UserProfile {
-  userId?: string
+  handle?: string
+  attend?: AttendStats
   nickname?: string
   profileFileId?: string
   hobbies?: ProfileHobby[]
@@ -20,6 +24,6 @@ export interface UserProfile {
   recruits?: ProfileRecruit[]
 }
 
-export function getUserProfile(userId: string): Promise<UserProfile> {
-  return apiPost<UserProfile>('/auth/userProfile', { userId })
+export function getUserProfile(handle: string): Promise<UserProfile> {
+  return apiPost<UserProfile>('/auth/userProfile', { handle })
 }

@@ -46,6 +46,7 @@ export default function PolicyListPage() {
       />
       <Table<Policy>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}

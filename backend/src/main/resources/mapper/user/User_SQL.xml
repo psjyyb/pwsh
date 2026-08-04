@@ -5,7 +5,7 @@
     <!-- 로그인/사용자 조회 (컬럼 snake → VO camel 자동 매핑)
          pw_expired/pw_days_left는 pw_expire_dt 기준 계산값(만료 강제 아님, 알림용) -->
     <select id="selectByUserId" parameterType="userVO" resultType="userVO">
-        SELECT user_id, user_pw, mem_cd, nickname, profile_file_id, gen_cd, status_cd, use_yn, pw_expire_dt,
+        SELECT user_id, user_pw, mem_cd, nickname, handle, profile_file_id, gen_cd, status_cd, use_yn, pw_expire_dt,
                CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
                CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
                CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
@@ -170,6 +170,12 @@
         UPDATE t_user SET status_cd = 'STATUS01', fail_cnt = 0, is_account_non_locked_ti = NULL
         WHERE user_id = #{userId}
     </update>
+
+    <!-- 공개 식별자(handle)로 회원 조회 — 공개 프로필 등에서 로그인 ID 없이 대상을 찾는다 -->
+    <select id="selectByHandle" parameterType="userVO" resultType="userVO">
+        SELECT user_id, mem_cd, nickname, handle, profile_file_id, use_yn
+        FROM t_user WHERE handle = #{handle} AND use_yn = 'Y'
+    </select>
 
     <!-- 관리자 제재: 정지(STATUS03)/해제(STATUS01). 해제 시 실패횟수·잠금시간도 초기화 -->
     <update id="updateStatus" parameterType="userVO">

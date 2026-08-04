@@ -39,6 +39,7 @@ export default function BbsinfoListPage() {
       />
       <Table<Bbsinfo>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}

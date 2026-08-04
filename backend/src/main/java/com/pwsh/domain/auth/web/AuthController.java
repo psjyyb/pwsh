@@ -85,10 +85,13 @@ public class AuthController {
         return ApiResponse.ok(authService.me());
     }
 
-    /** 회원 공개 프로필(닉네임·프로필사진·담은취미·주최모집·작성글) — 비로그인 공개. PII 미노출. */
+    /**
+     * 회원 공개 프로필(닉네임·프로필사진·담은취미·주최모집·작성글) — 비로그인 공개. PII·로그인 ID 미노출.
+     * 조회 키는 공개 식별자(handle).
+     */
     @PostMapping("/userProfile")
     public ApiResponse<Map<String, Object>> userProfile(@RequestBody Map<String, String> body) {
-        return ApiResponse.ok(authService.selectUserProfile(body.get("userId")));
+        return ApiResponse.ok(authService.selectUserProfile(body.get("handle")));
     }
 
     /** 본인 닉네임 변경 */

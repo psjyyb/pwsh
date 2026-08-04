@@ -9,8 +9,10 @@ import lombok.Setter;
 @Setter
 public class ReviewVO extends BaseVO {
 
-    private String recruitId;  // 대상 모임
-    private String targetId;   // 후기를 받는 회원
+    private String recruitId;    // 대상 모임
+    private String targetId;     // 후기를 받는 회원(서버 내부 로그인 ID — 응답에는 넣지 않음)
+    private String targetHandle; // 후기 대상 공개 식별자(handle) — 클라이언트가 쓰는 키
+    private String regHandle;    // 작성자 공개 식별자(handle)
     private String rating;     // 별점 1~5
     private String content;    // 후기 내용(선택)
 

@@ -44,7 +44,8 @@ export function resetPassword(params: {
   return apiPost<void>('/auth/resetPassword', params)
 }
 
-export interface MeInfo { userId?: string; nickname?: string; memCd?: string; profileFileId?: string }
+/** 내 정보. handle=내 공개 식별자(프로필 링크·본인 판정용), userId=로그인 ID(본인 화면 표시용) */
+export interface MeInfo { userId?: string; nickname?: string; memCd?: string; profileFileId?: string; handle?: string }
 /** 내 정보(마이페이지) */
 export function me(): Promise<MeInfo> {
   return apiPost<MeInfo>('/auth/me', {})

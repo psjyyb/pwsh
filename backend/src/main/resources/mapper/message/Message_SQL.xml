@@ -5,7 +5,8 @@
 
     <!-- 내 대화 목록: 상대별 최근 메시지 1건 + 안읽음 수. 내가 삭제한 방향은 제외. -->
     <select id="selectConvList" parameterType="messageVO" resultType="messageVO">
-        SELECT sub.other_id AS db_key, sub.other_id,
+        <!-- 대화 키는 상대의 공개 식별자(handle) — 로그인 ID는 내보내지 않는다 -->
+        SELECT u.handle AS db_key, u.handle AS other_handle,
                u.nickname AS other_nm, u.profile_file_id AS other_file_id,
                lm.content AS last_content,
                TO_CHAR(lm.reg_dt, 'YYYY-MM-DD HH24:MI') AS last_dt,
@@ -30,7 +31,8 @@
 
     <!-- 특정 상대와의 대화(오래된→최신). 내가 삭제한 방향은 제외. -->
     <select id="selectThread" parameterType="messageVO" resultType="messageVO">
-        SELECT m.message_id::TEXT AS db_key, m.sender_id, m.receiver_id, m.content, m.read_yn,
+        <!-- 스레드: 보낸사람/받는사람 로그인 ID 미노출 — 내 것 여부(mine)만 내려준다 -->
+        SELECT m.message_id::TEXT AS db_key, m.content, m.read_yn,
                TO_CHAR(m.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt,
                CASE WHEN m.sender_id = #{myId} THEN 'Y' ELSE 'N' END AS mine
         FROM t_message m

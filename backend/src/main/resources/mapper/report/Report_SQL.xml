@@ -9,6 +9,16 @@
           AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </select>
 
+    <!-- 신고 대상 존재 확인(유형별) — 없는 콘텐츠 신고로 고아행이 생기지 않도록 -->
+    <select id="countTarget" parameterType="reportVO" resultType="int">
+        SELECT CASE #{targetType}
+                 WHEN 'BBS'     THEN (SELECT COUNT(*) FROM t_bbs     WHERE bbs_id = #{targetId}::integer AND use_yn = 'Y')
+                 WHEN 'COMMENT' THEN (SELECT COUNT(*) FROM t_comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y')
+                 WHEN 'RECRUIT' THEN (SELECT COUNT(*) FROM t_recruit WHERE recruit_id = #{targetId}::integer AND use_yn = 'Y')
+                 ELSE 0
+               END
+    </select>
+
     <insert id="insert" parameterType="reportVO">
         INSERT INTO t_report (target_type, target_id, reason_cd, reason, status, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)

@@ -6,6 +6,7 @@ import {
 import type { TableColumnsType } from 'antd'
 import { useParams, useSearchParams } from 'react-router-dom'
 import DateField from '../../common/adm/components/DateField'
+import CodeSelect from '../../common/adm/components/CodeSelect'
 import { getClaims, isAdmin, tokenStore } from '../../auth/token'
 import { hobbyApi } from '../../adm/hobby/hobby.api'
 import { recruitApi, applyApi } from './recruit.api'
@@ -43,6 +44,7 @@ export default function RecruitPage() {
   const [total, setTotal] = useState(0)
   const [pageIndex, setPageIndex] = useState(1)
   const [filterCat, setFilterCat] = useState<string | undefined>()
+  const [filterArea, setFilterArea] = useState<string | undefined>() // 시/도 필터(AREA00)
   const [filterStatus, setFilterStatus] = useState<string | undefined>()
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -74,7 +76,7 @@ export default function RecruitPage() {
       setLoading(true)
       try {
         const res = await recruitApi.list({
-          hobbyId: filterCat, statusCd: filterStatus, searchKeyword: kw, pageIndex: p, size,
+          hobbyId: filterCat, statusCd: filterStatus, areaCd: filterArea, searchKeyword: kw, pageIndex: p, size,
         })
         setRows(res.list)
         setTotal(res.totCnt)
@@ -85,13 +87,13 @@ export default function RecruitPage() {
         setLoading(false)
       }
     },
-    [filterCat, filterStatus, keyword],
+    [filterCat, filterStatus, filterArea, keyword],
   )
 
   useEffect(() => {
     if (mode === 'list') loadList(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCat, filterStatus])
+  }, [filterCat, filterStatus, filterArea])
 
   const openView = async (dbKey: string) => {
     try {
@@ -104,7 +106,7 @@ export default function RecruitPage() {
       } else {
         setBookmarked(false)
       }
-      const owner = admin || (!!meId && r.regId === meId)
+      const owner = admin || r.mineYn === 'Y'
       setApplies(owner ? await applyApi.listByRecruit(dbKey) : [])
       if (loggedIn && !owner) {
         const mine = await applyApi.mine()
@@ -133,7 +135,7 @@ export default function RecruitPage() {
       setEditKey(r.dbKey!)
       form.setFieldsValue({
         hobbyId: r.hobbyId, title: r.title, capacity: r.capacity ? Number(r.capacity) : undefined,
-        region: r.region, meetDt: r.meetDt, content: r.content,
+        areaCd: r.areaCd, region: r.region, meetDt: r.meetDt, content: r.content,
       })
     } else {
       setEditKey(null)
@@ -147,7 +149,7 @@ export default function RecruitPage() {
     const payload: Partial<Recruit> = {
       hobbyId: v.hobbyId, title: v.title,
       capacity: v.capacity != null ? String(v.capacity) : '',
-      region: v.region ?? '', meetDt: v.meetDt ?? '', content: v.content ?? '',
+      areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt ?? '', content: v.content ?? '',
     }
     try {
       if (editKey) await recruitApi.update({ ...payload, dbKey: editKey })
@@ -169,6 +171,18 @@ export default function RecruitPage() {
       loadList(1)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '삭제 실패')
+    }
+  }
+
+  /** 참석 결과 기록(주최자) — 빈 값이면 미기록으로 되돌림. */
+  const setAttend = async (applyId: string, attendCd: string) => {
+    if (!recruit) return
+    try {
+      await applyApi.setAttend(applyId, attendCd)
+      setApplies(await applyApi.listByRecruit(recruit.dbKey!))
+      message.success(attendCd ? '참석 결과를 기록했습니다.' : '참석 기록을 지웠습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '기록 실패')
     }
   }
 
@@ -246,14 +260,14 @@ export default function RecruitPage() {
     const columns: TableColumnsType<Recruit> = [
       { title: '취미', width: 110, render: (_, r) => r.hobbyNm ?? catName(r.hobbyId) ?? '-' },
       { title: '모임명', render: (_, r) => r.title },
-      { title: '지역', dataIndex: 'region', width: 120, render: (v) => v || '-' },
+      { title: '지역', width: 140, render: (_, r) => [r.areaNm, r.region].filter(Boolean).join(' ') || '-' },
       { title: '일정', dataIndex: 'meetDt', width: 120, render: (v) => v || '-' },
       {
         title: '인원', width: 90, align: 'center',
         render: (_, r) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`,
       },
       { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusNm) },
-      { title: '주최자', width: 150, render: (_, r) => <UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} userId={r.regId} size={24} /> },
+      { title: '주최자', width: 150, render: (_, r) => <UserAvatar fileId={r.regProfileFileId} name={r.regNm || '-'} handle={r.regHandle} size={24} /> },
     ]
     return (
       <Card
@@ -270,6 +284,11 @@ export default function RecruitPage() {
             allowClear placeholder="상태 전체" style={{ width: 120 }} value={filterStatus}
             onChange={setFilterStatus}
             options={[{ value: STATUS_OPEN, label: '모집중' }, { value: STATUS_CLOSED, label: '마감' }]}
+          />
+          {/* 지역은 표준 코드(시/도)로 필터 — 자유입력 편차 없이 정확히 걸러진다 */}
+          <CodeSelect
+            pCodeId="AREA00" allowClear placeholder="지역 전체" style={{ width: 130 }}
+            value={filterArea} onChange={setFilterArea}
           />
           <Input.Search
             placeholder="모임명 검색" allowClear style={{ width: 220 }}
@@ -289,11 +308,11 @@ export default function RecruitPage() {
                   </div>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <span>{r.hobbyNm ?? catName(r.hobbyId) ?? '-'}</span>
-                    <span>{r.region || '-'}</span>
+                    <span>{[r.areaNm, r.region].filter(Boolean).join(' ') || '-'}</span>
                     <span>{r.meetDt || '-'}</span>
                     <span>인원 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
                   </div>
-                  <div style={{ marginTop: 6 }}><UserAvatar fileId={r.regProfileFileId} name={r.regNm || r.regId} userId={r.regId} size={20} /></div>
+                  <div style={{ marginTop: 6 }}><UserAvatar fileId={r.regProfileFileId} name={r.regNm || '-'} handle={r.regHandle} size={20} /></div>
                 </Card>
               ))}
             </Space>
@@ -317,7 +336,10 @@ export default function RecruitPage() {
 
   // ===== 상세 =====
   if (mode === 'view' && recruit) {
-    const owner = admin || (!!meId && recruit.regId === meId)
+    const owner = admin || recruit.mineYn === 'Y'
+    // 모임 종료 여부(마감 또는 모임일 경과) — 참석 기록 가능 시점. 서버와 동일 기준.
+    const finished = recruit.statusCd === STATUS_CLOSED
+      || (!!recruit.meetDt && recruit.meetDt < new Date().toISOString().slice(0, 10))
     const open = recruit.statusCd === STATUS_OPEN
     return (
       <Card
@@ -347,13 +369,13 @@ export default function RecruitPage() {
         <Descriptions bordered column={2} size="small">
           <Descriptions.Item label="취미">{recruit.hobbyNm ?? catName(recruit.hobbyId) ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="상태">{statusTag(recruit.statusCd, recruit.statusNm)}</Descriptions.Item>
-          <Descriptions.Item label="지역">{recruit.region || '-'}</Descriptions.Item>
+          <Descriptions.Item label="지역">{[recruit.areaNm, recruit.region].filter(Boolean).join(' ') || '-'}</Descriptions.Item>
           <Descriptions.Item label="일정">{recruit.meetDt || '-'}</Descriptions.Item>
           <Descriptions.Item label="모집 인원">{Number(recruit.capacity) > 0 ? `${recruit.capacity}명` : '제한 없음 (0명)'}</Descriptions.Item>
           <Descriptions.Item label="신청 현황">
             수락 {recruit.acceptedCnt ?? 0} · 신청 {recruit.applyCnt ?? 0}
           </Descriptions.Item>
-          <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || recruit.regId} userId={recruit.regId} /></Descriptions.Item>
+          <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || '-'} handle={recruit.regHandle} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
         </Descriptions>
 
@@ -402,10 +424,30 @@ export default function RecruitPage() {
               dataSource={applies}
               locale={{ emptyText: '신청자가 없습니다.' }}
               columns={[
-                { title: '닉네임', render: (_, a) => a.nickname || a.userId },
+                { title: '닉네임', render: (_, a) => <UserAvatar name={a.nickname || '-'} handle={a.userHandle} size={22} /> },
                 { title: '상태', width: 80, render: (_, a) => applyTag(a.applyStatus, a.applyStatusNm) },
                 { title: '메모', dataIndex: 'applyMemo', render: (v) => v || '-' },
                 { title: '신청일', dataIndex: 'regDt', width: 140 },
+                {
+                  // 참석 기록: 모임이 끝난 뒤(마감·일정 경과) 수락된 참여자에게만. 서버도 동일 조건을 강제한다.
+                  title: '참석', width: 190,
+                  render: (_, a) => {
+                    if (a.applyStatus !== 'APPLY02') return <span style={{ color: '#ccc' }}>-</span>
+                    if (!finished) return <span style={{ fontSize: 12, color: '#bbb' }}>모임 후 기록</span>
+                    return (
+                      <Select
+                        size="small" style={{ width: 170 }} value={a.attendCd ?? ''}
+                        onChange={(v) => setAttend(a.dbKey!, v)}
+                        options={[
+                          { value: '', label: '미기록' },
+                          { value: 'ATTEND01', label: '참석' },
+                          { value: 'ATTEND02', label: '불참(통보)' },
+                          { value: 'ATTEND03', label: '노쇼' },
+                        ]}
+                      />
+                    )
+                  },
+                },
                 {
                   title: '처리', width: 140,
                   render: (_, a) =>
@@ -449,7 +491,10 @@ export default function RecruitPage() {
           <Form.Item name="capacity" label="모집 인원">
             <InputNumber min={0} max={999} addonAfter="명" style={{ width: 140 }} placeholder="0=제한없음" />
           </Form.Item>
-          <Form.Item name="region" label="활동 지역">
+          <Form.Item name="areaCd" label="지역(시/도)" style={{ minWidth: 150 }}>
+            <CodeSelect pCodeId="AREA00" placeholder="시/도 선택" allowClear />
+          </Form.Item>
+          <Form.Item name="region" label="상세 지역">
             <Input style={{ width: 220 }} maxLength={100} placeholder="예: 서울/경기" />
           </Form.Item>
           <Form.Item name="meetDt" label="모임 일정">

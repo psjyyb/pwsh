@@ -6,8 +6,10 @@ export interface Comment {
   bbsId?: string
   pCommentId?: string // 부모 댓글(0/빈값=최상위, 값=대댓글)
   context?: string
-  regId?: string
-  regNm?: string // 작성자 표시명(닉네임). 없으면 regId로 폴백
+  regId?: string // 작성자 로그인 ID — 관리자 화면 전용(사용자(GEN) 응답에는 내려오지 않음)
+  regNm?: string // 작성자 표시명(닉네임)
+  regHandle?: string // 작성자 공개 식별자 — 프로필 링크용(GEN)
+  mineYn?: string // 'Y'=내가 쓴 댓글(서버 계산)
   regProfileFileId?: string // 작성자 프로필 사진 file_id
   regDt?: string
   goodCnt?: string // 좋아요 수

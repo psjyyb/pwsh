@@ -34,6 +34,7 @@ export default function AuthgrpListPage() {
       />
       <Table<Authgrp>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}

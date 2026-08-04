@@ -16,8 +16,10 @@ export interface Bbs {
   viewCnt?: string
   goodCnt?: string
   likedYn?: string // 내가 좋아요 눌렀는지(Y/N) — 상세 조회 응답
-  regId?: string // 작성자(로그인 ID)
-  regNm?: string // 작성자 표시명(닉네임). 없으면 regId로 폴백
+  regId?: string // 작성자 로그인 ID — 관리자 화면 전용(사용자(GEN) 응답에는 내려오지 않음)
+  regNm?: string // 작성자 표시명(닉네임)
+  regHandle?: string // 작성자 공개 식별자 — 프로필 링크용(GEN)
+  mineYn?: string // 'Y'=내가 쓴 글(서버 계산) — 수정/삭제·신고노출 판정(GEN)
   regProfileFileId?: string // 작성자 프로필 사진 file_id
   regDt?: string
   bbsDt?: string

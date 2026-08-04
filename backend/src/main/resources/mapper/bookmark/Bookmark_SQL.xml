@@ -3,6 +3,15 @@
 <!-- 북마크(스크랩). 모든 조회/변경은 로그인 본인(user_id) 기준. -->
 <mapper namespace="bookmarkDAO">
 
+    <!-- 대상 존재 확인(고아 북마크 방지) -->
+    <select id="countTarget" parameterType="bookmarkVO" resultType="int">
+        SELECT CASE #{targetType}
+                 WHEN 'BBS'     THEN (SELECT COUNT(*) FROM t_bbs     WHERE bbs_id = #{targetId}::integer AND use_yn = 'Y')
+                 WHEN 'RECRUIT' THEN (SELECT COUNT(*) FROM t_recruit WHERE recruit_id = #{targetId}::integer AND use_yn = 'Y')
+                 ELSE 0
+               END
+    </select>
+
     <select id="selectActiveCnt" parameterType="bookmarkVO" resultType="int">
         SELECT COUNT(*) FROM t_bookmark
         WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer

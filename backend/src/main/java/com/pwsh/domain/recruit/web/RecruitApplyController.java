@@ -41,8 +41,15 @@ public class RecruitApplyController {
         return ApiResponse.ok();
     }
 
-    @RequestMapping("/updateRecruitApply.do")
-    public ApiResponse<Void> update(@RequestBody RecruitApplyVO searchVO) {
+    /** update{path}: ''=수락/거절 / Attend=참석 결과 기록(주최자·관리자, 모임 종료 후) */
+    @RequestMapping("/updateRecruitApply{path}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+                                    @RequestBody RecruitApplyVO searchVO) {
+        if ("Attend".equals(path)) {
+            Validate.required(searchVO.getDbKey(), "신청");
+            recruitService.applyAttend(searchVO);
+            return ApiResponse.ok();
+        }
         Validate.required(searchVO.getApplyStatus(), "신청상태");
         recruitService.applyUpdate(searchVO);
         return ApiResponse.ok();

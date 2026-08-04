@@ -27,6 +27,7 @@ public class BbsService {
 
     public List<BbsVO> selectList(BbsVO vo) {
         genAccessGuard.checkBoard(vo.getBbsinfoId());
+        vo.setViewerId(viewerId()); // mine_yn(내 글) 판정용 — 목록의 수정/삭제·비밀글 게이트에 사용
         return commonDAO.selectList("bbsDAO.selectList", vo);
     }
 
@@ -44,6 +45,7 @@ public class BbsService {
 
     public int selectListTotCnt(BbsVO vo) {
         genAccessGuard.checkBoard(vo.getBbsinfoId());
+        vo.setViewerId(viewerId()); // 목록과 동일한 차단 필터를 적용해 총건수 일치
         return commonDAO.selectOne("bbsDAO.selectListTotCnt", vo);
     }
 
@@ -81,6 +83,7 @@ public class BbsService {
             commonDAO.update("bbsDAO.updateViewCnt", vo);
         }
         post.setBbsPw(null); // 비밀번호는 응답에서 제외
+        post.setRegId(null); // 작성자 로그인 ID는 응답에서 제외(공개 API — handle/mineYn으로 대체)
         return post;
     }
 

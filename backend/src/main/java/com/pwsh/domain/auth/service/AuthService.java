@@ -198,23 +198,28 @@ public class AuthService {
         m.put("nickname", u != null ? u.getNickname() : null);
         m.put("memCd", u != null ? u.getMemCd() : null);
         m.put("profileFileId", u != null ? u.getProfileFileId() : null);
+        m.put("handle", u != null ? u.getHandle() : null); // 내 공개 식별자(본인 프로필 링크·소유자 비교용)
         return m;
     }
 
     /**
-     * 회원 공개 프로필 — 닉네임·프로필사진 + 담은 취미 + 주최 모집 + 작성글(공개 취미게시판·비밀글 제외).
+     * 회원 공개 프로필 — 조회 키는 공개 식별자(handle). 로그인 ID는 입력도 출력도 하지 않는다.
+     * 닉네임·프로필사진 + 담은 취미 + 주최 모집 + 작성글(공개 취미게시판·비밀글 제외).
      * PII(이메일/이름/연락처)는 절대 노출하지 않는다. 비로그인도 조회 가능(공개).
      */
-    public java.util.Map<String, Object> selectUserProfile(String userId) {
-        if (userId == null || userId.isBlank()) {
+    public java.util.Map<String, Object> selectUserProfile(String handle) {
+        if (handle == null || handle.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "회원을 찾을 수 없습니다.");
         }
-        UserVO u = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(userId));
+        UserVO h = new UserVO();
+        h.setHandle(handle);
+        UserVO u = commonDAO.selectOne("userDAO.selectByHandle", h);
         if (u == null || !"Y".equals(u.getUseYn())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "회원을 찾을 수 없습니다.");
         }
+        String userId = u.getUserId(); // 내부 조회용(집계 쿼리 파라미터). 응답에는 넣지 않는다.
         java.util.Map<String, Object> m = new java.util.HashMap<>();
-        m.put("userId", userId);
+        m.put("handle", u.getHandle());
         m.put("nickname", u.getNickname());
         m.put("profileFileId", u.getProfileFileId());
         // 담은 취미(공개)
@@ -229,6 +234,10 @@ public class AuthService {
         com.pwsh.domain.bbs.service.BbsVO bp = new com.pwsh.domain.bbs.service.BbsVO();
         bp.setRegId(userId);
         m.put("posts", commonDAO.selectList("bbsDAO.selectListByAuthor", bp));
+        // 참석 통계(신뢰지표) — 기록된 모임만 집계. 노쇼는 프로필에 드러난다.
+        java.util.Map<String, Object> ap = new java.util.HashMap<>();
+        ap.put("userId", userId);
+        m.put("attend", commonDAO.selectOne("recruitDAO.selectAttendStats", ap));
         return m;
     }
 

@@ -282,7 +282,7 @@ export default function GenMain() {
                 <Tag color="cyan" style={{ flexShrink: 0 }}>{p.catName}</Tag>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                 {Number(p.commentCnt) > 0 && <span style={{ color: TEAL, flexShrink: 0 }}>[{p.commentCnt}]</span>}
-                <span style={{ fontSize: 12, color: '#aaa', flexShrink: 0 }}>{p.regNm || p.regId} · {p.regDt}</span>
+                <span style={{ fontSize: 12, color: '#aaa', flexShrink: 0 }}>{p.regNm || '-'} · {p.regDt}</span>
               </div>
             ))}
           </Card>

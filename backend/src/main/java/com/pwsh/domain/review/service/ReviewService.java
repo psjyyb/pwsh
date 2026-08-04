@@ -21,18 +21,19 @@ public class ReviewService {
 
     private final CommonDAO commonDAO;
     private final NotificationService notificationService;
+    private final com.pwsh.global.security.HandleResolver handleResolver;
 
-    /** 회원이 받은 후기 목록(공개). */
-    public List<ReviewVO> selectListByTarget(String targetId) {
+    /** 회원이 받은 후기 목록(공개). 대상은 handle로 지정. */
+    public List<ReviewVO> selectListByTarget(String targetHandle) {
         ReviewVO vo = new ReviewVO();
-        vo.setTargetId(targetId);
+        vo.setTargetId(handleResolver.toUserId(targetHandle));
         return commonDAO.selectList("reviewDAO.selectListByTarget", vo);
     }
 
-    /** 회원의 평균 별점·후기 수(공개). 후기 없으면 avgRating=null, reviewCnt='0'. */
-    public ReviewVO selectStats(String targetId) {
+    /** 회원의 평균 별점·후기 수(공개). 대상은 handle로 지정. 후기 없으면 avgRating=null, reviewCnt='0'. */
+    public ReviewVO selectStats(String targetHandle) {
         ReviewVO vo = new ReviewVO();
-        vo.setTargetId(targetId);
+        vo.setTargetId(handleResolver.toUserId(targetHandle));
         return commonDAO.selectOne("reviewDAO.selectStatsByTarget", vo);
     }
 
@@ -50,9 +51,10 @@ public class ReviewService {
         if (req.getRecruitId() == null || req.getRecruitId().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "모임 정보가 없습니다.");
         }
-        if (req.getTargetId() == null || req.getTargetId().isBlank()) {
+        if (req.getTargetHandle() == null || req.getTargetHandle().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "대상 회원이 없습니다.");
         }
+        req.setTargetId(handleResolver.toUserId(req.getTargetHandle())); // 공개 식별자 → 내부 로그인 ID
         if (me.equals(req.getTargetId())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "본인에게는 후기를 쓸 수 없습니다.");
         }
@@ -78,8 +80,9 @@ public class ReviewService {
         ins.setRating(String.valueOf(rating));
         ins.setContent(req.getContent() == null ? "" : req.getContent().trim());
         commonDAO.insert("reviewDAO.insert", ins);
+        // 링크는 대상의 handle로 — 저장되는 값이라 로그인 ID를 넣으면 알림 목록에서 계속 노출된다
         notificationService.notify(req.getTargetId(), "REVIEW",
-                "모임 후기가 도착했어요. (별점 " + rating + "점)", "/gen/user/" + req.getTargetId());
+                "모임 후기가 도착했어요. (별점 " + rating + "점)", "/gen/user/" + req.getTargetHandle());
     }
 
     /** 후기 삭제(논리) — 작성자 본인·관리자만. */

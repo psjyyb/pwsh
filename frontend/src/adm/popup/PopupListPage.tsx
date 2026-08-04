@@ -43,6 +43,7 @@ export default function PopupListPage() {
       />
       <Table<Popup>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}

@@ -26,6 +26,14 @@ public class ReportService {
                 && !"RECRUIT".equals(vo.getTargetType())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 신고 대상입니다.");
         }
+        // 숫자 검증(::integer 캐스트 500 방지) + 대상 존재 확인(없는 콘텐츠 신고 차단)
+        if (vo.getTargetId() == null || !vo.getTargetId().matches("\\d+")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 신고 대상입니다.");
+        }
+        Integer targetExists = commonDAO.selectOne("reportDAO.countTarget", vo);
+        if (targetExists == null || targetExists == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신고 대상을 찾을 수 없습니다.");
+        }
         vo.setRegId(me);
         Integer dup = commonDAO.selectOne("reportDAO.selectDupCnt", vo);
         if (dup != null && dup > 0) {

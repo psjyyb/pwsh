@@ -180,6 +180,7 @@ export default function PageListPage() {
       />
       <Table<Page>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         columns={columns}
         dataSource={rows}
         loading={loading}

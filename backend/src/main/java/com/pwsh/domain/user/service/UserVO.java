@@ -16,6 +16,7 @@ public class UserVO extends BaseVO {
     private String memCd;
     private String userNm;
     private String nickname; // 커뮤니티 표시명(평문). 셀프가입 필수, 작성자 표기용
+    private String handle;   // 공개 식별자(DB 기본값 자동 발급). 사용자 화면·공개 API의 회원 지목 키(로그인 ID 대체)
     private String profileFileId; // 프로필 사진 파일(t_file.file_id 직접 참조)
     private String phone;
     private String email;

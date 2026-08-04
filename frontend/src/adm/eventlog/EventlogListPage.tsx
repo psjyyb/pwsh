@@ -41,6 +41,7 @@ export default function EventlogListPage() {
       />
       <Table<Eventlog>
         rowKey="dbKey"
+        scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}

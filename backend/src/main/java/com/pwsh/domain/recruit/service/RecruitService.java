@@ -24,10 +24,18 @@ public class RecruitService {
 
     // ===== 모집 =====
     public List<RecruitVO> selectList(RecruitVO vo) {
+        vo.setViewerId(viewerId()); // mine_yn(내가 연 모집) 판정용
         return commonDAO.selectList("recruitDAO.selectList", vo);
     }
 
+    /** mine_yn 판정용 현재 조회자 — 비로그인/시스템은 null. */
+    private String viewerId() {
+        String me = SecurityUtil.getCurrentUserId();
+        return (me == null || "system".equals(me)) ? null : me;
+    }
+
     public int selectListTotCnt(RecruitVO vo) {
+        vo.setViewerId(viewerId()); // 목록과 동일한 차단 필터를 적용해 총건수 일치
         return commonDAO.selectOne("recruitDAO.selectListTotCnt", vo);
     }
 
@@ -40,6 +48,7 @@ public class RecruitService {
 
     /** 상세. 조회수는 viewUp='Y'(프론트 dedup 통과)일 때만 증가 — 새로고침·내부조회 중복증가 방지. */
     public RecruitVO selectView(RecruitVO vo) {
+        vo.setViewerId(viewerId()); // mine_yn(내가 연 모집) 판정용
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", vo);
         if (recruit == null) {
             return null;
@@ -47,6 +56,7 @@ public class RecruitService {
         if ("Y".equals(vo.getViewUp())) {
             commonDAO.update("recruitDAO.updateViewCnt", vo);
         }
+        recruit.setRegId(null); // 주최자 로그인 ID는 응답에서 제외(공개 API — handle/mineYn으로 대체)
         return recruit;
     }
 
@@ -151,6 +161,56 @@ public class RecruitService {
         notificationService.notify(apply.getUserId(), accept ? "ACCEPT" : "REJECT",
                 "'" + recruit.getTitle() + "' 모집 참여가 " + (accept ? "수락되었어요! 🎉" : "아쉽게 거절되었어요."),
                 "/gen/recruit/" + apply.getRecruitId());
+    }
+
+    /**
+     * 참석 결과 기록(주최자·관리자) — 모임이 종료된 뒤, 수락된 참여자에게만.
+     * 노쇼는 프로필 신뢰지표에 노출되므로 함부로 기록되지 않도록 조건을 서버에서 강제한다.
+     */
+    @Transactional
+    public void applyAttend(RecruitApplyVO vo) {
+        RecruitApplyVO apply = commonDAO.selectOne("recruitDAO.selectApplyView", vo);
+        if (apply == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
+        }
+        assertOwner(apply.getRecruitId()); // 주최자·관리자만
+        if (!"APPLY02".equals(apply.getApplyStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "수락된 참여자만 참석 결과를 기록할 수 있습니다.");
+        }
+        String cd = vo.getAttendCd();
+        boolean clear = cd == null || cd.isBlank();
+        if (!clear && !"ATTEND01".equals(cd) && !"ATTEND02".equals(cd) && !"ATTEND03".equals(cd)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 참석 결과입니다.");
+        }
+        RecruitVO key = new RecruitVO();
+        key.setDbKey(apply.getRecruitId());
+        RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
+        if (recruit != null && !isFinished(recruit)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임이 끝난 뒤에 기록할 수 있습니다. (마감 또는 모임일 경과)");
+        }
+        RecruitApplyVO upd = new RecruitApplyVO();
+        upd.setDbKey(vo.getDbKey());
+        upd.setAttendCd(clear ? "" : cd);
+        commonDAO.update("recruitDAO.updateApplyAttend", upd);
+    }
+
+    /** 모임 종료 판정 — 마감(RECRUIT02) 또는 모임일이 오늘보다 이전. (후기 자격과 동일 기준) */
+    private boolean isFinished(RecruitVO recruit) {
+        if ("RECRUIT02".equals(recruit.getStatusCd())) {
+            return true;
+        }
+        String meetDt = recruit.getMeetDt();
+        if (meetDt == null || meetDt.isBlank()) {
+            return false;
+        }
+        return meetDt.compareTo(java.time.LocalDate.now().toString()) < 0;
+    }
+
+    /** 회원 참석 통계(참석/불참/노쇼) — 공개 프로필 신뢰지표. */
+    public java.util.Map<String, Object> selectAttendStats(String userId) {
+        java.util.Map<String, Object> p = new java.util.HashMap<>();
+        p.put("userId", userId);
+        return commonDAO.selectOne("recruitDAO.selectAttendStats", p);
     }
 
     /** 문자열 수치를 int로(널·공백·비수치는 0). */

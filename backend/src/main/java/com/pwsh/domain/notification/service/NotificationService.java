@@ -114,6 +114,10 @@ public class NotificationService {
 
     /** 단건 읽음 — 본인 것만(user_id 조건으로 IDOR 차단). */
     public void markRead(String notiId) {
+        // 숫자 검증: ::integer 캐스트가 DB 오류(500)로 터지지 않도록 400으로 선차단
+        if (notiId == null || !notiId.matches("\\d+")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 알림입니다.");
+        }
         NotificationVO vo = new NotificationVO();
         vo.setDbKey(notiId);
         vo.setUserId(currentUserId());

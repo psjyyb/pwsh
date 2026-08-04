@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Card, Checkbox, Empty, Form, Input, Popconfirm, Space, Spin, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiPost } from '../../api/http'
 import type { ListResult } from '../../api/http'
 import { getClaims, isAdmin } from '../../auth/token'
@@ -39,6 +39,7 @@ const EDITOR_LOC = 'BBS_EDITOR' // 본문 에디터 삽입 이미지(고아 추�
 export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const bbsinfoId = board.dbKey
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const isGallery = board.bbsinfoCd === 'BBSINFO004'
   const isQna = board.bbsinfoCd === 'BBSINFO003'
 
@@ -71,7 +72,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
 
   const size = Number(board.listCnt) || 10
   const meId = getClaims()?.sub
-  const canEdit = (regId?: string) => isAdmin() || (!!regId && regId === meId)
+  const canEdit = (mineYn?: string) => isAdmin() || mineYn === 'Y' // 소유자 판정=서버계산 mineYn(로그인 ID 미노출)
   const isNew = (regDt?: string) => {
     const n = Number(board.newCnt)
     if (!n || !regDt) return false
@@ -389,13 +390,18 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
               Number(r.commentCnt) > 0 ? <Tag color="blue">답변완료</Tag> : <Tag>답변대기</Tag>,
           }]
         : []),
-      { title: '작성자', width: 130, render: (_: unknown, r: Bbs) => r.regNm || r.regId },
+      { title: '작성자', width: 130, render: (_: unknown, r: Bbs) => r.regNm || '-' },
       { title: '조회', dataIndex: 'viewCnt', width: 70 },
       { title: '작성일', dataIndex: 'regDt', width: 120 },
     ]
 
     return (
-      <Card title={board.bbsinfoNm ?? '게시판'} extra={<Button type="primary" onClick={openWrite}>글쓰기</Button>}>
+      <Card
+        title={board.bbsinfoNm ?? '게시판'}
+        extra={meId
+          ? <Button type="primary" onClick={openWrite}>글쓰기</Button>
+          : <Button onClick={() => navigate('/login')}>로그인하고 글쓰기</Button>}
+      >
         {search}
         {isGallery ? (
           <>
@@ -419,7 +425,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
               onRow={(r) => ({
                 onClick: () => {
                   // 1:1은 본인·관리자만 열람(남의 문의는 목록에서 열지 않음)
-                  if (isQna && !isAdmin() && r.regId !== meId) {
+                  if (isQna && !isAdmin() && r.mineYn !== 'Y') {
                     message.info('본인 문의만 열람할 수 있습니다.')
                     return
                   }
@@ -451,8 +457,8 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         extra={
           <Space>
             {!isGallery && !isQna && <Button onClick={openReply}>답글</Button>}
-            {canEdit(post.regId) && <Button onClick={openEdit}>수정</Button>}
-            {canEdit(post.regId) && (
+            {canEdit(post.mineYn) && <Button onClick={openEdit}>수정</Button>}
+            {canEdit(post.mineYn) && (
               <Popconfirm title="삭제하시겠습니까?" onConfirm={removeBbs} okText="삭제" cancelText="취소">
                 <Button danger>삭제</Button>
               </Popconfirm>
@@ -462,7 +468,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         }
       >
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <UserAvatar fileId={post.regProfileFileId} name={post.regNm || post.regId} userId={post.regId} size={24} />
+          <UserAvatar fileId={post.regProfileFileId} name={post.regNm || '-'} handle={post.regHandle} size={24} />
           <span>· {post.regDt} · 조회 {post.viewCnt}</span>
         </div>
         {isGallery && viewGallery.length > 0 && (
@@ -494,7 +500,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
               {bookmarked ? '🔖 북마크됨' : '🔖 북마크'}
             </Button>
           )}
-          {meId && post.regId !== meId && (
+          {meId && post.mineYn !== 'Y' && (
             <span style={{ marginLeft: 14 }}><ReportAction targetType="BBS" targetId={post.dbKey!} /></span>
           )}
         </div>
@@ -520,9 +526,9 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
               <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {isReply && <span style={{ color: '#bbb' }}>↳</span>}
-                <UserAvatar fileId={c.regProfileFileId} name={c.regNm || c.regId} userId={c.regId} size={18} />
+                <UserAvatar fileId={c.regProfileFileId} name={c.regNm || '-'} handle={c.regHandle} size={18} />
                 <span>· {c.regDt}</span>
-                {canEdit(c.regId) && editCommentKey !== c.dbKey && (
+                {canEdit(c.mineYn) && editCommentKey !== c.dbKey && (
                   <>
                     <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.dbKey!); setEditCommentText(c.context ?? '') }}>수정</a>
                     <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.dbKey!)}>삭제</a>
@@ -547,7 +553,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
                       <span style={{ color: '#bbb', fontSize: 12 }}>♥ {Number(c.goodCnt) || 0}</span>
                     )}
                     {meId && <a style={{ color: '#999', fontSize: 12 }} onClick={() => { setReplyKey(replyKey === c.dbKey ? null : c.dbKey!); setReplyText('') }}>답글</a>}
-                    {meId && c.regId !== meId && <ReportAction targetType="COMMENT" targetId={c.dbKey!} />}
+                    {meId && c.mineYn !== 'Y' && <ReportAction targetType="COMMENT" targetId={c.dbKey!} />}
                   </div>
                   {replyKey === c.dbKey && (
                     <Space.Compact style={{ width: '100%', marginTop: 6 }}>
@@ -560,15 +566,22 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
               )}
             </div>
           )})}
-          <Space.Compact style={{ width: '100%', marginTop: 8 }}>
-            <Input.TextArea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              autoSize={{ minRows: 1, maxRows: 4 }}
-              placeholder={isQna ? '답변을 입력하세요' : '댓글을 입력하세요'}
-            />
-            <Button type="primary" onClick={addComment}>등록</Button>
-          </Space.Compact>
+          {/* 비로그인은 입력창 대신 로그인 유도 — 다 쓰고 나서 401로 튕기지 않도록 */}
+          {meId ? (
+            <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+              <Input.TextArea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                autoSize={{ minRows: 1, maxRows: 4 }}
+                placeholder={isQna ? '답변을 입력하세요' : '댓글을 입력하세요'}
+              />
+              <Button type="primary" onClick={addComment}>등록</Button>
+            </Space.Compact>
+          ) : (
+            <div style={{ marginTop: 10, padding: '10px 12px', background: '#fafafa', borderRadius: 8, textAlign: 'center', color: '#888', fontSize: 13 }}>
+              댓글을 쓰려면 로그인이 필요합니다. <a onClick={() => navigate('/login')}>로그인</a>
+            </div>
+          )}
         </div>
       </Card>
     )

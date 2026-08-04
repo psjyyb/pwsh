@@ -29,9 +29,9 @@ export default function MessagePage() {
     finally { setConvLoading(false) }
   }, [])
 
-  const loadThread = useCallback(async (otherId: string) => {
+  const loadThread = useCallback(async (otherHandle: string) => {
     setThreadLoading(true)
-    try { setThread(await messageApi.thread(otherId)) }
+    try { setThread(await messageApi.thread(otherHandle)) }
     catch (e) { toast.error(e instanceof Error ? e.message : '대화 조회 실패') }
     finally { setThreadLoading(false) }
   }, [])
@@ -46,7 +46,7 @@ export default function MessagePage() {
   // 새 메시지/대화 전환 시 최신 메시지로 스크롤(대화창 내부만)
   useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'nearest' }) }, [thread])
 
-  const openConv = (otherId?: string) => { if (otherId) setParams({ with: otherId }) }
+  const openConv = (otherHandle?: string) => { if (otherHandle) setParams({ with: otherHandle }) }
 
   const send = async () => {
     const body = text.trim()
@@ -64,18 +64,18 @@ export default function MessagePage() {
     }
   }
 
-  const removeConv = async (otherId: string) => {
+  const removeConv = async (otherHandle: string) => {
     try {
-      await messageApi.removeConv(otherId)
+      await messageApi.removeConv(otherHandle)
       toast.success('대화를 삭제했습니다.')
-      if (withId === otherId) setParams({})
+      if (withId === otherHandle) setParams({})
       loadConvs()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '삭제 실패')
     }
   }
 
-  const current = convs.find((c) => c.otherId === withId)
+  const current = convs.find((c) => c.otherHandle === withId)
   const otherNm = current?.otherNm || withId
 
   return (
@@ -91,17 +91,17 @@ export default function MessagePage() {
             size="small" dataSource={convs}
             renderItem={(c) => (
               <List.Item
-                onClick={() => openConv(c.otherId)}
-                style={{ cursor: 'pointer', background: c.otherId === withId ? gen.heroTint : undefined, borderRadius: 8, paddingInline: 8 }}
+                onClick={() => openConv(c.otherHandle)}
+                style={{ cursor: 'pointer', background: c.otherHandle === withId ? gen.heroTint : undefined, borderRadius: 8, paddingInline: 8 }}
                 actions={[
-                  <Popconfirm key="del" title="이 대화를 삭제하시겠습니까?" onConfirm={(e) => { e?.stopPropagation(); removeConv(c.otherId!) }} okText="삭제" okButtonProps={{ danger: true }} cancelText="취소">
+                  <Popconfirm key="del" title="이 대화를 삭제하시겠습니까?" onConfirm={(e) => { e?.stopPropagation(); removeConv(c.otherHandle!) }} okText="삭제" okButtonProps={{ danger: true }} cancelText="취소">
                     <a onClick={(e) => e.stopPropagation()} style={{ fontSize: 12, color: '#999' }}>삭제</a>
                   </Popconfirm>,
                 ]}
               >
                 <List.Item.Meta
                   avatar={<Badge count={Number(c.unreadCnt) || 0} size="small"><UserAvatar fileId={c.otherFileId} name={c.otherNm} size={34} showName={false} /></Badge>}
-                  title={<span style={{ fontWeight: Number(c.unreadCnt) > 0 ? 700 : 500 }}>{c.otherNm || c.otherId}</span>}
+                  title={<span style={{ fontWeight: Number(c.unreadCnt) > 0 ? 700 : 500 }}>{c.otherNm || '-'}</span>}
                   description={
                     <span style={{ fontSize: 12, color: '#888' }}>
                       {c.lastMine === 'Y' ? '나: ' : ''}{(c.lastContent ?? '').slice(0, 24)} · {c.lastDt}

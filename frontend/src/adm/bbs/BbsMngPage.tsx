@@ -277,6 +277,7 @@ export default function BbsMngPage() {
           ),
         },
         regCol,
+        { title: '좋아요', width: 70, align: 'center', render: (_, r) => Number(r.goodCnt) || 0 },
         { title: '조회', dataIndex: 'viewCnt', width: 70 },
         dtCol,
       ]
@@ -296,6 +297,7 @@ export default function BbsMngPage() {
         </Space>
         <Table<Bbs>
           rowKey="dbKey"
+          scroll={{ x: 'max-content' }}
           size="small"
           columns={columns}
           dataSource={rows}

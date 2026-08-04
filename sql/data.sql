@@ -22,6 +22,8 @@ INSERT INTO t_code (code_id, p_code_id, code_nm, ordr, use_yn, reg_id, upd_id, r
 ('APPLY00',    'ROOT', '신청상태',    10, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('HOBBYLV00',  'ROOT', '취미난이도',  11, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('REPORT00',   'ROOT', '신고사유',    12, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA00',     'ROOT', '지역(시도)',  13, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ATTEND00',   'ROOT', '참석결과',    14, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 
 -- ── 회원유형 (t_user.mem_cd) ──
 ('MEM01', 'MEM00', '사용자', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -67,6 +69,30 @@ INSERT INTO t_code (code_id, p_code_id, code_nm, ordr, use_yn, reg_id, upd_id, r
 ('APPLY01', 'APPLY00', '대기', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('APPLY02', 'APPLY00', '수락', 2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('APPLY03', 'APPLY00', '거절', 3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 지역: 시/도 (t_recruit.area_cd) — 모집 지역 필터 표준화. 상세 주소는 region(자유입력) ──
+('AREA01', 'AREA00', '서울',    1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA02', 'AREA00', '부산',    2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA03', 'AREA00', '대구',    3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA04', 'AREA00', '인천',    4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA05', 'AREA00', '광주',    5, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA06', 'AREA00', '대전',    6, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA07', 'AREA00', '울산',    7, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA08', 'AREA00', '세종',    8, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA09', 'AREA00', '경기',    9, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA10', 'AREA00', '강원',   10, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA11', 'AREA00', '충북',   11, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA12', 'AREA00', '충남',   12, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA13', 'AREA00', '전북',   13, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA14', 'AREA00', '전남',   14, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA15', 'AREA00', '경북',   15, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA16', 'AREA00', '경남',   16, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('AREA17', 'AREA00', '제주',   17, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 참석 결과 (t_recruit_apply.attend_cd) — 모임 종료 후 주최자가 기록. 노쇼는 신뢰지표에 반영 ──
+('ATTEND01', 'ATTEND00', '참석',        1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ATTEND02', 'ATTEND00', '불참(통보)',  2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ATTEND03', 'ATTEND00', '노쇼',        3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 
 -- ── 신고 사유 (t_report.reason_cd) ──
 ('REPORT01', 'REPORT00', '스팸·광고',       1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),

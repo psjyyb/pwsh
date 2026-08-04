@@ -23,7 +23,16 @@ public class LikeService {
         if (!"BBS".equals(targetType) && !"COMMENT".equals(targetType)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상 유형입니다.");
         }
+        // 숫자 검증: 매퍼의 ::integer 캐스트가 500(DB 오류)으로 터지지 않도록 400으로 선차단
+        if (targetId == null || !targetId.matches("\\d+")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상입니다.");
+        }
         boolean bbs = "BBS".equals(targetType);
+        // 대상 존재 확인 — 없는 콘텐츠에 좋아요 고아행이 생기지 않도록
+        Integer exists = commonDAO.selectOne(bbs ? "likeDAO.countBbs" : "likeDAO.countComment", targetIdParam(targetId));
+        if (exists == null || exists == 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대상을 찾을 수 없습니다.");
+        }
         LikeVO key = new LikeVO();
         key.setUserId(currentUserId());
         key.setTargetType(targetType);
@@ -51,6 +60,13 @@ public class LikeService {
         r.setLikedYn(nowLiked ? "Y" : "N");
         r.setGoodCnt(String.valueOf(good == null ? 0 : good));
         return r;
+    }
+
+    /** 대상 존재 확인용 파라미터(targetId만). */
+    private LikeVO targetIdParam(String targetId) {
+        LikeVO v = new LikeVO();
+        v.setTargetId(targetId);
+        return v;
     }
 
     private String currentUserId() {
