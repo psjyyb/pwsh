@@ -13,19 +13,28 @@ const statusTag = (s?: string) =>
 /** 신고 관리(관리자) — 게시글/댓글/모집 신고 목록 + 처리(삭제조치=대상 숨김 / 반려 / 대기로 복원). */
 export default function ReportListPage() {
   const [rows, setRows] = useState<Report[]>([])
-  const [status, setStatus] = useState<string | undefined>('PENDING')
+  const [status, setStatus] = useState<string>('') // 기본 전체
+  const [page, setPage] = useState(1)
+  const [size, setSize] = useState(20)
+  const [totCnt, setTotCnt] = useState(0)
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setRows(await reportApi.list(status))
+      const r = await reportApi.list(status, page, size)
+      setRows(r.list ?? [])
+      setTotCnt(r.totCnt ?? 0)
+      // 처리/필터로 건수가 줄어 현재 페이지가 비면 이전 페이지로 (빈 화면 방지)
+      if ((r.list ?? []).length === 0 && page > 1) {
+        setPage(page - 1)
+      }
     } catch (e) {
       message.error(e instanceof Error ? e.message : '목록 조회 실패')
     } finally {
       setLoading(false)
     }
-  }, [status])
+  }, [status, page, size])
 
   useEffect(() => { load() }, [load])
 
@@ -82,17 +91,27 @@ export default function ReportListPage() {
     <Card title="신고 관리">
       <Space style={{ marginBottom: 12 }}>
         <Select
-          value={status} style={{ width: 140 }} onChange={setStatus}
+          value={status} style={{ width: 140 }}
+          onChange={(v) => { setStatus(v); setPage(1) }} // 필터 변경 시 첫 페이지로
           options={[
             { value: '', label: '전체' },
             { value: 'PENDING', label: '대기' },
-            { value: 'RESOLVED', label: '처리완료' },
+            { value: 'RESOLVED', label: '삭제조치' },
             { value: 'DISMISSED', label: '반려' },
           ]}
         />
         <Button onClick={load}>새로고침</Button>
       </Space>
-      <Table<Report> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 20 }} />
+      <Table<Report>
+        rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} loading={loading}
+        columns={columns} dataSource={rows}
+        pagination={{
+          current: page, pageSize: size, total: totCnt,
+          showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100],
+          showTotal: (t) => `총 ${t}건`,
+          onChange: (p, ps) => { setPage(p); setSize(ps) },
+        }}
+      />
     </Card>
   )
 }

@@ -48,6 +48,12 @@ public class ReportService {
         return commonDAO.selectList("reportDAO.selectList", vo);
     }
 
+    /** 신고 총건수(페이징) — 목록과 동일한 상태 필터. */
+    public int selectListTotCnt(ReportVO vo) {
+        assertAdmin();
+        return commonDAO.selectOne("reportDAO.selectListTotCnt", vo);
+    }
+
     /**
      * 신고 처리 — 관리자만.
      * RESOLVED(삭제조치): 대상 콘텐츠를 숨김(use_yn='N'). PENDING(되돌리기): 대상 복원(use_yn='Y').

@@ -1,10 +1,11 @@
 package com.pwsh.domain.report.web;
 
 import com.pwsh.common.response.ApiResponse;
+import com.pwsh.common.util.PageUtil;
 import com.pwsh.common.util.Validate;
 import com.pwsh.domain.report.service.ReportService;
 import com.pwsh.domain.report.service.ReportVO;
-import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,10 +31,14 @@ public class ReportController {
         return ApiResponse.ok();
     }
 
-    /** 신고 목록(관리자). body {status?} */
+    /** 신고 목록(관리자, 페이징). body {status?, pageIndex, size} */
     @RequestMapping("/selectReportList.do")
-    public ApiResponse<List<ReportVO>> selectList(@RequestBody ReportVO vo) {
-        return ApiResponse.ok(reportService.selectList(vo));
+    public ApiResponse<Map<String, Object>> selectList(@RequestBody ReportVO vo) {
+        int totCnt = reportService.selectListTotCnt(vo);
+        return ApiResponse.ok(Map.of(
+                "list", reportService.selectList(vo),
+                "totCnt", totCnt,
+                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
     }
 
     /** 신고 처리(관리자). body {dbKey, status} */

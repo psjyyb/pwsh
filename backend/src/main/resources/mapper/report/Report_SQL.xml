@@ -49,7 +49,13 @@
         WHERE r.use_yn = 'Y'
         <if test="status != null and status != ''">AND r.status = #{status}</if>
         ORDER BY r.report_id DESC
-        LIMIT 200
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="reportVO" resultType="int">
+        SELECT COUNT(*) FROM t_report r
+        WHERE r.use_yn = 'Y'
+        <if test="status != null and status != ''">AND r.status = #{status}</if>
     </select>
 
     <update id="updateStatus" parameterType="reportVO">
