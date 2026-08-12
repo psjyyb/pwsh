@@ -5,7 +5,10 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
  * - 조회(목록/상세)는 공개(SecurityConfig permitAll), 쓰기/신청/수락은 로그인 필요.
  * - 모집 수정/삭제·마감·신청 수락/거절 = 주최자 또는 관리자(assertOwnerOrAdmin).
  * - 신청 취소 = 신청자 본인 또는 관리자.
+ * - 모임 하루 전 리마인더는 스케줄 배치({@link #scheduledMeetReminder()}).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecruitService {
@@ -100,7 +105,11 @@ public class RecruitService {
         return commonDAO.selectList("recruitDAO.selectApplyListMine", vo);
     }
 
-    /** 참여 신청(로그인 회원). 마감 모집·본인 모집·중복 신청 차단. 상태는 항상 대기(APPLY01) 강제. */
+    /**
+     * 참여 신청(로그인 회원). 본인 모집·중복 신청 차단. 상태는 항상 대기(APPLY01) 강제.
+     * 마감 처리는 두 경우를 구분한다 — 정원이 차서 자동 마감된 건은 <b>대기 신청</b>을 받고
+     * (자리가 나면 주최자가 대기자를 수락), 주최자가 정원 미달에서 직접 닫은 건은 더 받지 않는다.
+     */
     @Transactional
     public void applyInsert(RecruitApplyVO vo) {
         String me = currentUserId();
@@ -110,8 +119,11 @@ public class RecruitService {
         if (recruit == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
         }
-        if ("RECRUIT02".equals(recruit.getStatusCd())) {
+        if ("RECRUIT02".equals(recruit.getStatusCd()) && !isFullByCapacity(recruit)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "마감된 모집입니다.");
+        }
+        if (isPastMeetDt(recruit)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 지난 모임입니다.");
         }
         if (me.equals(recruit.getRegId())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "본인이 등록한 모집에는 신청할 수 없습니다.");
@@ -194,11 +206,27 @@ public class RecruitService {
         commonDAO.update("recruitDAO.updateApplyAttend", upd);
     }
 
+    /**
+     * 정원이 차서 닫힌 상태인지(정원 설정 있고 수락 수가 정원 이상).
+     * 같은 RECRUIT02라도 '정원 충족 자동 마감'과 '주최자 수동 마감'을 이 기준으로 구분한다
+     * (전자만 대기 신청을 받는다). 별도 플래그 컬럼 없이 정원·수락수로 판정한다.
+     */
+    private boolean isFullByCapacity(RecruitVO recruit) {
+        int cap = parseCnt(recruit.getCapacity());
+        return cap > 0 && parseCnt(recruit.getAcceptedCnt()) >= cap;
+    }
+
     /** 모임 종료 판정 — 마감(RECRUIT02) 또는 모임일이 오늘보다 이전. (후기 자격과 동일 기준) */
     private boolean isFinished(RecruitVO recruit) {
-        if ("RECRUIT02".equals(recruit.getStatusCd())) {
-            return true;
-        }
+        return "RECRUIT02".equals(recruit.getStatusCd()) || isPastMeetDt(recruit);
+    }
+
+    /**
+     * 모임일이 이미 지났는지(일정 미지정이면 false).
+     * 마감 여부와 분리해서 본다 — 정원 충족으로 마감된 모집에는 대기 신청을 받아야 하므로
+     * '마감=끝'으로 묶으면 대기 명단이 동작하지 않는다.
+     */
+    private boolean isPastMeetDt(RecruitVO recruit) {
         String meetDt = recruit.getMeetDt();
         if (meetDt == null || meetDt.isBlank()) {
             return false;
@@ -260,5 +288,48 @@ public class RecruitService {
         v.setRecruitId(recruitId);
         v.setUserId(userId);
         return v;
+    }
+
+    // ===== 모임 리마인더(스케줄 배치) =====
+
+    /** 매일 지정 시각에 '내일 모임' 알림 발송(cron 설정 가능). */
+    @Scheduled(cron = "${recruit.remind.cron:0 0 9 * * *}")
+    public void scheduledMeetReminder() {
+        sendMeetReminders(java.time.LocalDate.now().plusDays(1).toString());
+    }
+
+    /**
+     * 지정일에 모임이 있는 건의 주최자·수락 참여자에게 리마인더 알림 적재.
+     * 알림 1건씩 독립 트랜잭션(NotificationService.notify)이라 일부 실패가 나머지를 막지 않는다.
+     * 같은 날 재실행하면 매퍼의 NOT EXISTS가 이미 보낸 수신자를 걸러 중복 발송되지 않는다.
+     *
+     * @param targetDt 모임일(YYYY-MM-DD)
+     * @return 발송 건수(수신자 단위)
+     */
+    public int sendMeetReminders(String targetDt) {
+        Map<String, Object> param = new java.util.HashMap<>();
+        param.put("targetDt", targetDt);
+        List<Map<String, Object>> targets = commonDAO.selectList("recruitDAO.selectRemindTargets", param);
+        int sent = 0;
+        for (Map<String, Object> t : targets) {
+            String userId = str(t.get("userId"));
+            String recruitId = str(t.get("recruitId"));
+            String title = str(t.get("title"));
+            if (userId == null || recruitId == null) {
+                continue;
+            }
+            notificationService.notify(userId, "REMIND",
+                    "'" + title + "' 모임이 내일이에요. (" + str(t.get("meetDt")) + ")",
+                    "/gen/recruit/" + recruitId);
+            sent++;
+        }
+        if (sent > 0) {
+            log.info("[RecruitRemind] {} 모임 리마인더 {}건 발송", targetDt, sent);
+        }
+        return sent;
+    }
+
+    private String str(Object o) {
+        return o == null ? null : o.toString();
     }
 }

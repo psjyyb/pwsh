@@ -112,6 +112,35 @@
 
     <!-- ===================== 참여 신청 (t_recruit_apply) ===================== -->
     <!-- 특정 모집 신청자 목록(주최자용) -->
+    <!--
+      모임 리마인더 대상 — 지정일(#{targetDt})에 모임이 있는 건의 주최자 + 수락된 참여자.
+      resultType="map"은 underscore→camel 변환이 적용되지 않아 별칭을 따옴표 camelCase로 준다.
+      마감(RECRUIT02)도 포함한다: 마감은 '모임 확정'이라 오히려 리마인더가 필요하다.
+      같은 모임·같은 수신자에게 오늘 이미 보낸 건은 제외해 재기동/재실행 시 중복 발송을 막는다.
+    -->
+    <select id="selectRemindTargets" parameterType="map" resultType="map">
+        SELECT r.recruit_id::TEXT AS "recruitId",
+               r.title            AS "title",
+               r.meet_dt          AS "meetDt",
+               t.user_id          AS "userId"
+        FROM t_recruit r
+        JOIN (
+            SELECT recruit_id, reg_id AS user_id FROM t_recruit WHERE use_yn = 'Y'
+            UNION
+            SELECT recruit_id, user_id FROM t_recruit_apply WHERE use_yn = 'Y' AND apply_status = 'APPLY02'
+        ) t ON t.recruit_id = r.recruit_id
+        WHERE r.use_yn = 'Y'
+          AND r.meet_dt = #{targetDt}
+          AND NOT EXISTS (
+              SELECT 1 FROM t_notification n
+               WHERE n.user_id = t.user_id
+                 AND n.noti_type = 'REMIND'
+                 AND n.link_url = '/gen/recruit/' || r.recruit_id
+                 AND n.reg_dt::date = CURRENT_DATE
+          )
+        ORDER BY r.recruit_id, t.user_id
+    </select>
+
     <select id="selectApplyList" parameterType="recruitApplyVO" resultType="recruitApplyVO">
         SELECT a.apply_id::TEXT AS db_key, a.recruit_id, a.user_id, a.apply_status, a.apply_memo, a.reg_id,
                a.attend_cd,
@@ -119,6 +148,12 @@
                (SELECT u.handle FROM t_user u WHERE u.user_id = a.user_id) AS user_handle,
                sc.code_nm AS apply_status_nm,
                atc.code_nm AS attend_nm,
+               <!-- 대기 순번: 대기(APPLY01)끼리 신청순. 수락/거절 건은 NULL -->
+               (CASE WHEN a.apply_status = 'APPLY01'
+                     THEN (SELECT COUNT(*) FROM t_recruit_apply w
+                            WHERE w.use_yn = 'Y' AND w.recruit_id = a.recruit_id
+                              AND w.apply_status = 'APPLY01' AND w.apply_id &lt;= a.apply_id)
+                     END) AS wait_no,
                TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM t_recruit_apply a
         LEFT JOIN t_code sc ON sc.code_id = a.apply_status AND sc.p_code_id = 'APPLY00'
@@ -132,6 +167,12 @@
         SELECT a.apply_id::TEXT AS db_key, a.recruit_id, a.apply_status, a.apply_memo,
                r.title AS recruit_title, r.meet_dt, r.region, r.status_cd AS recruit_status_cd,
                sc.code_nm AS apply_status_nm,
+               <!-- 내 대기 순번(대기 상태일 때만) — '앞에 몇 명'인지 신청자가 볼 수 있게 -->
+               (CASE WHEN a.apply_status = 'APPLY01'
+                     THEN (SELECT COUNT(*) FROM t_recruit_apply w
+                            WHERE w.use_yn = 'Y' AND w.recruit_id = a.recruit_id
+                              AND w.apply_status = 'APPLY01' AND w.apply_id &lt;= a.apply_id)
+                     END) AS wait_no,
                TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM t_recruit_apply a
         JOIN t_recruit r ON r.recruit_id = a.recruit_id

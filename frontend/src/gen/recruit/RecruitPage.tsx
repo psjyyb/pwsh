@@ -341,6 +341,13 @@ export default function RecruitPage() {
     const finished = recruit.statusCd === STATUS_CLOSED
       || (!!recruit.meetDt && recruit.meetDt < new Date().toISOString().slice(0, 10))
     const open = recruit.statusCd === STATUS_OPEN
+    const pastMeet = !!recruit.meetDt && recruit.meetDt < new Date().toISOString().slice(0, 10)
+    // 정원 충족으로 닫힌 상태(서버 판정과 동일 기준) — 이 경우에만 대기 신청을 받는다
+    const capacityFull = Number(recruit.capacity) > 0
+      && Number(recruit.acceptedCnt ?? 0) >= Number(recruit.capacity)
+    const waitlistOpen = !open && capacityFull && !pastMeet
+    // 정원에 여유가 생겼는데 아직 마감 상태 — 주최자에게 재개를 안내(자동 재개는 하지 않는다)
+    const hasRoomButClosed = !open && !capacityFull && !pastMeet && Number(recruit.capacity) > 0
     return (
       <Card
         title={recruit.title}
@@ -373,7 +380,11 @@ export default function RecruitPage() {
           <Descriptions.Item label="일정">{recruit.meetDt || '-'}</Descriptions.Item>
           <Descriptions.Item label="모집 인원">{Number(recruit.capacity) > 0 ? `${recruit.capacity}명` : '제한 없음 (0명)'}</Descriptions.Item>
           <Descriptions.Item label="신청 현황">
-            수락 {recruit.acceptedCnt ?? 0} · 신청 {recruit.applyCnt ?? 0}
+            <Space size={6} wrap>
+              <span>수락 {recruit.acceptedCnt ?? 0} · 신청 {recruit.applyCnt ?? 0}</span>
+              {capacityFull && <Tag color="red">정원 마감</Tag>}
+              {waitlistOpen && <Tag color="orange">대기 접수중</Tag>}
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || '-'} handle={recruit.regHandle} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
@@ -392,6 +403,9 @@ export default function RecruitPage() {
             ) : myApply ? (
               <Space wrap>
                 <span>내 신청 상태: {applyTag(myApply.applyStatus, myApply.applyStatusNm)}</span>
+                {myApply.applyStatus === 'APPLY01' && myApply.waitNo && capacityFull && (
+                  <Tag color="orange">대기 {myApply.waitNo}번</Tag>
+                )}
                 {myApply.applyStatus === 'APPLY03' && open && (
                   <Button size="small" type="primary" onClick={reApply}>다시 신청</Button>
                 )}
@@ -401,16 +415,25 @@ export default function RecruitPage() {
                   </Popconfirm>
                 )}
               </Space>
-            ) : open ? (
-              <Space.Compact style={{ width: '100%' }}>
-                <Input
-                  placeholder="주최자에게 한마디 (선택)" value={applyMemo}
-                  onChange={(e) => setApplyMemo(e.target.value)} maxLength={500}
-                />
-                <Button type="primary" onClick={doApply}>참여 신청</Button>
-              </Space.Compact>
+            ) : open || waitlistOpen ? (
+              <div>
+                {waitlistOpen && (
+                  <div style={{ marginBottom: 8, color: '#d46b08' }}>
+                    정원이 찼습니다. 대기로 신청하면 자리가 날 때 주최자가 수락할 수 있습니다.
+                  </div>
+                )}
+                <Space.Compact style={{ width: '100%' }}>
+                  <Input
+                    placeholder="주최자에게 한마디 (선택)" value={applyMemo}
+                    onChange={(e) => setApplyMemo(e.target.value)} maxLength={500}
+                  />
+                  <Button type="primary" onClick={doApply}>{waitlistOpen ? '대기 신청' : '참여 신청'}</Button>
+                </Space.Compact>
+              </div>
             ) : (
-              <span style={{ color: '#888' }}>마감된 모집입니다.</span>
+              <span style={{ color: '#888' }}>
+                {pastMeet ? '이미 지난 모임입니다.' : '마감된 모집입니다.'}
+              </span>
             )}
           </div>
         )}
@@ -419,13 +442,29 @@ export default function RecruitPage() {
         {owner && (
           <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
             <b>신청자 {applies.length}명</b>
+            {hasRoomButClosed && (
+              <div style={{ marginTop: 6, color: '#d46b08' }}>
+                정원에 여유가 있습니다(수락 {recruit.acceptedCnt ?? 0}/{recruit.capacity}). 대기자를 수락하거나,
+                새 신청을 다시 받으려면 위의 <b>다시 모집</b>을 눌러 주세요.
+              </div>
+            )}
             <Table<RecruitApply>
               rowKey="dbKey" size="small" style={{ marginTop: 8 }} pagination={false}
               dataSource={applies}
               locale={{ emptyText: '신청자가 없습니다.' }}
               columns={[
                 { title: '닉네임', render: (_, a) => <UserAvatar name={a.nickname || '-'} handle={a.userHandle} size={22} /> },
-                { title: '상태', width: 80, render: (_, a) => applyTag(a.applyStatus, a.applyStatusNm) },
+                {
+                  title: '상태', width: 110,
+                  render: (_, a) => (
+                    <Space size={4} wrap>
+                      {applyTag(a.applyStatus, a.applyStatusNm)}
+                      {a.applyStatus === 'APPLY01' && a.waitNo && capacityFull && (
+                        <Tag color="orange">대기 {a.waitNo}</Tag>
+                      )}
+                    </Space>
+                  ),
+                },
                 { title: '메모', dataIndex: 'applyMemo', render: (v) => v || '-' },
                 { title: '신청일', dataIndex: 'regDt', width: 140 },
                 {

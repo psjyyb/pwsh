@@ -34,6 +34,7 @@ export interface RecruitApply {
   applyStatus?: string
   applyMemo?: string
   applyStatusNm?: string
+  waitNo?: string     // 대기 순번(대기 상태일 때만, 신청순 1부터)
   attendCd?: string   // 참석 결과(ATTEND00). 미기록이면 없음
   attendNm?: string   // 참석 결과명
   userHandle?: string // 신청자 공개 식별자(프로필 링크)

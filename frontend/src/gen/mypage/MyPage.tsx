@@ -260,7 +260,16 @@ export default function MyPage() {
   ]
   const applyCols: TableColumnsType<RecruitApply> = [
     { title: '모집', render: (_, r) => r.recruitTitle },
-    { title: '상태', width: 90, align: 'center', render: (_, r) => applyTag(r.applyStatus, r.applyStatusNm) },
+    {
+      // 대기 순번은 대기 상태에서만 의미가 있다(수락/거절되면 서버가 null로 준다)
+      title: '상태', width: 120, align: 'center',
+      render: (_, r) => (
+        <Space size={4} wrap>
+          {applyTag(r.applyStatus, r.applyStatusNm)}
+          {r.applyStatus === 'APPLY01' && r.waitNo && <Tag color="orange">대기 {r.waitNo}</Tag>}
+        </Space>
+      ),
+    },
     { title: '', width: 80, render: (_, r) => (r.applyStatus !== 'APPLY02' ? <a onClick={(e) => { e.stopPropagation(); cancelApply(r.dbKey!) }}>취소</a> : null) },
   ]
 

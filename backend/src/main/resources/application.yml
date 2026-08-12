@@ -44,6 +44,11 @@ file:
     abandon-hours: 24    # A: 업로드 후 미저장 파일 유예(시간)
     cron: "0 0 4 * * *"  # 매일 새벽 4시 자동 실행
 
+# 모집: 모임 하루 전 리마인더 알림 배치(주최자 + 수락 참여자)
+recruit:
+  remind:
+    cron: "0 0 9 * * *"  # 매일 오전 9시 — 내일 모임 대상
+
 # MyBatis: 컬럼(snake) → VO 필드(camel) 자동 매핑
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml

@@ -6,6 +6,7 @@ import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 인앱 알림(단일 @Service). 조회/읽음은 항상 로그인 본인 기준(user_id 서버 강제).
  * 생성({@link #notify})은 다른 도메인 서비스가 이벤트 발생 시 호출 — 수신자를 명시하고 본인 행동엔 적재하지 않음.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -46,12 +48,15 @@ public class NotificationService {
             commonDAO.insert("notificationDAO.insert", vo);
         } catch (Exception e) {
             // 알림 실패는 원 동작을 막지 않는다(독립 트랜잭션이라 호출자 롤백과도 무관).
+            // 다만 조용히 사라지면 원인 추적이 불가능하므로 경고는 남긴다.
+            log.warn("[Notification] 적재 실패: user={}, type={} ({})", userId, type, e.getMessage());
         }
     }
 
     /**
      * 수신자가 이 유형의 알림을 받도록 설정했는지. 설정 행이 없으면 기본 수신(Y).
-     * 유형 매핑: APPLY/ACCEPT/REJECT→notiApply, COMMENT→notiComment, MESSAGE→notiMessage, REVIEW→notiReview.
+     * 유형 매핑: APPLY/ACCEPT/REJECT/REMIND→notiApply, COMMENT→notiComment, MESSAGE→notiMessage, REVIEW→notiReview.
+     * (REMIND=모임 하루 전 리마인더 — 모임 관련이라 신청 알림 설정을 함께 따른다)
      */
     private boolean isEnabled(String userId, String type) {
         try {
@@ -70,7 +75,7 @@ public class NotificationService {
             if ("REVIEW".equals(type)) {
                 return !"N".equals(s.getNotiReview());
             }
-            return !"N".equals(s.getNotiApply()); // APPLY/ACCEPT/REJECT 등
+            return !"N".equals(s.getNotiApply()); // APPLY/ACCEPT/REJECT/REMIND 등 모임 관련
         } catch (Exception e) {
             return true; // 설정 조회 실패 시 알림을 막지 않는다
         }

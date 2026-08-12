@@ -14,6 +14,9 @@ public class RecruitApplyVO extends BaseVO {
     private String applyStatus;  // 신청상태(APPLY00)
     private String applyMemo;    // 신청 메모
     // 조회 표시용(조인)
+    /** 대기 순번(대기 상태일 때만, 신청순 1부터). 수락·거절 건은 null */
+    private String waitNo;
+
     private String attendCd;      // 참석 결과(t_code ATTEND00). NULL=미기록
     private String attendNm;      // 참석 결과명(t_code 조인)
     private String userHandle;    // 신청자 공개 식별자(프로필 링크용)
