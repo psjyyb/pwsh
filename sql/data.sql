@@ -151,15 +151,16 @@ INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, l
 -- 사용자(GEN) 메뉴 — 취미 커뮤니티(도감 중심).
 --  · 취미는 상단 메뉴가 아니라 메인(도감 카드) → 취미 허브(/gen/hobby/{id})로 진입 → 게시판/모집/레벨.
 --    취미를 상단에 나열하지 않으므로 취미가 늘어도 메뉴가 깔끔.
---  · 모집 = URL(MENU01) /gen/recruit. 마이페이지·1:1문의는 회원 전용(GUEST 권한 제외).
+--  · 모집 = URL(MENU01) /gen/recruit. 내 피드·마이페이지·1:1문의는 회원 전용(GUEST 권한 제외).
 INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, link_url, target_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 (20,  0, 'GEN', '메인',       1, 'MENU01', 0, '/gen/main',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(37,  0, 'GEN', '모집',       2, 'MENU01', 0, '/gen/recruit', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(21,  0, 'GEN', '공지사항',   3, 'MENU02', 1, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(22,  0, 'GEN', '고객센터',   4, 'MENU04', 0, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(47,  0, 'GEN', '내 피드',    2, 'MENU01', 0, '/gen/feed',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(37,  0, 'GEN', '모집',       3, 'MENU01', 0, '/gen/recruit', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(21,  0, 'GEN', '공지사항',   4, 'MENU02', 1, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(22,  0, 'GEN', '고객센터',   5, 'MENU04', 0, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (23, 22, 'GEN', 'FAQ',        1, 'MENU02', 2, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (24, 22, 'GEN', '1:1문의',    2, 'MENU02', 4, NULL,           'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(25,  0, 'GEN', '마이페이지', 5, 'MENU01', 0, '/gen/mypage',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+(25,  0, 'GEN', '마이페이지', 6, 'MENU01', 0, '/gen/mypage',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- menu_id를 명시 삽입했으므로 IDENTITY 시퀀스를 현재 최대값으로 보정
 SELECT setval(pg_get_serial_sequence('t_menu', 'menu_id'), (SELECT MAX(menu_id) FROM t_menu));

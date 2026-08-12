@@ -5,6 +5,7 @@ import RecruitPage from './recruit/RecruitPage'
 import GenHobby from './hobby/GenHobby'
 import MyPage from './mypage/MyPage'
 import MyHobbyPage from './myhobby/MyHobbyPage'
+import FeedPage from './feed/FeedPage'
 import SearchPage from './search/SearchPage'
 import UserProfilePage from './profile/UserProfilePage'
 import MessagePage from './message/MessagePage'
@@ -26,6 +27,7 @@ export const genScreens: GenScreen[] = [
   { path: '/gen/recruit/:id', label: '모집', element: <RecruitPage /> },
   { path: '/gen/hobby/:id', label: '취미', element: <GenHobby /> },
   { path: '/gen/myhobby', label: '나의 취미', element: <MyHobbyPage /> },
+  { path: '/gen/feed', label: '내 피드', element: <FeedPage /> },
   { path: '/gen/search', label: '검색', element: <SearchPage /> },
   { path: '/gen/user/:userId', label: '회원 프로필', element: <UserProfilePage /> },
   { path: '/gen/message', label: '쪽지', element: <MessagePage /> },

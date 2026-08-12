@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="feedDAO">
+
+    <!--
+      내 취미 피드 — 담은 취미(t_user_hobby)에 연결된 게시판의 새 글 + 그 취미의 모집을 한 타임라인으로.
+      전용 테이블 없음(집계 전용). viewerId는 서비스가 로그인 사용자로 강제 주입한다.
+      UNION ALL이라 두 SELECT의 컬럼 수·타입이 같아야 해서 해당 없는 필드는 NULL을 명시 캐스팅한다.
+    -->
+    <sql id="feedBase">
+        SELECT 'BBS' AS feed_type,
+               b.bbs_id::TEXT AS db_key,
+               b.title,
+               h.hobby_id,
+               h.hobby_nm,
+               b.bbsinfo_id,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
+               (SELECT u.handle   FROM t_user u WHERE u.user_id = b.reg_id) AS reg_handle,
+               (CASE WHEN b.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
+               (SELECT COUNT(*) FROM t_comment c WHERE c.bbs_id = b.bbs_id AND c.use_yn = 'Y')::INTEGER AS comment_cnt,
+               COALESCE(b.good_cnt, 0) AS good_cnt,
+               NULL::VARCHAR AS meet_dt,
+               NULL::VARCHAR AS area_nm,
+               NULL::VARCHAR AS region,
+               NULL::VARCHAR AS status_cd,
+               NULL::VARCHAR AS status_nm,
+               NULL::INTEGER AS capacity,
+               NULL::INTEGER AS accepted_cnt,
+               b.reg_dt AS sort_dt
+        FROM t_bbs b
+        JOIN t_hobby h ON h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y'
+        JOIN t_user_hobby uh ON uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId}
+        WHERE b.use_yn = 'Y'
+          AND b.p_bbs_id = 0        <!-- 답글은 피드에 노출하지 않음(원글 기준) -->
+          AND b.secret_yn = 'N'     <!-- 비밀글 제외 -->
+          AND NOT EXISTS ( <!-- 내가 차단한 회원의 글은 제외(목록 정책과 동일) -->
+              SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = b.reg_id
+          )
+        UNION ALL
+        SELECT 'RECRUIT' AS feed_type,
+               r.recruit_id::TEXT AS db_key,
+               r.title,
+               h.hobby_id,
+               h.hobby_nm,
+               NULL::INTEGER AS bbsinfo_id,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
+               (SELECT u.handle   FROM t_user u WHERE u.user_id = r.reg_id) AS reg_handle,
+               (CASE WHEN r.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
+               NULL::INTEGER AS comment_cnt,
+               NULL::INTEGER AS good_cnt,
+               r.meet_dt,
+               (SELECT ac.code_nm FROM t_code ac WHERE ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00') AS area_nm,
+               r.region,
+               r.status_cd,
+               (SELECT sc.code_nm FROM t_code sc WHERE sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00') AS status_nm,
+               r.capacity,
+               (SELECT COUNT(*) FROM t_recruit_apply a
+                 WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02')::INTEGER AS accepted_cnt,
+               r.reg_dt AS sort_dt
+        FROM t_recruit r
+        JOIN t_hobby h ON h.hobby_id = r.hobby_id AND h.use_yn = 'Y'
+        JOIN t_user_hobby uh ON uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId}
+        WHERE r.use_yn = 'Y'
+          AND NOT EXISTS (
+              SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = r.reg_id
+          )
+    </sql>
+
+    <select id="selectList" parameterType="feedVO" resultType="feedVO">
+        SELECT f.feed_type, f.db_key, f.title, f.hobby_id, f.hobby_nm, f.bbsinfo_id,
+               f.reg_nm, f.reg_handle, f.mine_yn, f.comment_cnt, f.good_cnt,
+               f.meet_dt, f.area_nm, f.region, f.status_cd, f.status_nm, f.capacity, f.accepted_cnt,
+               TO_CHAR(f.sort_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM ( <include refid="feedBase"/> ) f
+        <if test="feedFilter != null and feedFilter != ''">WHERE f.feed_type = #{feedFilter}</if>
+        ORDER BY f.sort_dt DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotCnt" parameterType="feedVO" resultType="int">
+        SELECT COUNT(*) FROM ( <include refid="feedBase"/> ) f
+        <if test="feedFilter != null and feedFilter != ''">WHERE f.feed_type = #{feedFilter}</if>
+    </select>
+
+    <!-- 담은 취미 수(0이면 피드가 비는 이유를 프론트가 안내할 수 있게) -->
+    <select id="selectMyHobbyCnt" parameterType="feedVO" resultType="int">
+        SELECT COUNT(*) FROM t_user_hobby WHERE use_yn = 'Y' AND user_id = #{viewerId}
+    </select>
+
+</mapper>
