@@ -3,6 +3,7 @@ package com.pwsh.domain.report.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.eventlog.service.EventLogService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportService {
 
     private final CommonDAO commonDAO;
+    private final EventLogService eventLogService;
 
     /** 신고 등록 — 로그인 회원, 같은 대상 중복신고 차단. */
     public void insert(ReportVO vo) {
@@ -84,6 +86,17 @@ public class ReportService {
             }
         }
         commonDAO.update("reportDAO.updateStatus", vo);
+        // 감사: 이 메서드는 컨트롤러 메서드명이 updateStatus라 EventLogAspect(insert/update/delete)가 잡지 못한다.
+        // 관리자 조치는 추적이 필수라 여기서 유형별로 직접 기록한다.
+        eventLogService.write(auditType(status), "t_report", vo.getDbKey());
+    }
+
+    /** 신고 처리 상태 → 감사 이벤트 유형(t_code EVENT00). */
+    private String auditType(String status) {
+        if ("RESOLVED".equals(status)) {
+            return "REPORT_RESOLVE";
+        }
+        return "DISMISSED".equals(status) ? "REPORT_DISMISS" : "REPORT_REOPEN";
     }
 
     private void assertAdmin() {

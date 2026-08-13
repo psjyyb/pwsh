@@ -60,6 +60,15 @@ INSERT INTO t_code (code_id, p_code_id, code_nm, ordr, use_yn, reg_id, upd_id, r
 ('INSERT', 'EVENT00', '등록',   2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('UPDATE', 'EVENT00', '수정',   3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('DELETE', 'EVENT00', '삭제',   4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+-- 관리자 조치(감사): 컨트롤러 메서드명이 insert/update/delete가 아니라 AOP가 못 잡는 지점 —
+-- 각 서비스에서 명시적으로 기록한다. '누가 언제 무엇에 어떤 조치를 했는지'를 유형만으로 알 수 있게 세분화.
+('REPORT_RESOLVE', 'EVENT00', '신고 삭제조치', 5, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('REPORT_DISMISS', 'EVENT00', '신고 반려',     6, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('REPORT_REOPEN',  'EVENT00', '신고 되돌리기', 7, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('USER_SUSPEND',   'EVENT00', '회원 정지',     8, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('USER_RESTORE',   'EVENT00', '회원 정지해제', 9, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('USER_LOGOUT',    'EVENT00', '강제 로그아웃', 10, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('USER_AUTHGRP',   'EVENT00', '권한그룹 변경', 11, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 
 -- ── 모집상태 (t_recruit.status_cd) ──
 ('RECRUIT01', 'RECRUIT00', '모집중', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),

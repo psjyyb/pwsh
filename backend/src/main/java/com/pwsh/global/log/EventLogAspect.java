@@ -13,6 +13,12 @@ import org.springframework.stereotype.Component;
  * - event_type: INSERT/UPDATE/DELETE (로그인은 AuthController에서 LOGIN 직접 기록, 조회는 로깅 안 함)
  * - target_table: 컨트롤러명 → t_xxx, target_id: 요청 VO의 dbKey(단건)/dbKeys(다건)
  * - 사용자 행위 1건 = 로그 1건(내부 하우스키핑 update는 컨트롤러 진입점이 아니라 제외됨)
+ * <p>
+ * <b>포착 범위 주의</b>: 메서드명이 정확히 insert/update/delete인 것만 잡는다. {@code updateStatus}처럼
+ * {@code {path}} 변형으로 분리된 메서드는 여기서 잡히지 않으므로, 추적이 필요한 관리자 조치
+ * (신고 처리·회원 제재·강제 로그아웃·권한 변경)는 각 서비스가 EventLogService.write로 직접 기록한다.
+ * 포인트컷을 update*로 넓히지 않는 이유는 쪽지 읽음·알림설정 같은 일상 행위까지 쌓여
+ * 감사 로그의 신호 대 잡음 비가 나빠지기 때문이다.
  */
 @Aspect
 @Component

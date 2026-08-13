@@ -5,7 +5,7 @@ import { tokenStore } from '../../auth/token'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import { hobbyApi, userHobbyApi } from '../../adm/hobby/hobby.api'
 import type { Hobby, UserHobby } from '../../adm/hobby/hobby.api'
-import { gen, cardGradients } from '../theme'
+import { gen, hobbyColor } from '../theme'
 
 /**
  * 나의 취미(/gen/myhobby) — 내가 담은 취미만 모아 보고, 각 취미의 게시판·모집으로 바로 이동.
@@ -71,13 +71,14 @@ export default function MyHobbyPage() {
         </Card>
       ) : (
         <Row gutter={[16, 16]}>
-          {myHobbies.map((u, i) => {
+          {myHobbies.map((u) => {
             const hb = hobbies.find((h) => h.dbKey === u.hobbyId)
+            const hc = hobbyColor(u.hobbyId) // 메인 도감과 같은 색(취미별 고정)
             return (
               <Col xs={24} sm={12} key={u.hobbyId}>
                 <Card styles={{ body: { padding: 16 } }} style={{ borderRadius: 18, height: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, overflow: 'hidden', color: '#fff', fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', background: cardGradients[i % cardGradients.length] }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, overflow: 'hidden', color: '#fff', fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', background: hc.solid }}>
                       {hb?.thumbId
                         ? <img src={`/api/pub/image/${hb.thumbId}`} alt={u.hobbyNm} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : (u.hobbyNm ?? '').slice(0, 1)}

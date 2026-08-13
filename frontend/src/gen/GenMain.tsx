@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Card, Col, Empty, Row, Tag, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { fileApi } from '../api/file'
@@ -12,12 +13,12 @@ import { BBS_LIST_URL } from '../adm/bbs/bbs.api'
 import type { Bbs } from '../adm/bbs/bbs.api'
 import { recruitApi } from './recruit/recruit.api'
 import type { Recruit } from './recruit/recruit.api'
-import { gen, cardGradients } from './theme'
+import { gen, hobbyColor } from './theme'
 
 const TEAL = gen.primary
 const STATUS_OPEN = 'RECRUIT01'
 
-interface Category { hobbyId: string; bbsinfoId?: string; name: string; count: number; thumbId?: string; difficultyNm?: string; summary?: string; memberCnt?: number }
+interface Category { hobbyId: string; bbsinfoId?: string; name: string; count: number; thumbId?: string; difficultyCd?: string; difficultyNm?: string; summary?: string; memberCnt?: number }
 interface RecentPost extends Bbs { catName?: string }
 
 /** '오늘 하루 보지 않기' 쿠키(익일 자정 만료) */
@@ -78,8 +79,34 @@ function PopupLayer({ popup, onClose }: { popup: Popup; onClose: () => void }) {
 }
 
 /**
- * 사용자 메인 — 취미 커뮤니티 랜딩(히어로 · 취미 카테고리 · 지금 모집 중 · 최근 이야기).
- * 취미 카테고리는 GEN "취미게시판" 그룹의 하위 게시판에서 도출(무코드 확장). 등록 팝업도 레이어로 노출.
+ * 섹션 헤더 — 분류 라벨(eyebrow) + 제목 + 우측 보조.
+ * 이모지를 섹션 마커로 쓰지 않는다(어느 사이트에나 있는 기본값이라 성격이 드러나지 않는다).
+ * 대신 작은 대비 라벨로 분류를 표시하고 제목이 문장 역할을 한다.
+ */
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.35 }}>
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', color: gen.inkFaint }}>{label}</span>
+      <span className="gen-nums" style={{ fontSize: 13, color: gen.inkSoft, fontWeight: 600 }}>{value}</span>
+    </span>
+  )
+}
+
+function SectionHead({ eyebrow, title, right }: { eyebrow: string; title: string; right?: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginBottom: 14 }}>
+      <div>
+        <div className="gen-eyebrow">{eyebrow}</div>
+        <h2 className="gen-h1" style={{ color: gen.heroText }}>{title}</h2>
+      </div>
+      {right}
+    </div>
+  )
+}
+
+/**
+ * 사용자 메인 — 취미 커뮤니티 랜딩(취미 도감 · 지금 모집 중 · 이번 주 베스트 · 최근 이야기).
+ * 취미 도감은 t_hobby에서 도출(무코드 확장). 등록 팝업도 레이어로 노출.
  */
 export default function GenMain() {
   const navigate = useNavigate()
@@ -101,7 +128,8 @@ export default function GenMain() {
     hobbyApi.listAll().then(async (hobbies) => {
       const cats: Category[] = hobbies.map((h) => ({
         hobbyId: h.dbKey!, bbsinfoId: h.bbsinfoId, name: h.hobbyNm ?? '', count: Number(h.postCnt ?? 0),
-        thumbId: h.thumbId, difficultyNm: h.difficultyNm, summary: h.summary, memberCnt: Number(h.memberCnt ?? 0),
+        thumbId: h.thumbId, difficultyCd: h.difficultyCd, difficultyNm: h.difficultyNm,
+        summary: h.summary, memberCnt: Number(h.memberCnt ?? 0),
       }))
       setCategories(cats)
 
@@ -138,7 +166,7 @@ export default function GenMain() {
     cd === STATUS_OPEN ? <Tag color="green">{nm ?? '모집중'}</Tag> : <Tag>{nm ?? '마감'}</Tag>
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ maxWidth: 'var(--gen-w-wide)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
       {/* 히어로 */}
       {/*<div style={{ background: gen.heroTint, borderRadius: 24, padding: '36px 24px', textAlign: 'center' }}>*/}
       {/*  <div aria-hidden style={{ fontSize: 26, marginBottom: 8 }}>✨💜⭐️</div>*/}
@@ -156,80 +184,88 @@ export default function GenMain() {
       {/*  </div>*/}
       {/*</div>*/}
 
-      {/* 취미 목록(유닛형 컬러 카드) */}
+      {/*
+        취미 도감 — 타일마다 고정 색(hobbyColor)으로 채우고, 우측은 썸네일(없으면 이름 첫 글자).
+        그리드는 gridAutoRows: 1fr — 행마다 카드 높이가 달라지면 사진 크기도 달라 보인다.
+      */}
       <section>
-        <h3 style={{ fontSize: 22, fontWeight: 800, color: gen.heroText, margin: '0 0 16px' }}>어떤 취미부터 시작할까?</h3>
+        <SectionHead
+          eyebrow="도감"
+          title="어떤 취미부터 시작할까"
+          right={loggedIn && myIds.size > 0
+            ? <span style={{ fontSize: 13, color: gen.inkSoft, fontWeight: 600 }} className="gen-nums">담은 취미 {myIds.size} / {categories.length}</span>
+            : undefined}
+        />
         {categories.length === 0 ? (
           <Empty description="등록된 취미가 없습니다." />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: 12 }}>
-            {categories.map((c, i) => (
-              <div key={c.hobbyId} onClick={() => navigate(`/gen/hobby/${c.hobbyId}`)} className="gen-hobby-card"
-                style={{ background: cardGradients[i % cardGradients.length], borderRadius: 22, cursor: 'pointer', color: '#fff', boxShadow: '0 6px 18px rgba(108,78,227,.18)', position: 'relative', overflow: 'hidden' }}>
-                {/* 상단 광택 */}
-                <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 90% at 0% 0%, rgba(255,255,255,.25), transparent 58%)', pointerEvents: 'none' }} />
-                {/* 배경 워터마크 — 우측에 작은 라운드 사각형(썸네일)/이니셜. 버튼에 가려져도 무방 */}
-                {c.thumbId
-                  ? <img aria-hidden src={`/api/pub/image/${c.thumbId}`} alt="" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%) rotate(15deg)', width: 66, height: 66, objectFit: 'cover', borderRadius: 16, opacity: 0.18, pointerEvents: 'none' }} />
-                  : <span aria-hidden style={{ position: 'absolute', right: 28, bottom: -24, fontSize: 96, fontWeight: 800, color: 'rgba(255,255,255,.13)', lineHeight: 1, pointerEvents: 'none' }}>{c.name.slice(0, 1)}</span>}
-                <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 16, padding: '20px 22px' }}>
-                  <div style={{ width: 54, height: 54, borderRadius: 17, background: 'rgba(255,255,255,.24)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, fontWeight: 800, flexShrink: 0, overflow: 'hidden' }}>
-                    {c.thumbId
-                      ? <img src={`/api/pub/image/${c.thumbId}`} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : c.name.slice(0, 1)}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>{c.name}</div>
-                    {c.summary && (
-                      <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.summary}</div>
-                    )}
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                      {c.difficultyNm && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>⭐ {c.difficultyNm}</span>
-                      )}
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>👥 {c.memberCnt ?? 0}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>📝 글 {c.count}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gridAutoRows: '1fr', gap: 12 }}>
+            {categories.map((c, i) => {
+              const mine = myIds.has(c.hobbyId)
+              const hc = hobbyColor(c.hobbyId) // 취미마다 고정된 색(순번·정렬과 무관)
+              const no = String(i + 1).padStart(2, '0')
+              return (
+                <div
+                  key={c.hobbyId}
+                  className={`gen-tile gen-rise${mine ? ' is-mine' : ''}`}
+                  onClick={() => navigate(`/gen/hobby/${c.hobbyId}`)}
+                  style={{ background: hc.gradient, animationDelay: `${Math.min(i, 9) * 40}ms` }}
+                >
+                  {/* 우측 아트 — 썸네일이 있으면 이미지, 없으면 이름 첫 글자 */}
+                  {c.thumbId
+                    ? <img aria-hidden className="gen-tile-art" src={`/api/pub/image/${c.thumbId}`} alt="" />
+                    : <span aria-hidden className="gen-tile-ghost">{c.name.slice(0, 1)}</span>}
+                  {loggedIn && (
+                    <button
+                      type="button" className="gen-tile-fav"
+                      aria-label={mine ? '담기 취소' : '내 취미 담기'}
+                      onClick={(e) => { e.stopPropagation(); toggleMy(c.hobbyId) }}
+                    >
+                      {mine ? '♥' : '♡'}
+                    </button>
+                  )}
+                  {/* 텍스트는 좌측 60%까지만 — 우측 아트와 겹치지 않게 */}
+                  <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1, maxWidth: '60%' }}>
+                    <div className="gen-tile-no">NO.{no}</div>
+                    <div className="gen-tile-name">{c.name}</div>
+                    {c.summary && <div className="gen-tile-sum" style={{ marginTop: 6 }}>{c.summary}</div>}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {c.difficultyNm && <span className="gen-tile-chip">{c.difficultyNm}</span>}
+                      <span className="gen-tile-meta">멤버 {c.memberCnt ?? 0}</span>
+                      <span className="gen-tile-meta" style={{ opacity: 0.5 }}>·</span>
+                      <span className="gen-tile-meta">글 {c.count}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                    {loggedIn && (
-                      <button type="button" className="gen-heart" aria-label={myIds.has(c.hobbyId) ? '담기 취소' : '내 취미 담기'}
-                        onClick={(e) => { e.stopPropagation(); toggleMy(c.hobbyId) }}
-                        style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,.22)', color: '#fff', fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {myIds.has(c.hobbyId) ? '♥' : '♡'}
-                      </button>
-                    )}
-                    <span aria-hidden className="gen-hobby-go" style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>›</span>
-                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
 
-      {/* 지금 모집 중 */}
+      {/* 지금 모집 중 — 메타는 라벨+값 쌍으로(아이콘 이모지 대신 읽히는 정보로) */}
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-          <h3 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: gen.heroText }}>🔥 지금 모집 중</h3>
-          <a style={{ color: TEAL }} onClick={() => navigate('/gen/recruit')}>전체 보기</a>
-        </div>
+        <SectionHead
+          eyebrow="모집"
+          title="지금 함께할 사람들"
+          right={<a style={{ color: TEAL, fontWeight: 600 }} onClick={() => navigate('/gen/recruit')}>전체 보기</a>}
+        />
         {recruits.length === 0 ? (
           <Empty description="진행 중인 모집이 없습니다." />
         ) : (
-          <Row gutter={[16, 16]}>
+          <Row gutter={[12, 12]}>
             {recruits.map((r) => (
               <Col key={r.dbKey} xs={24} sm={12}>
                 <Card hoverable onClick={() => navigate(`/gen/recruit/${r.dbKey}`)} styles={{ body: { padding: 16 } }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Tag color="cyan">{r.hobbyNm}</Tag>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span className="gen-tile-chip">{r.hobbyNm}</span>
                     {statusTag(r.statusCd, r.statusNm)}
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{r.title}</div>
-                  <div style={{ fontSize: 13, color: '#888', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                    <span>📍 {r.region || '-'}</span>
-                    <span>🗓 {r.meetDt || '-'}</span>
-                    <span>👥 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
+                  <div style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.015em', marginBottom: 10 }}>{r.title}</div>
+                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+                    <Meta label="지역" value={[r.areaNm, r.region].filter(Boolean).join(' ') || '-'} />
+                    <Meta label="일정" value={r.meetDt || '미정'} />
+                    <Meta label="참여" value={`${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`} />
                   </div>
                 </Card>
               </Col>
@@ -241,23 +277,24 @@ export default function GenMain() {
       {/* 이번 주 베스트 — 최근 7일 참여도(좋아요·댓글·조회) 상위 */}
       {best.length > 0 && (
         <section>
-          <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 14, color: gen.heroText }}>🔥 이번 주 베스트</h3>
+          <SectionHead eyebrow="인기" title="이번 주 많이 읽은 글" />
           <Card styles={{ body: { padding: 0 } }}>
             {best.map((p, i) => (
-              <div key={p.dbKey}
+              <div key={p.dbKey} className="gen-row"
                 onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer',
-                  borderTop: i === 0 ? 'none' : '1px solid #f0f0f0',
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
+                  borderTop: i === 0 ? 'none' : `1px solid ${gen.line}`,
                 }}>
-                <span style={{
-                  flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: i < 3 ? gen.primary : '#ddd',
-                  color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                {/* 순위는 숫자 자체로 — 1위만 강조하고 나머지는 조용히(원형 배지 남발 방지) */}
+                <span className="gen-nums" style={{
+                  flexShrink: 0, width: 20, textAlign: 'right', fontSize: i === 0 ? 16 : 14,
+                  fontWeight: i === 0 ? 800 : 600, color: i === 0 ? gen.primary : gen.inkFaint,
                 }}>{i + 1}</span>
-                <Tag color="purple" style={{ flexShrink: 0 }}>{p.bbsinfoNm}</Tag>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-                <span style={{ fontSize: 12, color: '#aaa', flexShrink: 0 }}>
-                  ❤ {Number(p.goodCnt) || 0} · 💬 {Number(p.commentCnt) || 0}
+                <span className="gen-tile-chip" style={{ flexShrink: 0 }}>{p.bbsinfoNm}</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{p.title}</span>
+                <span className="gen-nums" style={{ fontSize: 12, color: gen.inkFaint, flexShrink: 0 }}>
+                  좋아요 {Number(p.goodCnt) || 0} · 댓글 {Number(p.commentCnt) || 0}
                 </span>
               </div>
             ))}
@@ -267,22 +304,24 @@ export default function GenMain() {
 
       {/* 최근 이야기 */}
       <section>
-        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 14, color: gen.heroText }}>💬 최근 이야기</h3>
+        <SectionHead eyebrow="이야기" title="방금 올라온 글" />
         {posts.length === 0 ? (
           <Empty description="등록된 글이 없습니다." />
         ) : (
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
-              <div key={p.dbKey}
+              <div key={p.dbKey} className="gen-row"
                 onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer',
-                  borderTop: i === 0 ? 'none' : '1px solid #f0f0f0',
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
+                  borderTop: i === 0 ? 'none' : `1px solid ${gen.line}`,
                 }}>
-                <Tag color="cyan" style={{ flexShrink: 0 }}>{p.catName}</Tag>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-                {Number(p.commentCnt) > 0 && <span style={{ color: TEAL, flexShrink: 0 }}>[{p.commentCnt}]</span>}
-                <span style={{ fontSize: 12, color: '#aaa', flexShrink: 0 }}>{p.regNm || '-'} · {p.regDt}</span>
+                <span className="gen-tile-chip" style={{ flexShrink: 0 }}>{p.catName}</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{p.title}</span>
+                {Number(p.commentCnt) > 0 && (
+                  <span className="gen-nums" style={{ color: TEAL, flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{p.commentCnt}</span>
+                )}
+                <span className="gen-nums" style={{ fontSize: 12, color: gen.inkFaint, flexShrink: 0 }}>{p.regNm || '-'} · {p.regDt}</span>
               </div>
             ))}
           </Card>

@@ -7,6 +7,52 @@
   src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
 }
 
+/*
+  사용자(gen) 영역 디자인 토큰.
+  뉴트럴을 무채색 회색이 아니라 퍼플 쪽으로 살짝 기울여 브랜드와 한 몸으로 보이게 한다
+  (순회색은 '기본값을 그대로 썼다'는 인상을 준다).
+  값은 여기서만 정의하고 화면은 var()로만 참조 — 색·여백이 페이지마다 어긋나는 것을 막는다.
+*/
+:root {
+  /* 브랜드 */
+  --gen-primary: #6c4ee3;
+  --gen-primary-strong: #5a3ecd;
+  --gen-primary-soft: rgba(108, 78, 227, 0.08);
+
+  /* 잉크(텍스트) — 순검정 대신 퍼플 편향 */
+  --gen-ink: #211b3d;
+  --gen-ink-soft: #6b6392;
+  --gen-ink-faint: #9a94b8;
+
+  /* 표면·경계 */
+  --gen-surface: #ffffff;
+  --gen-surface-2: #faf8ff;
+  --gen-line: #e7e1f7;
+
+  /* 그림자 — 근접(형태) + 원거리(부유). 퍼플 틴트로 배경과 이어지게 */
+  --gen-shadow-sm: 0 1px 2px rgba(33, 27, 61, 0.04), 0 2px 8px rgba(108, 78, 227, 0.06);
+  --gen-shadow-md: 0 2px 4px rgba(33, 27, 61, 0.05), 0 10px 24px rgba(108, 78, 227, 0.12);
+  --gen-shadow-lg: 0 4px 8px rgba(33, 27, 61, 0.06), 0 18px 40px rgba(108, 78, 227, 0.2);
+
+  /* 라운드 */
+  --gen-r-sm: 10px;
+  --gen-r-md: 14px;
+  --gen-r-lg: 20px;
+  --gen-r-xl: 24px;
+
+  /* 타입 스케일(1.25 근사) — 페이지별 임의 폰트크기를 대체 */
+  --gen-fs-display: 32px;
+  --gen-fs-h1: 24px;
+  --gen-fs-h2: 19px;
+  --gen-fs-body: 15px;
+  --gen-fs-sm: 13.5px;
+  --gen-fs-xs: 12.5px;
+
+  /* 컨테이너 폭 */
+  --gen-w-wide: 1080px;
+  --gen-w-page: 900px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -24,6 +70,49 @@ body {
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em; /* 한글 자간 살짝 좁혀 답답함 완화 */
   line-height: 1.6;        /* 줄간격 여유 → 딱딱함 완화 */
+  color: var(--gen-ink);
+}
+
+/* 제목은 가변폰트 굵기축으로 위계를 만든다(별도 디스플레이 폰트를 섞지 않는 이유: 한글에서 이질감) */
+.gen-display,
+.gen-h1,
+.gen-h2 {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  margin: 0;
+  color: var(--gen-ink);
+}
+.gen-display { font-size: var(--gen-fs-display); font-weight: 800; line-height: 1.25; }
+.gen-h1 { font-size: var(--gen-fs-h1); font-weight: 800; line-height: 1.3; }
+.gen-h2 { font-size: var(--gen-fs-h2); font-weight: 700; line-height: 1.35; }
+
+/* 수치가 세로로 정렬돼야 하는 곳(카운트·통계·표) */
+.gen-nums { font-variant-numeric: tabular-nums; }
+
+/* 카드 표면 — 테두리 + 2단 그림자. 흰 박스만 있을 때보다 층이 생긴다 */
+.gen-card {
+  background: var(--gen-surface);
+  border: 1px solid var(--gen-line);
+  border-radius: var(--gen-r-lg);
+  box-shadow: var(--gen-shadow-sm);
+}
+
+/* 목록 진입 애니메이션 — 카드가 순서대로 올라온다(과하지 않게 1회) */
+@keyframes gen-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.gen-rise {
+  animation: gen-rise 0.34s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gen-rise { animation: none; }
+  .gen-hobby-card,
+  .gen-hobby-go,
+  .gen-heart,
+  .gen-nav-btn { transition: none; }
+  .gen-hobby-card:hover { transform: none; }
 }
 
 /* Toast UI 에디터의 h1/h2 하단 밑줄 제거(저장/렌더에는 없는 에디터 전용 스타일) */
@@ -40,11 +129,11 @@ body {
 
 /* 사용자(gen) 취미 카드 — 호버 시 살짝 떠오르는 효과 */
 .gen-hobby-card {
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition: transform 0.18s cubic-bezier(0.22, 0.8, 0.3, 1), box-shadow 0.18s ease;
 }
 .gen-hobby-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 26px rgba(108, 78, 227, 0.28) !important;
+  transform: translateY(-4px);
+  box-shadow: var(--gen-shadow-lg) !important;
 }
 .gen-hobby-go {
   transition: transform 0.16s ease, background 0.16s ease;
@@ -72,17 +161,24 @@ body {
   cursor: pointer;
   padding: 9px 18px;
   border-radius: 16px;
-  color: rgba(43, 32, 87, 0.6); /* heroText 계열 소프트 */
+  color: var(--gen-ink-soft);
   font-weight: 600;
   line-height: 1.1;
   transition: color 0.15s ease, background 0.15s ease;
 }
 .gen-nav-btn:hover {
-  color: #6c4ee3;
-  background: rgba(108, 78, 227, 0.08);
+  color: var(--gen-primary);
+  background: var(--gen-primary-soft);
 }
 .gen-nav-btn.is-active {
-  color: #6c4ee3;
+  color: var(--gen-primary);
+}
+/* 키보드 접근성 — 마우스 없이 이동할 때 현재 위치가 보이도록 */
+.gen-nav-btn:focus-visible,
+.gen-foot-link:focus-visible {
+  outline: 2px solid var(--gen-primary);
+  outline-offset: 2px;
+  border-radius: 12px;
 }
 .gen-nav-label {
   font-size: 13px;
@@ -95,19 +191,19 @@ body {
   background: transparent;
 }
 .gen-nav-btn.is-active .gen-nav-bar {
-  background: #6c4ee3;
+  background: var(--gen-primary);
 }
 
 /* gen 푸터 빠른 링크 */
 .gen-foot-link {
-  color: #6b6392;
-  font-size: 13.5px;
+  color: var(--gen-ink-soft);
+  font-size: var(--gen-fs-sm);
   font-weight: 600;
   cursor: pointer;
   transition: color 0.15s ease;
 }
 .gen-foot-link:hover {
-  color: #6c4ee3;
+  color: var(--gen-primary);
 }
 
 /* gen 영역 섹션 제목 좌측 퍼플 악센트 바 */
@@ -123,5 +219,171 @@ body {
   bottom: 4px;
   width: 5px;
   border-radius: 3px;
-  background: linear-gradient(#8b72f5, #6c4ee3);
+  background: linear-gradient(#8b72f5, var(--gen-primary));
+}
+
+/*
+  헤더 — 스크롤 시 아래 콘텐츠가 살짝 비치는 반투명 유리면.
+  이 화면에서 '요즘 웹' 감각을 담당하는 유일한 포인트이므로 나머지는 조용하게 둔다.
+  backdrop-filter 미지원 브라우저에서는 위 background(불투명)가 그대로 보여 깨지지 않는다.
+*/
+.gen-header {
+  background: rgba(247, 244, 255, 0.86);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--gen-line);
+}
+
+/* ===== 도감(Collection) — 취미 카탈로그 =====
+   메인의 취미 목록은 '도감'이다(CLAUDE.md: 취미는 상단 메뉴가 아니라 도감 카드로 접근).
+   색은 장식이 아니라 상태를 나타낸다 — 담은 취미만 채워지고, 나머지는 흰 타일로 남는다.
+*/
+/*
+  타일은 취미 색으로 채운다(배경은 GenMain에서 hobbyColor().gradient로 지정).
+  모든 타일이 같은 규칙으로 채워지므로 '어떤 건 반투명, 어떤 건 흰색'처럼 섞이지 않는다.
+*/
+.gen-tile {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  border: none;
+  border-radius: var(--gen-r-lg);
+  color: #fff;
+  box-shadow: var(--gen-shadow-md);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s cubic-bezier(0.22, 0.8, 0.3, 1), box-shadow 0.18s ease;
+}
+.gen-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--gen-shadow-lg);
+}
+/* 상단 광택 — 단색 채움이 납작해 보이지 않게 */
+.gen-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.22), transparent 58%);
+  pointer-events: none;
+}
+/* 담은 취미 — 카드가 이미 색으로 차 있으므로 흰 링으로 구분한다 */
+.gen-tile.is-mine {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9) inset, var(--gen-shadow-md);
+}
+
+/* 도감 번호 — 카탈로그의 색인 번호(노출 순서). 숫자는 폭 고정으로 줄을 맞춘다 */
+.gen-tile-no {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+.gen-tile-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+.gen-tile-sum {
+  font-size: var(--gen-fs-xs);
+  color: rgba(255, 255, 255, 0.88);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gen-tile-meta {
+  font-size: var(--gen-fs-xs);
+  color: rgba(255, 255, 255, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+/* 칩 — 컬러 카드 위에서는 흰 반투명이 어떤 배경색에서도 같은 톤으로 읽힌다 */
+.gen-tile-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+/*
+  카드 우측 아트 — 취미 썸네일이 주역이다.
+  우측을 이미지로 채우고 왼쪽으로 갈수록 사라지게(mask) 해서 텍스트 영역을 침범하지 않는다.
+*/
+.gen-tile-art {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 46%;
+  /*
+    img는 replaced element라 top/bottom만 주면 자기 원본 비율로 높이를 정해버린다
+    (정사각 사진만 꽉 차고 세로가 짧은 사진은 카드 아래가 비었다).
+    height를 명시해야 어떤 비율의 사진이든 카드 높이를 꽉 채운다.
+  */
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.75) 45%, #000 100%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.75) 45%, #000 100%);
+  pointer-events: none;
+}
+
+/* 썸네일이 없는 취미 — 이름 첫 글자를 큰 워터마크로(도감의 빈 칸 느낌) */
+.gen-tile-ghost {
+  position: absolute;
+  right: 18px;
+  bottom: -22px;
+  font-size: 96px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+/* 담기 버튼 — 카드 우상단 고정(우측 아트 이미지 위에 떠 있어야 눌린다) */
+.gen-tile-fav {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  border: none;
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.gen-tile-fav:hover { transform: scale(1.1); background: rgba(255, 255, 255, 0.4); }
+.gen-tile-fav:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ===== 섹션 헤더 — eyebrow(분류) + 제목. 이모지 마커를 쓰지 않는다 ===== */
+.gen-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gen-primary);
+  margin-bottom: 2px;
+}
+
+/* 목록 행 — 마우스를 올린 줄만 살짝 밝아진다(표 전체를 칠하지 않는다) */
+.gen-row {
+  transition: background 0.14s ease;
+  border-radius: var(--gen-r-md);
+}
+.gen-row:hover {
+  background: var(--gen-surface-2);
 }

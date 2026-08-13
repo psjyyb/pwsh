@@ -3,6 +3,7 @@ package com.pwsh.domain.user.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.eventlog.service.EventLogService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +20,7 @@ public class UserService {
 
     private final CommonDAO commonDAO;
     private final PasswordEncoder passwordEncoder;
+    private final EventLogService eventLogService;
 
     public List<UserVO> selectList(UserVO vo) {
         return commonDAO.selectList("userDAO.selectList", vo);
@@ -73,6 +75,7 @@ public class UserService {
     /** 관리자 강제 로그아웃 — 대상 사용자의 token_ver +1로 발급된 토큰(access·refresh) 즉시 무효화. */
     public void forceLogout(UserVO vo) {
         commonDAO.selectOne("userDAO.incrementTokenVer", vo);
+        eventLogService.write("USER_LOGOUT", "t_user", vo.getUserId());
     }
 
     /**
@@ -90,6 +93,8 @@ public class UserService {
         if ("STATUS03".equals(status)) {
             commonDAO.selectOne("userDAO.incrementTokenVer", vo); // 정지 즉시 접근 차단
         }
+        // 감사: 컨트롤러 진입점이 updateStatus라 AOP 대상이 아니므로 여기서 직접 남긴다(제재는 추적 필수).
+        eventLogService.write("STATUS03".equals(status) ? "USER_SUSPEND" : "USER_RESTORE", "t_user", vo.getUserId());
     }
 
     /** 사용자-권한그룹 매핑 저장 — 기존 삭제 후 재등록 */
@@ -102,5 +107,6 @@ public class UserService {
                 commonDAO.insert("userDAO.insertAuthUser", vo);
             }
         }
+        eventLogService.write("USER_AUTHGRP", "t_user", vo.getUserId());
     }
 }

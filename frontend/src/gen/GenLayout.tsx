@@ -217,7 +217,8 @@ export default function GenLayout() {
   return (
     <ConfigProvider theme={genTheme}>
       <Layout style={{ minHeight: '100vh', backgroundColor: gen.pageBg, backgroundImage: `url(${hobbyPattern})`, backgroundAttachment: 'fixed' }}>
-        <Layout.Header style={{ background: gen.headerBg, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', height: 72, paddingInline: 22, columnGap: 18, boxShadow: '0 1px 0 rgba(108,78,227,.10)', position: 'sticky', top: 0, zIndex: 20 }}>
+        {/* 배경은 .gen-header(반투명+blur)가 담당 — 인라인 background를 주면 불투명해져 유리면이 사라진다 */}
+        <Layout.Header className="gen-header" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', height: 72, paddingInline: 22, columnGap: 18, position: 'sticky', top: 0, zIndex: 20 }}>
           {/* 좌: 로고(모바일은 햄버거 포함) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'start', minWidth: 0 }}>
             {isMobile && (
