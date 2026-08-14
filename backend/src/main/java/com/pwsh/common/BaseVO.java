@@ -4,7 +4,7 @@ import java.io.Serializable;
 import lombok.Data;
 
 /**
- * 공통 VO 최상위 부모. 모든 도메인 VO가 상속. (표준 CMS BaseVO 계승 + camelCase/간소화)
+ * 공통 VO 최상위 부모. 모든 도메인 VO가 상속(필드는 String 통일, DB snake_case ↔ camelCase 자동 매핑).
  * - 페이징: pageIndex(1-base), size → offset 계산
  * - 검색: searchCondition/searchKeyword
  * - 공통키: dbKey/dbKeys (조회 결과 PK 별칭 + 단건 조회/수정/삭제 WHERE 바인딩 겸용)
@@ -31,7 +31,7 @@ public class BaseVO implements Serializable {
     private String searchKeyword;
 
     // ===== 개인정보 대칭키(pgcrypto AES). 매퍼에서 #{encKey}로 사용 =====
-    // 운영은 환경변수 DB_ENC_KEY로 주입(미설정 시 기본값). 표준 CMS의 BaseVO enc_key 계승 방식.
+    // 운영은 환경변수 DB_ENC_KEY로 주입(미설정 시 기본값). VO 공통 필드라 모든 매퍼가 같은 키를 쓴다.
     private static final String ENC_KEY = System.getenv().getOrDefault("DB_ENC_KEY", "psjyyb");
 
     /**

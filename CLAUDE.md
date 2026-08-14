@@ -1,6 +1,6 @@
 # pwsh — 개발 가이드 (Claude·개발자 공용)
 
-**pwsh(People Who Share Hobbies)** — 취미 커뮤니티. 표준 웹 기본틀(CMS)에서 파생(패키지 `com.pwsh`, DB `pwsh`).
+**pwsh(People Who Share Hobbies)** — 취미 커뮤니티. 직접 만든 표준 웹 기본틀(CMS) 위에 얹은 서비스(패키지 `com.pwsh`, DB `pwsh`).
 **아래 규약을 반드시 따른다.** 상세 규격은 [docs/standard-template-spec.md](docs/standard-template-spec.md).
 
 ## 이 프로젝트의 도메인 (신규)
@@ -50,5 +50,4 @@
 |---|---|
 | [docs/standard-template-spec.md](docs/standard-template-spec.md) | 표준 기본틀 규격서(상세) |
 | [docs/db-conventions.md](docs/db-conventions.md) | DB/테이블 설계 규칙 |
-| [docs/db-conventions.md](docs/db-conventions.md) | DB 설계 규칙 |
 | [docs/file-orphan-gc.md](docs/file-orphan-gc.md) | 파일 참조 모델·GC·삭제 복구 SQL |

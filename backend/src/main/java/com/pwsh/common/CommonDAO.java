@@ -6,7 +6,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 공통 DAO. sql_id(네임스페이스.구문ID) 문자열로 MyBatis를 범용 실행. (표준 CMS CommonDAO 계승, 별도 프레임워크 제거)
+ * 공통 DAO. sql_id(네임스페이스.구문ID) 문자열로 MyBatis를 범용 실행 — 도메인마다 DAO 클래스를 만들지 않는다.
  */
 @Repository
 @RequiredArgsConstructor

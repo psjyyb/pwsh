@@ -4,9 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 목록 응답의 페이징 정보 생성 헬퍼.
- * 표준 CMS CommonUtil.createMap의 page 블록을 REST(JSON) 전용으로 단순화.
- * (별도 프레임워크 PaginationInfo 대체 — 링크 계산은 프론트에서 totalPages/currentPage로 처리)
+ * 목록 응답의 페이징 정보 생성 헬퍼(REST/JSON 전용).
+ * 서버는 totalPages/currentPage 같은 숫자만 내려주고, 페이지 링크 렌더링은 프론트가 담당한다.
  */
 public final class PageUtil {
 

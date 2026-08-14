@@ -1,5 +1,5 @@
 /**
- * 공통 포맷 유틸 (adm/gen 공용). 표준 CMS common.js(formatNumber/getToday/formatPhone) 계승·현대화.
+ * 공통 포맷 유틸 (adm/gen 공용) — 숫자·날짜·전화번호 표시 포맷을 한 곳에서 관리.
  * 표시(뷰)용 포맷 함수 모음 — 값 저장은 원본(숫자/ISO) 유지.
  */
 

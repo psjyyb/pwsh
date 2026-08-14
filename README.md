@@ -1,8 +1,8 @@
 # pwsh (People Who Share Hobbies)
 
-취미 커뮤니티 — 취미별(등산·보드게임·낚시…) 게시판에서 정보를 공유·토론하고, 함께할 사람을 **모집**하는 웹 서비스. 표준 웹 기본틀을 기반으로 개발한다.
+취미 커뮤니티 — 취미별(등산·보드게임·낚시…) 게시판에서 정보를 공유·토론하고, 함께할 사람을 **모집**하는 웹 서비스. 직접 만든 표준 웹 기본틀(framework) 위에 얹은 첫 서비스다.
 
-주요 도메인: **취미 게시판**(카테고리 = 게시판) · **모집**(모임원 모집·참여신청·수락) · **셀프 회원가입**(닉네임). 기반 틀의 사용자·메뉴·권한·코드·게시판·파일 구조를 그대로 계승한다.
+주요 도메인: **취미 게시판**(카테고리 = 게시판) · **모집**(모임원 모집·참여신청·수락) · **셀프 회원가입**(닉네임). 사용자·메뉴·권한·코드·게시판·파일 등 공통 CMS 기능은 표준 틀에 이미 들어 있다.
 
 ## 기술 스택
 - **Backend**: Spring Boot 4.1 · Java 17 · Gradle · MyBatis · Spring Security + JWT
@@ -20,7 +20,7 @@ pwsh/
 
 ## 개발 환경
 - Java 17 (`JAVA_HOME` 지정 필요)
-- Node 20 (프론트) — npm은 보안 프로그램 CA 신뢰 필요(`NODE_EXTRA_CA_CERTS`)
+- Node 20 (프론트) — TLS를 가로채는 보안 프로그램을 쓰면 CA 지정 필요(`NODE_EXTRA_CA_CERTS`)
 - PostgreSQL (DB명: `pwsh`)
 - Gradle Wrapper 포함 (별도 설치 불필요)
 
@@ -45,7 +45,7 @@ cd backend
 ### 3. Frontend 실행
 ```powershell
 cd frontend
-# 로컬 환경 TLS 신뢰: 최초 npm 설치/실행 시 CA 지정
+# TLS 가로채기(백신 등) 환경이면 최초 npm 설치/실행 시 CA 지정
 $env:NODE_EXTRA_CA_CERTS='<ca.pem 경로>'
 npm install
 npm run dev        # http://localhost:3000 (백엔드 8080 필요, /api 프록시)
@@ -58,7 +58,6 @@ npm run dev        # http://localhost:3000 (백엔드 8080 필요, /api 프록�
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | **개발 가이드(규약·새 도메인 추가·인증/파일)** — 시작점 |
 | [docs/standard-template-spec.md](docs/standard-template-spec.md) | 표준 기본틀 규격서(상세) |
-| [docs/db-conventions.md](docs/db-conventions.md) | DB/테이블 설계 규칙 |
 | [docs/db-conventions.md](docs/db-conventions.md) | DB/테이블 설계 규칙 |
 | [docs/file-orphan-gc.md](docs/file-orphan-gc.md) | 파일 참조 모델·고아파일 정리(GC)·삭제 복구 SQL |
 

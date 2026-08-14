@@ -22,7 +22,7 @@ export type SearchField =
   | { type: 'select'; name: string; placeholder?: string; options: { value: string; label: string }[]; width?: number }
   | { type: 'code'; name: string; placeholder?: string; pCodeId: string; width?: number }
   /**
-   * 표준 CMS 방식 "검색 대상 선택 + 검색어" 조합. 드롭다운으로 검색할 컬럼을 바꿔가며 하나의 검색어로 조회.
+   * "검색 대상 선택 + 검색어" 조합. 드롭다운으로 검색할 컬럼을 바꿔가며 하나의 검색어로 조회.
    * conditions.value = 백엔드 searchCondition 분기값(예: 'access_contents','reg_id').
    */
   | {

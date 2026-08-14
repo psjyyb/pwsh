@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { Button, message } from 'antd'
 
 /**
- * 다음(카카오) 우편번호 검색 버튼 (재사용). 표준 CMS common.js openDaumPost_new 대응.
+ * 다음(카카오) 우편번호 검색 버튼 (주소 입력이 필요한 화면에서 재사용).
  * 외부 스크립트(postcode.v2.js)를 1회 동적 로드 후 팝업으로 주소 선택 → onSelect 콜백.
  * 사용 예)
  *   const [form] = Form.useForm()

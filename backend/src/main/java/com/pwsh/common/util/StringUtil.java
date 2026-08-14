@@ -1,7 +1,7 @@
 package com.pwsh.common.util;
 
 /**
- * 문자열 공통 유틸. (표준 CMS CommonStrUtil 역할 — 컨트롤러/서비스 전역 재사용)
+ * 문자열 공통 유틸 — 컨트롤러/서비스 전역에서 재사용.
  */
 public final class StringUtil {
 

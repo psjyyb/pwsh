@@ -1,15 +1,15 @@
 # 표준 웹 기본틀(framework) 규격서 — v0.3
 
-> 목적: 여러 프로젝트의 공통 기반이 되는 **표준 틀(framework)**. 표준 CMS(별도 프레임워크/Boot2.7) 구조를 계승하되 스택을 현대화.
-> 갱신: 2026-07-15 (JPA 도입안 폐기 → 표준 CMS 방식 MyBatis 범용으로 확정, common/global/domain 3분류 반영)
+> 목적: 여러 프로젝트의 공통 기반이 되는 **표준 틀(framework)**. 관리자 CMS(사용자·메뉴·권한·코드·게시판·파일)를 매번 다시 만들지 않는 것이 목표.
+> 갱신: 2026-07-15 (JPA 도입안 폐기 → MyBatis 범용 방식으로 확정, common/global/domain 3분류 반영)
 
 ---
 
 ## 0. 설계 방향 (확정)
 | 항목 | 결정 |
 |---|---|
-| 접근 | 표준 CMS 틀 계승 + 최소 업그레이드 (억지로 새 기술 도입 X, 틀은 가볍게) |
-| 별도 프레임워크 | 제거 (순수 Spring Boot) |
+| 접근 | 검증된 방식 위주 + 최소 구성 (억지로 새 기술 도입 X, 틀은 가볍게) |
+| 프레임워크 | 순수 Spring Boot (별도 프레임워크 계층 없음) |
 | 영속성 | **MyBatis 단독** (JPA 미사용) — `sql_id` 범용 방식 |
 | 프론트 | React + TypeScript + Vite (예정), 백엔드는 REST API |
 | 인증 | JWT (Access + Refresh) |
@@ -46,7 +46,7 @@ pwsh/
 ```
 
 ### 백엔드 패키지 (3분류)
-표준 CMS 대응: `코어 패키지`(틀) ↔ **common + global**, `업무 패키지`(업무) ↔ **domain**
+틀(common + global)과 업무(domain)를 분리한다 — 새 프로젝트는 domain만 새로 쓰고 나머지는 그대로 가져간다.
 ```
 com.pwsh
 ├─ common/                  ← 공통 재사용 (도메인이 import)
@@ -82,7 +82,7 @@ com.pwsh
 모든 도메인 VO의 부모. 페이징(`pageIndex`/`size`/`getOffset`) + 검색(`searchCondition`/`searchKeyword`/`selectedId`) + 공통키(`dbKey`) + audit(`regId`/`updId`/`regDt`/`updDt`/`regIp`/`updIp`/`useYn`).
 
 ### CommonDAO (common)
-`SqlSessionTemplate`으로 `sql_id`(=`namespace.stmtId`) 문자열을 범용 실행. 별도 프레임워크 `추상 매퍼` 대체.
+`SqlSessionTemplate`으로 `sql_id`(=`namespace.stmtId`) 문자열을 범용 실행. 도메인마다 DAO 인터페이스를 만들지 않는다.
 ```java
 commonDAO.selectList("codeDAO.selectList", vo);
 commonDAO.insert("codeDAO.insert", vo);
@@ -102,11 +102,11 @@ MyBatis Interceptor. INSERT/UPDATE 시 BaseVO의 audit을 자동 세팅:
 
 ---
 
-## 5. 도메인 개발 패턴 ★핵심 (표준 CMS 컨트롤러 방식 계승 + 현대화)
+## 5. 도메인 개발 패턴 ★핵심
 새 도메인 추가 시 **3파일만**:
 ```
 domain/{name}/service/{Name}VO.java     (extends BaseVO — 필드만)
-domain/{name}/web/{Name}Controller.java (표준 CMS 방식: 액션 URL + sql_id 리터럴 위임)
+domain/{name}/web/{Name}Controller.java (액션 URL + sql_id 리터럴 위임)
 resources/mapper/{name}/{Name}_SQL.xml  (namespace="{name}DAO", sql_id: selectList/selectListTotCnt/selectView/insert/update/(updateordr)/delete)
 ```
 
@@ -163,7 +163,7 @@ resources/mapper/{name}/{Name}_SQL.xml  (namespace="{name}DAO", sql_id: selectLi
 ## 7. DB
 - 스키마: `sql/schema.sql`, 초기데이터: `sql/data.sql` — **수동 실행**(Flyway 등 미사용), UTF-8
 - 규칙: `docs/db-conventions.md` (FK명=참조PK명, 물리FK 미사용, audit 컬럼, yn=varchar(1), PK=IDENTITY 등)
-- 공통 기초 테이블 (t_user·t_menu·t_auth·t_auth_grp·t_bbsinfo·t_bbs·t_comment·t_file·r_file·t_config·t_event_log 등). (t_prog는 제거 — 메뉴 conn_ty로 대체)
+- 공통 기초 테이블: t_user·t_menu·t_auth·t_auth_grp·t_bbsinfo·t_bbs·t_comment·t_file·r_file·t_config·t_event_log 등 (화면 목록은 메뉴 `conn_ty`로 관리 — 별도 프로그램 테이블 없음)
 - **관리자 UI/브랜딩**: `t_menu.icon`(메뉴별 아이콘 키 → 프론트 `MenuGlyph` 레지스트리 렌더). 로고는 `r_file`(map_key=config_id, file_loc='LOGO')로 **환경설정에서 업로드**(미설정 시 프론트 기본 로고 `assets/logo.svg`). 로고는 공개 서빙(로그인 화면 노출).
 
 ---
@@ -186,7 +186,7 @@ $env:JAVA_HOME='...jdk-17'   # gradle.properties에 org.gradle.java.home 고정�
 
 ## 9. 재사용 방식 (틀 → 프로젝트)
 - **지금 단계**: framework를 **시작 템플릿으로 복사** → 새 프로젝트 → `domain`에 업무 추가. common/global(틀 코어)은 물려받음.
-- **추후**: 프로젝트가 여러 개면 코어(common/global)를 **공통 라이브러리(jar)** 로 분리해 코어 패키지처럼 공유 가능.
+- **추후**: 프로젝트가 여러 개면 코어(common/global)를 **공통 라이브러리(jar)** 로 분리해 여러 프로젝트가 공유 가능.
 
 ---
 
