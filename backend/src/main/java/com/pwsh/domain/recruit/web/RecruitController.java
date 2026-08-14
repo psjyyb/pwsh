@@ -29,11 +29,11 @@ public class RecruitController {
 
     @RequestMapping("/selectRecruitList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody RecruitVO searchVO) {
-        int totCnt = recruitService.selectListTotCnt(searchVO);
+        int totalCount = recruitService.selectListTotalCount(searchVO);
         return ApiResponse.ok(Map.of(
                 "list", recruitService.selectList(searchVO),
-                "totCnt", totCnt,
-                "page", PageUtil.of(searchVO.getPageIndex(), searchVO.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(searchVO.getPageNo(), searchVO.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectRecruitView.do")

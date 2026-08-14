@@ -41,9 +41,9 @@ public class RecruitService {
         return (me == null || "system".equals(me)) ? null : me;
     }
 
-    public int selectListTotCnt(RecruitVO vo) {
+    public int selectListTotalCount(RecruitVO vo) {
         vo.setViewerId(viewerId()); // 목록과 동일한 차단 필터를 적용해 총건수 일치
-        return commonDAO.selectOne("recruitDAO.selectListTotCnt", vo);
+        return commonDAO.selectOne("recruitDAO.selectListTotalCount", vo);
     }
 
     /** 내가 연 모집(마이페이지) — 본인 reg_id 기준. */

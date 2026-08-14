@@ -11,5 +11,5 @@ export interface SearchResult {
 
 export const searchApi = {
   /** 취미·모집·게시글 통합 검색 */
-  all: (searchKeyword: string) => apiPost<SearchResult>('/adm/search/selectSearchAll.do', { searchKeyword }),
+  all: (filterKeyword: string) => apiPost<SearchResult>('/adm/search/selectSearchAll.do', { filterKeyword }),
 }

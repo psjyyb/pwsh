@@ -22,14 +22,14 @@ public class FeedController {
 
     private final FeedService feedService;
 
-    /** 피드 목록(로그인 필요). body {feedFilter?, pageIndex, size} */
+    /** 피드 목록(로그인 필요). body {feedFilter?, pageNo, pageSize} */
     @RequestMapping("/selectFeedList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody FeedVO searchVO) {
-        int totCnt = feedService.selectListTotCnt(searchVO);
+        int totalCount = feedService.selectListTotalCount(searchVO);
         Map<String, Object> result = new HashMap<>();
         result.put("list", feedService.selectList(searchVO));
-        result.put("totCnt", totCnt);
-        result.put("page", PageUtil.of(searchVO.getPageIndex(), searchVO.getSize(), totCnt));
+        result.put("totalCount", totalCount);
+        result.put("page", PageUtil.of(searchVO.getPageNo(), searchVO.getPageSize(), totalCount));
         // 담은 취미가 없어 비었는지, 취미는 담았지만 글이 없어 비었는지 화면에서 구분하기 위해
         result.put("myHobbyCnt", feedService.selectMyHobbyCnt(searchVO));
         return ApiResponse.ok(result);

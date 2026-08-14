@@ -51,9 +51,9 @@ public class ReportService {
     }
 
     /** 신고 총건수(페이징) — 목록과 동일한 상태 필터. */
-    public int selectListTotCnt(ReportVO vo) {
+    public int selectListTotalCount(ReportVO vo) {
         assertAdmin();
-        return commonDAO.selectOne("reportDAO.selectListTotCnt", vo);
+        return commonDAO.selectOne("reportDAO.selectListTotalCount", vo);
     }
 
     /**

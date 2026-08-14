@@ -44,7 +44,7 @@ export default function RecruitPage() {
 
   const [rows, setRows] = useState<Recruit[]>([])
   const [total, setTotal] = useState(0)
-  const [pageIndex, setPageIndex] = useState(1)
+  const [pageNo, setPageNo] = useState(1)
   const [filterCat, setFilterCat] = useState<string | undefined>()
   const [filterArea, setFilterArea] = useState<string | undefined>() // 시/도 필터(AREA00)
   const [filterStatus, setFilterStatus] = useState<string | undefined>()
@@ -63,7 +63,7 @@ export default function RecruitPage() {
   const [copyOpen, setCopyOpen] = useState(false)
   const [copying, setCopying] = useState(false)
 
-  const size = 10
+  const pageSize = 10
   const meId = getClaims()?.sub
   const loggedIn = !!tokenStore.get()
   const admin = isAdmin()
@@ -81,11 +81,11 @@ export default function RecruitPage() {
       setLoading(true)
       try {
         const res = await recruitApi.list({
-          hobbyId: filterCat, statusCd: filterStatus, areaCd: filterArea, searchKeyword: kw, pageIndex: p, size,
+          hobbyId: filterCat, statusCd: filterStatus, areaCd: filterArea, filterKeyword: kw, pageNo: p, pageSize,
         })
         setRows(res.list)
-        setTotal(res.totCnt)
-        setPageIndex(p)
+        setTotal(res.totalCount)
+        setPageNo(p)
       } catch (e) {
         message.error(e instanceof Error ? e.message : '목록 조회 실패')
       } finally {
@@ -161,7 +161,7 @@ export default function RecruitPage() {
       else await recruitApi.insert(payload)
       message.success('저장되었습니다.')
       setMode('list')
-      loadList(editKey ? pageIndex : 1)
+      loadList(editKey ? pageNo : 1)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '저장 실패')
     }
@@ -352,7 +352,7 @@ export default function RecruitPage() {
               ))}
             </Space>
             <div style={{ textAlign: 'center', marginTop: 12 }}>
-              <Pagination current={pageIndex} pageSize={size} total={total} onChange={(p) => loadList(p)} showSizeChanger={false} simple />
+              <Pagination current={pageNo} pageSize={pageSize} total={total} onChange={(p) => loadList(p)} showSizeChanger={false} simple />
             </div>
           </>
         ) : (
@@ -360,7 +360,7 @@ export default function RecruitPage() {
             rowKey="rowId" size="small" loading={loading} columns={columns} dataSource={rows}
             onRow={(r) => ({ onClick: () => openView(r.rowId!), style: { cursor: 'pointer' } })}
             pagination={{
-              current: pageIndex, pageSize: size, total, onChange: (p) => loadList(p),
+              current: pageNo, pageSize: pageSize, total, onChange: (p) => loadList(p),
               showSizeChanger: false,
             }}
           />
@@ -414,7 +414,7 @@ export default function RecruitPage() {
                 {bookmarked ? '🔖 북마크됨' : '🔖 북마크'}
               </Button>
             )}
-            <Button onClick={() => { setMode('list'); loadList(pageIndex) }}>목록</Button>
+            <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
           </Space>
         }
       >

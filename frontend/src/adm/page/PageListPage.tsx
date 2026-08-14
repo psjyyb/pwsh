@@ -19,7 +19,7 @@ type ContentMode = 'html' | 'editor'
  *  - 미리보기: 저장 화면과 동일하게 HTML 렌더 확인.
  */
 export default function PageListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Page>(PAGE_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Page>(PAGE_LIST_URL)
   const [mode, setMode] = useState<'list' | 'form'>('list')
   const [editKey, setEditKey] = useState<string | null>(null)
   const [pendingTitle, setPendingTitle] = useState('')
@@ -173,7 +173,7 @@ export default function PageListPage() {
   return (
     <Card title="일반페이지 관리">
       <SearchBar
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '제목 검색', width: 260 }]}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '제목 검색', width: 260 }]}
         onSearch={(v) => search(v)}
         onCreate={openNew}
         createText="신규"
@@ -184,7 +184,7 @@ export default function PageListPage() {
         columns={columns}
         dataSource={rows}
         loading={loading}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

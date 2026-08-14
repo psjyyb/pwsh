@@ -46,7 +46,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const [mode, setMode] = useState<Mode>('list')
   const [rows, setRows] = useState<Bbs[]>([])
   const [total, setTotal] = useState(0)
-  const [pageIndex, setPageIndex] = useState(1)
+  const [pageNo, setPageNo] = useState(1)
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -70,7 +70,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const editorRef = useRef<RichTextEditorHandle>(null)
   const [context, setContext] = useState('')
 
-  const size = Number(board.listCnt) || 10
+  const pageSize = Number(board.listCnt) || 10
   const meId = getClaims()?.sub
   const canEdit = (mineYn?: string) => isAdmin() || mineYn === 'Y' // 소유자 판정=서버계산 mineYn(로그인 ID 미노출)
   const isNew = (regDt?: string) => {
@@ -87,17 +87,17 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       if (!bbsinfoId) return
       setLoading(true)
       try {
-        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageIndex: p, size, searchKeyword: kw })
+        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageNo: p, pageSize, filterKeyword: kw })
         setRows(res.list)
-        setTotal(res.totCnt)
-        setPageIndex(p)
+        setTotal(res.totalCount)
+        setPageNo(p)
       } catch (e) {
         message.error(e instanceof Error ? e.message : '목록 조회 실패')
       } finally {
         setLoading(false)
       }
     },
-    [bbsinfoId, size, keyword],
+    [bbsinfoId, pageSize, keyword],
   )
 
   useEffect(() => {
@@ -239,7 +239,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       await fileApi.saveMapping(id, EDITOR_LOC, extractEditorImageIds(html))
       message.success('저장되었습니다.')
       setMode('list')
-      loadList(editKey ? pageIndex : 1)
+      loadList(editKey ? pageNo : 1)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '저장 실패')
     }
@@ -408,9 +408,9 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <Spin spinning={loading}>{galleryBody}</Spin>
             <div style={{ textAlign: 'right', marginTop: 12 }}>
               <Space>
-                <Button size="small" disabled={pageIndex <= 1} onClick={() => loadList(pageIndex - 1)}>이전</Button>
-                <span style={{ color: '#999' }}>{pageIndex} / {Math.max(1, Math.ceil(total / size))}</span>
-                <Button size="small" disabled={pageIndex >= Math.ceil(total / size)} onClick={() => loadList(pageIndex + 1)}>다음</Button>
+                <Button size="small" disabled={pageNo <= 1} onClick={() => loadList(pageNo - 1)}>이전</Button>
+                <span style={{ color: '#999' }}>{pageNo} / {Math.max(1, Math.ceil(total / pageSize))}</span>
+                <Button size="small" disabled={pageNo >= Math.ceil(total / pageSize)} onClick={() => loadList(pageNo + 1)}>다음</Button>
               </Space>
             </div>
           </>
@@ -438,9 +438,9 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             {/* 원글+답글(스레드)이 한 페이지에 섞여 오므로 Table 자체 페이징 대신 원글 기준 페이저 사용 */}
             <div style={{ textAlign: 'right', marginTop: 12 }}>
               <Space>
-                <Button size="small" disabled={pageIndex <= 1} onClick={() => loadList(pageIndex - 1)}>이전</Button>
-                <span style={{ color: '#999' }}>{pageIndex} / {Math.max(1, Math.ceil(total / size))}</span>
-                <Button size="small" disabled={pageIndex >= Math.ceil(total / size)} onClick={() => loadList(pageIndex + 1)}>다음</Button>
+                <Button size="small" disabled={pageNo <= 1} onClick={() => loadList(pageNo - 1)}>이전</Button>
+                <span style={{ color: '#999' }}>{pageNo} / {Math.max(1, Math.ceil(total / pageSize))}</span>
+                <Button size="small" disabled={pageNo >= Math.ceil(total / pageSize)} onClick={() => loadList(pageNo + 1)}>다음</Button>
               </Space>
             </div>
           </>
@@ -463,7 +463,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
                 <Button danger>삭제</Button>
               </Popconfirm>
             )}
-            <Button onClick={() => { setMode('list'); loadList(pageIndex) }}>목록</Button>
+            <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
           </Space>
         }
       >

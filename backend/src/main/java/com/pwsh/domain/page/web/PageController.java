@@ -24,11 +24,11 @@ public class PageController {
     @RequestMapping("/selectPageList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody(required = false) PageVO searchVO) {
         PageVO vo = searchVO == null ? new PageVO() : searchVO;
-        int totCnt = pageService.selectListTotCnt(vo);
+        int totalCount = pageService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", pageService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectPageView.do")

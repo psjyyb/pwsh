@@ -43,10 +43,10 @@ public class BbsService {
         return commonDAO.selectList("bbsDAO.selectListMine", vo);
     }
 
-    public int selectListTotCnt(BbsVO vo) {
+    public int selectListTotalCount(BbsVO vo) {
         genAccessGuard.checkBoard(vo.getBbsinfoId());
         vo.setViewerId(viewerId()); // 목록과 동일한 차단 필터를 적용해 총건수 일치
-        return commonDAO.selectOne("bbsDAO.selectListTotCnt", vo);
+        return commonDAO.selectOne("bbsDAO.selectListTotalCount", vo);
     }
 
     /**

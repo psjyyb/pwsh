@@ -49,10 +49,10 @@
         WHERE r.use_yn = 'Y'
         <if test="status != null and status != ''">AND r.status = #{status}</if>
         ORDER BY r.report_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="reportVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="reportVO" resultType="int">
         SELECT COUNT(*) FROM t_report r
         WHERE r.use_yn = 'Y'
         <if test="status != null and status != ''">AND r.status = #{status}</if>

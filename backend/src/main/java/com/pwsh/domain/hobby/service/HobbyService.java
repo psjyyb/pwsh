@@ -22,8 +22,8 @@ public class HobbyService {
         return commonDAO.selectList("hobbyDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(HobbyVO vo) {
-        return commonDAO.selectOne("hobbyDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(HobbyVO vo) {
+        return commonDAO.selectOne("hobbyDAO.selectListTotalCount", vo);
     }
 
     public HobbyVO selectView(HobbyVO vo) {

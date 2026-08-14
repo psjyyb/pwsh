@@ -22,8 +22,8 @@ public class PopupService {
         return commonDAO.selectList("popupDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(PopupVO vo) {
-        return commonDAO.selectOne("popupDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(PopupVO vo) {
+        return commonDAO.selectOne("popupDAO.selectListTotalCount", vo);
     }
 
     public PopupVO selectView(PopupVO vo) {
@@ -67,7 +67,7 @@ public class PopupService {
         if (cur == null) {
             return;
         }
-        cur.setSearchCondition(vo.getSearchCondition());
+        cur.setDirection(vo.getDirection());
         PopupVO adj = commonDAO.selectOne("popupDAO.selectAdjacentOrdr", cur);
         if (adj == null) {
             return;

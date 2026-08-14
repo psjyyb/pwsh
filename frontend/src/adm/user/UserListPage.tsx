@@ -15,7 +15,7 @@ import AuthgrpAssignModal from './AuthgrpAssignModal'
 
 /** 사용자 관리 — 분할 마스터-디테일(평면) + 권한그룹 지정 모달. */
 export default function UserListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<User>(USER_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<User>(USER_LIST_URL)
   const { form, mode, selectedKey, openNew, openRow, remove } = useSplitForm<User>(userApi, reload)
   const [authTarget, setAuthTarget] = useState<User | null>(null)
   const isEdit = mode === 'edit'
@@ -78,7 +78,7 @@ export default function UserListPage() {
     <Card title="목록">
       <SearchBar
         fields={[
-          { type: 'text', name: 'searchKeyword', placeholder: '아이디/이름' },
+          { type: 'text', name: 'filterKeyword', placeholder: '아이디/이름' },
           { type: 'code', name: 'memCd', pCodeId: 'MEM00' },
           { type: 'code', name: 'statusCd', pCodeId: 'STATUS00' },
         ]}
@@ -93,7 +93,7 @@ export default function UserListPage() {
         loading={loading}
         rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

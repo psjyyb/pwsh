@@ -37,11 +37,11 @@ export default function GenHobby() {
     hobbyApi.view(id).then(async (h) => {
       setHobby(h)
       if (h.bbsinfoId) {
-        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId: h.bbsinfoId, pageIndex: 1, size: 5 })
-          .catch(() => ({ list: [], totCnt: 0 } as ListResult<Bbs>))
+        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId: h.bbsinfoId, pageNo: 1, pageSize: 5 })
+          .catch(() => ({ list: [], totalCount: 0 } as ListResult<Bbs>))
         setPosts(res.list.filter((b) => Number(b.bbsDepth ?? 0) === 0))
       }
-      const r = await recruitApi.list({ hobbyId: id, pageIndex: 1, size: 5 }).catch(() => null)
+      const r = await recruitApi.list({ hobbyId: id, pageNo: 1, pageSize: 5 }).catch(() => null)
       setRecruits(r?.list ?? [])
       if (loggedIn) {
         const mine = await userHobbyApi.list().catch(() => [])

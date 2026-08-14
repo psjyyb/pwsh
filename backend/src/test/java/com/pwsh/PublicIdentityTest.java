@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 공개 식별자(handle) 계약 회귀 방지.
- * 사용자에게 내려가는 응답에는 <b>로그인 ID(reg_id/user_id)와 pgcrypto 키(encKey)가 없어야</b> 하고,
+ * 사용자에게 내려가는 응답에는 <b>로그인 ID(reg_id/user_id)와 pgcrypto 키(cryptoKey)가 없어야</b> 하고,
  * 회원 지목은 handle로만 이뤄져야 한다. 매퍼에 컬럼을 하나 추가하는 것만으로 조용히 깨질 수 있는
  * 계약이라 실제 HTTP 응답 본문을 문자열째로 검사한다.
  */
@@ -41,16 +41,16 @@ class PublicIdentityTest extends IntegrationTest {
         String handleA = JsonPath.read(meBody, "$.data.handle");
         assertNotNull(handleA);
         assertFalse(handleA.equals("idA") || handleA.equals("ida"), "handle이 로그인 ID와 같으면 익명성이 없다");
-        assertNoKey(meBody, "encKey", "me");
+        assertNoKey(meBody, "cryptoKey", "me");
 
         // 게시글 — 목록/상세 모두 regHandle만
         String bbsId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
                 "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"식별자 글\",\"context\":\"x\"}", ta).body(), "$.data");
         String listBody = post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"pageIndex\":1,\"size\":10}", null).body();
+                "{\"bbsinfoId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).body();
         assertTrue(listBody.contains("\"regHandle\""), "게시글 목록에 regHandle이 있어야 한다");
         assertNoKey(listBody, "regId", "게시글 목록");
-        assertNoKey(listBody, "encKey", "게시글 목록");
+        assertNoKey(listBody, "cryptoKey", "게시글 목록");
 
         String viewBody = post("/api/adm/bbs/selectBbsView.do",
                 "{\"rowId\":\"" + bbsId + "\",\"viewUp\":\"N\"}", tb).body();
@@ -70,10 +70,10 @@ class PublicIdentityTest extends IntegrationTest {
         String rid = JsonPath.read(post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"식별자 모집\",\"capacity\":\"3\","
                         + "\"meetDt\":\"" + future + "\"}", ta).body(), "$.data");
-        String rListBody = post("/api/adm/recruit/selectRecruitList.do", "{\"pageIndex\":1,\"size\":10}", null).body();
+        String rListBody = post("/api/adm/recruit/selectRecruitList.do", "{\"pageNo\":1,\"pageSize\":10}", null).body();
         assertTrue(rListBody.contains("\"regHandle\""));
         assertNoKey(rListBody, "regId", "모집 목록");
-        assertNoKey(rListBody, "encKey", "모집 목록");
+        assertNoKey(rListBody, "cryptoKey", "모집 목록");
         String rViewBody = post("/api/adm/recruit/selectRecruitView.do",
                 "{\"rowId\":\"" + rid + "\",\"viewUp\":\"N\"}", tb).body();
         assertNoKey(rViewBody, "regId", "모집 상세");
@@ -82,7 +82,7 @@ class PublicIdentityTest extends IntegrationTest {
         String profBody = post("/api/auth/userProfile", "{\"handle\":\"" + handleA + "\"}", tb).body();
         assertEquals("식별자A", JsonPath.read(profBody, "$.data.nickname"));
         assertNoKey(profBody, "userId", "공개 프로필");
-        assertNoKey(profBody, "encKey", "공개 프로필");
+        assertNoKey(profBody, "cryptoKey", "공개 프로필");
 
         // 쪽지 — 상대 지목도 handle, 스레드에 발신/수신 ID 없음
         assertEquals(200, post("/api/adm/message/insertMessage.do",

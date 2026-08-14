@@ -39,11 +39,11 @@ public class AuthgrpController {
         if ("User".equals(variant)) {
             return ApiResponse.ok(authgrpService.selectUserIdsByGrp(vo));
         }
-        int totCnt = authgrpService.selectListTotCnt(vo);
+        int totalCount = authgrpService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", authgrpService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectAuthgrpView.do")

@@ -13,7 +13,7 @@ import type { Bbsinfo } from './bbsinfo.api'
 
 /** 게시판관리 — 게시판 정의(설정) 분할 마스터-디테일 CRUD. */
 export default function BbsinfoListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Bbsinfo>(BBSINFO_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Bbsinfo>(BBSINFO_LIST_URL)
   const { form, mode, selectedKey, openNew, openRow, save, remove } = useSplitForm<Bbsinfo>(bbsinfoApi, reload)
   const isEdit = mode === 'edit'
   const fileYnWatch = Form.useWatch('fileYn', form) // 첨부 사용여부 → 개수/용량 입력 노출 제어
@@ -34,7 +34,7 @@ export default function BbsinfoListPage() {
   const list = (
     <Card title="목록">
       <SearchBar
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '게시판명', width: 260 }]}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '게시판명', width: 260 }]}
         onSearch={(v) => search(v)}
       />
       <Table<Bbsinfo>
@@ -46,7 +46,7 @@ export default function BbsinfoListPage() {
         loading={loading}
         rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

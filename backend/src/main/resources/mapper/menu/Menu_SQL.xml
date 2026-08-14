@@ -10,16 +10,16 @@
         WHERE use_yn = 'Y'
         <if test="area != null and area != ''">AND area = #{area}</if>
         <if test="pMenuId != null and pMenuId != ''">AND p_menu_id = #{pMenuId}::integer</if>
-        <if test="searchKeyword != null and searchKeyword != ''">AND menu_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND menu_nm LIKE '%' || #{filterKeyword} || '%'</if>
         ORDER BY ordr
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="menuVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="menuVO" resultType="int">
         SELECT COUNT(*) FROM t_menu WHERE use_yn = 'Y'
         <if test="area != null and area != ''">AND area = #{area}</if>
         <if test="pMenuId != null and pMenuId != ''">AND p_menu_id = #{pMenuId}::integer</if>
-        <if test="searchKeyword != null and searchKeyword != ''">AND menu_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND menu_nm LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <!-- 트리 (사이드바용, area 전체 계층 → 프론트에서 p_menu_id로 중첩)
@@ -150,7 +150,7 @@
         FROM t_menu
         WHERE use_yn = 'Y' AND area = #{area} AND p_menu_id = #{pMenuId}::integer
         <choose>
-            <when test="searchCondition == 'UP'">
+            <when test="direction == 'UP'">
                 AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
             </when>
             <otherwise>

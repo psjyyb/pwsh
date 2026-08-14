@@ -24,11 +24,11 @@ public class EventlogController {
     @RequestMapping("/selectEventlogList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody(required = false) EventlogVO searchVO) {
         EventlogVO vo = searchVO == null ? new EventlogVO() : searchVO;
-        int totCnt = eventLogService.selectListTotCnt(vo);
+        int totalCount = eventLogService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", eventLogService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectEventlogView.do")

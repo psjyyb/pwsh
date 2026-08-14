@@ -28,7 +28,7 @@ interface StatsResp { totals?: StatsTotals; daily?: StatsDaily[]; days?: number 
 /** 추이 3종 색 — dataviz 검증기 통과(라이트 표면, CVD ΔE 10.0 / 정상시야 24.6). 대비 WARN은 수치 라벨로 보완. */
 const TREND_COLORS = { signups: '#6C4EE3', posts: '#12B586', recruits: '#F59321' }
 
-/** 대시보드 통계 카드: 각 도메인 목록 API의 totCnt로 건수 표시 (URL은 도메인 api의 단일 소스 상수 재사용) */
+/** 대시보드 통계 카드: 각 도메인 목록 API의 totalCount로 건수 표시 (URL은 도메인 api의 단일 소스 상수 재사용) */
 const CARDS = [
   { title: '사용자', url: USER_LIST_URL, color: '#1677ff' },
   { title: '권한그룹', url: AUTHGRP_LIST_URL, color: '#722ed1' },
@@ -53,11 +53,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     CARDS.forEach((c) => {
-      apiPost<ListResult<unknown>>(c.url, { pageIndex: 1, size: 1 })
-        .then((r) => setCounts((prev) => ({ ...prev, [c.title]: r.totCnt })))
+      apiPost<ListResult<unknown>>(c.url, { pageNo: 1, pageSize: 1 })
+        .then((r) => setCounts((prev) => ({ ...prev, [c.title]: r.totalCount })))
         .catch(() => setCounts((prev) => ({ ...prev, [c.title]: null })))
     })
-    apiPost<ListResult<Eventlog>>(EVENTLOG_LIST_URL, { pageIndex: 1, size: 8 })
+    apiPost<ListResult<Eventlog>>(EVENTLOG_LIST_URL, { pageNo: 1, pageSize: 8 })
       .then((r) => setLogs(r.list))
       .catch(() => {})
       .finally(() => setLogLoading(false))

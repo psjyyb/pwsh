@@ -3,7 +3,7 @@
 <mapper namespace="bbsDAO">
 
     <!-- 목록: 원글(공지 상단 고정 후 최신순)을 페이지 단위로 뽑고, 각 원글의 답글(스레드)을 재귀로 이어붙여 반환.
-         페이징은 원글 기준(totCnt=원글 수). bbs_depth=들여쓰기 레벨(0=원글). 답글은 원글 바로 아래 path 순으로 정렬. -->
+         페이징은 원글 기준(totalCount=원글 수). bbs_depth=들여쓰기 레벨(0=원글). 답글은 원글 바로 아래 path 순으로 정렬. -->
     <select id="selectList" parameterType="bbsVO" resultType="bbsVO">
         WITH RECURSIVE paged_roots AS (
             SELECT bbs_id,
@@ -17,9 +17,9 @@
                   SELECT 1 FROM t_user_block ub
                   WHERE ub.user_id = #{viewerId} AND ub.blocked_id = t_bbs.reg_id
               )
-            <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+            <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
             ORDER BY notice_eff DESC, bbs_id DESC
-            LIMIT #{size} OFFSET #{offset}
+            LIMIT #{pageSize} OFFSET #{offset}
         ),
         thread AS (
             SELECT b.bbs_id, b.p_bbs_id, 0 AS lvl, pr.notice_eff AS root_notice, b.bbs_id AS root_id, ARRAY[b.bbs_id] AS path
@@ -98,10 +98,10 @@
         LIMIT 20
     </select>
 
-    <select id="selectListTotCnt" parameterType="bbsVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="bbsVO" resultType="int">
         SELECT COUNT(*) FROM t_bbs
         WHERE use_yn = 'Y' AND p_bbs_id = 0 AND bbsinfo_id = #{bbsinfoId}::integer
-        <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
           <!-- 목록(selectList)과 동일한 차단 필터 — 총건수/페이징이 어긋나지 않도록 -->
           AND NOT EXISTS (
               SELECT 1 FROM t_user_block ub

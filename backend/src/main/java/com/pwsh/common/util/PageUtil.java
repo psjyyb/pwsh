@@ -13,19 +13,19 @@ public final class PageUtil {
     }
 
     /**
-     * @param pageIndex 현재 페이지(1-base)
-     * @param size      페이지당 목록 수
-     * @param totCnt    전체 건수
-     * @return {currentPage, size, totalElements, totalPages}
+     * @param pageNo 현재 페이지(1-base)
+     * @param pageSize      페이지당 목록 수
+     * @param totalCount    전체 건수
+     * @return {currentPage, pageSize, totalElements, totalPages}
      */
-    public static Map<String, Object> of(int pageIndex, int size, int totCnt) {
-        int safeSize = size <= 0 ? 10 : size;
-        int totalPages = (int) Math.ceil((double) totCnt / safeSize);
+    public static Map<String, Object> of(int pageNo, int pageSize, int totalCount) {
+        int safeSize = pageSize <= 0 ? 10 : pageSize;
+        int totalPages = (int) Math.ceil((double) totalCount / safeSize);
 
         Map<String, Object> page = new LinkedHashMap<>();
-        page.put("currentPage", pageIndex);
-        page.put("size", safeSize);
-        page.put("totalElements", totCnt);
+        page.put("currentPage", pageNo);
+        page.put("pageSize", safeSize);
+        page.put("totalElements", totalCount);
         page.put("totalPages", totalPages);
         return page;
     }

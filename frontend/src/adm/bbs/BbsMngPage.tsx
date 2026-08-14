@@ -42,7 +42,7 @@ export default function BbsMngPage() {
   // 목록
   const [rows, setRows] = useState<Bbs[]>([])
   const [total, setTotal] = useState(0)
-  const [pageIndex, setPageIndex] = useState(1)
+  const [pageNo, setPageNo] = useState(1)
   const [keyword, setKeyword] = useState('')
 
   // 상세
@@ -61,7 +61,7 @@ export default function BbsMngPage() {
   const editorRef = useRef<RichTextEditorHandle>(null)
   const [context, setContext] = useState('')
 
-  const size = Number(board?.listCnt) || 10
+  const pageSize = Number(board?.listCnt) || 10
   const isGallery = board?.bbsinfoCd === 'BBSINFO004'
   const isFaq = board?.bbsinfoCd === 'BBSINFO002'
   const isQna = board?.bbsinfoCd === 'BBSINFO003'
@@ -78,15 +78,15 @@ export default function BbsMngPage() {
     async (p = 1, kw = keyword) => {
       if (!bbsinfoId) return
       try {
-        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageIndex: p, size, searchKeyword: kw })
+        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageNo: p, pageSize, filterKeyword: kw })
         setRows(res.list)
-        setTotal(res.totCnt)
-        setPageIndex(p)
+        setTotal(res.totalCount)
+        setPageNo(p)
       } catch (e) {
         message.error(e instanceof Error ? e.message : '목록 조회 실패')
       }
     },
-    [bbsinfoId, size, keyword],
+    [bbsinfoId, pageSize, keyword],
   )
 
   useEffect(() => {
@@ -178,7 +178,7 @@ export default function BbsMngPage() {
       await fileApi.saveMapping(id, EDITOR_LOC, extractEditorImageIds(html))
       message.success('저장되었습니다.')
       setMode('list')
-      loadList(editKey ? pageIndex : 1)
+      loadList(editKey ? pageNo : 1)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '저장 실패')
     }
@@ -302,7 +302,7 @@ export default function BbsMngPage() {
           columns={columns}
           dataSource={rows}
           onRow={(r) => ({ onClick: () => openView(r.rowId!), style: { cursor: 'pointer' } })}
-          pagination={{ current: pageIndex, pageSize: size, total, onChange: (p) => loadList(p) }}
+          pagination={{ current: pageNo, pageSize: pageSize, total, onChange: (p) => loadList(p) }}
         />
       </Card>
     )
@@ -319,7 +319,7 @@ export default function BbsMngPage() {
             <Popconfirm title="삭제하시겠습니까?" onConfirm={removeBbs} okText="삭제" cancelText="취소">
               <Button danger>삭제</Button>
             </Popconfirm>
-            <Button onClick={() => { setMode('list'); loadList(pageIndex) }}>목록</Button>
+            <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
           </Space>
         }
       >

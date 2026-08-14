@@ -11,7 +11,7 @@ import type { Policy } from './policy.api'
 
 /** 약관/정책 관리 — 분할 마스터-디테일(평면). */
 export default function PolicyListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Policy>(POLICY_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Policy>(POLICY_LIST_URL)
   const { form, mode, selectedKey, openNew, openRow, save, remove } = useSplitForm<Policy>(policyApi, reload)
   const isEdit = mode === 'edit'
 
@@ -39,7 +39,7 @@ export default function PolicyListPage() {
     <Card title="목록">
       <SearchBar
         fields={[
-          { type: 'text', name: 'searchKeyword', placeholder: '제목' },
+          { type: 'text', name: 'filterKeyword', placeholder: '제목' },
           { type: 'code', name: 'typeCd', pCodeId: 'POLICY00' },
         ]}
         onSearch={(v) => search(v)}
@@ -53,7 +53,7 @@ export default function PolicyListPage() {
         loading={loading}
         rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

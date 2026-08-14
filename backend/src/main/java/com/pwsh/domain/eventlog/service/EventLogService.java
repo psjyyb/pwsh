@@ -25,8 +25,8 @@ public class EventLogService {
         return commonDAO.selectList("eventlogDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(EventlogVO vo) {
-        return commonDAO.selectOne("eventlogDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(EventlogVO vo) {
+        return commonDAO.selectOne("eventlogDAO.selectListTotalCount", vo);
     }
 
     public EventlogVO selectView(EventlogVO vo) {

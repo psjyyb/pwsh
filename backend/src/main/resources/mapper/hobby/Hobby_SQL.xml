@@ -21,7 +21,7 @@
         LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
         WHERE h.use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">AND h.hobby_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND h.hobby_nm LIKE '%' || #{filterKeyword} || '%'</if>
         ORDER BY h.sort_ordr, h.hobby_id
     </select>
 
@@ -30,9 +30,9 @@
         SELECT COUNT(*) FROM t_hobby WHERE use_yn = 'Y' AND bbsinfo_id = #{bbsinfoId}::integer
     </select>
 
-    <select id="selectListTotCnt" parameterType="hobbyVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="hobbyVO" resultType="int">
         SELECT COUNT(*) FROM t_hobby h WHERE h.use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">AND h.hobby_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND h.hobby_nm LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="hobbyVO" resultType="hobbyVO">

@@ -66,10 +66,10 @@ public class FileController {
     public ApiResponse<Map<String, Object>> selectList(@RequestBody(required = false) FileVO searchVO) {
         requireAdmin();
         FileVO vo = searchVO == null ? new FileVO() : searchVO;
-        int totCnt = fileService.selectListTotCnt(vo);
+        int totalCount = fileService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
-                "list", fileService.selectList(vo), "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "list", fileService.selectList(vo), "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     /** 다운로드 (인증 필요 → 프론트는 axios blob로 호출) */

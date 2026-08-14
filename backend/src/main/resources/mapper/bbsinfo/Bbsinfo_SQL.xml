@@ -9,16 +9,16 @@
         FROM t_bbsinfo b
         LEFT JOIN t_code c ON c.code_id = b.bbsinfo_cd AND c.p_code_id = 'BBSINFO000'
         WHERE b.use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND b.bbsinfo_nm LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND b.bbsinfo_nm LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY b.bbsinfo_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="bbsinfoVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="bbsinfoVO" resultType="int">
         SELECT COUNT(*) FROM t_bbsinfo WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">AND bbsinfo_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND bbsinfo_nm LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <!-- 단건(게시판 설정 조회, 사용자 게시판 화면에서도 사용 → 권한 예외) -->

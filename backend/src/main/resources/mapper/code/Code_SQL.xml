@@ -12,23 +12,23 @@
         <if test="pCodeId != null and pCodeId != ''">
             AND p_code_id = #{pCodeId}
         </if>
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND code_nm LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND code_nm LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY ordr
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
     <!-- 목록 개수 -->
-    <select id="selectListTotCnt" parameterType="codeVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="codeVO" resultType="int">
         SELECT COUNT(*)
         FROM t_code
         WHERE use_yn = 'Y'
         <if test="pCodeId != null and pCodeId != ''">
             AND p_code_id = #{pCodeId}
         </if>
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND code_nm LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND code_nm LIKE '%' || #{filterKeyword} || '%'
         </if>
     </select>
 
@@ -93,7 +93,7 @@
         FROM t_code
         WHERE use_yn = 'Y' AND p_code_id = #{pCodeId}
         <choose>
-            <when test="searchCondition == 'UP'">
+            <when test="direction == 'UP'">
                 AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
             </when>
             <otherwise>

@@ -79,7 +79,7 @@ class AdminAuditTest extends IntegrationTest {
 
         // 관리자 활동로그 화면에서 조회되는지(실제 API 경로)
         String logs = post("/api/adm/eventlog/selectEventlogList.do",
-                "{\"pageIndex\":1,\"size\":50}", admin).body();
+                "{\"pageNo\":1,\"pageSize\":50}", admin).body();
         assertTrue(logs.contains("USER_SUSPEND"), "활동로그 목록에 조치가 노출된다");
 
         // 일상 행위(알림 읽음)는 감사 로그를 남기지 않는다 — 잡음 방지

@@ -8,17 +8,17 @@
         LEFT JOIN t_code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
         WHERE p.use_yn = 'Y'
         <if test="typeCd != null and typeCd != ''">AND p.type_cd = #{typeCd}</if>
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND p.title LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND p.title LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY p.type_cd, p.ordr
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="policyVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="policyVO" resultType="int">
         SELECT COUNT(*) FROM t_policy WHERE use_yn = 'Y'
         <if test="typeCd != null and typeCd != ''">AND type_cd = #{typeCd}</if>
-        <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="policyVO" resultType="policyVO">
@@ -50,7 +50,7 @@
         FROM t_policy
         WHERE use_yn = 'Y' AND type_cd = #{typeCd}
         <choose>
-            <when test="searchCondition == 'UP'">
+            <when test="direction == 'UP'">
                 AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
             </when>
             <otherwise>

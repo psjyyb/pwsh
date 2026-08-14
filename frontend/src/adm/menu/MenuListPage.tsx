@@ -142,8 +142,8 @@ export default function MenuListPage() {
             options={[{ label: '관리자', value: 'ADM' }, { label: '사용자', value: 'GEN' }]}
           />
         }
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '메뉴명', width: 260 }]}
-        onSearch={(v) => setKeyword(v.searchKeyword ?? '')}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '메뉴명', width: 260 }]}
+        onSearch={(v) => setKeyword(v.filterKeyword ?? '')}
       />
       <Table<Menu>
         rowKey="rowId"

@@ -21,8 +21,8 @@ public class PageService {
         return commonDAO.selectList("pageDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(PageVO vo) {
-        return commonDAO.selectOne("pageDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(PageVO vo) {
+        return commonDAO.selectOne("pageDAO.selectListTotalCount", vo);
     }
 
     public PageVO selectView(PageVO vo) {

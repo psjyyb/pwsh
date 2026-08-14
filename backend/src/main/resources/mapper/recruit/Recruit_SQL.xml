@@ -9,7 +9,7 @@
         <if test="statusCd != null and statusCd != ''">AND r.status_cd = #{statusCd}</if>
         <if test="areaCd != null and areaCd != ''">AND r.area_cd = #{areaCd}</if>
         <if test="region != null and region != ''">AND r.region LIKE '%' || #{region} || '%'</if>
-        <if test="searchKeyword != null and searchKeyword != ''">AND r.title LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND r.title LIKE '%' || #{filterKeyword} || '%'</if>
         <!-- 내가 차단한 회원이 연 모집은 내 목록에서 제외 -->
         AND NOT EXISTS (SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = r.reg_id)
     </sql>
@@ -34,10 +34,10 @@
         LEFT JOIN t_code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
         <include refid="listFilter"/>
         ORDER BY r.recruit_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="recruitVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="recruitVO" resultType="int">
         SELECT COUNT(*) FROM t_recruit r
         <include refid="listFilter"/>
     </select>

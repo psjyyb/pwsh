@@ -20,7 +20,7 @@
   - `select{Name}List{variant}.do` · `select{Name}View.do` · `insert{Name}{variant}.do` · `update{Name}{variant}.do` · `delete{Name}.do` (전부 `@RequestMapping("/api/adm/{name}/...")`).
   - 변형은 `{variant}`로 흡수: 예 `updateUserPassword.do`(비번), `updateUserForceLogout.do`(강제로그아웃), `updateMenuOrdr.do`(정렬).
   - 입력 필수검증은 컨트롤러 진입부 `Validate.required(value, "라벨")`.
-- 요청 **JSON `@RequestBody`**, 응답 **`ApiResponse{success,data,error}`**. 목록 data=`{list,totCnt,page}`. 예외는 `GlobalExceptionHandler`가 처리(컨트롤러 try/catch 금지).
+- 요청 **JSON `@RequestBody`**, 응답 **`ApiResponse{success,data,error}`**. 목록 data=`{list,totalCount,page}`. 예외는 `GlobalExceptionHandler`가 처리(컨트롤러 try/catch 금지).
 - **VO**: `BaseVO` 상속(`rowId`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
 - **매퍼**: `resultType`=VO, PK는 문자열로 캐스팅해 VO의 `rowId`로 받는다. `${}` 절대 금지(전부 `#{}`). 논리삭제 플래그로 항상 필터. 등록/수정 이력 값은 `AuditInterceptor`가 자동 세팅.
 
@@ -33,7 +33,7 @@
 ## 인증 / 인가
 - **JWT 무상태**. 사용자별 토큰 버전으로 **단일세션(last-wins)** + 로그아웃/비번변경/강제로그아웃 시 즉시 무효화(필터가 매 요청 대조).
 - **RBAC 3계층 ADMIN/MEMBER/GUEST**(비로그인=GUEST). ① 메뉴 노출=메뉴 조회 시 권한 필터 ② 관리 API=`PermissionInterceptor`(`/api/adm/**`를 메뉴 URL 권한으로. 사용자 콘텐츠 API는 예외 목록으로 통과시키고 서비스가 인가) ③ 콘텐츠 딥링크=`GenAccessGuard` ④ 소유자=`SecurityUtil.assertOwnerOrAdmin`.
-- 비번 BCrypt·복잡도 `PasswordPolicy`(8~64자). 계정(admin/user)은 `DataInitializer`가 기동 시 생성. 개인정보(이름·연락처 등)는 pgcrypto AES(`#{encKey}`).
+- 비번 BCrypt·복잡도 `PasswordPolicy`(8~64자). 계정(admin/user)은 `DataInitializer`가 기동 시 생성. 개인정보(이름·연락처 등)는 pgcrypto AES(`#{cryptoKey}`).
 - **공개 식별자**: 클라이언트에 로그인 ID를 내려보내지 않는다. 회원 지목은 12자리 `handle`, 본인 판정은 서버가 계산한 `mineYn`.
 
 ## 파일 / 실시간 / 브랜딩

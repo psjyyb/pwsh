@@ -16,7 +16,7 @@ export default function ReportListPage() {
   const [status, setStatus] = useState<string>('') // 기본 전체
   const [page, setPage] = useState(1)
   const [size, setSize] = useState(20)
-  const [totCnt, setTotCnt] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
@@ -24,7 +24,7 @@ export default function ReportListPage() {
     try {
       const r = await reportApi.list(status, page, size)
       setRows(r.list ?? [])
-      setTotCnt(r.totCnt ?? 0)
+      setTotalCount(r.totalCount ?? 0)
       // 처리/필터로 건수가 줄어 현재 페이지가 비면 이전 페이지로 (빈 화면 방지)
       if ((r.list ?? []).length === 0 && page > 1) {
         setPage(page - 1)
@@ -106,7 +106,7 @@ export default function ReportListPage() {
         rowKey="rowId" size="small" scroll={{ x: 'max-content' }} loading={loading}
         columns={columns} dataSource={rows}
         pagination={{
-          current: page, pageSize: size, total: totCnt,
+          current: page, pageSize: size, total: totalCount,
           showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100],
           showTotal: (t) => `총 ${t}건`,
           onChange: (p, ps) => { setPage(p); setSize(ps) },

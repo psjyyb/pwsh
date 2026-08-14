@@ -121,7 +121,7 @@ export default function GenMain() {
   useEffect(() => {
     popupApi.mainList().then((list) => setPopups(list.filter((p) => !isHidden(p.rowId)))).catch(() => {})
     if (loggedIn) userHobbyApi.list().then((l) => setMyIds(new Set(l.map((u) => u.hobbyId!).filter(Boolean)))).catch(() => {})
-    recruitApi.list({ statusCd: STATUS_OPEN, pageIndex: 1, size: 4 })
+    recruitApi.list({ statusCd: STATUS_OPEN, pageNo: 1, pageSize: 4 })
       .then((r) => setRecruits(r.list)).catch(() => {})
     apiPost<Bbs[]>('/adm/bbs/selectBbsListWeeklyBest.do', {}).then(setBest).catch(() => {})
 
@@ -136,9 +136,9 @@ export default function GenMain() {
       // 취미별 연결 게시판의 최신 글 병렬 수집 → 최근 이야기
       const results = await Promise.all(
         cats.filter((c) => c.bbsinfoId).map((c) =>
-          apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId: c.bbsinfoId, pageIndex: 1, size: 4 })
+          apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId: c.bbsinfoId, pageNo: 1, pageSize: 4 })
             .then((res) => ({ cat: c, res }))
-            .catch(() => ({ cat: c, res: { list: [], totCnt: 0 } as ListResult<Bbs> })),
+            .catch(() => ({ cat: c, res: { list: [], totalCount: 0 } as ListResult<Bbs> })),
         ),
       )
       const merged: RecentPost[] = results

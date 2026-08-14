@@ -25,9 +25,9 @@ public class FeedService {
     }
 
     /** 피드 총건수 — 목록과 동일 조건. */
-    public int selectListTotCnt(FeedVO vo) {
+    public int selectListTotalCount(FeedVO vo) {
         prepare(vo);
-        return commonDAO.selectOne("feedDAO.selectListTotCnt", vo);
+        return commonDAO.selectOne("feedDAO.selectListTotalCount", vo);
     }
 
     /** 담은 취미 수 — 0이면 피드가 비는 이유(취미를 담지 않음)를 화면에서 안내한다. */

@@ -26,7 +26,7 @@ export const menuApi = {
   manageTree: (area = 'ADM') => apiPost<Menu[]>('/adm/menu/selectMenuListManageTree.do', { area }),
   /** 순서 변경(같은 부모 내 인접 메뉴와 교환) */
   moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/menu/updateMenuOrdr.do', { rowId, searchCondition: direction }),
+    apiPost<void>('/adm/menu/updateMenuOrdr.do', { rowId, direction }),
 }
 
 export const MENU_LIST_URL = menuApi.listUrl

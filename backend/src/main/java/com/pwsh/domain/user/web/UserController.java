@@ -34,11 +34,11 @@ public class UserController {
         if ("Authgrp".equals(variant)) {
             return ApiResponse.ok(userService.selectAuthgrpIds(vo));
         }
-        int totCnt = userService.selectListTotCnt(vo);
+        int totalCount = userService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", userService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectUserView.do")

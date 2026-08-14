@@ -20,7 +20,7 @@ const cap = (r: Recruit) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` /
  * 백엔드는 모집 도메인의 소유자 인가가 assertOwnerOrAdmin이라 관리자가 모든 모집·신청에 조치 가능(추가 API 불필요).
  */
 export default function RecruitMngPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Recruit>(RECRUIT_LIST_URL, { statusCd: '' })
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Recruit>(RECRUIT_LIST_URL, { statusCd: '' })
   const [sel, setSel] = useState<Recruit | null>(null)
   const [applies, setApplies] = useState<RecruitApply[]>([])
   const [applyLoading, setApplyLoading] = useState(false)
@@ -105,13 +105,13 @@ export default function RecruitMngPage() {
           defaultValue="" style={{ width: 130 }} onChange={(v) => search({ statusCd: v })}
           options={[{ value: '', label: '전체 상태' }, { value: 'RECRUIT01', label: '모집중' }, { value: 'RECRUIT02', label: '마감' }]}
         />
-        <SearchBar fields={[{ type: 'text', name: 'searchKeyword', placeholder: '제목·내용', width: 200 }]} onSearch={(v) => search(v)} />
+        <SearchBar fields={[{ type: 'text', name: 'filterKeyword', placeholder: '제목·내용', width: 200 }]} onSearch={(v) => search(v)} />
       </Space>
       <Table<Recruit>
         rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={columns} dataSource={rows} loading={loading}
         rowClassName={(r) => (r.rowId === sel?.rowId ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

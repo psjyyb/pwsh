@@ -64,9 +64,9 @@ export interface RecruitListParams {
   statusCd?: string
   areaCd?: string  // 시/도 필터
   region?: string  // 상세 지역 부분일치
-  searchKeyword?: string
-  pageIndex?: number
-  size?: number
+  filterKeyword?: string
+  pageNo?: number
+  pageSize?: number
 }
 
 export const RECRUIT_LIST_URL = '/adm/recruit/selectRecruitList.do'

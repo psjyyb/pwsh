@@ -19,10 +19,10 @@ public class SearchController {
 
     private final SearchService searchService;
 
-    /** 취미·모집·게시글 통합 검색. body {searchKeyword} → {hobbies, recruits, posts} */
+    /** 취미·모집·게시글 통합 검색. body {filterKeyword} → {hobbies, recruits, posts} */
     @RequestMapping("/selectSearchAll.do")
     public ApiResponse<Map<String, Object>> searchAll(@RequestBody Map<String, String> body) {
-        String keyword = body.get("searchKeyword");
+        String keyword = body.get("filterKeyword");
         Validate.required(keyword, "검색어");
         return ApiResponse.ok(searchService.searchAll(keyword));
     }

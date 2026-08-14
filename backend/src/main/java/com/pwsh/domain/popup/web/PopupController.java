@@ -32,11 +32,11 @@ public class PopupController {
         if ("Main".equals(variant)) {
             return ApiResponse.ok(popupService.selectMainList(vo));
         }
-        int totCnt = popupService.selectListTotCnt(vo);
+        int totalCount = popupService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", popupService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectPopupView.do")

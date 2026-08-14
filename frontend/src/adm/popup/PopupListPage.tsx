@@ -12,7 +12,7 @@ import type { Popup } from './popup.api'
 
 /** 팝업 관리 — 분할 마스터-디테일(평면). */
 export default function PopupListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Popup>(POPUP_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Popup>(POPUP_LIST_URL)
   const { form, mode, selectedKey, openNew, openRow, save, remove } = useSplitForm<Popup>(popupApi, reload)
   const isEdit = mode === 'edit'
 
@@ -38,7 +38,7 @@ export default function PopupListPage() {
   const list = (
     <Card title="목록">
       <SearchBar
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '팝업명', width: 260 }]}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '팝업명', width: 260 }]}
         onSearch={(v) => search(v)}
       />
       <Table<Popup>
@@ -50,7 +50,7 @@ export default function PopupListPage() {
         loading={loading}
         rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

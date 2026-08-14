@@ -24,11 +24,11 @@ public class BbsController {
 
     @RequestMapping("/selectBbsList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody BbsVO searchVO) {
-        int totCnt = bbsService.selectListTotCnt(searchVO);
+        int totalCount = bbsService.selectListTotalCount(searchVO);
         return ApiResponse.ok(Map.of(
                 "list", bbsService.selectList(searchVO),
-                "totCnt", totCnt,
-                "page", PageUtil.of(searchVO.getPageIndex(), searchVO.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(searchVO.getPageNo(), searchVO.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectBbsView.do")

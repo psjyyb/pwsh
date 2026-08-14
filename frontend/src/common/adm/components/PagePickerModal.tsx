@@ -16,7 +16,7 @@ interface Props {
  * 선택 시 onSelect(page)로 전체 정보를 넘김(연결에는 page.rowId=page_id 사용).
  */
 export default function PagePickerModal({ open, onSelect, onClose }: Props) {
-  const { rows, total, loading, page, size, search, changePage } = useList<Page>(PAGE_LIST_URL)
+  const { rows, total, loading, page, pageSize, search, changePage } = useList<Page>(PAGE_LIST_URL)
 
   const columns: TableColumnsType<Page> = [
     { title: '페이지ID', dataIndex: 'rowId', width: 90 },
@@ -35,7 +35,7 @@ export default function PagePickerModal({ open, onSelect, onClose }: Props) {
   return (
     <Modal open={open} onCancel={onClose} footer={null} title="페이지 선택" width={640} destroyOnHidden>
       <SearchBar
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '제목', width: 260 }]}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '제목', width: 260 }]}
         onSearch={(v) => search(v)}
       />
       <Table<Page>
@@ -45,7 +45,7 @@ export default function PagePickerModal({ open, onSelect, onClose }: Props) {
         dataSource={rows}
         loading={loading}
         onRow={(r) => ({ onClick: () => { onSelect(r); onClose() }, style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Modal>
   )

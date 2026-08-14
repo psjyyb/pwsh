@@ -35,11 +35,11 @@ public class MenuController {
         if ("ManageTree".equals(variant)) {
             return ApiResponse.ok(menuService.selectManageTree(vo));
         }
-        int totCnt = menuService.selectListTotCnt(vo);
+        int totalCount = menuService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", menuService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectMenuView.do")

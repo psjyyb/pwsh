@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 회원 차단 + 내 취미 피드 검증.
  * - 차단: 쪽지 차단 + 차단한 회원의 글/댓글/모집이 내 목록에서 사라지고 <b>총건수도 함께</b> 줄어야 한다
- *   (목록과 totCnt가 어긋나면 페이징이 깨진다)
+ *   (목록과 totalCount가 어긋나면 페이징이 깨진다)
  * - 피드: 담은 취미 것만, 비밀글·답글·차단 회원 글은 제외
  */
 class BlockAndFeedTest extends IntegrationTest {
@@ -42,7 +42,7 @@ class BlockAndFeedTest extends IntegrationTest {
         String yourHandle = JsonPath.read(post("/api/auth/me", "{}", you).body(), "$.data.handle");
 
         // ===== 피드: 비로그인 차단 =====
-        assertEquals(401, post("/api/adm/feed/selectFeedList.do", "{\"pageIndex\":1,\"size\":20}", null).statusCode());
+        assertEquals(401, post("/api/adm/feed/selectFeedList.do", "{\"pageNo\":1,\"pageSize\":20}", null).statusCode());
 
         // 담은 취미 1개
         assertEquals(200, post("/api/adm/userHobby/insertUserHobby.do",
@@ -62,7 +62,7 @@ class BlockAndFeedTest extends IntegrationTest {
                 you).body(), "$.data");
         assertNotNull(reply);
 
-        String feed = post("/api/adm/feed/selectFeedList.do", "{\"pageIndex\":1,\"size\":50}", me).body();
+        String feed = post("/api/adm/feed/selectFeedList.do", "{\"pageNo\":1,\"pageSize\":50}", me).body();
         assertTrue(feedHas(feed, "BBS", postIn), "담은 취미 글은 피드에 있어야 한다");
         assertFalse(feedHas(feed, "BBS", postOut), "담지 않은 취미 글은 피드에 없어야 한다");
         assertFalse(feedHas(feed, "BBS", secret), "비밀글은 피드에서 제외");
@@ -77,26 +77,26 @@ class BlockAndFeedTest extends IntegrationTest {
         String recOut = JsonPath.read(post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + hobbyOut + "\",\"title\":\"안담은취미 모집\",\"capacity\":\"3\",\"meetDt\":\"" + future + "\"}",
                 you).body(), "$.data");
-        String feed2 = post("/api/adm/feed/selectFeedList.do", "{\"pageIndex\":1,\"size\":50}", me).body();
+        String feed2 = post("/api/adm/feed/selectFeedList.do", "{\"pageNo\":1,\"pageSize\":50}", me).body();
         assertTrue(feedHas(feed2, "RECRUIT", recIn));
         assertFalse(feedHas(feed2, "RECRUIT", recOut));
 
         // 필터: BBS/RECRUIT 합이 전체와 같아야 한다
-        int all = JsonPath.read(feed2, "$.data.totCnt");
+        int all = JsonPath.read(feed2, "$.data.totalCount");
         int onlyBbs = JsonPath.read(post("/api/adm/feed/selectFeedList.do",
-                "{\"feedFilter\":\"BBS\",\"pageIndex\":1,\"size\":50}", me).body(), "$.data.totCnt");
+                "{\"feedFilter\":\"BBS\",\"pageNo\":1,\"pageSize\":50}", me).body(), "$.data.totalCount");
         int onlyRec = JsonPath.read(post("/api/adm/feed/selectFeedList.do",
-                "{\"feedFilter\":\"RECRUIT\",\"pageIndex\":1,\"size\":50}", me).body(), "$.data.totCnt");
+                "{\"feedFilter\":\"RECRUIT\",\"pageNo\":1,\"pageSize\":50}", me).body(), "$.data.totalCount");
         assertEquals(all, onlyBbs + onlyRec, "필터 합 = 전체");
         assertNotEquals(200, post("/api/adm/feed/selectFeedList.do",
-                "{\"feedFilter\":\"HACK\",\"pageIndex\":1,\"size\":20}", me).statusCode(), "잘못된 구분은 거부");
+                "{\"feedFilter\":\"HACK\",\"pageNo\":1,\"pageSize\":20}", me).statusCode(), "잘못된 구분은 거부");
 
         // ===== 차단 =====
         assertEquals(200, post("/api/adm/comment/insertComment.do",
                 "{\"bbsId\":\"" + postIn + "\",\"context\":\"차단될 댓글\"}", you).statusCode());
 
         int totBefore = JsonPath.read(post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", me).body(), "$.data.totCnt");
+                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageNo\":1,\"pageSize\":50}", me).body(), "$.data.totalCount");
 
         assertEquals(200, post("/api/adm/block/updateBlockToggle.do",
                 "{\"blockedHandle\":\"" + yourHandle + "\"}", me).statusCode());
@@ -105,33 +105,33 @@ class BlockAndFeedTest extends IntegrationTest {
         assertEquals(403, post("/api/adm/message/insertMessage.do",
                 "{\"receiverHandle\":\"" + myHandle + "\",\"content\":\"막혀야 함\"}", you).statusCode());
 
-        // 글: 목록에서 사라지고 totCnt도 함께 줄어든다(목록/카운트 불일치는 페이징을 깨뜨린다)
+        // 글: 목록에서 사라지고 totalCount도 함께 줄어든다(목록/카운트 불일치는 페이징을 깨뜨린다)
         String afterBlock = post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", me).body();
-        int totAfter = JsonPath.read(afterBlock, "$.data.totCnt");
+                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageNo\":1,\"pageSize\":50}", me).body();
+        int totAfter = JsonPath.read(afterBlock, "$.data.totalCount");
         List<Object> ids = JsonPath.read(afterBlock, "$.data.list[?(@.rowId=='" + postIn + "')]");
         assertEquals(0, ids.size(), "차단 회원의 글이 내 목록에 남아 있다");
-        assertTrue(totAfter < totBefore, "totCnt도 함께 줄어야 한다 (" + totBefore + " -> " + totAfter + ")");
+        assertTrue(totAfter < totBefore, "totalCount도 함께 줄어야 한다 (" + totBefore + " -> " + totAfter + ")");
         assertEquals(totAfter, ((List<Object>) JsonPath.read(afterBlock, "$.data.list")).size(),
-                "목록 건수와 totCnt가 일치해야 한다");
+                "목록 건수와 totalCount가 일치해야 한다");
 
         // 댓글도 숨는다
         String cmts = post("/api/adm/comment/selectCommentList.do", "{\"bbsId\":\"" + postIn + "\"}", me).body();
         assertFalse(cmts.contains("차단될 댓글"), "차단 회원의 댓글이 보인다");
 
         // 모집 목록에서도 제외
-        String recList = post("/api/adm/recruit/selectRecruitList.do", "{\"pageIndex\":1,\"size\":50}", me).body();
+        String recList = post("/api/adm/recruit/selectRecruitList.do", "{\"pageNo\":1,\"pageSize\":50}", me).body();
         assertEquals(0, ((List<Object>) JsonPath.read(recList, "$.data.list[?(@.rowId=='" + recIn + "')]")).size(),
                 "차단 회원의 모집이 보인다");
 
         // 피드에서도 제외
-        String feedBlocked = post("/api/adm/feed/selectFeedList.do", "{\"pageIndex\":1,\"size\":50}", me).body();
+        String feedBlocked = post("/api/adm/feed/selectFeedList.do", "{\"pageNo\":1,\"pageSize\":50}", me).body();
         assertFalse(feedHas(feedBlocked, "BBS", postIn), "차단 후 피드에 글이 남아 있다");
         assertFalse(feedHas(feedBlocked, "RECRUIT", recIn), "차단 후 피드에 모집이 남아 있다");
 
         // 다른 사람(비로그인)에게는 그대로 보인다 — 차단은 내 화면에만 적용
         String guestList = post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", null).body();
+                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageNo\":1,\"pageSize\":50}", null).body();
         assertEquals(1, ((List<Object>) JsonPath.read(guestList, "$.data.list[?(@.rowId=='" + postIn + "')]")).size(),
                 "차단은 나에게만 적용돼야 한다");
 
@@ -139,10 +139,10 @@ class BlockAndFeedTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/block/updateBlockToggle.do",
                 "{\"blockedHandle\":\"" + yourHandle + "\"}", me).statusCode());
         String restored = post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", me).body();
+                "{\"bbsinfoId\":\"" + boardIn + "\",\"pageNo\":1,\"pageSize\":50}", me).body();
         assertEquals(1, ((List<Object>) JsonPath.read(restored, "$.data.list[?(@.rowId=='" + postIn + "')]")).size(),
                 "차단 해제 후 복원되지 않았다");
-        assertEquals(totBefore, (int) (Integer) JsonPath.read(restored, "$.data.totCnt"));
+        assertEquals(totBefore, (int) (Integer) JsonPath.read(restored, "$.data.totalCount"));
     }
 
     /** 피드 응답에 해당 유형·PK 항목이 있는지. */

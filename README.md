@@ -52,7 +52,7 @@ npm run dev        # http://localhost:3000 (백엔드 8080 필요, /api 프록�
 
 ## 설계 요약
 - **컨트롤러는 매핑만**(도메인당 5메서드 고정), 로직은 도메인당 단일 `@Service`
-- API 응답은 `ApiResponse{success,data,error}` 표준, 목록은 `{list,totCnt,page}`
+- API 응답은 `ApiResponse{success,data,error}` 표준, 목록은 `{list,totalCount,page}`
 - **RBAC 3계층(관리자/회원/비회원) + JWT 단일세션** — 로그아웃·비번변경 시 기존 토큰 즉시 무효화
 - 회원 식별은 **공개 식별자(handle)**만 클라이언트에 노출, 로그인 ID는 서버에만 둔다
 - 삭제는 논리삭제, 파일은 매핑을 통해서만 연결하고 고아 파일은 스케줄러가 회수

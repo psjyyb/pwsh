@@ -46,7 +46,7 @@ class RecruitFlowTest extends IntegrationTest {
         assertEquals(String.valueOf(maxOrdrBefore + 1), JsonPath.read(hv.body(), "$.data.sortOrdr"));
         // 취미 게시판은 공개: 비로그인 목록 조회 가능, 회원은 글 작성 가능
         assertEquals(200, post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"pageIndex\":1,\"size\":10}", null).statusCode());
+                "{\"bbsinfoId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).statusCode());
         assertEquals(200, post("/api/adm/bbs/insertBbs.do",
                 "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"첫 글\",\"context\":\"<p>안녕</p>\"}", appTok).statusCode());
 
@@ -57,7 +57,7 @@ class RecruitFlowTest extends IntegrationTest {
         String recruitId = JsonPath.read(rres.body(), "$.data");
 
         // 공개 목록(비로그인) 조회 가능, 비로그인 등록은 401
-        assertEquals(200, post("/api/adm/recruit/selectRecruitList.do", "{\"pageIndex\":1,\"size\":10}", null).statusCode());
+        assertEquals(200, post("/api/adm/recruit/selectRecruitList.do", "{\"pageNo\":1,\"pageSize\":10}", null).statusCode());
         assertEquals(401, post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"무단\"}", null).statusCode());
 

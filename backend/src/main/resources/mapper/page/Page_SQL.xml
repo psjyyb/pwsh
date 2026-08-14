@@ -6,16 +6,16 @@
         SELECT page_id::TEXT AS row_id, title, use_yn
         FROM t_page
         WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND title LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND title LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY page_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="pageVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="pageVO" resultType="int">
         SELECT COUNT(*) FROM t_page WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">AND title LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="pageVO" resultType="pageVO">

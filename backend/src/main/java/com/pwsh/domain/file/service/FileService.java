@@ -88,8 +88,8 @@ public class FileService {
         return commonDAO.selectList("fileDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(FileVO vo) {
-        return commonDAO.selectOne("fileDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(FileVO vo) {
+        return commonDAO.selectOne("fileDAO.selectListTotalCount", vo);
     }
 
     public FileVO selectView(FileVO vo) {

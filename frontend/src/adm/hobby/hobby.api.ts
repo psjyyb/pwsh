@@ -28,7 +28,7 @@ export const hobbyApi = {
   insertReturnId: (vo: Partial<Hobby>) => apiPost<string>('/adm/hobby/insertHobby.do', vo),
   /** 전체 취미(도감/드롭다운용) */
   listAll: () =>
-    apiPost<ListResult<Hobby>>('/adm/hobby/selectHobbyList.do', { pageIndex: 1, size: 100 }).then((r) => r.list),
+    apiPost<ListResult<Hobby>>('/adm/hobby/selectHobbyList.do', { pageNo: 1, pageSize: 100 }).then((r) => r.list),
 }
 export const HOBBY_LIST_URL = hobbyApi.listUrl
 

@@ -11,10 +11,10 @@ export interface ApiResponse<T> {
 /** 목록 응답 표준 구조 (selectXxxList.do) */
 export interface ListResult<T> {
   list: T[]
-  totCnt: number
+  totalCount: number
   page: {
     currentPage: number
-    size: number
+    pageSize: number
     totalElements: number
     totalPages: number
   }

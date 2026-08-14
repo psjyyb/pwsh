@@ -28,13 +28,13 @@ export interface FeedItem {
 /** 피드 응답 — 표준 목록 구조 + myHobbyCnt(빈 이유 구분용). */
 export interface FeedResult {
   list: FeedItem[]
-  totCnt: number
+  totalCount: number
   myHobbyCnt: number
-  page?: { currentPage: number; size: number; totalElements: number }
+  page?: { currentPage: number; pageSize: number; totalElements: number }
 }
 
 export const feedApi = {
   /** 내 취미 피드(로그인 필요) — feedFilter ''=전체 / BBS / RECRUIT */
-  list: (feedFilter = '', pageIndex = 1, size = 20) =>
-    apiPost<FeedResult>('/adm/feed/selectFeedList.do', { feedFilter, pageIndex, size }),
+  list: (feedFilter = '', pageNo = 1, pageSize = 20) =>
+    apiPost<FeedResult>('/adm/feed/selectFeedList.do', { feedFilter, pageNo, pageSize }),
 }

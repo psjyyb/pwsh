@@ -17,6 +17,6 @@ export const policyApi = {
   ...createCrudApi<Policy>('/adm/policy', 'Policy'),
   /** 순서 변경(같은 약관유형 내 인접 약관과 교환) */
   moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/policy/updatePolicyOrdr.do', { rowId, searchCondition: direction }),
+    apiPost<void>('/adm/policy/updatePolicyOrdr.do', { rowId, direction }),
 }
 export const POLICY_LIST_URL = policyApi.listUrl

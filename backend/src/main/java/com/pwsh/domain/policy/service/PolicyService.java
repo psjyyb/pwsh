@@ -19,8 +19,8 @@ public class PolicyService {
         return commonDAO.selectList("policyDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(PolicyVO vo) {
-        return commonDAO.selectOne("policyDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(PolicyVO vo) {
+        return commonDAO.selectOne("policyDAO.selectListTotalCount", vo);
     }
 
     public PolicyVO selectView(PolicyVO vo) {
@@ -42,7 +42,7 @@ public class PolicyService {
         if (cur == null) {
             return;
         }
-        cur.setSearchCondition(vo.getSearchCondition());
+        cur.setDirection(vo.getDirection());
         PolicyVO adj = commonDAO.selectOne("policyDAO.selectAdjacentOrdr", cur);
         if (adj == null) {
             return;

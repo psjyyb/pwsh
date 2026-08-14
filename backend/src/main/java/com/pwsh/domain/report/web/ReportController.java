@@ -31,14 +31,14 @@ public class ReportController {
         return ApiResponse.ok();
     }
 
-    /** 신고 목록(관리자, 페이징). body {status?, pageIndex, size} */
+    /** 신고 목록(관리자, 페이징). body {status?, pageNo, pageSize} */
     @RequestMapping("/selectReportList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody ReportVO vo) {
-        int totCnt = reportService.selectListTotCnt(vo);
+        int totalCount = reportService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", reportService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     /** 신고 처리(관리자). body {rowId, status} */

@@ -29,7 +29,7 @@ export default function FeedPage() {
   const [items, setItems] = useState<FeedItem[]>([])
   const [filter, setFilter] = useState<'' | 'BBS' | 'RECRUIT'>('')
   const [page, setPage] = useState(1)
-  const [totCnt, setTotCnt] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
   const [myHobbyCnt, setMyHobbyCnt] = useState(0)
   const [loading, setLoading] = useState(false)
 
@@ -39,7 +39,7 @@ export default function FeedPage() {
     try {
       const r = await feedApi.list(filter, page, PAGE_SIZE)
       setItems(r.list ?? [])
-      setTotCnt(r.totCnt ?? 0)
+      setTotalCount(r.totalCount ?? 0)
       setMyHobbyCnt(r.myHobbyCnt ?? 0)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '피드 조회 실패')
@@ -139,10 +139,10 @@ export default function FeedPage() {
                 </List.Item>
               )}
             />
-            {totCnt > PAGE_SIZE && (
+            {totalCount > PAGE_SIZE && (
               <div style={{ textAlign: 'center', marginTop: 12 }}>
                 <Pagination
-                  current={page} pageSize={PAGE_SIZE} total={totCnt} showSizeChanger={false}
+                  current={page} pageSize={PAGE_SIZE} total={totalCount} showSizeChanger={false}
                   onChange={setPage}
                 />
               </div>

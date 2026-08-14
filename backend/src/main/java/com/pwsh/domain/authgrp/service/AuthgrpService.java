@@ -19,8 +19,8 @@ public class AuthgrpService {
         return commonDAO.selectList("authgrpDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(AuthgrpVO vo) {
-        return commonDAO.selectOne("authgrpDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(AuthgrpVO vo) {
+        return commonDAO.selectOne("authgrpDAO.selectListTotalCount", vo);
     }
 
     public List<AuthgrpVO> selectComboList(AuthgrpVO vo) {

@@ -12,10 +12,10 @@
             <include refid="searchCond" />
         </where>
         ORDER BY e.event_log_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="eventlogVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="eventlogVO" resultType="int">
         SELECT COUNT(*) FROM t_event_log
         <where>
             <if test="eventType != null and eventType != ''">AND event_type = #{eventType}</if>
@@ -23,11 +23,11 @@
         </where>
     </select>
 
-    <!-- 검색조건(searchCondition)에 따라 검색 컬럼 변경 -->
+    <!-- 검색조건(filterField)에 따라 검색 컬럼 변경 -->
     <sql id="searchCond">
-        <if test="searchKeyword != null and searchKeyword != ''">
-            <if test="searchCondition == 'user_id'">AND user_id LIKE '%' || #{searchKeyword} || '%'</if>
-            <if test="searchCondition == 'target_table'">AND target_table LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">
+            <if test="filterField == 'user_id'">AND user_id LIKE '%' || #{filterKeyword} || '%'</if>
+            <if test="filterField == 'target_table'">AND target_table LIKE '%' || #{filterKeyword} || '%'</if>
         </if>
     </sql>
 

@@ -24,11 +24,11 @@ public class HobbyController {
 
     @RequestMapping("/selectHobbyList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody HobbyVO searchVO) {
-        int totCnt = hobbyService.selectListTotCnt(searchVO);
+        int totalCount = hobbyService.selectListTotalCount(searchVO);
         return ApiResponse.ok(Map.of(
                 "list", hobbyService.selectList(searchVO),
-                "totCnt", totCnt,
-                "page", PageUtil.of(searchVO.getPageIndex(), searchVO.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(searchVO.getPageNo(), searchVO.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectHobbyView.do")

@@ -27,11 +27,11 @@ public class PolicyController {
     @RequestMapping("/selectPolicyList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody(required = false) PolicyVO searchVO) {
         PolicyVO vo = searchVO == null ? new PolicyVO() : searchVO;
-        int totCnt = policyService.selectListTotCnt(vo);
+        int totalCount = policyService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", policyService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     @RequestMapping("/selectPolicyView.do")

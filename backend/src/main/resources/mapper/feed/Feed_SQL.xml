@@ -74,10 +74,10 @@
         FROM ( <include refid="feedBase"/> ) f
         <if test="feedFilter != null and feedFilter != ''">WHERE f.feed_type = #{feedFilter}</if>
         ORDER BY f.sort_dt DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="feedVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="feedVO" resultType="int">
         SELECT COUNT(*) FROM ( <include refid="feedBase"/> ) f
         <if test="feedFilter != null and feedFilter != ''">WHERE f.feed_type = #{feedFilter}</if>
     </select>

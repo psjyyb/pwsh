@@ -13,7 +13,7 @@ jwt:
   # 시크릿은 반드시 환경변수 JWT_SECRET로 주입(미주입 시 기동 실패 — 하드코딩 금지)
   secret: ${JWT_SECRET}
 
-# DB 컬럼 암호화 키는 BaseVO가 환경변수 DB_ENC_KEY에서 읽는다. 운영은 반드시 DB_ENC_KEY를 주입할 것.
+# DB 컬럼 암호화 키는 BaseVO가 환경변수 APP_CRYPTO_KEY에서 읽는다. 운영은 반드시 APP_CRYPTO_KEY를 주입할 것.
 # (미주입 시 dev 기본값으로 폴백되어 운영 데이터 복호화 불가/보안 취약 — 배포 스크립트에서 필수 설정)
 
 logging:

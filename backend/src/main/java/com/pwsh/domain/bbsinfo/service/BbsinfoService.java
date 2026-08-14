@@ -21,8 +21,8 @@ public class BbsinfoService {
         return commonDAO.selectList("bbsinfoDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(BbsinfoVO vo) {
-        return commonDAO.selectOne("bbsinfoDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(BbsinfoVO vo) {
+        return commonDAO.selectOne("bbsinfoDAO.selectListTotalCount", vo);
     }
 
     /** 콤보(메뉴-게시판 연결용) */

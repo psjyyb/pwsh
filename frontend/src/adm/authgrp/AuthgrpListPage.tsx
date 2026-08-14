@@ -12,7 +12,7 @@ import AuthgrpUserModal from './AuthgrpUserModal'
 
 /** 권한그룹 관리 — 분할 마스터-디테일(평면) + 메뉴권한/사용자 지정 모달. */
 export default function AuthgrpListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Authgrp>(AUTHGRP_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Authgrp>(AUTHGRP_LIST_URL)
   const { form, mode, selectedKey, openNew, openRow, save, remove } = useSplitForm<Authgrp>(authgrpApi, reload)
   const [menuTarget, setMenuTarget] = useState<Authgrp | null>(null)
   const [userTarget, setUserTarget] = useState<Authgrp | null>(null)
@@ -29,7 +29,7 @@ export default function AuthgrpListPage() {
   const list = (
     <Card title="목록">
       <SearchBar
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '그룹ID/명', width: 260 }]}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '그룹ID/명', width: 260 }]}
         onSearch={(v) => search(v)}
       />
       <Table<Authgrp>
@@ -41,7 +41,7 @@ export default function AuthgrpListPage() {
         loading={loading}
         rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

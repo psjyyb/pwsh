@@ -107,8 +107,8 @@ export default function CodeListPage() {
   const list = (
     <Card title="코드 트리">
       <SearchBar
-        fields={[{ type: 'text', name: 'searchKeyword', placeholder: '코드ID/명', width: 260 }]}
-        onSearch={(v) => setKeyword(v.searchKeyword ?? '')}
+        fields={[{ type: 'text', name: 'filterKeyword', placeholder: '코드ID/명', width: 260 }]}
+        onSearch={(v) => setKeyword(v.filterKeyword ?? '')}
       />
       <Table<Code>
         rowKey="rowId"

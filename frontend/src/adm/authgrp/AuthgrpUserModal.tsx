@@ -26,7 +26,7 @@ export default function AuthgrpUserModal({ open, authgrp, onClose }: Props) {
 
   useEffect(() => {
     if (!open || !authgrp) return
-    apiPost<ListResult<User>>(USER_LIST_URL, { pageIndex: 1, size: 1000 })
+    apiPost<ListResult<User>>(USER_LIST_URL, { pageNo: 1, pageSize: 1000 })
       .then((r) => setItems(r.list.map((u) => ({ key: u.userId!, title: `${u.userNm} (${u.userId})` }))))
       .catch(() => setItems([]))
     authgrpApi.getUserIds(authgrp.rowId!).then(setTargetKeys).catch(() => setTargetKeys([]))

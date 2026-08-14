@@ -9,7 +9,7 @@ import type { Eventlog } from './eventlog.api'
 
 /** 활동 로그 — 분할(목록 | 상세 읽기전용, append-only). 로그인/등록/수정/삭제 자동기록. */
 export default function EventlogListPage() {
-  const { rows, total, loading, page, size, search, changePage } = useList<Eventlog>(EVENTLOG_LIST_URL)
+  const { rows, total, loading, page, pageSize, search, changePage } = useList<Eventlog>(EVENTLOG_LIST_URL)
   const [selected, setSelected] = useState<Eventlog | null>(null)
 
   const columns: TableColumnsType<Eventlog> = [
@@ -48,7 +48,7 @@ export default function EventlogListPage() {
         loading={loading}
         rowClassName={(r) => (r.rowId === selected?.rowId ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )

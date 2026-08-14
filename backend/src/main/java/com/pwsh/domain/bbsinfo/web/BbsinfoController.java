@@ -31,11 +31,11 @@ public class BbsinfoController {
         if ("Combo".equals(variant)) {
             return ApiResponse.ok(bbsinfoService.selectComboList(vo));
         }
-        int totCnt = bbsinfoService.selectListTotCnt(vo);
+        int totalCount = bbsinfoService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", bbsinfoService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     /** 단건 조회(게시판 설정) — 사용자 게시판 화면에서도 사용(권한 예외) */

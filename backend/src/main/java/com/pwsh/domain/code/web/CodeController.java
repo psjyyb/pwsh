@@ -40,11 +40,11 @@ public class CodeController {
         if ("Combo".equals(variant)) {
             return ApiResponse.ok(codeService.selectComboList(vo));
         }
-        int totCnt = codeService.selectListTotCnt(vo);
+        int totalCount = codeService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", codeService.selectList(vo),
-                "totCnt", totCnt,
-                "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
+                "totalCount", totalCount,
+                "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
     /** 단건 계열: ''=단건조회 / NextChild=하위코드추가용 다음값 */
@@ -66,7 +66,7 @@ public class CodeController {
         return ApiResponse.ok();
     }
 
-    /** 수정. variant: "ordr"=정렬 위/아래 교환(searchCondition=UP/DOWN), 빈값=일반수정 */
+    /** 수정. variant: "ordr"=정렬 위/아래 교환(direction=UP/DOWN), 빈값=일반수정 */
     @RequestMapping("/updateCode{variant}.do")
     public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody CodeVO searchVO) {

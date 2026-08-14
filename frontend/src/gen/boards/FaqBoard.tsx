@@ -30,7 +30,7 @@ export default function FaqBoard({ board }: { board: Bbsinfo }) {
     if (!bbsinfoId) return
     setLoading(true)
     try {
-      const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageIndex: 1, size: 200 })
+      const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageNo: 1, pageSize: 200 })
       setRows(res.list)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '목록 조회 실패')

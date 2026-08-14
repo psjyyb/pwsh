@@ -20,6 +20,6 @@ export const codeApi = {
   nextChild: (pCodeId: string) => apiPost<Code>('/adm/code/selectCodeViewNextChild.do', { pCodeId }),
   /** 순서 변경(같은 부모 내 인접 코드와 교환) — 위로/아래로 방식 */
   moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/code/updateCodeOrdr.do', { rowId, searchCondition: direction }),
+    apiPost<void>('/adm/code/updateCodeOrdr.do', { rowId, direction }),
 }
 export const CODE_LIST_URL = codeApi.listUrl

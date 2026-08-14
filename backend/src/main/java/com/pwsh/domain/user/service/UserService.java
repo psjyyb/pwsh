@@ -26,8 +26,8 @@ public class UserService {
         return commonDAO.selectList("userDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(UserVO vo) {
-        return commonDAO.selectOne("userDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(UserVO vo) {
+        return commonDAO.selectOne("userDAO.selectListTotalCount", vo);
     }
 
     public UserVO selectView(UserVO vo) {

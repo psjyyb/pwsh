@@ -7,16 +7,16 @@
                pop_width, pop_height, pop_top, pop_left, use_yn
         FROM t_popup
         WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND pop_nm LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND pop_nm LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY ordr, pop_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="popupVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="popupVO" resultType="int">
         SELECT COUNT(*) FROM t_popup WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">AND pop_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND pop_nm LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <!-- 사용자 메인 노출용: 사용중 + 오늘이 노출기간 내(기간 미설정은 항상 노출) + 순서 -->
@@ -70,7 +70,7 @@
         FROM t_popup
         WHERE use_yn = 'Y'
         <choose>
-            <when test="searchCondition == 'UP'">
+            <when test="direction == 'UP'">
                 AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
             </when>
             <otherwise>

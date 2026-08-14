@@ -15,16 +15,16 @@
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, use_yn
         FROM t_file
         WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND file_org_nm LIKE '%' || #{searchKeyword} || '%'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND file_org_nm LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY file_id DESC
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="fileVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="fileVO" resultType="int">
         SELECT COUNT(*) FROM t_file WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">AND file_org_nm LIKE '%' || #{searchKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND file_org_nm LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="fileVO" resultType="fileVO">

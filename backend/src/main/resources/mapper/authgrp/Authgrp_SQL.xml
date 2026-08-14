@@ -6,17 +6,17 @@
         SELECT authgrp_id AS row_id, authgrp_nm, authgrp_desc, use_yn
         FROM t_auth_grp
         WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND (authgrp_id LIKE '%' || #{searchKeyword} || '%' OR authgrp_nm LIKE '%' || #{searchKeyword} || '%')
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (authgrp_id LIKE '%' || #{filterKeyword} || '%' OR authgrp_nm LIKE '%' || #{filterKeyword} || '%')
         </if>
         ORDER BY authgrp_id
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
-    <select id="selectListTotCnt" parameterType="authgrpVO" resultType="int">
+    <select id="selectListTotalCount" parameterType="authgrpVO" resultType="int">
         SELECT COUNT(*) FROM t_auth_grp WHERE use_yn = 'Y'
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND (authgrp_id LIKE '%' || #{searchKeyword} || '%' OR authgrp_nm LIKE '%' || #{searchKeyword} || '%')
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (authgrp_id LIKE '%' || #{filterKeyword} || '%' OR authgrp_nm LIKE '%' || #{filterKeyword} || '%')
         </if>
     </select>
 

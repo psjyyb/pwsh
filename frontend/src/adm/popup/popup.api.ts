@@ -22,7 +22,7 @@ export const popupApi = {
   ...createCrudApi<Popup>('/adm/popup', 'Popup'),
   /** 순서 변경(인접 팝업과 교환) */
   moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/popup/updatePopupOrdr.do', { rowId, searchCondition: direction }),
+    apiPost<void>('/adm/popup/updatePopupOrdr.do', { rowId, direction }),
   /** 사용자 메인 노출용(사용중+기간내) 팝업 목록 — selectList{variant=Main} */
   mainList: () => apiPost<Popup[]>('/adm/popup/selectPopupListMain.do', {}),
 }

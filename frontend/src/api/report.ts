@@ -20,8 +20,8 @@ export const reportApi = {
   report: (targetType: 'BBS' | 'COMMENT' | 'RECRUIT', targetId: string, reason: string, reasonCd?: string) =>
     apiPost<void>('/adm/report/insertReport.do', { targetType, targetId, reason, reasonCd: reasonCd ?? '' }),
   /** 신고 목록(관리자, 서버 페이징) — status 빈 값이면 전체 */
-  list: (status?: string, pageIndex = 1, size = 20) =>
-    apiPost<ListResult<Report>>('/adm/report/selectReportList.do', { status: status ?? '', pageIndex, size }),
+  list: (status?: string, pageNo = 1, pageSize = 20) =>
+    apiPost<ListResult<Report>>('/adm/report/selectReportList.do', { status: status ?? '', pageNo, pageSize }),
   /** 신고 처리(관리자) */
   updateStatus: (rowId: string, status: string) =>
     apiPost<void>('/adm/report/updateReportStatus.do', { rowId, status }),

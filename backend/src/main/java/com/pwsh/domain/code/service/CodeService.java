@@ -22,8 +22,8 @@ public class CodeService {
         return commonDAO.selectList("codeDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(CodeVO vo) {
-        return commonDAO.selectOne("codeDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(CodeVO vo) {
+        return commonDAO.selectOne("codeDAO.selectListTotalCount", vo);
     }
 
     public CodeVO selectView(CodeVO vo) {
@@ -100,7 +100,7 @@ public class CodeService {
         if (cur == null) {
             return;
         }
-        cur.setSearchCondition(vo.getSearchCondition()); // UP/DOWN
+        cur.setDirection(vo.getDirection()); // UP/DOWN
         CodeVO adj = commonDAO.selectOne("codeDAO.selectAdjacentOrdr", cur);
         if (adj == null) {
             return; // 목록 끝

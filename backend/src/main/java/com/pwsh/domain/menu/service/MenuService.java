@@ -20,8 +20,8 @@ public class MenuService {
         return commonDAO.selectList("menuDAO.selectList", vo);
     }
 
-    public int selectListTotCnt(MenuVO vo) {
-        return commonDAO.selectOne("menuDAO.selectListTotCnt", vo);
+    public int selectListTotalCount(MenuVO vo) {
+        return commonDAO.selectOne("menuDAO.selectListTotalCount", vo);
     }
 
     public MenuVO selectView(MenuVO vo) {
@@ -58,7 +58,7 @@ public class MenuService {
         if (cur == null) {
             return;
         }
-        cur.setSearchCondition(vo.getSearchCondition());
+        cur.setDirection(vo.getDirection());
         MenuVO adj = commonDAO.selectOne("menuDAO.selectAdjacentOrdr", cur);
         if (adj == null) {
             return;

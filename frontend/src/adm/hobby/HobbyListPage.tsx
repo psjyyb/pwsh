@@ -22,7 +22,7 @@ type Mode = 'none' | 'insert' | 'edit'
 
 /** 취미관리 — 카탈로그 CRUD. 소개/가이드=리치에디터, 대표이미지=업로드. */
 export default function HobbyListPage() {
-  const { rows, total, loading, page, size, reload, search, changePage } = useList<Hobby>(HOBBY_LIST_URL)
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Hobby>(HOBBY_LIST_URL)
   const [mode, setMode] = useState<Mode>('none')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [form] = Form.useForm()
@@ -102,12 +102,12 @@ export default function HobbyListPage() {
 
   const list = (
     <Card title="목록">
-      <SearchBar fields={[{ type: 'text', name: 'searchKeyword', placeholder: '취미명', width: 220 }]} onSearch={(v) => search(v)} />
+      <SearchBar fields={[{ type: 'text', name: 'filterKeyword', placeholder: '취미명', width: 220 }]} onSearch={(v) => search(v)} />
       <Table<Hobby>
         rowKey="rowId" size="small" columns={columns} dataSource={rows} loading={loading}
         rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
-        pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
   )
