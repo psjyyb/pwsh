@@ -9,5 +9,5 @@
 
 영역 스타일 차이는 컴포넌트 복제 대신 `gen/theme.ts`(ConfigProvider 테마)로 처리한다.
 
-> 현재 비어 있음(placeholder). 사용자 화면은 프로젝트마다 달라, 공통 UI는 **실제 프로젝트 도입 시** 필요에 맞춰 여기에 추가한다.
-> (참고: 문서 제목은 `common/hooks/useDocumentTitle` 훅으로 `[페이지명 | 사이트명]` 자동 설정 — GenLayout이 t_config.title + 현재 메뉴명 적용.)
+> 현재: `UserAvatar`(닉네임·프로필 사진 + 프로필 링크), `ReportAction`(신고 버튼).
+> (참고: 문서 제목은 `common/hooks/useDocumentTitle` 훅이 `[페이지명 | 사이트명]`으로 자동 설정 — 사이트명은 환경설정 값.)
