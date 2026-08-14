@@ -115,6 +115,17 @@ body {
   .gen-hobby-card:hover { transform: none; }
 }
 
+/*
+  표의 숫자를 폭 고정으로 — ID·건수·날짜가 세로로 줄을 맞춰야 훑기 쉽다.
+  (기본 비례 숫자는 1과 8의 폭이 달라 열이 들쭉날쭉해 보인다)
+  한글·영문 폭에는 영향이 없어 관리자·사용자 표에 모두 적용한다.
+*/
+.ant-table-tbody td,
+.ant-table-thead th,
+.ant-descriptions-item-content {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Toast UI 에디터의 h1/h2 하단 밑줄 제거(저장/렌더에는 없는 에디터 전용 스타일) */
 .toastui-editor-contents h1,
 .toastui-editor-contents h2 {

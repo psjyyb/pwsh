@@ -5,7 +5,7 @@
 
 ## 이 프로젝트의 도메인 (신규)
 - **취미 게시판(카테고리 = 게시판)**: 취미(등산·보드게임·낚시…) 1개 = 게시판(`t_bbsinfo`) 1개. GEN 메뉴 "취미게시판" 그룹에 `conn_ty=게시판`으로 연결 → `/gen/board/{id}` 범용 라우트로 동작(무코드). 취미 추가 = `data.sql`에 게시판 + 메뉴만. 작성자 표기는 **닉네임**(`t_user.nickname`, bbs/comment 조회에 `reg_nm` 조인).
-- **모집**(`domain/recruit`): 모임원 모집(`t_recruit`) + 참여신청(`t_recruit_apply`, 수락/거절). `RecruitController`(5메서드, `updateRecruit{path}` ''=수정/Status=마감) + `RecruitApplyController`(peer, 댓글 패턴) + 단일 `RecruitService`. 목록/조회 공개(`SecurityConfig` permitAll), 등록/신청/수락은 로그인(인가는 서비스의 `assertOwnerOrAdmin`). 프론트 `/gen/recruit`(`gen/recruit/RecruitPage.tsx`, `genScreens` 등록).
+- **모집**(`domain/recruit`): 모임원 모집(`t_recruit`) + 참여신청(`t_recruit_apply`, 수락/거절) + 단체 대화(`t_recruit_chat`, 주최자·수락자만 — 자격은 조인으로 매 요청 판정, SSE 실시간). `RecruitController`(5메서드, `insertRecruit{path}` ''=신규/Copy=다음 회차 복제, `updateRecruit{path}` ''=수정/Status=마감) + `RecruitApplyController`·`RecruitChatController`(peer, 댓글 패턴) + 단일 `RecruitService`. 목록/조회 공개(`SecurityConfig` permitAll), 등록/신청/수락은 로그인(인가는 서비스의 `assertOwnerOrAdmin`). 프론트 `/gen/recruit`(`gen/recruit/RecruitPage.tsx`, `genScreens` 등록).
 - **셀프 회원가입**: `POST /api/auth/signup`(공개) → `AuthService.signup`이 `t_user`(MEM01) + `t_auth_user`(MEMBER) 생성. 닉네임 필수·이메일 선택, 비번 `PasswordPolicy`. 프론트 공개 라우트 `/signup`(`auth/SignupPage.tsx`).
 
 ## 스택 / 구조

@@ -3,6 +3,10 @@
 <!--
   통합 검색(공개 엔드포인트). 키워드는 서비스에서 LIKE 특수문자(% _ \)를 이스케이프하므로
   모든 LIKE에 ESCAPE '\' 를 명시한다.
+
+  성능 메모: 부분일치(LIKE '%키워드%')는 인덱스를 타지 못해 대상 테이블을 훑는다.
+  현재 데이터 규모(글 수십~수백 건)에서는 문제되지 않지만, 글이 수만 건을 넘으면
+  tsvector 컬럼 + GIN 인덱스(전문검색)로 바꿔야 한다. 그때는 DDL이 필요하다.
 -->
 <mapper namespace="searchDAO">
 
@@ -40,16 +44,31 @@
       ※ GEN 메뉴 GUEST 권한으로 한 번 더 좁히면 안 된다 — 취미 게시판엔 GEN 메뉴가 없어서 결과가 0이 됨.
     -->
     <select id="searchPosts" parameterType="map" resultType="bbsVO">
-        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
+        WITH hit AS (
+            SELECT b.bbs_id, b.bbsinfo_id, b.title, b.reg_id, b.reg_dt,
+                   <!-- 본문에서 HTML 태그를 지운 평문(스니펫·본문매칭 판정에 함께 쓴다).
+                        정규식의 '<'는 XML에서 &lt; 로 써야 한다(그대로 두면 매퍼 파싱이 깨진다). -->
+                   regexp_replace(COALESCE(b.context, ''), '&lt;[^>]*>', ' ', 'g') AS plain,
+                   (b.title LIKE '%' || #{keyword} || '%' ESCAPE '\') AS title_hit
+            FROM t_bbs b
+            WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
+              AND EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y')
+        )
+        SELECT hit.bbs_id::TEXT AS db_key, hit.bbsinfo_id, hit.title,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = hit.reg_id) AS reg_nm,
                bi.bbsinfo_nm,
-               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_bbs b
-        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
-        WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
-          AND b.title LIKE '%' || #{keyword} || '%' ESCAPE '\'
-          AND EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y')
-        ORDER BY b.bbs_id DESC
+               TO_CHAR(hit.reg_dt, 'YYYY-MM-DD') AS reg_dt,
+               -- 본문에서 찾았을 때만 스니펫: 매칭 지점 앞 20자부터 100자를 잘라 문맥을 보여준다
+               CASE WHEN NOT hit.title_hit AND POSITION(#{keyword} IN hit.plain) > 0
+                    THEN BTRIM(SUBSTRING(hit.plain
+                                FROM GREATEST(1, POSITION(#{keyword} IN hit.plain) - 20)
+                                FOR 100))
+               END AS search_snippet
+        FROM hit
+        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = hit.bbsinfo_id
+        WHERE hit.title_hit OR hit.plain LIKE '%' || #{keyword} || '%' ESCAPE '\'
+        -- 제목에서 찾은 글을 본문에서만 찾은 글보다 앞에(간단한 관련도 정렬)
+        ORDER BY hit.title_hit DESC, hit.bbs_id DESC
         LIMIT 10
     </select>
 

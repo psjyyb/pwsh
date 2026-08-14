@@ -6,6 +6,7 @@ export interface Bbs {
   bbsinfoId?: string
   title?: string
   context?: string
+  searchSnippet?: string // 통합검색에서 본문이 매칭된 경우의 발췌(태그 제거된 평문)
   fileId?: string // 대표 이미지(갤러리 썸네일) t_bbs.file_id
   noticeYn?: string
   noticeStartDt?: string

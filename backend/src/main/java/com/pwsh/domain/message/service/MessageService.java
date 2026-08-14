@@ -6,11 +6,13 @@ import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.block.service.BlockService;
 import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.domain.user.service.UserVO;
+import com.pwsh.global.realtime.RealtimeService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 쪽지(1:1 메시지) 업무 로직(단일 @Service). 모든 조회/변경은 로그인 본인(myId=현재 사용자) 기준으로 서버가 강제.
@@ -23,6 +25,7 @@ public class MessageService {
     private final CommonDAO commonDAO;
     private final NotificationService notificationService;
     private final BlockService blockService;
+    private final RealtimeService realtimeService;
     private final com.pwsh.global.security.HandleResolver handleResolver;
 
     /** 내 대화 목록(상대별 최근 + 안읽음). */
@@ -83,6 +86,13 @@ public class MessageService {
         String myHandle = (meU != null) ? meU.getHandle() : null;
         notificationService.notify(receiver, "MESSAGE", "'" + nm + "'님이 쪽지를 보냈어요.",
                 myHandle != null ? "/gen/message?with=" + myHandle : "/gen/message");
+        // 실시간: 접속 중인 수신자에게 '새 쪽지 있음'만 밀어준다(본문은 조회 API로 가져간다)
+        realtimeService.push(receiver, "message");
+    }
+
+    /** 내 실시간 스트림 연결(SSE) — 로그인 본인 것만 열 수 있다. */
+    public SseEmitter subscribe() {
+        return realtimeService.subscribe(currentUserId());
     }
 
     /** 상대(handle)와의 대화 읽음 처리. */

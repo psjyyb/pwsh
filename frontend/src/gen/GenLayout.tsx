@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Badge, Button, ConfigProvider, Dropdown, Drawer, Grid, Input, Layout, Menu, Modal, Popover, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
@@ -17,6 +17,7 @@ import NotFound from '../common/NotFound'
 import defaultLogo from '../assets/logo.svg'
 import hobbyPattern from '../assets/hobby-pattern.svg'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
+import { useEventStream } from '../common/gen/useEventStream'
 import { notificationApi } from '../api/notification'
 import { messageApi } from '../api/message'
 import type { Noti } from '../api/notification'
@@ -147,6 +148,30 @@ export default function GenLayout() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /** 안 읽음 배지 갱신(알림·쪽지) — 푸시 수신 시/폴백 주기에 호출. */
+  const refreshBadges = useCallback(() => {
+    if (!loggedIn) return
+    notificationApi.unreadCnt().then(setNotiUnread).catch(() => {})
+    messageApi.unreadCnt().then(setMsgUnread).catch(() => {})
+  }, [loggedIn])
+
+  // 서버 푸시(SSE): 새 알림·쪽지가 생기면 배지를 즉시 갱신
+  const streamed = useEventStream('/api/adm/message/selectMessageListStream.do', () => refreshBadges())
+
+  /*
+    폴백 폴링 — SSE가 끊겼을 때만 동작(연결 중이면 요청하지 않는다).
+    헤더는 모든 화면에 떠 있어 주기를 넉넉히(30초) 두고, 탭이 백그라운드면 건너뛴다.
+  */
+  useEffect(() => {
+    if (!loggedIn || streamed) return
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return
+      refreshBadges()
+    }
+    const id = window.setInterval(tick, 30000)
+    return () => window.clearInterval(id)
+  }, [loggedIn, streamed, refreshBadges])
 
   const openNoti = async (open: boolean) => {
     setNotiOpen(open)

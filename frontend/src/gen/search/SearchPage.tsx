@@ -5,6 +5,30 @@ import { searchApi } from '../../api/search'
 import type { SearchResult } from '../../api/search'
 import { gen } from '../theme'
 
+/**
+ * 스니펫에서 검색어만 강조. dangerouslySetInnerHTML을 쓰지 않고 조각으로 나눠 렌더한다
+ * (본문 발췌가 그대로 들어오므로 HTML로 해석시키면 XSS 통로가 된다).
+ */
+function highlight(text: string, keyword: string) {
+  if (!keyword) return text
+  const parts: (string | JSX.Element)[] = []
+  let rest = text
+  let i = 0
+  // 대소문자 무시하고 찾되, 출력은 원문 조각을 그대로 쓴다
+  for (;;) {
+    const at = rest.toLowerCase().indexOf(keyword.toLowerCase())
+    if (at < 0) { parts.push(rest); break }
+    if (at > 0) parts.push(rest.slice(0, at))
+    parts.push(
+      <mark key={i++} style={{ background: '#FFF1A8', padding: '0 1px', borderRadius: 3 }}>
+        {rest.slice(at, at + keyword.length)}
+      </mark>,
+    )
+    rest = rest.slice(at + keyword.length)
+  }
+  return <>{parts}</>
+}
+
 /** 통합 검색 결과(/gen/search?q=) — 취미·모집·게시글을 묶어 표시. */
 export default function SearchPage() {
   const [params] = useSearchParams()
@@ -68,6 +92,12 @@ export default function SearchPage() {
                   <Tag>{p.bbsinfoNm}</Tag>
                   <span style={{ fontWeight: 600 }}>{p.title}</span>
                   <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa' }}>{p.regNm} · {p.regDt}</span>
+                  {/* 제목이 아니라 본문에서 걸린 글 — 어디서 걸렸는지 보여준다 */}
+                  {p.searchSnippet && (
+                    <div style={{ fontSize: 13, color: gen.inkSoft, marginTop: 4, lineHeight: 1.5 }}>
+                      {highlight(p.searchSnippet, q)}
+                    </div>
+                  )}
                 </div>
               ))}
             </Card>

@@ -26,6 +26,8 @@ public class RecruitService {
 
     private final CommonDAO commonDAO;
     private final com.pwsh.domain.notification.service.NotificationService notificationService;
+    private final com.pwsh.domain.block.service.BlockService blockService;
+    private final com.pwsh.global.realtime.RealtimeService realtimeService;
 
     // ===== 모집 =====
     public List<RecruitVO> selectList(RecruitVO vo) {
@@ -65,9 +67,123 @@ public class RecruitService {
         return recruit;
     }
 
-    /** 등록(로그인 회원). 주최자=reg_id(AuditInterceptor), 상태=모집중 기본. */
+    /** 등록(로그인 회원). 주최자=reg_id(AuditInterceptor), 상태=모집중 기본. 등록 후 관심 회원에게 알림. */
     public void insert(RecruitVO vo) {
         commonDAO.insert("recruitDAO.insert", vo);
+        notifyHobbyFollowers(vo);
+    }
+
+    /**
+     * 그 취미를 담은 회원에게 '새 모집' 알림 — 관심 있는 사람만 받는다(t_user_hobby 기준).
+     * 주최자를 차단한 회원은 제외한다. 알림 1건씩 독립 트랜잭션이라 실패가 모집 등록을 되돌리지 않는다.
+     *
+     * <p>담은 회원 수만큼 순차 발행하므로 인기 취미에서는 등록 응답이 길어질 수 있다.
+     * 현재 규모에서는 문제되지 않지만, 회원이 크게 늘면 비동기(@Async)나 배치로 옮겨야 한다.
+     */
+    private void notifyHobbyFollowers(RecruitVO vo) {
+        notifyHobbyFollowers(vo, java.util.Set.of());
+    }
+
+    /** @param already 이미 다른 사유로 알림을 보낸 회원(중복 발송 방지 — 예: 이전 회차 참여자) */
+    private void notifyHobbyFollowers(RecruitVO vo, java.util.Set<String> already) {
+        String host = SecurityUtil.getCurrentUserId();
+        if (vo.getHobbyId() == null || vo.getHobbyId().isBlank() || host == null) {
+            return;
+        }
+        Map<String, Object> p = new java.util.HashMap<>();
+        p.put("hobbyId", vo.getHobbyId());
+        p.put("hostId", host);
+        List<String> followers = commonDAO.selectList("recruitDAO.selectHobbyFollowers", p);
+        if (followers.isEmpty()) {
+            return;
+        }
+        RecruitVO key = new RecruitVO();
+        key.setDbKey(vo.getDbKey());
+        RecruitVO saved = commonDAO.selectOne("recruitDAO.selectView", key);
+        String hobbyNm = saved != null && saved.getHobbyNm() != null ? saved.getHobbyNm() : "관심 취미";
+        String title = saved != null && saved.getTitle() != null ? saved.getTitle() : "새 모집";
+        String link = "/gen/recruit/" + vo.getDbKey();
+        for (String uid : followers) {
+            if (already.contains(uid) || blockService.isBlockedBy(host, uid)) {
+                continue; // 이미 받은 회원(이전 회차 참여자)·주최자를 차단한 회원에게는 보내지 않는다
+            }
+            notificationService.notify(uid, "NEWRECRUIT",
+                    "[" + hobbyNm + "] 새 모집이 열렸어요: " + title, link);
+        }
+        log.info("[NewRecruit] hobby={} 대상 {}명에게 알림", vo.getHobbyId(), followers.size());
+    }
+
+    /**
+     * 다음 회차 만들기(정기 모임) — 기존 모집을 복제해 일정만 바꿔 새로 연다. 주최자·관리자만.
+     *
+     * <p>회차를 잇는 컬럼(원본 id·회차 번호)은 두지 않는다. 참여자·대화·조회수를 물려받지 않는
+     * <b>독립된 새 모집</b>이라 연결을 남기면 "이전 회차 신청자는 자동 참여인가?" 같은 모호한 상태가
+     * 생긴다. 대신 이전 회차 확정 참여자에게 알림을 보내 다시 신청할 수 있게 한다.
+     *
+     * <p>vo에 값이 있으면 그 값으로, 없으면 원본 값을 그대로 쓴다(제목·설명·정원·지역).
+     * 일정(meetDt)은 회차를 구분하는 유일한 값이라 필수이고, 지난 날짜는 받지 않는다.
+     */
+    @Transactional
+    public void copy(RecruitVO vo) {
+        String srcId = vo.getDbKey();
+        assertOwner(srcId);
+        RecruitVO key = new RecruitVO();
+        key.setDbKey(srcId);
+        RecruitVO src = commonDAO.selectOne("recruitDAO.selectView", key);
+        if (src == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
+        }
+        String meetDt = vo.getMeetDt() == null ? "" : vo.getMeetDt().trim();
+        if (meetDt.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "다음 모임 일정을 선택해 주세요.");
+        }
+        if (meetDt.compareTo(java.time.LocalDate.now().toString()) < 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "지난 날짜로는 다음 회차를 만들 수 없습니다.");
+        }
+
+        RecruitVO next = new RecruitVO();
+        next.setHobbyId(src.getHobbyId());
+        next.setTitle(pick(vo.getTitle(), src.getTitle()));
+        next.setContent(pick(vo.getContent(), src.getContent()));
+        next.setCapacity(pick(vo.getCapacity(), src.getCapacity()));
+        next.setAreaCd(pick(vo.getAreaCd(), src.getAreaCd()));
+        next.setRegion(pick(vo.getRegion(), src.getRegion()));
+        next.setMeetDt(meetDt); // 상태는 매퍼 기본값(RECRUIT01 모집중) — 복제본은 항상 새로 모집한다
+        commonDAO.insert("recruitDAO.insert", next);
+        vo.setDbKey(next.getDbKey()); // 컨트롤러가 새 모집 ID를 반환
+
+        java.util.Set<String> notified = notifyPrevMembers(srcId, next);
+        notifyHobbyFollowers(next, notified);
+    }
+
+    /**
+     * 이전 회차 확정 참여자에게 '다음 회차' 알림. 반환값은 발송한 회원 — 취미 팔로워 알림과 중복되지 않게
+     * 호출자가 제외 목록으로 넘긴다(같은 사람이 알림 2건을 받으면 스팸처럼 보인다).
+     */
+    private java.util.Set<String> notifyPrevMembers(String srcId, RecruitVO next) {
+        String host = SecurityUtil.getCurrentUserId();
+        Map<String, Object> p = new java.util.HashMap<>();
+        p.put("recruitId", srcId);
+        p.put("userId", host);
+        java.util.Set<String> sent = new java.util.LinkedHashSet<>();
+        String link = "/gen/recruit/" + next.getDbKey();
+        for (String uid : commonDAO.<String>selectList("recruitDAO.selectAcceptedUsers", p)) {
+            if (blockService.isBlockedBy(host, uid)) {
+                continue;
+            }
+            notificationService.notify(uid, "NEWRECRUIT",
+                    "'" + next.getTitle() + "' 다음 모임이 열렸어요. (" + next.getMeetDt() + ")", link);
+            sent.add(uid);
+        }
+        if (!sent.isEmpty()) {
+            log.info("[RecruitCopy] 모집 {} → {} 이전 회차 참여자 {}명에게 알림", srcId, next.getDbKey(), sent.size());
+        }
+        return sent;
+    }
+
+    /** 입력값이 있으면 그것을, 없으면 원본값을 쓴다(복제 시 부분 수정 허용). */
+    private String pick(String input, String fallback) {
+        return input == null || input.isBlank() ? fallback : input.trim();
     }
 
     /** 수정 — 주최자·관리자만. */
@@ -261,6 +377,80 @@ public class RecruitService {
         }
         SecurityUtil.assertOwnerOrAdmin(apply.getUserId());
         commonDAO.delete("recruitDAO.deleteApply", vo);
+    }
+
+    // ===== 모임 단체 대화 =====
+
+    /**
+     * 모집별 단체 대화 목록 — 주최자 또는 수락(APPLY02)된 참여자만.
+     * 멤버 판정을 매 요청 조인으로 하므로 수락이 취소되면 다음 요청부터 바로 막힌다.
+     */
+    public List<RecruitChatVO> selectChatList(RecruitChatVO vo) {
+        String me = currentUserId();
+        assertChatMember(vo.getRecruitId(), me);
+        Map<String, Object> p = new java.util.HashMap<>();
+        p.put("recruitId", vo.getRecruitId());
+        p.put("viewerId", me);
+        return commonDAO.selectList("recruitDAO.selectChatList", p);
+    }
+
+    /**
+     * 대화 등록 — 멤버만. 저장 후 나를 제외한 멤버에게 SSE로 "새 글 있음"만 밀어준다
+     * (본문은 목록 API로 다시 가져가므로 인가가 한 곳에 남는다).
+     * 알림(t_notification)은 남기지 않는다 — 대화는 오가는 빈도가 높아 알림함이 잠긴다.
+     */
+    @Transactional
+    public void chatInsert(RecruitChatVO vo) {
+        String me = currentUserId();
+        assertChatMember(vo.getRecruitId(), me);
+        String content = vo.getContent() == null ? "" : vo.getContent().trim();
+        if (content.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "내용을 입력해 주세요.");
+        }
+        if (content.length() > 1000) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "1000자 이내로 입력해 주세요.");
+        }
+        vo.setContent(content);
+        commonDAO.insert("recruitDAO.insertChat", vo);
+
+        Map<String, Object> p = new java.util.HashMap<>();
+        p.put("recruitId", vo.getRecruitId());
+        p.put("userId", me);
+        for (String uid : commonDAO.<String>selectList("recruitDAO.selectChatMembers", p)) {
+            realtimeService.push(uid, "recruitchat");
+        }
+    }
+
+    /**
+     * 대화 실시간 스트림 구독(SSE). 허브는 사용자 단위라 쪽지·알림 이벤트도 같은 연결로 오며,
+     * 클라이언트가 이벤트 이름("recruitchat")으로 골라 쓴다.
+     */
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeChat() {
+        return realtimeService.subscribe(currentUserId());
+    }
+
+    /** 대화 삭제(논리) — 작성자 본인 또는 관리자. */
+    public void chatDelete(RecruitChatVO vo) {
+        RecruitChatVO chat = commonDAO.selectOne("recruitDAO.selectChatView", vo);
+        if (chat == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대화를 찾을 수 없습니다.");
+        }
+        SecurityUtil.assertOwnerOrAdmin(chat.getRegId());
+        commonDAO.update("recruitDAO.deleteChat", vo);
+    }
+
+    /** 내가 이 모집의 대화 참여 자격이 있는지(주최자·수락 참여자). 관리자도 자격이 없으면 못 본다(사적 대화). */
+    private void assertChatMember(String recruitId, String userId) {
+        if (recruitId == null || recruitId.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "모집을 선택해 주세요.");
+        }
+        Map<String, Object> p = new java.util.HashMap<>();
+        p.put("recruitId", recruitId);
+        p.put("userId", userId);
+        Integer cnt = commonDAO.selectOne("recruitDAO.selectChatMemberCnt", p);
+        if (cnt == null || cnt == 0) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "참여가 확정된 회원만 대화할 수 있습니다.");
+        }
     }
 
     // ===== 공통 인가 =====

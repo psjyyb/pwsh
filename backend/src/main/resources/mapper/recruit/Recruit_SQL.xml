@@ -110,6 +110,84 @@
         WHERE recruit_id = #{dbKey}::integer
     </update>
 
+    <!--
+      새 모집 알림 대상 — 그 취미를 담은 회원(주최자 본인 제외, 정지 회원 제외).
+      "담은 취미"에만 보내므로 관심 없는 회원에게는 알림이 가지 않는다.
+      차단 관계는 서비스에서 한 번 더 걸러낸다(주최자를 차단한 회원에게는 보내지 않음).
+    -->
+    <select id="selectHobbyFollowers" parameterType="map" resultType="string">
+        SELECT uh.user_id
+        FROM t_user_hobby uh
+        JOIN t_user u ON u.user_id = uh.user_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+        WHERE uh.use_yn = 'Y'
+          AND uh.hobby_id = #{hobbyId}::integer
+          AND uh.user_id &lt;&gt; #{hostId}
+    </select>
+
+    <!-- 이전 회차의 확정 참여자(다음 회차 안내 대상). 탈퇴·정지 회원과 나는 제외. -->
+    <select id="selectAcceptedUsers" parameterType="map" resultType="string">
+        SELECT a.user_id
+        FROM t_recruit_apply a
+        JOIN t_user u ON u.user_id = a.user_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+        WHERE a.use_yn = 'Y'
+          AND a.recruit_id = #{recruitId}::integer
+          AND a.apply_status = 'APPLY02'
+          AND a.user_id &lt;&gt; #{userId}
+    </select>
+
+    <!-- ===================== 모임 단체 대화 (t_recruit_chat) =====================
+      참여 자격은 매번 조인으로 판정한다(주최자 또는 수락된 참여자).
+      멤버 테이블을 따로 두지 않으므로 수락이 취소되면 권한도 즉시 사라진다.
+    -->
+    <select id="selectChatMemberCnt" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM t_recruit r
+        WHERE r.recruit_id = #{recruitId}::integer AND r.use_yn = 'Y'
+          AND (r.reg_id = #{userId}
+               OR EXISTS (SELECT 1 FROM t_recruit_apply a
+                           WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y'
+                             AND a.user_id = #{userId} AND a.apply_status = 'APPLY02'))
+    </select>
+
+    <select id="selectChatList" parameterType="map" resultType="recruitChatVO">
+        SELECT c.chat_id::TEXT AS db_key, c.recruit_id, c.content,
+               (SELECT u.nickname FROM t_user u WHERE u.user_id = c.reg_id) AS reg_nm,
+               (SELECT u.handle   FROM t_user u WHERE u.user_id = c.reg_id) AS reg_handle,
+               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = c.reg_id) AS reg_profile_file_id,
+               (CASE WHEN c.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
+               (CASE WHEN c.reg_id = (SELECT r.reg_id FROM t_recruit r WHERE r.recruit_id = c.recruit_id)
+                     THEN 'Y' ELSE 'N' END) AS host_yn,
+               TO_CHAR(c.reg_dt, 'MM-DD HH24:MI') AS reg_dt
+        FROM t_recruit_chat c
+        WHERE c.use_yn = 'Y' AND c.recruit_id = #{recruitId}::integer
+        ORDER BY c.chat_id
+        LIMIT 300
+    </select>
+
+    <insert id="insertChat" parameterType="recruitChatVO">
+        INSERT INTO t_recruit_chat (recruit_id, content, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{recruitId}::integer, #{content}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <select id="selectChatView" parameterType="recruitChatVO" resultType="recruitChatVO">
+        SELECT chat_id::TEXT AS db_key, recruit_id, content, reg_id
+        FROM t_recruit_chat WHERE chat_id = #{dbKey}::integer AND use_yn = 'Y'
+    </select>
+
+    <update id="deleteChat" parameterType="recruitChatVO">
+        UPDATE t_recruit_chat SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE chat_id = #{dbKey}::integer
+    </update>
+
+    <!-- 대화 참여자(작성 알림 대상) — 주최자 + 수락 참여자 중 나를 제외 -->
+    <select id="selectChatMembers" parameterType="map" resultType="string">
+        SELECT r.reg_id AS user_id FROM t_recruit r
+         WHERE r.recruit_id = #{recruitId}::integer AND r.use_yn = 'Y' AND r.reg_id &lt;&gt; #{userId}
+        UNION
+        SELECT a.user_id FROM t_recruit_apply a
+         WHERE a.recruit_id = #{recruitId}::integer AND a.use_yn = 'Y'
+           AND a.apply_status = 'APPLY02' AND a.user_id &lt;&gt; #{userId}
+    </select>
+
     <!-- ===================== 참여 신청 (t_recruit_apply) ===================== -->
     <!-- 특정 모집 신청자 목록(주최자용) -->
     <!--

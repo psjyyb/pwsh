@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Empty, Form, Input, Modal, Rate, Space, Switch, Table, Tag, message } from 'antd'
+import { Button, Card, Empty, Form, Input, Modal, Rate, Segmented, Space, Switch, Table, Tag, Tooltip, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { tokenStore } from '../../auth/token'
@@ -9,8 +9,13 @@ import { applyApi } from '../recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../recruit/recruit.api'
 import type { Bbs } from '../../adm/bbs/bbs.api'
 import { myPosts, myRecruits, changeNickname } from './mypage.api'
+import ScheduleCalendar from './ScheduleCalendar'
+import type { ScheduleItem } from './ScheduleCalendar'
 import { reviewApi } from '../../api/review'
-import type { ReviewTarget } from '../../api/review'
+import type { ReviewStats, ReviewTarget } from '../../api/review'
+import { getUserProfile } from '../../api/profile'
+import type { AttendStats } from '../../api/profile'
+import { badgesOf, num } from '../badges'
 import { bookmarkApi } from '../../api/bookmark'
 import type { Bookmark } from '../../api/bookmark'
 import { notificationApi } from '../../api/notification'
@@ -57,6 +62,18 @@ export default function MyPage() {
   const [notiSaving, setNotiSaving] = useState(false)
 
   const [blocks, setBlocks] = useState<Block[]>([])
+  const [scheduleView, setScheduleView] = useState<'list' | 'calendar'>('list')
+
+  // 활동 배지 재료 — 내 참석 통계와 받은 후기 통계(공개 프로필 API에서 가져온다)
+  const [myAttend, setMyAttend] = useState<AttendStats>({})
+  const [myReview, setMyReview] = useState<ReviewStats | null>(null)
+  const myBadges = badgesOf({
+    attended: num(myAttend.attendedCnt),
+    noshow: num(myAttend.noshowCnt),
+    hosted: recruits.length,
+    reviewCnt: num(myReview?.reviewCnt),
+    avgRating: num(myReview?.avgRating),
+  })
 
   const loadBlocks = () => { blockApi.list().then(setBlocks).catch(() => {}) }
   const unblock = async (blockedHandle: string) => {
@@ -102,7 +119,15 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!loggedIn) return
-    me().then((info) => { setUserId(info.userId ?? ''); setNickname(info.nickname ?? ''); setNickInput(info.nickname ?? ''); setProfileFileId(info.profileFileId || undefined) }).catch(() => {})
+    me().then((info) => {
+      setUserId(info.userId ?? ''); setNickname(info.nickname ?? ''); setNickInput(info.nickname ?? '')
+      setProfileFileId(info.profileFileId || undefined)
+      // 배지 재료(참석 기록·받은 후기)는 공개 프로필 쪽에 있어 내 handle로 함께 가져온다
+      if (info.handle) {
+        getUserProfile(info.handle).then((p) => setMyAttend(p.attend ?? {})).catch(() => {})
+        reviewApi.stats(info.handle).then((s) => setMyReview(s)).catch(() => {})
+      }
+    }).catch(() => {})
     myPosts().then(setPosts).catch(() => {})
     myRecruits().then(setRecruits).catch(() => {})
     applyApi.mine().then(setApplies).catch(() => {})
@@ -114,19 +139,23 @@ export default function MyPage() {
   }, [loggedIn])
 
   /**
-   * 내 모임 일정 — 주최한 모집 + 참여 확정(APPLY02)된 모집을 합쳐 '오늘 이후' 일정만 가까운 순으로.
-   * 별도 저장 없이 기존 데이터로 구성(모임일이 비었거나 지난 모임은 제외).
+   * 내 모임 일정 — 주최한 모집 + 참여 확정(APPLY02)된 모집을 합쳐 날짜순으로.
+   * 별도 저장 없이 기존 데이터로 구성(모임일이 비어 있으면 제외).
+   * 지난 모임까지 모두 담는다 — 캘린더는 지난 달도 넘겨보므로 여기서 자르면 과거가 빈 달이 된다.
+   * 목록 뷰는 이 배열에서 '오늘 이후'만 걸러 쓴다(schedule).
    */
-  const schedule = (() => {
-    const today = new Date().toISOString().slice(0, 10)
+  const scheduleAll: ScheduleItem[] = (() => {
     const mine = recruits
-      .filter((r) => r.meetDt && r.meetDt >= today)
+      .filter((r) => r.meetDt)
       .map((r) => ({ key: `h-${r.dbKey}`, id: r.dbKey!, title: r.title ?? '', meetDt: r.meetDt!, region: r.region, role: '주최' as const }))
     const joined = applies
-      .filter((a) => a.applyStatus === 'APPLY02' && a.meetDt && a.meetDt >= today)
+      .filter((a) => a.applyStatus === 'APPLY02' && a.meetDt)
       .map((a) => ({ key: `a-${a.dbKey}`, id: a.recruitId!, title: a.recruitTitle ?? '', meetDt: a.meetDt!, region: a.region, role: '참여' as const }))
     return [...mine, ...joined].sort((x, y) => x.meetDt.localeCompare(y.meetDt))
   })()
+
+  const today = new Date().toISOString().slice(0, 10)
+  const schedule = scheduleAll.filter((s) => s.meetDt >= today)
 
   /** 오늘까지 남은 일수 표기(D-day). */
   const dday = (meetDt: string) => {
@@ -295,6 +324,16 @@ export default function MyPage() {
             @{userId}
             {profileFileId && <> · <a onClick={removePhoto}>사진 삭제</a></>}
           </div>
+          {/* 활동 배지 — 참석·주최·후기에서 파생(공개 프로필과 같은 기준) */}
+          {myBadges.length > 0 && (
+            <Space size={5} style={{ marginTop: 8 }} wrap>
+              {myBadges.map((b) => (
+                <Tooltip key={b.key} title={b.desc}>
+                  <Tag color={b.color} style={{ fontWeight: 600, cursor: 'default' }}>{b.label}</Tag>
+                </Tooltip>
+              ))}
+            </Space>
+          )}
         </div>
         <Space style={{ marginLeft: 'auto' }} wrap>
           <Button onClick={() => navigate('/gen/myhobby')} type="primary" ghost style={{ borderRadius: 12, fontWeight: 600 }}>♥ 나의 취미</Button>
@@ -303,9 +342,19 @@ export default function MyPage() {
         </Space>
       </div>
 
-      {/* 내 모임 일정 — 주최·참여확정 모임 중 다가오는 것만 */}
-      <Card style={{ borderRadius: 18 }} title={cardTitle('📅', '내 모임 일정', schedule.length)}>
-        {schedule.length === 0 ? (
+      {/* 내 모임 일정 — 목록(다가오는 것만) / 캘린더(지난 달도 조회) 전환 */}
+      <Card
+        style={{ borderRadius: 18 }} title={cardTitle('📅', '내 모임 일정', schedule.length)}
+        extra={
+          <Segmented
+            size="small" value={scheduleView} onChange={(v) => setScheduleView(v as 'list' | 'calendar')}
+            options={[{ value: 'list', label: '목록' }, { value: 'calendar', label: '캘린더' }]}
+          />
+        }
+      >
+        {scheduleView === 'calendar' ? (
+          <ScheduleCalendar items={scheduleAll} onSelect={(id) => navigate(`/gen/recruit/${id}`)} />
+        ) : schedule.length === 0 ? (
           <Empty description="다가오는 모임이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size={8}>

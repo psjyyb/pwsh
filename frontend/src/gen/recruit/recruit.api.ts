@@ -46,6 +46,19 @@ export interface RecruitApply {
   regDt?: string
 }
 
+/** 모임 단체 대화 한 줄. 주최자 + 수락된 참여자만 조회·작성 가능(서버 판정). */
+export interface RecruitChat {
+  dbKey?: string
+  recruitId?: string
+  content?: string
+  regNm?: string            // 작성자 닉네임
+  regHandle?: string        // 작성자 공개 식별자
+  regProfileFileId?: string // 작성자 프로필 사진
+  mineYn?: string           // 'Y'=내가 쓴 말
+  hostYn?: string           // 'Y'=주최자가 쓴 말
+  regDt?: string
+}
+
 export interface RecruitListParams {
   hobbyId?: string
   statusCd?: string
@@ -63,6 +76,12 @@ export const recruitApi = {
   view: (dbKey: string, viewUp = false) =>
     apiPost<Recruit>('/adm/recruit/selectRecruitView.do', { dbKey, viewUp: viewUp ? 'Y' : 'N' }),
   insert: (vo: Partial<Recruit>) => apiPost<string>('/adm/recruit/insertRecruit.do', vo),
+  /**
+   * 다음 회차 만들기(정기 모임) — dbKey=원본 모집. 비운 항목은 원본 값을 그대로 물려받는다.
+   * 반환값은 새로 만들어진 모집 ID. 참여자·대화는 복제되지 않는다.
+   */
+  copy: (dbKey: string, vo: Partial<Recruit>) =>
+    apiPost<string>('/adm/recruit/insertRecruitCopy.do', { ...vo, dbKey }),
   update: (vo: Partial<Recruit>) => apiPost<void>('/adm/recruit/updateRecruit.do', vo),
   /** 모집상태 변경(마감 RECRUIT02 / 재개 RECRUIT01) */
   changeStatus: (dbKey: string, statusCd: string) =>
@@ -87,4 +106,13 @@ export const applyApi = {
     apiPost<void>('/adm/recruitApply/updateRecruitApplyAttend.do', { dbKey, attendCd }),
   /** 신청 취소 — 본인 */
   cancel: (dbKey: string) => apiPost<void>('/adm/recruitApply/deleteRecruitApply.do', { dbKey }),
+}
+
+/** 모임 단체 대화 — 자격 없는 사용자는 403이므로 호출부에서 조용히 감춘다. */
+export const recruitChatApi = {
+  list: (recruitId: string) =>
+    apiPost<RecruitChat[]>('/adm/recruitChat/selectRecruitChatList.do', { recruitId }),
+  send: (recruitId: string, content: string) =>
+    apiPost<void>('/adm/recruitChat/insertRecruitChat.do', { recruitId, content }),
+  remove: (dbKey: string) => apiPost<void>('/adm/recruitChat/deleteRecruitChat.do', { dbKey }),
 }

@@ -4,16 +4,48 @@ import { Badge, Button, Card, Empty, Input, List, Popconfirm, Spin, message as t
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import { messageApi } from '../../api/message'
 import type { Conversation, Message } from '../../api/message'
+import { recruitApi } from '../recruit/recruit.api'
+import { useEventStream } from '../../common/gen/useEventStream'
 import { gen } from '../theme'
+
+/** SSE가 끊겼을 때만 쓰는 폴백 폴링 주기(ms). 푸시가 살아있으면 폴링하지 않는다. */
+const POLL_MS = 5000
+
+/** 쪽지 본문의 내부 경로(/gen/...)만 링크로 만든다. */
+const INNER_PATH = /(\/gen\/[A-Za-z0-9/_\-?=&.]+)/g
+
+/**
+ * 본문에서 내부 경로만 클릭 가능하게 렌더.
+ * 외부 URL(http…)은 일부러 링크로 만들지 않는다 — 쪽지는 아무나 보낼 수 있어서
+ * 자동 링크가 되면 피싱 통로가 된다. 내부 경로만 앱 라우팅으로 이동시킨다.
+ */
+function linkify(text: string, mine: boolean, go: (path: string) => void) {
+  const parts = text.split(INNER_PATH)
+  return parts.map((p, i) =>
+    INNER_PATH.test(p) && p.startsWith('/gen/') ? (
+      <a
+        key={i}
+        onClick={(e) => { e.stopPropagation(); go(p) }}
+        style={{ color: mine ? '#fff' : gen.primary, textDecoration: 'underline', cursor: 'pointer' }}
+      >
+        {p}
+      </a>
+    ) : (
+      <span key={i}>{p}</span>
+    ),
+  )
+}
 
 /**
  * 쪽지(1:1 메시지) — 좌: 대화 목록, 우: 선택한 상대와의 대화 + 입력.
- * /gen/message?with={userId} 로 특정 상대와 바로 대화 시작(프로필 '쪽지 보내기'에서 진입).
+ * /gen/message?with={handle} 로 특정 상대와 바로 대화 시작(프로필 '쪽지 보내기', 모집 '문의하기'에서 진입).
+ * ?ref=recruit:{id} 가 함께 오면 어떤 모집에 대한 문의인지 입력창에 미리 채운다.
  */
 export default function MessagePage() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const withId = params.get('with') ?? undefined
+  const ref = params.get('ref') ?? undefined
   const [convs, setConvs] = useState<Conversation[]>([])
   const [convLoading, setConvLoading] = useState(false)
   const [thread, setThread] = useState<Message[]>([])
@@ -42,6 +74,54 @@ export default function MessagePage() {
     if (withId) loadThread(withId).then(() => loadConvs()) // 읽음처리 반영
     else setThread([])
   }, [withId, loadThread, loadConvs])
+
+  /** 대화·목록을 조용히(스피너 없이) 다시 읽는다 — 푸시 수신 시/폴백 주기에 사용. */
+  const refreshQuiet = useCallback(async () => {
+    if (!withId) return
+    try {
+      const [t, c] = await Promise.all([messageApi.thread(withId), messageApi.convList()])
+      setThread(t)
+      setConvs(c)
+    } catch { /* 일시적 실패는 다음 신호에 회복 */ }
+  }, [withId])
+
+  // 서버 푸시(SSE): 새 쪽지가 오면 즉시 갱신. 연결 상태에 따라 아래 폴백이 켜진다.
+  const streamed = useEventStream('/api/adm/message/selectMessageListStream.do', (ev) => {
+    if (ev === 'message') refreshQuiet()
+  })
+
+  /*
+    폴백 폴링 — SSE가 끊겼을 때만 동작한다(연결 중이면 요청을 보내지 않는다).
+    푸시가 정상일 때 서버 부하를 0으로 두면서도, 프록시·네트워크 문제로 스트림이 막히는 환경에서
+    기능이 멈추지 않게 한다. 탭이 백그라운드면 건너뛴다.
+  */
+  useEffect(() => {
+    if (!withId || streamed) return
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return
+      refreshQuiet()
+    }
+    const id = window.setInterval(tick, POLL_MS)
+    return () => window.clearInterval(id)
+  }, [withId, streamed, refreshQuiet])
+
+  // 모집 문의로 들어온 경우 입력창을 미리 채운다(사용자가 이미 입력 중이면 건드리지 않음)
+  const prefilled = useRef(false)
+  useEffect(() => {
+    const id = ref?.startsWith('recruit:') ? ref.slice('recruit:'.length) : ''
+    if (!id || prefilled.current) return
+    prefilled.current = true
+    recruitApi.view(id)
+      .then((r) => {
+        const head = `[모집 문의] ${r.title ?? ''}`
+        const when = r.meetDt ? `\n일정: ${r.meetDt}` : ''
+        const where = [r.areaNm, r.region].filter(Boolean).join(' ')
+        // 경로를 함께 넣어 대화에서 바로 눌러 이동할 수 있게 한다(아래 linkify가 링크로 렌더)
+        const link = `\n/gen/recruit/${id}`
+        setText((prev) => (prev ? prev : `${head}${when}${where ? `\n지역: ${where}` : ''}${link}\n\n`))
+      })
+      .catch(() => { /* 모집을 못 읽어도 대화는 그대로 쓸 수 있게 둔다 */ })
+  }, [ref])
 
   // 새 메시지/대화 전환 시 최신 메시지로 스크롤(대화창 내부만)
   useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'nearest' }) }, [thread])
@@ -139,7 +219,7 @@ export default function MessagePage() {
                           background: mine ? gen.primary : '#F2F0FA', color: mine ? '#fff' : '#333',
                           padding: '8px 12px', borderRadius: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                         }}>
-                          {m.content}
+                          {linkify(m.content ?? '', mine, (p) => navigate(p))}
                         </div>
                         <div style={{ fontSize: 11, color: '#aaa', marginTop: 3, textAlign: mine ? 'right' : 'left' }}>{m.regDt}</div>
                       </div>

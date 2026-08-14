@@ -5,11 +5,13 @@ import com.pwsh.common.util.Validate;
 import com.pwsh.domain.message.service.MessageService;
 import com.pwsh.domain.message.service.MessageVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 쪽지 API — 컨트롤러는 매핑·입력검증만, 로직은 {@link MessageService}. 전 경로 로그인 필요(본인 기준).
@@ -32,6 +34,19 @@ public class MessageController {
             return ApiResponse.ok(messageService.unreadCnt());
         }
         return ApiResponse.ok(messageService.selectConvList());
+    }
+
+    /**
+     * 실시간 알림 스트림(SSE) — 새 쪽지·알림이 생기면 "종류"만 밀어준다(본문 없음).
+     * 클라이언트는 이벤트를 받고 기존 조회 API로 실제 데이터를 가져간다(인가는 조회 API가 담당).
+     *
+     * <p>EventSource가 아니라 fetch로 소비하도록 POST로 둔다 — EventSource는 Authorization 헤더를
+     * 보낼 수 없어 토큰을 URL에 실어야 하고, 그러면 접근 로그·리퍼러에 토큰이 남는다.
+     * ApiResponse로 감싸지 않는 유일한 엔드포인트(스트림이므로).
+     */
+    @PostMapping(value = "/selectMessageListStream.do", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream() {
+        return messageService.subscribe();
     }
 
     /** 쪽지 보내기 */

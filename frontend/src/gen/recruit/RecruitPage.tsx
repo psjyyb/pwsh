@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, Card, Descriptions, Empty, Form, Grid, Input, InputNumber, Pagination, Popconfirm,
+  Button, Card, Descriptions, Empty, Form, Grid, Input, InputNumber, Modal, Pagination, Popconfirm,
   Select, Space, Table, Tag, message,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import DateField from '../../common/adm/components/DateField'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import { getClaims, isAdmin, tokenStore } from '../../auth/token'
 import { hobbyApi } from '../../adm/hobby/hobby.api'
 import { recruitApi, applyApi } from './recruit.api'
+import RecruitChatPanel from './RecruitChatPanel'
 import type { Recruit, RecruitApply } from './recruit.api'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import UserAvatar from '../../common/gen/components/UserAvatar'
@@ -36,6 +37,7 @@ const applyTag = (cd?: string, nm?: string) => {
 export default function RecruitPage() {
   const { id: routeId } = useParams()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('list')
   const screens = Grid.useBreakpoint()
   const [categories, setCategories] = useState<Category[]>([])
@@ -57,6 +59,9 @@ export default function RecruitPage() {
 
   const [form] = Form.useForm()
   const [editKey, setEditKey] = useState<string | null>(null)
+  const [copyForm] = Form.useForm() // 다음 회차 만들기(정기 모임)
+  const [copyOpen, setCopyOpen] = useState(false)
+  const [copying, setCopying] = useState(false)
 
   const size = 10
   const meId = getClaims()?.sub
@@ -196,6 +201,36 @@ export default function RecruitPage() {
       message.success(on ? '북마크에 저장했습니다.' : '북마크를 해제했습니다.')
     } catch (e) {
       message.error(e instanceof Error ? e.message : '북마크 처리 실패')
+    }
+  }
+
+  /** 다음 회차 만들기 — 일정만 새로 받고 나머지는 원본 값을 채워 보여준다(그대로 두면 복제). */
+  const openCopy = () => {
+    if (!recruit) return
+    copyForm.setFieldsValue({
+      title: recruit.title,
+      capacity: recruit.capacity ? Number(recruit.capacity) : undefined,
+      areaCd: recruit.areaCd, region: recruit.region, meetDt: undefined,
+    })
+    setCopyOpen(true)
+  }
+
+  const doCopy = async () => {
+    if (!recruit) return
+    const v = await copyForm.validateFields()
+    setCopying(true)
+    try {
+      const newId = await recruitApi.copy(recruit.dbKey!, {
+        title: v.title, capacity: v.capacity != null ? String(v.capacity) : '',
+        areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt,
+      })
+      setCopyOpen(false)
+      message.success('다음 회차 모집을 만들었습니다. 이전 회차 참여자에게 알림을 보냈습니다.')
+      navigate(`/gen/recruit/${newId}`) // 라우트 변경 → 새 모집 상세로 전환
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '다음 회차 생성 실패')
+    } finally {
+      setCopying(false)
     }
   }
 
@@ -348,6 +383,8 @@ export default function RecruitPage() {
     const waitlistOpen = !open && capacityFull && !pastMeet
     // 정원에 여유가 생겼는데 아직 마감 상태 — 주최자에게 재개를 안내(자동 재개는 하지 않는다)
     const hasRoomButClosed = !open && !capacityFull && !pastMeet && Number(recruit.capacity) > 0
+    // 단체 대화 자격: 주최자 본인(mineYn) 또는 수락된 참여자. admin은 owner지만 멤버는 아니다(사적 대화).
+    const chatMember = recruit.mineYn === 'Y' || myApply?.applyStatus === 'APPLY02'
     return (
       <Card
         title={recruit.title}
@@ -355,6 +392,8 @@ export default function RecruitPage() {
           <Space>
             {owner && (
               <>
+                {/* 정기 모임: 같은 조건으로 일정만 바꿔 새 모집을 연다(참여자·대화는 복제되지 않음) */}
+                <Button onClick={openCopy}>다음 회차</Button>
                 <Button onClick={() => changeStatus(open ? STATUS_CLOSED : STATUS_OPEN)}>
                   {open ? '모집 마감' : '다시 모집'}
                 </Button>
@@ -363,6 +402,12 @@ export default function RecruitPage() {
                   <Button danger>삭제</Button>
                 </Popconfirm>
               </>
+            )}
+            {/* 신청 전에 궁금한 걸 물어볼 수 있게 — 주최자와의 쪽지 대화로 이동(모집 정보는 자동 입력) */}
+            {loggedIn && !owner && recruit.regHandle && (
+              <Button onClick={() => navigate(`/gen/message?with=${recruit.regHandle}&ref=recruit:${recruit.dbKey}`)}>
+                문의하기
+              </Button>
             )}
             {meId && (
               <Button type={bookmarked ? 'primary' : 'default'} ghost={bookmarked} onClick={toggleBookmark}>
@@ -438,6 +483,9 @@ export default function RecruitPage() {
           </div>
         )}
 
+        {/* 모임 대화 — 주최자 본인 또는 수락(APPLY02)된 참여자만. 관리자라도 멤버가 아니면 서버가 막는다. */}
+        {chatMember && <RecruitChatPanel recruitId={recruit.dbKey!} />}
+
         {/* 신청자 목록(주최자·관리자) */}
         {owner && (
           <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
@@ -501,6 +549,47 @@ export default function RecruitPage() {
             />
           </div>
         )}
+
+        {/* 다음 회차 만들기 — 일정만 필수, 나머지는 원본 값이 채워져 있고 고쳐도 된다 */}
+        <Modal
+          open={copyOpen} title="다음 회차 만들기" okText="만들기" cancelText="취소"
+          onOk={doCopy} onCancel={() => setCopyOpen(false)} confirmLoading={copying} destroyOnHidden
+        >
+          <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
+            같은 조건으로 새 모집을 엽니다. 이전 회차의 신청자·대화는 넘어오지 않고,
+            <b> 지난 회차 참여자에게 알림</b>이 갑니다.
+          </div>
+          <Form form={copyForm} layout="vertical">
+            <Form.Item name="title" label="모임명" rules={[{ required: true, message: '모임명을 입력하세요.' }]}>
+              <Input maxLength={200} />
+            </Form.Item>
+            <Form.Item
+              name="meetDt" label="다음 모임 일정"
+              rules={[
+                { required: true, message: '일정을 선택하세요.' },
+                {
+                  validator: (_, v: string) =>
+                    !v || v >= new Date().toISOString().slice(0, 10)
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('지난 날짜는 선택할 수 없습니다.')),
+                },
+              ]}
+            >
+              <DateField />
+            </Form.Item>
+            <Space size={12} wrap align="start">
+              <Form.Item name="capacity" label="모집 인원">
+                <InputNumber min={0} max={999} addonAfter="명" style={{ width: 130 }} />
+              </Form.Item>
+              <Form.Item name="areaCd" label="지역(시/도)" style={{ minWidth: 150 }}>
+                <CodeSelect pCodeId="AREA00" placeholder="시/도 선택" allowClear />
+              </Form.Item>
+              <Form.Item name="region" label="상세 지역">
+                <Input style={{ width: 180 }} maxLength={100} />
+              </Form.Item>
+            </Space>
+          </Form>
+        </Modal>
       </Card>
     )
   }

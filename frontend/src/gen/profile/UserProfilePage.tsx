@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Card, Empty, List, Popconfirm, Rate, Result, Space, Spin, Tag, message } from 'antd'
+import { Button, Card, Empty, List, Popconfirm, Rate, Result, Space, Spin, Tag, Tooltip, message } from 'antd'
+import { badgesOf, num } from '../badges'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import { getUserProfile } from '../../api/profile'
 import type { UserProfile } from '../../api/profile'
@@ -64,6 +65,13 @@ export default function UserProfilePage() {
   const hobbies = data.hobbies ?? []
   const recruits = data.recruits ?? []
   const posts = data.posts ?? []
+  const badges = badgesOf({
+    attended: num(data.attend?.attendedCnt),
+    noshow: num(data.attend?.noshowCnt),
+    hosted: recruits.length,
+    reviewCnt: num(stats?.reviewCnt),
+    avgRating: num(stats?.avgRating),
+  })
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -89,6 +97,16 @@ export default function UserProfilePage() {
                 <Tag color="green">참석 {Number(data.attend?.attendedCnt) || 0}</Tag>
                 {Number(data.attend?.absentCnt) > 0 && <Tag>불참 {data.attend?.absentCnt}</Tag>}
                 {Number(data.attend?.noshowCnt) > 0 && <Tag color="red">노쇼 {data.attend?.noshowCnt}</Tag>}
+              </Space>
+            )}
+            {/* 활동 배지 — 위 숫자에서 파생. 기준은 툴팁으로 밝힌다(불투명한 배지는 장식일 뿐) */}
+            {badges.length > 0 && (
+              <Space size={6} style={{ marginTop: 8 }} wrap>
+                {badges.map((b) => (
+                  <Tooltip key={b.key} title={b.desc}>
+                    <Tag color={b.color} style={{ fontWeight: 600, cursor: 'default' }}>{b.label}</Tag>
+                  </Tooltip>
+                ))}
               </Space>
             )}
           </div>
