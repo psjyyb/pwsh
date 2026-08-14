@@ -168,7 +168,7 @@ public class FileService {
                 r.setMapKey(searchVO.getMapKey());
                 r.setFileLoc(searchVO.getFileLoc());
                 r.setFileId(ids[i]);
-                r.setOrdr(String.valueOf(i));
+                r.setSortNo(String.valueOf(i));
                 commonDAO.insert("fileDAO.insertRfile", r);
                 newIds.add(ids[i]);
                 if (descs != null && i < descs.length) {

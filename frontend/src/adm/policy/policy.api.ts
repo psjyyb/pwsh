@@ -9,14 +9,14 @@ export interface Policy {
   typeCd: string
   typeCdNm?: string // 약관유형명(목록 표시, 조회 전용)
   reqYn?: string
-  ordr?: string
+  sortNo?: string
   useYn?: string
 }
 
 export const policyApi = {
   ...createCrudApi<Policy>('/adm/policy', 'Policy'),
   /** 순서 변경(같은 약관유형 내 인접 약관과 교환) */
-  moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/policy/updatePolicyOrdr.do', { rowId, direction }),
+  moveSort: (rowId: string, direction: 'UP' | 'DOWN') =>
+    apiPost<void>('/adm/policy/updatePolicySort.do', { rowId, direction }),
 }
 export const POLICY_LIST_URL = policyApi.listUrl

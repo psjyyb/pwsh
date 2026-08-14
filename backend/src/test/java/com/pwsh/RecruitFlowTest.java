@@ -21,8 +21,8 @@ class RecruitFlowTest extends IntegrationTest {
         String admin = accessToken("admin", "admin1234!");
 
         // 기본 시드 취미(등산/보드게임/낚시)가 있으므로, 신규 취미의 기대 노출순서 = 현재 최대값+1
-        Integer maxOrdrBefore = jdbc.queryForObject(
-                "SELECT COALESCE(MAX(sort_ordr), 0) FROM t_hobby WHERE use_yn = 'Y'", Integer.class);
+        Integer maxSortBefore = jdbc.queryForObject(
+                "SELECT COALESCE(MAX(sort_no), 0) FROM t_hobby WHERE use_yn = 'Y'", Integer.class);
 
         // 취미 생성(관리자) → hobbyId
         HttpResponse<String> hres = post("/api/adm/hobby/insertHobby.do",
@@ -43,7 +43,7 @@ class RecruitFlowTest extends IntegrationTest {
         String boardId = JsonPath.read(hv.body(), "$.data.bbsinfoId");
         assertNotNull(boardId);
         // 노출 순서 미지정 → 기존 최대값+1 자동 부여
-        assertEquals(String.valueOf(maxOrdrBefore + 1), JsonPath.read(hv.body(), "$.data.sortOrdr"));
+        assertEquals(String.valueOf(maxSortBefore + 1), JsonPath.read(hv.body(), "$.data.sortNo"));
         // 취미 게시판은 공개: 비로그인 목록 조회 가능, 회원은 글 작성 가능
         assertEquals(200, post("/api/adm/bbs/selectBbsList.do",
                 "{\"bbsinfoId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).statusCode());

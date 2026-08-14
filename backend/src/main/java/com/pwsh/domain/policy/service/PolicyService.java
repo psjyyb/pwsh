@@ -35,34 +35,34 @@ public class PolicyService {
         commonDAO.update("policyDAO.update", vo);
     }
 
-    /** 같은 약관유형 내 인접 약관과 ordr 교환. 임시값(-1) 3단계, 트랜잭션. */
+    /** 같은 약관유형 내 인접 약관과 sortNo 교환. 임시값(-1) 3단계, 트랜잭션. */
     @Transactional
-    public void swapOrdr(PolicyVO vo) {
+    public void swapSort(PolicyVO vo) {
         PolicyVO cur = commonDAO.selectOne("policyDAO.selectView", vo);
         if (cur == null) {
             return;
         }
         cur.setDirection(vo.getDirection());
-        PolicyVO adj = commonDAO.selectOne("policyDAO.selectAdjacentOrdr", cur);
+        PolicyVO adj = commonDAO.selectOne("policyDAO.selectAdjacentSort", cur);
         if (adj == null) {
             return;
         }
-        setOrdr(cur.getRowId(), "-1");
-        setOrdr(adj.getRowId(), cur.getOrdr());
-        setOrdr(cur.getRowId(), adj.getOrdr());
+        setSortNo(cur.getRowId(), "-1");
+        setSortNo(adj.getRowId(), cur.getSortNo());
+        setSortNo(cur.getRowId(), adj.getSortNo());
     }
 
-    private void setOrdr(String rowId, String ordr) {
+    private void setSortNo(String rowId, String sortNo) {
         PolicyVO v = new PolicyVO();
         v.setRowId(rowId);
-        v.setOrdr(ordr);
-        commonDAO.update("policyDAO.updateordr", v);
+        v.setSortNo(sortNo);
+        commonDAO.update("policyDAO.updatesort", v);
     }
 
     /** 삭제(논리) + 같은 약관유형 내 뒤 순서 당김 */
     @Transactional
     public void delete(PolicyVO vo) {
         commonDAO.delete("policyDAO.delete", vo);
-        commonDAO.update("policyDAO.shiftOrdrAfterDelete", vo);
+        commonDAO.update("policyDAO.shiftSortAfterDelete", vo);
     }
 }

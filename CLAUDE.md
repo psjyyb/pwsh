@@ -18,7 +18,7 @@
 - **레이어**: Controller(매핑·입력검증만) → **단일 `@Service`**(로직+`@Transactional`, 인터페이스/Impl 분리 없음) → `CommonDAO`(MyBatis).
 - **컨트롤러 5메서드 고정 + `{variant}` 분기.** URL·sql_id는 **리터럴**(상수화 금지 — grep 추적성).
   - `select{Name}List{variant}.do` · `select{Name}View.do` · `insert{Name}{variant}.do` · `update{Name}{variant}.do` · `delete{Name}.do` (전부 `@RequestMapping("/api/adm/{name}/...")`).
-  - 변형은 `{variant}`로 흡수: 예 `updateUserPassword.do`(비번), `updateUserForceLogout.do`(강제로그아웃), `updateMenuOrdr.do`(정렬).
+  - 변형은 `{variant}`로 흡수: 예 `updateUserPassword.do`(비번), `updateUserForceLogout.do`(강제로그아웃), `updateMenuSort.do`(정렬).
   - 입력 필수검증은 컨트롤러 진입부 `Validate.required(value, "라벨")`.
 - 요청 **JSON `@RequestBody`**, 응답 **`ApiResponse{success,data,error}`**. 목록 data=`{list,totalCount,page}`. 예외는 `GlobalExceptionHandler`가 처리(컨트롤러 try/catch 금지).
 - **VO**: `BaseVO` 상속(`rowId`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
@@ -42,7 +42,8 @@
   - ★ **삭제 전파 필수**: 파일을 매핑하는 도메인은 엔티티 삭제 시 `fileDAO.deactivateFilesByOwner`로 파일을 비활성화해야 한다. 누락하면 GC에 걸리지 않아 영구 누수된다(컴파일러가 못 잡음).
   - ⚠️ `FileController.saveFileMapping`은 매핑에서 빠진 파일을 **즉시 물리 삭제**한다. 복구 불가.
   - 휴지통 UI는 없다. 복구는 개발자가 논리삭제 플래그를 되돌리는 SQL로 처리(GC 실행 후에는 파일 복구 불가, 본문만 복구).
-- 공개 이미지 `/api/pub/image/{id}`는 **연결 콘텐츠 접근권으로 인가**(순차 id 열거 차단). 파일 관리(gc/삭제/목록)는 관리자 전용.
+- 공개 이미지 `/api/pub/image/{id}`와 **첨부 목록 조회**는 **연결 콘텐츠 접근권으로 인가**(순차 id 열거 차단) — 공개 글이면 비로그인도 보이고, 권한 없는 게시판이면 로그인 회원이라도 파일명조차 안 준다. 파일 관리(gc/삭제/목록)는 관리자 전용.
+  - ★ 공개 화면이 부르는 조회 API는 `SecurityConfig` permitAll에 넣어야 한다. 하나라도 빠지면 401 → 프론트 인터셉터가 로그인 화면으로 보내 **화면 전체를 못 본다**(회귀 방지: `GuestPublicPageTest`).
 - **실시간(SSE)**: `RealtimeService`가 사용자별 연결을 들고 "새 게 있다"는 이벤트 이름만 푸시한다(본문 없음 — 인가는 조회 API 한 곳에만). 프론트는 `useEventStream`(fetch POST + Authorization 헤더, 자동 재연결), 끊기면 폴링으로 대체. 단일 JVM 한정.
 - **로고**: 환경설정에서 업로드, 미설정 시 `frontend/src/assets/logo.svg`. **메뉴 아이콘**: 메뉴에 저장된 아이콘 키 → 프론트 `MenuGlyph` 레지스트리.
 

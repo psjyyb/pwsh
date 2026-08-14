@@ -7,7 +7,7 @@ export interface Code {
   pCodeId: string // 부모 코드 참조(FK)
   codeNm: string
   codeDesc?: string | null
-  ordr?: string
+  sortNo?: string
   useYn?: string
   children?: Code[] // 계층 트리(프론트 구성)
 }
@@ -19,7 +19,7 @@ export const codeApi = {
   /** 하위코드추가용 다음 코드ID/순서 계산 — selectView{variant=NextChild} */
   nextChild: (pCodeId: string) => apiPost<Code>('/adm/code/selectCodeViewNextChild.do', { pCodeId }),
   /** 순서 변경(같은 부모 내 인접 코드와 교환) — 위로/아래로 방식 */
-  moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/code/updateCodeOrdr.do', { rowId, direction }),
+  moveSort: (rowId: string, direction: 'UP' | 'DOWN') =>
+    apiPost<void>('/adm/code/updateCodeSort.do', { rowId, direction }),
 }
 export const CODE_LIST_URL = codeApi.listUrl

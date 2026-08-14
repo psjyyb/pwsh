@@ -89,11 +89,11 @@
 
     <!-- ===== r_file (엔티티 ↔ 파일 매핑) ===== -->
     <select id="selectFilesByMap" parameterType="fileVO" resultType="fileVO">
-        SELECT f.file_id, f.file_org_nm, f.file_ext, f.file_size, f.file_desc, r.file_loc, r.ordr
+        SELECT f.file_id, f.file_org_nm, f.file_ext, f.file_size, f.file_desc, r.file_loc, r.sort_no
         FROM r_file r
         JOIN t_file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
         WHERE r.map_key = #{mapKey}::integer AND r.file_loc = #{fileLoc}
-        ORDER BY r.ordr, f.file_id
+        ORDER BY r.sort_no, f.file_id
     </select>
 
     <!-- 파일이 연결된 매핑들(loc·대상 PK) — 공개 이미지/다운로드 접근검사용 -->
@@ -116,8 +116,8 @@
     </delete>
 
     <insert id="insertRfile" parameterType="fileVO">
-        INSERT INTO r_file (map_key, file_id, file_loc, ordr)
-        VALUES (#{mapKey}::integer, #{fileId}::integer, #{fileLoc}, COALESCE(NULLIF(#{ordr}, '')::integer, 0))
+        INSERT INTO r_file (map_key, file_id, file_loc, sort_no)
+        VALUES (#{mapKey}::integer, #{fileId}::integer, #{fileLoc}, COALESCE(NULLIF(#{sortNo}, '')::integer, 0))
     </insert>
 
 </mapper>

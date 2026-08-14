@@ -15,7 +15,7 @@ public class PopupVO extends BaseVO {
     private String endDt;
     private String link;
     private String txt;
-    private String ordr;
+    private String sortNo;
     private String popWidth;
     private String popHeight;
     private String popTop;

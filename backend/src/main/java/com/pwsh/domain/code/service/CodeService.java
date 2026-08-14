@@ -55,7 +55,7 @@ public class CodeService {
             width = m.group(2).length();
         }
         int maxNum = 0;
-        int maxOrdr = 0;
+        int maxSort = 0;
         for (CodeVO c : children) {
             String id = c.getRowId();
             // 코드ID 연번은 삭제분 포함 최대값(PK 충돌 방지)
@@ -69,16 +69,16 @@ public class CodeService {
             // 정렬순서는 사용중(use_yn='Y')만
             if ("Y".equals(c.getUseYn())) {
                 try {
-                    maxOrdr = Math.max(maxOrdr, Integer.parseInt(c.getOrdr()));
+                    maxSort = Math.max(maxSort, Integer.parseInt(c.getSortNo()));
                 } catch (NumberFormatException ignore) {
-                    // ordr 파싱 실패 스킵
+                    // sortNo 파싱 실패 스킵
                 }
             }
         }
         CodeVO res = new CodeVO();
         res.setPCodeId(parent);
         res.setRowId(prefix + String.format("%0" + width + "d", maxNum + 1));
-        res.setOrdr(String.valueOf(maxOrdr + 1));
+        res.setSortNo(String.valueOf(maxSort + 1));
         return res;
     }
 
@@ -91,36 +91,36 @@ public class CodeService {
     }
 
     /**
-     * 같은 부모 내 인접 코드와 ordr 교환(위로/아래로). 끝이면 무시.
-     * unique(부모, ordr) 회피: 임시값(-1) 3단계 교환. 원자성 위해 트랜잭션.
+     * 같은 부모 내 인접 코드와 sortNo 교환(위로/아래로). 끝이면 무시.
+     * unique(부모, sortNo) 회피: 임시값(-1) 3단계 교환. 원자성 위해 트랜잭션.
      */
     @Transactional
-    public void swapOrdr(CodeVO vo) {
-        CodeVO cur = commonDAO.selectOne("codeDAO.selectView", vo); // rowId → pCodeId, ordr
+    public void swapSort(CodeVO vo) {
+        CodeVO cur = commonDAO.selectOne("codeDAO.selectView", vo); // rowId → pCodeId, sortNo
         if (cur == null) {
             return;
         }
         cur.setDirection(vo.getDirection()); // UP/DOWN
-        CodeVO adj = commonDAO.selectOne("codeDAO.selectAdjacentOrdr", cur);
+        CodeVO adj = commonDAO.selectOne("codeDAO.selectAdjacentSort", cur);
         if (adj == null) {
             return; // 목록 끝
         }
-        setOrdr(cur.getRowId(), "-1");
-        setOrdr(adj.getRowId(), cur.getOrdr());
-        setOrdr(cur.getRowId(), adj.getOrdr());
+        setSortNo(cur.getRowId(), "-1");
+        setSortNo(adj.getRowId(), cur.getSortNo());
+        setSortNo(cur.getRowId(), adj.getSortNo());
     }
 
-    private void setOrdr(String rowId, String ordr) {
+    private void setSortNo(String rowId, String sortNo) {
         CodeVO v = new CodeVO();
         v.setRowId(rowId);
-        v.setOrdr(ordr);
-        commonDAO.update("codeDAO.updateordr", v);
+        v.setSortNo(sortNo);
+        commonDAO.update("codeDAO.updatesort", v);
     }
 
     /** 삭제(논리) + 같은 부모 내 뒤 순서 당김 */
     @Transactional
     public void delete(CodeVO vo) {
         commonDAO.delete("codeDAO.delete", vo);
-        commonDAO.update("codeDAO.shiftOrdrAfterDelete", vo);
+        commonDAO.update("codeDAO.shiftSortAfterDelete", vo);
     }
 }

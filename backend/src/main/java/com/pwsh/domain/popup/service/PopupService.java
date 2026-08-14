@@ -55,40 +55,40 @@ public class PopupService {
         commonDAO.delete("fileDAO.deleteRfileByMap", m);
         if (fileId != null && !fileId.isBlank()) {
             m.setFileId(fileId);
-            m.setOrdr("0");
+            m.setSortNo("0");
             commonDAO.insert("fileDAO.insertRfile", m);
         }
     }
 
-    /** 인접 팝업과 ordr 교환. 임시값(-1) 3단계, 트랜잭션. */
+    /** 인접 팝업과 sortNo 교환. 임시값(-1) 3단계, 트랜잭션. */
     @Transactional
-    public void swapOrdr(PopupVO vo) {
+    public void swapSort(PopupVO vo) {
         PopupVO cur = commonDAO.selectOne("popupDAO.selectView", vo);
         if (cur == null) {
             return;
         }
         cur.setDirection(vo.getDirection());
-        PopupVO adj = commonDAO.selectOne("popupDAO.selectAdjacentOrdr", cur);
+        PopupVO adj = commonDAO.selectOne("popupDAO.selectAdjacentSort", cur);
         if (adj == null) {
             return;
         }
-        setOrdr(cur.getRowId(), "-1");
-        setOrdr(adj.getRowId(), cur.getOrdr());
-        setOrdr(cur.getRowId(), adj.getOrdr());
+        setSortNo(cur.getRowId(), "-1");
+        setSortNo(adj.getRowId(), cur.getSortNo());
+        setSortNo(cur.getRowId(), adj.getSortNo());
     }
 
-    private void setOrdr(String rowId, String ordr) {
+    private void setSortNo(String rowId, String sortNo) {
         PopupVO v = new PopupVO();
         v.setRowId(rowId);
-        v.setOrdr(ordr);
-        commonDAO.update("popupDAO.updateordr", v);
+        v.setSortNo(sortNo);
+        commonDAO.update("popupDAO.updatesort", v);
     }
 
     /** 삭제(논리) + 뒤 순서 당김(전역) + 팝업 이미지 use_yn='N' 전파(GC가 보존기간 후 정리) */
     @Transactional
     public void delete(PopupVO vo) {
         commonDAO.delete("popupDAO.delete", vo);
-        commonDAO.update("popupDAO.shiftOrdrAfterDelete", vo);
+        commonDAO.update("popupDAO.shiftSortAfterDelete", vo);
         commonDAO.update("fileDAO.deactivateFilesByOwner",
                 Map.of("mapKey", vo.getRowId(), "locs", List.of("POPUP")));
     }

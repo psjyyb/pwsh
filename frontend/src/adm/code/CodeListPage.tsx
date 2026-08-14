@@ -73,7 +73,7 @@ export default function CodeListPage() {
   const isEdit = mode === 'edit'
 
   const move = (row: Code, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => codeApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => codeApi.moveSort(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   /** 선택 코드 하위에 신규: 부모코드 + 다음 코드ID(연번) + 다음 정렬순서 자동 채움 */
   const addChild = async () => {
@@ -82,7 +82,7 @@ export default function CodeListPage() {
     openNew()
     try {
       const next = await codeApi.nextChild(parent)
-      form.setFieldsValue({ pCodeId: parent, rowId: next.rowId, ordr: next.ordr })
+      form.setFieldsValue({ pCodeId: parent, rowId: next.rowId, sortNo: next.sortNo })
     } catch {
       form.setFieldsValue({ pCodeId: parent })
     }
@@ -96,7 +96,7 @@ export default function CodeListPage() {
       width: 100,
       render: (_, row) => (
         <Space size={4} onClick={(e) => e.stopPropagation()}>
-          <span>{row.ordr}</span>
+          <span>{row.sortNo}</span>
           <Button size="small" onClick={() => move(row, 'UP')}>▲</Button>
           <Button size="small" onClick={() => move(row, 'DOWN')}>▼</Button>
         </Space>
@@ -155,7 +155,7 @@ export default function CodeListPage() {
           <Form.Item name="codeDesc" label="설명">
             <Input />
           </Form.Item>
-          <Form.Item name="ordr" label="정렬순서(자동)">
+          <Form.Item name="sortNo" label="정렬순서(자동)">
             <Input disabled />
           </Form.Item>
         </Form>

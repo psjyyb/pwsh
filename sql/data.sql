@@ -9,7 +9,7 @@
 -- =====================================================================
 
 -- ============================ 공통코드 (t_code) ============================
-INSERT INTO t_code (code_id, p_code_id, code_nm, ordr, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
+INSERT INTO t_code (code_id, p_code_id, code_nm, sort_no, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 -- ── 코드 그룹(부모) ──
 ('MEM00',      'ROOT', '회원유형',   1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('GEN00',      'ROOT', '성별',       2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -127,7 +127,7 @@ VALUES ('ADMIN', '관리자', '전체 메뉴/기능 권한', 'Y', 'system', 'sys
 
 -- ============================ 기본 관리자 메뉴 (t_menu, area=ADM, 2차 구조) ============================
 -- 최상위 부모=0 (menu_id 0은 미사용 예약, 대시보드는 menu_id 14). menu_id 명시 후 시퀀스 보정.
-INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, link_url, target_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
+INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, sort_no, conn_ty, conn_id, link_url, target_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 (14,  0, 'ADM', '대시보드',       1, 'MENU01', 0, '/adm/dashboard', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 1,  0, 'ADM', '시스템관리',     2, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 2,  1, 'ADM', '공통코드관리',   1, 'MENU01', 0, '/adm/code',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -161,7 +161,7 @@ INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, l
 --  · 취미는 상단 메뉴가 아니라 메인(도감 카드) → 취미 허브(/gen/hobby/{id})로 진입 → 게시판/모집/레벨.
 --    취미를 상단에 나열하지 않으므로 취미가 늘어도 메뉴가 깔끔.
 --  · 모집 = URL(MENU01) /gen/recruit. 내 피드·마이페이지·1:1문의는 회원 전용(GUEST 권한 제외).
-INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, link_url, target_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
+INSERT INTO t_menu (menu_id, p_menu_id, area, menu_nm, sort_no, conn_ty, conn_id, link_url, target_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 (20,  0, 'GEN', '메인',       1, 'MENU01', 0, '/gen/main',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (47,  0, 'GEN', '내 피드',    2, 'MENU01', 0, '/gen/feed',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (37,  0, 'GEN', '모집',       3, 'MENU01', 0, '/gen/recruit', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -257,8 +257,8 @@ SELECT setval(pg_get_serial_sequence('t_bbsinfo', 'bbsinfo_id'), (SELECT MAX(bbs
 -- 취미(카테고리) = 게시판. 위 t_bbsinfo와 bbsinfo_id로 1:1 대응(등산1→5 … 배드민턴15→26).
 -- ★ GenAccessGuard.isHobbyBoard가 이 매핑으로 취미 게시판의 공개 여부를 판정한다.
 --   base 설치(data.sql만)에서도 취미 커뮤니티가 동작하도록 여기서 반드시 시드한다.
--- hobby_id 9~15는 결번(개발 중 삭제된 번호) — sort_ordr가 실제 노출 순서다.
-INSERT INTO t_hobby (hobby_id, hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_ordr, use_yn,
+-- hobby_id 9~15는 결번(개발 중 삭제된 번호) — sort_no가 실제 노출 순서다.
+INSERT INTO t_hobby (hobby_id, hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_no, use_yn,
     reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 (1, '등산', '가까운 산부터 시작하는 건강한 취미',
  '<p>등산은 장비 부담이 적고 어디서나 시작할 수 있는 대표적인 야외 취미입니다. 체력 향상과 스트레스 해소에 좋습니다.</p>',

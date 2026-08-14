@@ -85,7 +85,7 @@ CREATE TABLE t_menu (
     area      VARCHAR(10)  NOT NULL DEFAULT 'ADM',
     menu_nm   VARCHAR(255) NOT NULL,
     menu_desc VARCHAR(255),
-    ordr      INTEGER      NOT NULL,
+    sort_no      INTEGER      NOT NULL,
     conn_ty   VARCHAR(15)  NOT NULL,
     conn_id   INTEGER      NOT NULL DEFAULT 0,
     link_url  VARCHAR(255),
@@ -99,7 +99,7 @@ CREATE TABLE t_menu (
     reg_ip    VARCHAR(45)  NOT NULL,
     upd_ip    VARCHAR(45)  NOT NULL,
     CONSTRAINT pk_t_menu PRIMARY KEY (menu_id)
-    -- ordr은 정렬키(삭제 시 뒤 순서 당김). 논리삭제 행이 ordr을 점유하지 않도록 UNIQUE 제약 미사용
+    -- sort_no은 정렬키(삭제 시 뒤 순서 당김). 논리삭제 행이 sort_no을 점유하지 않도록 UNIQUE 제약 미사용
 );
 COMMENT ON TABLE  t_menu IS '메뉴(계층형)';
 COMMENT ON COLUMN t_menu.menu_id IS '메뉴 ID';
@@ -107,7 +107,7 @@ COMMENT ON COLUMN t_menu.p_menu_id IS '부모 메뉴 ID(최상위=0, menu_id 0�
 COMMENT ON COLUMN t_menu.area IS '메뉴 영역(ADM=관리자, GEN=사용자)';
 COMMENT ON COLUMN t_menu.menu_nm IS '메뉴명';
 COMMENT ON COLUMN t_menu.menu_desc IS '메뉴 설명';
-COMMENT ON COLUMN t_menu.ordr IS '정렬순서';
+COMMENT ON COLUMN t_menu.sort_no IS '정렬순서';
 COMMENT ON COLUMN t_menu.conn_ty IS '연결유형(t_code MENU00: MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹)';
 COMMENT ON COLUMN t_menu.conn_id IS '연결대상 ID(MENU02=게시판 bbsinfo_id, MENU03=페이지 page_id)';
 COMMENT ON COLUMN t_menu.link_url IS '연결 URL/라우트(conn_ty=MENU01일 때, 예: /adm/code)';
@@ -188,7 +188,7 @@ CREATE TABLE t_code (
     p_code_id VARCHAR(20)  NOT NULL,
     code_nm   VARCHAR(255) NOT NULL,
     code_desc VARCHAR(255),
-    ordr      INTEGER      NOT NULL,
+    sort_no      INTEGER      NOT NULL,
     use_yn    VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id    VARCHAR(30)  NOT NULL,
     upd_id    VARCHAR(30)  NOT NULL,
@@ -203,7 +203,7 @@ COMMENT ON COLUMN t_code.code_id IS '코드 ID';
 COMMENT ON COLUMN t_code.p_code_id IS '부모 코드 ID';
 COMMENT ON COLUMN t_code.code_nm IS '코드명';
 COMMENT ON COLUMN t_code.code_desc IS '코드 설명';
-COMMENT ON COLUMN t_code.ordr IS '정렬순서';
+COMMENT ON COLUMN t_code.sort_no IS '정렬순서';
 COMMENT ON COLUMN t_code.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 환경설정(단일 행) ============================
@@ -281,7 +281,7 @@ CREATE TABLE t_popup (
     end_dt     VARCHAR(10),
     link       TEXT,
     txt        TEXT,
-    ordr       INTEGER,
+    sort_no       INTEGER,
     pop_width  VARCHAR(20),
     pop_height VARCHAR(20),
     pop_top    VARCHAR(20),
@@ -302,7 +302,7 @@ COMMENT ON COLUMN t_popup.start_dt IS '노출 시작일(YYYY-MM-DD)';
 COMMENT ON COLUMN t_popup.end_dt IS '노출 종료일(YYYY-MM-DD)';
 COMMENT ON COLUMN t_popup.link IS '연결 링크';
 COMMENT ON COLUMN t_popup.txt IS '내용';
-COMMENT ON COLUMN t_popup.ordr IS '정렬순서';
+COMMENT ON COLUMN t_popup.sort_no IS '정렬순서';
 COMMENT ON COLUMN t_popup.pop_width IS '팝업 너비';
 COMMENT ON COLUMN t_popup.pop_height IS '팝업 높이';
 COMMENT ON COLUMN t_popup.pop_top IS '팝업 위치 top';
@@ -316,7 +316,7 @@ CREATE TABLE t_policy (
     content   TEXT,
     type_cd   VARCHAR(15)  NOT NULL,
     req_yn    VARCHAR(1)   NOT NULL DEFAULT 'Y',
-    ordr      INTEGER      NOT NULL,
+    sort_no      INTEGER      NOT NULL,
     use_yn    VARCHAR(1)   DEFAULT 'Y',
     reg_id    VARCHAR(30)  NOT NULL,
     upd_id    VARCHAR(30)  NOT NULL,
@@ -332,7 +332,7 @@ COMMENT ON COLUMN t_policy.title IS '제목';
 COMMENT ON COLUMN t_policy.content IS '내용';
 COMMENT ON COLUMN t_policy.type_cd IS '약관유형 코드(t_code)';
 COMMENT ON COLUMN t_policy.req_yn IS '필수동의 여부(Y/N)';
-COMMENT ON COLUMN t_policy.ordr IS '정렬순서';
+COMMENT ON COLUMN t_policy.sort_no IS '정렬순서';
 COMMENT ON COLUMN t_policy.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 파일 ============================
@@ -368,14 +368,14 @@ CREATE TABLE r_file (
     map_key  INTEGER      NOT NULL,
     file_id  INTEGER      NOT NULL,
     file_loc VARCHAR(255) NOT NULL,
-    ordr     INTEGER      NOT NULL,
+    sort_no     INTEGER      NOT NULL,
     CONSTRAINT pk_r_file PRIMARY KEY (map_key, file_id)
 );
 COMMENT ON TABLE  r_file IS '파일 관계매핑(엔티티 ↔ t_file, N:M). 모든 파일참조의 단일 소스';
 COMMENT ON COLUMN r_file.map_key IS '연결 대상 PK(file_loc에 따라 bbs_id/pop_id 등, 다형적)';
 COMMENT ON COLUMN r_file.file_id IS '파일 ID(t_file)';
 COMMENT ON COLUMN r_file.file_loc IS '용도 구분(BBS/BBS_IMG/BBS_EDITOR/POPUP/LOGO 등)';
-COMMENT ON COLUMN r_file.ordr IS '정렬순서';
+COMMENT ON COLUMN r_file.sort_no IS '정렬순서';
 
 -- ============================ 게시판 정의 ============================
 CREATE TABLE t_bbsinfo (
@@ -419,7 +419,7 @@ CREATE TABLE t_bbs (
     context         TEXT,
     p_bbs_id        INTEGER      NOT NULL DEFAULT 0,
     bbs_depth       INTEGER      NOT NULL,
-    bbs_ordr        INTEGER      NOT NULL,
+    bbs_sort_no        INTEGER      NOT NULL,
     secret_yn       VARCHAR(1)   NOT NULL DEFAULT 'N',
     bbs_pw          VARCHAR(255),
     good_cnt        INTEGER,
@@ -445,7 +445,7 @@ COMMENT ON COLUMN t_bbs.title IS '제목';
 COMMENT ON COLUMN t_bbs.context IS '내용';
 COMMENT ON COLUMN t_bbs.p_bbs_id IS '부모 게시글 ID(답글, 최상위 0)';
 COMMENT ON COLUMN t_bbs.bbs_depth IS '답글 깊이';
-COMMENT ON COLUMN t_bbs.bbs_ordr IS '답글 정렬순서';
+COMMENT ON COLUMN t_bbs.bbs_sort_no IS '답글 정렬순서';
 COMMENT ON COLUMN t_bbs.secret_yn IS '비밀글 여부(Y/N)';
 COMMENT ON COLUMN t_bbs.bbs_pw IS '비밀글 비밀번호';
 COMMENT ON COLUMN t_bbs.good_cnt IS '추천 수';
@@ -570,7 +570,7 @@ CREATE TABLE t_hobby (
     equipment     VARCHAR(500),            -- 필요 장비
     est_cost      VARCHAR(200),            -- 대략 비용
     bbsinfo_id    INTEGER,                 -- 연결 게시판(소통) = t_bbsinfo.bbsinfo_id
-    sort_ordr     INTEGER      DEFAULT 0,  -- 노출 순서
+    sort_no     INTEGER      DEFAULT 0,  -- 노출 순서
     use_yn        VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id        VARCHAR(30)  NOT NULL,
     upd_id        VARCHAR(30)  NOT NULL,
@@ -590,7 +590,7 @@ COMMENT ON COLUMN t_hobby.difficulty_cd IS '난이도(t_code HOBBYLV00)';
 COMMENT ON COLUMN t_hobby.equipment IS '필요 장비';
 COMMENT ON COLUMN t_hobby.est_cost IS '대략 비용';
 COMMENT ON COLUMN t_hobby.bbsinfo_id IS '연결 게시판(t_bbsinfo)';
-COMMENT ON COLUMN t_hobby.sort_ordr IS '노출 순서';
+COMMENT ON COLUMN t_hobby.sort_no IS '노출 순서';
 -- 썸네일/대표이미지는 r_file 매핑(map_key=hobby_id, file_loc='HOBBY')로 연결
 
 -- ============================ 회원별 취미 레벨 ============================
@@ -779,14 +779,14 @@ CREATE INDEX IF NOT EXISTS ix_t_user_block ON t_user_block (user_id, blocked_id)
 CREATE INDEX IF NOT EXISTS ix_t_bbs_bbsinfo ON t_bbs (bbsinfo_id);   -- 게시판별 목록
 CREATE INDEX IF NOT EXISTS ix_t_bbs_parent  ON t_bbs (p_bbs_id);     -- 답글 스레드(재귀 CTE)
 CREATE INDEX IF NOT EXISTS ix_t_comment_bbs ON t_comment (bbs_id);   -- 게시글 댓글
-CREATE INDEX IF NOT EXISTS ix_t_menu_area   ON t_menu (area, p_menu_id, ordr); -- 메뉴 트리 필터·정렬
+CREATE INDEX IF NOT EXISTS ix_t_menu_area   ON t_menu (area, p_menu_id, sort_no); -- 메뉴 트리 필터·정렬
 CREATE INDEX IF NOT EXISTS ix_t_menu_link   ON t_menu (link_url);    -- API 권한 강제(link_url 매핑)
 CREATE INDEX IF NOT EXISTS ix_t_auth_conn   ON t_auth (conn_id);     -- 그룹(GUEST/MEMBER 등)별 권한 조회
 CREATE INDEX IF NOT EXISTS ix_r_file_map    ON r_file (map_key, file_loc); -- 엔티티-파일 매핑 조회
 CREATE INDEX IF NOT EXISTS ix_t_code_parent ON t_code (p_code_id);   -- 코드 그룹별 조회(콤보 등)
 CREATE INDEX IF NOT EXISTS ix_t_recruit_hobby ON t_recruit (hobby_id);            -- 취미(카테고리)별 모집 목록
 CREATE INDEX IF NOT EXISTS ix_t_recruit_area ON t_recruit (area_cd, status_cd);    -- 지역(시도)+상태 필터
-CREATE INDEX IF NOT EXISTS ix_t_hobby_sort ON t_hobby (use_yn, sort_ordr);        -- 취미 카탈로그 정렬 노출
+CREATE INDEX IF NOT EXISTS ix_t_hobby_sort ON t_hobby (use_yn, sort_no);        -- 취미 카탈로그 정렬 노출
 CREATE INDEX IF NOT EXISTS ix_t_user_hobby_user ON t_user_hobby (user_id);        -- 회원별 취미 레벨 조회
 -- 한 회원이 한 취미에 활성 레벨 1건
 CREATE UNIQUE INDEX IF NOT EXISTS ux_t_user_hobby ON t_user_hobby (user_id, hobby_id) WHERE use_yn = 'Y';

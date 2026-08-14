@@ -9,7 +9,7 @@
 -- 취미를 참조할 때는 hobby_nm으로 찾는다(id 하드코딩은 base 시드가 바뀌면 깨진다).
 
 -- 취미 게시판 글: 등산(5)/보드게임(6)/낚시(7)
-INSERT INTO t_bbs (bbs_id, bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_ordr,
+INSERT INTO t_bbs (bbs_id, bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_sort_no,
     secret_yn, good_cnt, bad_cnt, view_cnt, notice_yn, bbs_dt, use_yn,
     reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
 (1, 5, '초보도 다녀온 관악산 후기', '<p>날씨 좋아서 다녀왔습니다. 초보도 충분히 가능해요!</p>', 0, 0, 1, 'N', 3, 0, 42, 'N', TO_CHAR(NOW(),'YYYY-MM-DD'), 'Y', 'user',  'user',  NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -40,7 +40,7 @@ INSERT INTO t_recruit_apply (recruit_id, user_id, apply_status, apply_memo, use_
 SELECT setval(pg_get_serial_sequence('t_recruit_apply','apply_id'), (SELECT MAX(apply_id) FROM t_recruit_apply));
 
 -- ── 러닝 샘플 글/모집 (취미·게시판은 base에 있음) ──
-INSERT INTO t_bbs (bbs_id, bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_ordr, secret_yn, good_cnt, bad_cnt, view_cnt, notice_yn, bbs_dt, use_yn,
+INSERT INTO t_bbs (bbs_id, bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_sort_no, secret_yn, good_cnt, bad_cnt, view_cnt, notice_yn, bbs_dt, use_yn,
     reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
 SELECT 7, h.bbsinfo_id, '한강 야간 러닝 후기', '<p>10km 완주했습니다! 야경 최고예요.</p>', 0, 0, 1, 'N', 2, 0, 17, 'N', TO_CHAR(NOW(),'YYYY-MM-DD'), 'Y', 'user', 'user', NOW(), NOW(), '127.0.0.1', '127.0.0.1'
 FROM t_hobby h WHERE h.hobby_nm = '러닝' AND h.use_yn = 'Y';
@@ -54,8 +54,8 @@ SELECT setval(pg_get_serial_sequence('t_recruit','recruit_id'), (SELECT MAX(recr
 
 -- ── 클라이밍·요가·캠핑 샘플 글/모집 (취미·게시판은 base에 있음) ──
 -- 취미는 hobby_nm으로 찾아 연결한다. 취미가 없으면 아무 행도 안 들어가고 오류도 나지 않는다.
-INSERT INTO t_bbs (bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_ordr, secret_yn, good_cnt, bad_cnt, view_cnt, notice_yn, bbs_dt, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-SELECT h.bbsinfo_id, v.title, v.context, 0, 0, v.ordr, 'N', v.good, 0, v.vc, 'N', TO_CHAR(NOW(),'YYYY-MM-DD'), 'Y', v.reg, v.reg, NOW(), NOW(), '127.0.0.1', '127.0.0.1'
+INSERT INTO t_bbs (bbsinfo_id, title, context, p_bbs_id, bbs_depth, bbs_sort_no, secret_yn, good_cnt, bad_cnt, view_cnt, notice_yn, bbs_dt, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+SELECT h.bbsinfo_id, v.title, v.context, 0, 0, v.sort_no, 'N', v.good, 0, v.vc, 'N', TO_CHAR(NOW(),'YYYY-MM-DD'), 'Y', v.reg, v.reg, NOW(), NOW(), '127.0.0.1', '127.0.0.1'
 FROM (VALUES
     ('클라이밍', '[후기] 클라이밍 입문 첫날', '<p>볼더링 V0~V1 완등! 손이 얼얼하지만 재밌어요.</p>', 1, 6, 40, 'user'),
     ('클라이밍', '암벽화 사이즈 조언',        '<p>발이 아파야 잘 선다는데 맞나요?</p>',            2, 1, 12, 'user'),
@@ -66,7 +66,7 @@ FROM (VALUES
     ('캠핑',     '[후기] 첫 오토캠핑',       '<p>불멍하니 스트레스가 풀리네요.</p>',              1, 7, 55, 'user'),
     ('캠핑',     '입문 텐트 추천',           '<p>2~3인용 설치 쉬운 걸로요.</p>',                  2, 2, 16, 'user'),
     ('캠핑',     '초보 캠핑장 리스트',       '<p>수도권 예약 잘 되는 곳 정리.</p>',               3, 4, 30, 'admin')
-  ) AS v(hobby, title, context, ordr, good, vc, reg)
+  ) AS v(hobby, title, context, sort_no, good, vc, reg)
 JOIN t_hobby h ON h.hobby_nm = v.hobby AND h.use_yn = 'Y';
 SELECT setval(pg_get_serial_sequence('t_bbs','bbs_id'), (SELECT MAX(bbs_id) FROM t_bbs));
 

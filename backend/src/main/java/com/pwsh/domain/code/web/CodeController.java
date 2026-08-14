@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * - 엔드포인트는 표준 5개(selectList/selectView/insert/update/delete) + {variant} 분기:
  *   · selectCodeList{variant}  : ''=페이징목록 / Tree=계층 / Combo=콤보
  *   · selectCodeView{variant}  : ''=단건 / NextChild=하위코드추가용 다음값
- *   · updateCode{variant}      : ''=수정 / ordr=정렬 교환
+ *   · updateCode{variant}      : ''=수정 / sortNo=정렬 교환
  * - 요청 JSON(@RequestBody), 응답 ApiResponse 봉투(에러는 GlobalExceptionHandler), audit은 AuditInterceptor 자동.
  */
 @RestController
@@ -66,12 +66,12 @@ public class CodeController {
         return ApiResponse.ok();
     }
 
-    /** 수정. variant: "ordr"=정렬 위/아래 교환(direction=UP/DOWN), 빈값=일반수정 */
+    /** 수정. variant: "sortNo"=정렬 위/아래 교환(direction=UP/DOWN), 빈값=일반수정 */
     @RequestMapping("/updateCode{variant}.do")
     public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody CodeVO searchVO) {
-        if ("Ordr".equals(variant)) {
-            codeService.swapOrdr(searchVO);
+        if ("Sort".equals(variant)) {
+            codeService.swapSort(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getCodeNm(), "코드명");
             codeService.update(searchVO);

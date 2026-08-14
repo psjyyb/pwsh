@@ -15,5 +15,5 @@ public class PolicyVO extends BaseVO {
     private String typeCd;
     private String typeCdNm; // 약관유형명(t_code 조인, 목록 표시용)
     private String reqYn;
-    private String ordr;
+    private String sortNo;
 }

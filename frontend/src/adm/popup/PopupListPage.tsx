@@ -17,7 +17,7 @@ export default function PopupListPage() {
   const isEdit = mode === 'edit'
 
   const move = (row: Popup, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => popupApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => popupApi.moveSort(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   const columns: TableColumnsType<Popup> = [
     { title: '팝업명', dataIndex: 'popNm' },
@@ -27,7 +27,7 @@ export default function PopupListPage() {
       width: 100,
       render: (_, row) => (
         <Space size={4} onClick={(e) => e.stopPropagation()}>
-          <span>{row.ordr}</span>
+          <span>{row.sortNo}</span>
           <Button size="small" onClick={() => move(row, 'UP')}>▲</Button>
           <Button size="small" onClick={() => move(row, 'DOWN')}>▼</Button>
         </Space>
@@ -85,7 +85,7 @@ export default function PopupListPage() {
             <DateField allowClear placeholder="종료일 선택" />
           </Form.Item>
           {isEdit && (
-            <Form.Item name="ordr" label="정렬순서(순서변경은 목록의 ▲▼)">
+            <Form.Item name="sortNo" label="정렬순서(순서변경은 목록의 ▲▼)">
               <Input disabled />
             </Form.Item>
           )}

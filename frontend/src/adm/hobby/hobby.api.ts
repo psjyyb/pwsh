@@ -15,7 +15,7 @@ export interface Hobby {
   estCost?: string
   bbsinfoId?: string
   bbsinfoNm?: string
-  sortOrdr?: string
+  sortNo?: string
   thumbId?: string
   postCnt?: string
   memberCnt?: string

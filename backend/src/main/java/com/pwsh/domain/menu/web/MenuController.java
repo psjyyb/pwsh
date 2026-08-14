@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 메뉴 관리 — 컨트롤러는 매핑만, 로직은 {@link MenuService}.
- * selectMenuList{variant}: ''=목록 / Tree=사이드바(권한필터) / ManageTree=관리트리 · updateMenu{variant}: ''=수정 / ordr=교환
+ * selectMenuList{variant}: ''=목록 / Tree=사이드바(권한필터) / ManageTree=관리트리 · updateMenu{variant}: ''=수정 / sortNo=교환
  */
 @RestController
 @RequestMapping("/api/adm/menu")
@@ -54,12 +54,12 @@ public class MenuController {
         return ApiResponse.ok();
     }
 
-    /** 수정. variant: "ordr"=정렬 교환, 빈값=일반수정 */
+    /** 수정. variant: "sortNo"=정렬 교환, 빈값=일반수정 */
     @RequestMapping("/updateMenu{variant}.do")
     public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody MenuVO searchVO) {
-        if ("Ordr".equals(variant)) {
-            menuService.swapOrdr(searchVO);
+        if ("Sort".equals(variant)) {
+            menuService.swapSort(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getMenuNm(), "메뉴명");
             menuService.update(searchVO);

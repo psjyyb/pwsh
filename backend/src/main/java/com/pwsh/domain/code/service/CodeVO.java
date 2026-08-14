@@ -15,5 +15,5 @@ public class CodeVO extends BaseVO {
     private String pCodeId;
     private String codeNm;
     private String codeDesc;
-    private String ordr;
+    private String sortNo;
 }

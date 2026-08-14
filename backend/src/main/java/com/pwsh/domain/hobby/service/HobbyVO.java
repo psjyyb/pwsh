@@ -17,7 +17,7 @@ public class HobbyVO extends BaseVO {
     private String equipment;     // 필요 장비
     private String estCost;       // 대략 비용
     private String bbsinfoId;     // 연결 게시판(t_bbsinfo)
-    private String sortOrdr;      // 노출 순서
+    private String sortNo;      // 노출 순서
     // 조회 표시용(조인/계산)
     private String difficultyNm;  // 난이도명(t_code)
     private String thumbId;       // 대표이미지 file_id(r_file, loc HOBBY)

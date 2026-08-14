@@ -51,34 +51,34 @@ public class MenuService {
         commonDAO.update("menuDAO.update", vo);
     }
 
-    /** 같은 부모 내 인접 메뉴와 ordr 교환. uq(p_menu_id, ordr) 회피 위해 임시값(-1) 3단계, 트랜잭션. */
+    /** 같은 부모 내 인접 메뉴와 sortNo 교환. uq(p_menu_id, sortNo) 회피 위해 임시값(-1) 3단계, 트랜잭션. */
     @Transactional
-    public void swapOrdr(MenuVO vo) {
+    public void swapSort(MenuVO vo) {
         MenuVO cur = commonDAO.selectOne("menuDAO.selectView", vo);
         if (cur == null) {
             return;
         }
         cur.setDirection(vo.getDirection());
-        MenuVO adj = commonDAO.selectOne("menuDAO.selectAdjacentOrdr", cur);
+        MenuVO adj = commonDAO.selectOne("menuDAO.selectAdjacentSort", cur);
         if (adj == null) {
             return;
         }
-        setOrdr(cur.getRowId(), "-1");
-        setOrdr(adj.getRowId(), cur.getOrdr());
-        setOrdr(cur.getRowId(), adj.getOrdr());
+        setSortNo(cur.getRowId(), "-1");
+        setSortNo(adj.getRowId(), cur.getSortNo());
+        setSortNo(cur.getRowId(), adj.getSortNo());
     }
 
-    private void setOrdr(String rowId, String ordr) {
+    private void setSortNo(String rowId, String sortNo) {
         MenuVO v = new MenuVO();
         v.setRowId(rowId);
-        v.setOrdr(ordr);
-        commonDAO.update("menuDAO.updateordr", v);
+        v.setSortNo(sortNo);
+        commonDAO.update("menuDAO.updatesort", v);
     }
 
     /** 삭제(논리) + 같은 영역·부모 내 뒤 순서 당김 */
     @Transactional
     public void delete(MenuVO vo) {
         commonDAO.delete("menuDAO.delete", vo);
-        commonDAO.update("menuDAO.shiftOrdrAfterDelete", vo);
+        commonDAO.update("menuDAO.shiftSortAfterDelete", vo);
     }
 }

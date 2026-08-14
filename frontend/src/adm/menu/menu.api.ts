@@ -8,7 +8,7 @@ export interface Menu {
   area?: string // ADM=관리자, GEN=사용자
   menuNm: string
   menuDesc?: string | null
-  ordr?: string
+  sortNo?: string
   connTy?: string // MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹
   connId?: string
   linkUrl?: string | null
@@ -25,8 +25,8 @@ export const menuApi = {
   /** 관리 화면용 트리(권한필터 없이 area 전체) — selectList{variant=ManageTree} */
   manageTree: (area = 'ADM') => apiPost<Menu[]>('/adm/menu/selectMenuListManageTree.do', { area }),
   /** 순서 변경(같은 부모 내 인접 메뉴와 교환) */
-  moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/menu/updateMenuOrdr.do', { rowId, direction }),
+  moveSort: (rowId: string, direction: 'UP' | 'DOWN') =>
+    apiPost<void>('/adm/menu/updateMenuSort.do', { rowId, direction }),
 }
 
 export const MENU_LIST_URL = menuApi.listUrl

@@ -83,7 +83,7 @@ export default function MenuListPage() {
   const [connTitle, setConnTitle] = useState('') // 연결 대상(페이지/게시판) 표시용 이름
 
   const move = (row: Menu, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => menuApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => menuApi.moveSort(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   /** 신규 — 영역(area)은 현재 선택 탭으로 자동 세팅 (initialValues는 마운트 후 갱신 안 되므로 명시) */
   const openNewMenu = () => {
@@ -123,7 +123,7 @@ export default function MenuListPage() {
       width: 100,
       render: (_, row) => (
         <Space size={4} onClick={(e) => e.stopPropagation()}>
-          <span>{row.ordr}</span>
+          <span>{row.sortNo}</span>
           <Button size="small" onClick={() => move(row, 'UP')}>▲</Button>
           <Button size="small" onClick={() => move(row, 'DOWN')}>▼</Button>
         </Space>
@@ -218,7 +218,7 @@ export default function MenuListPage() {
             </Form.Item>
           )}
           {isEdit && (
-            <Form.Item name="ordr" label="정렬순서(순서변경은 목록의 ▲▼)">
+            <Form.Item name="sortNo" label="정렬순서(순서변경은 목록의 ▲▼)">
               <Input disabled />
             </Form.Item>
           )}

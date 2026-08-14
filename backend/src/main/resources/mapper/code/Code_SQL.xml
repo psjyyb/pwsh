@@ -4,7 +4,7 @@
 
     <!-- 목록 (하위코드 + 검색 + 페이징). 컬럼 snake → VO camel 자동 매핑 -->
     <select id="selectList" parameterType="codeVO" resultType="codeVO">
-        SELECT code_id AS row_id, p_code_id, code_nm, code_desc, ordr, use_yn, reg_id, upd_id,
+        SELECT code_id AS row_id, p_code_id, code_nm, code_desc, sort_no, use_yn, reg_id, upd_id,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt,
                TO_CHAR(upd_dt, 'YYYY-MM-DD HH24:MI:SS') AS upd_dt
         FROM t_code
@@ -15,7 +15,7 @@
         <if test="filterKeyword != null and filterKeyword != ''">
             AND code_nm LIKE '%' || #{filterKeyword} || '%'
         </if>
-        ORDER BY ordr
+        ORDER BY sort_no
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
@@ -32,20 +32,20 @@
         </if>
     </select>
 
-    <!-- 특정 부모의 자식 코드(다음 코드ID/순서 계산용). 삭제분도 포함(PK 충돌 방지). ordr은 사용중만 계산에 씀 -->
+    <!-- 특정 부모의 자식 코드(다음 코드ID/순서 계산용). 삭제분도 포함(PK 충돌 방지). sort_no은 사용중만 계산에 씀 -->
     <select id="selectChildCodes" parameterType="codeVO" resultType="codeVO">
-        SELECT code_id AS row_id, ordr, use_yn
+        SELECT code_id AS row_id, sort_no, use_yn
         FROM t_code
         WHERE p_code_id = #{pCodeId}
-        ORDER BY ordr
+        ORDER BY sort_no
     </select>
 
     <!-- 계층 트리용: 사용중 코드 전체(페이징 없음). 프론트에서 p_code_id로 중첩(최상위=ROOT) -->
     <select id="selectTree" parameterType="codeVO" resultType="codeVO">
-        SELECT code_id AS row_id, p_code_id, code_nm, code_desc, ordr, use_yn
+        SELECT code_id AS row_id, p_code_id, code_nm, code_desc, sort_no, use_yn
         FROM t_code
         WHERE use_yn = 'Y'
-        ORDER BY p_code_id, ordr
+        ORDER BY p_code_id, sort_no
     </select>
 
     <!-- 콤보/셀렉트용 (pCodeId 하위, 경량) -->
@@ -53,12 +53,12 @@
         SELECT code_id, code_nm
         FROM t_code
         WHERE use_yn = 'Y' AND p_code_id = #{pCodeId}
-        ORDER BY ordr
+        ORDER BY sort_no
     </select>
 
     <!-- 단건 -->
     <select id="selectView" parameterType="codeVO" resultType="codeVO">
-        SELECT code_id AS row_id, p_code_id, code_nm, code_desc, ordr, use_yn
+        SELECT code_id AS row_id, p_code_id, code_nm, code_desc, sort_no, use_yn
         FROM t_code
         WHERE code_id = #{rowId} AND use_yn = 'Y'
     </select>
@@ -66,12 +66,12 @@
     <!-- 등록 -->
     <insert id="insert" parameterType="codeVO">
         INSERT INTO t_code (
-            code_id, p_code_id, code_nm, code_desc, ordr, use_yn,
+            code_id, p_code_id, code_nm, code_desc, sort_no, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip
         ) VALUES (
             #{rowId}, #{pCodeId}, #{codeNm}, #{codeDesc},
-            COALESCE(NULLIF(#{ordr}, '')::integer,
-                (SELECT COALESCE(MAX(ordr), 0) + 1 FROM t_code WHERE p_code_id = #{pCodeId} AND use_yn = 'Y')), 'Y',
+            COALESCE(NULLIF(#{sortNo}, '')::integer,
+                (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_code WHERE p_code_id = #{pCodeId} AND use_yn = 'Y')), 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp}
         )
     </insert>
@@ -88,25 +88,25 @@
     </update>
 
     <!-- 순서 교환용: 같은 부모(p_code_id) 내 인접 코드 조회 (UP=바로 위, 그 외=바로 아래) -->
-    <select id="selectAdjacentOrdr" parameterType="codeVO" resultType="codeVO">
-        SELECT code_id AS row_id, ordr
+    <select id="selectAdjacentSort" parameterType="codeVO" resultType="codeVO">
+        SELECT code_id AS row_id, sort_no
         FROM t_code
         WHERE use_yn = 'Y' AND p_code_id = #{pCodeId}
         <choose>
             <when test="direction == 'UP'">
-                AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
+                AND sort_no &lt; #{sortNo}::integer ORDER BY sort_no DESC
             </when>
             <otherwise>
-                AND ordr &gt; #{ordr}::integer ORDER BY ordr ASC
+                AND sort_no &gt; #{sortNo}::integer ORDER BY sort_no ASC
             </otherwise>
         </choose>
         LIMIT 1
     </select>
 
-    <!-- 정렬순서 변경 (updateCodeordr.do 분기용: 대상 행의 ordr를 지정값으로 설정 → 교환에 사용) -->
-    <update id="updateordr" parameterType="codeVO">
+    <!-- 정렬순서 변경 (updateCodesort.do 분기용: 대상 행의 sort_no를 지정값으로 설정 → 교환에 사용) -->
+    <update id="updatesort" parameterType="codeVO">
         UPDATE t_code SET
-            ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
+            sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId},
             upd_dt = NOW(),
             upd_ip = #{updIp}
@@ -129,11 +129,11 @@
     </update>
 
     <!-- 삭제 후 순서 당김: 같은 부모(p_code_id)에서 지운 행보다 큰 순서를 -1 -->
-    <update id="shiftOrdrAfterDelete" parameterType="codeVO">
-        UPDATE t_code SET ordr = ordr - 1, upd_dt = NOW()
+    <update id="shiftSortAfterDelete" parameterType="codeVO">
+        UPDATE t_code SET sort_no = sort_no - 1, upd_dt = NOW()
         WHERE use_yn = 'Y'
           AND p_code_id = (SELECT p_code_id FROM t_code WHERE code_id = #{rowId})
-          AND ordr > (SELECT ordr FROM t_code WHERE code_id = #{rowId})
+          AND sort_no > (SELECT sort_no FROM t_code WHERE code_id = #{rowId})
     </update>
 
 </mapper>

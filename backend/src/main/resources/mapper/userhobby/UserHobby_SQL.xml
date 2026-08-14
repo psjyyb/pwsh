@@ -10,7 +10,7 @@
         JOIN t_hobby h ON h.hobby_id = uh.hobby_id AND h.use_yn = 'Y'
         LEFT JOIN t_code lc ON lc.code_id = uh.level_cd AND lc.p_code_id = 'HOBBYLV00'
         WHERE uh.use_yn = 'Y' AND uh.user_id = #{userId}
-        ORDER BY h.sort_ordr, h.hobby_id
+        ORDER BY h.sort_no, h.hobby_id
     </select>
 
     <select id="selectCountActive" parameterType="userHobbyVO" resultType="int">

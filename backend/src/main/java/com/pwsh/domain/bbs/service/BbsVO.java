@@ -16,7 +16,7 @@ public class BbsVO extends BaseVO {
     private String fileId;         // 썸네일(Phase2)
     private String pBbsId;
     private String bbsDepth;
-    private String bbsOrdr;
+    private String bbsSortNo;
     private String secretYn;
     private String bbsPw;
     private String goodCnt;

@@ -55,6 +55,11 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/adm/menu/selectMenuListTree.do",
                                 "/api/adm/config/selectConfigView.do",
+                                // 공통코드 콤보(지역·취미레벨 등) — 공개 화면의 필터가 쓴다.
+                                // 막아두면 게스트가 모집 목록에 들어서는 순간 401 → 로그인 화면으로 튕긴다.
+                                "/api/adm/code/selectCodeListCombo.do",
+                                // 게시글 첨부 목록 — 글 열람 권한으로 FileController가 다시 인가한다.
+                                "/api/adm/file/selectFileMapList.do",
                                 "/api/adm/bbsinfo/selectBbsinfoView.do",
                                 "/api/adm/bbsinfo/selectBbsinfoListCombo.do",
                                 "/api/adm/bbs/selectBbsList.do",

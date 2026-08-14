@@ -19,7 +19,7 @@
         WHERE h.use_yn = 'Y'
           AND (h.hobby_nm LIKE '%' || #{keyword} || '%' ESCAPE '\'
                OR h.summary LIKE '%' || #{keyword} || '%' ESCAPE '\')
-        ORDER BY h.sort_ordr, h.hobby_id
+        ORDER BY h.sort_no, h.hobby_id
         LIMIT 10
     </select>
 

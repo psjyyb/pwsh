@@ -4,14 +4,14 @@
 
     <!-- 목록 (관리 화면용, 특정 부모의 자식) -->
     <select id="selectList" parameterType="menuVO" resultType="menuVO">
-        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id,
+        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, menu_desc, sort_no, conn_ty, conn_id,
                link_url, target_yn, use_yn, icon
         FROM t_menu
         WHERE use_yn = 'Y'
         <if test="area != null and area != ''">AND area = #{area}</if>
         <if test="pMenuId != null and pMenuId != ''">AND p_menu_id = #{pMenuId}::integer</if>
         <if test="filterKeyword != null and filterKeyword != ''">AND menu_nm LIKE '%' || #{filterKeyword} || '%'</if>
-        ORDER BY ordr
+        ORDER BY sort_no
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
@@ -25,7 +25,7 @@
     <!-- 트리 (사이드바용, area 전체 계층 → 프론트에서 p_menu_id로 중첩)
          ADM: 슈퍼관리자(superYn=Y)는 전체, 그 외는 권한 메뉴+상위만. GEN(사용자 사이트): 권한필터 없이 전체 노출 -->
     <select id="selectMenuTree" parameterType="menuVO" resultType="menuVO">
-        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, ordr, conn_ty, conn_id, link_url, target_yn, icon
+        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, sort_no, conn_ty, conn_id, link_url, target_yn, icon
         FROM t_menu
         WHERE use_yn = 'Y'
         <if test="area != null and area != ''">AND area = #{area}</if>
@@ -55,7 +55,7 @@
                 SELECT menu_id FROM tree
             )
         </if>
-        ORDER BY p_menu_id, ordr
+        ORDER BY p_menu_id, sort_no
     </select>
 
     <!-- API 권한강제용: 사용자가 특정 메뉴(link_url)에 대한 접근 권한을 가졌는지 카운트 -->
@@ -97,17 +97,17 @@
 
     <!-- 관리 화면용 계층 트리: 권한필터 없이 전체(프론트에서 p_menu_id로 중첩, 최상위=-1) -->
     <select id="selectManageTree" parameterType="menuVO" resultType="menuVO">
-        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id,
+        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, menu_desc, sort_no, conn_ty, conn_id,
                link_url, target_yn, use_yn, icon
         FROM t_menu
         WHERE use_yn = 'Y'
         <if test="area != null and area != ''">AND area = #{area}</if>
-        ORDER BY p_menu_id, ordr
+        ORDER BY p_menu_id, sort_no
     </select>
 
     <!-- 단건 -->
     <select id="selectView" parameterType="menuVO" resultType="menuVO">
-        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id,
+        SELECT menu_id::TEXT AS row_id, p_menu_id, area, menu_nm, menu_desc, sort_no, conn_ty, conn_id,
                link_url, target_yn, use_yn, icon
         FROM t_menu WHERE menu_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
@@ -115,14 +115,14 @@
     <!-- 등록 -->
     <insert id="insert" parameterType="menuVO">
         INSERT INTO t_menu (
-            p_menu_id, area, menu_nm, menu_desc, ordr, conn_ty, conn_id, link_url, target_yn, icon,
+            p_menu_id, area, menu_nm, menu_desc, sort_no, conn_ty, conn_id, link_url, target_yn, icon,
             use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip
         ) VALUES (
             COALESCE(NULLIF(#{pMenuId}, '')::integer, 0),
             COALESCE(NULLIF(#{area}, ''), 'ADM'),
             #{menuNm}, #{menuDesc},
             -- 같은 영역·부모 내 마지막(사용중) 순서+1로 자동 부여(빈 그룹은 1부터 시작)
-            (SELECT COALESCE(MAX(ordr), 0) + 1 FROM t_menu
+            (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_menu
                WHERE area = COALESCE(NULLIF(#{area}, ''), 'ADM')
                  AND p_menu_id = COALESCE(NULLIF(#{pMenuId}, '')::integer, 0) AND use_yn = 'Y'),
             COALESCE(#{connTy}, 'MENU01'),
@@ -134,7 +134,7 @@
         )
     </insert>
 
-    <!-- 수정(정보만). 상위메뉴(부모)는 고정, 정렬순서는 ▲▼(updateordr)로만 변경 -->
+    <!-- 수정(정보만). 상위메뉴(부모)는 고정, 정렬순서는 ▲▼(updatesort)로만 변경 -->
     <update id="update" parameterType="menuVO">
         UPDATE t_menu SET
             area = #{area}, menu_nm = #{menuNm}, menu_desc = #{menuDesc},
@@ -145,25 +145,25 @@
     </update>
 
     <!-- 순서 교환용: 같은 영역·부모(area, p_menu_id) 내 인접 메뉴 (UP=바로 위, 그 외=바로 아래) -->
-    <select id="selectAdjacentOrdr" parameterType="menuVO" resultType="menuVO">
-        SELECT menu_id::TEXT AS row_id, ordr
+    <select id="selectAdjacentSort" parameterType="menuVO" resultType="menuVO">
+        SELECT menu_id::TEXT AS row_id, sort_no
         FROM t_menu
         WHERE use_yn = 'Y' AND area = #{area} AND p_menu_id = #{pMenuId}::integer
         <choose>
             <when test="direction == 'UP'">
-                AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
+                AND sort_no &lt; #{sortNo}::integer ORDER BY sort_no DESC
             </when>
             <otherwise>
-                AND ordr &gt; #{ordr}::integer ORDER BY ordr ASC
+                AND sort_no &gt; #{sortNo}::integer ORDER BY sort_no ASC
             </otherwise>
         </choose>
         LIMIT 1
     </select>
 
-    <!-- 정렬순서 변경 (updateMenuordr.do 분기용: 대상 행 ordr를 지정값으로 → 교환에 사용) -->
-    <update id="updateordr" parameterType="menuVO">
+    <!-- 정렬순서 변경 (updateMenusort.do 분기용: 대상 행 sort_no를 지정값으로 → 교환에 사용) -->
+    <update id="updatesort" parameterType="menuVO">
         UPDATE t_menu SET
-            ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
+            sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE menu_id = #{rowId}::integer
     </update>
@@ -180,12 +180,12 @@
     </update>
 
     <!-- 삭제 후 순서 당김: 같은 영역·부모에서 지운 행보다 큰 순서를 -1 (delete 직후 트랜잭션 내 호출) -->
-    <update id="shiftOrdrAfterDelete" parameterType="menuVO">
-        UPDATE t_menu SET ordr = ordr - 1, upd_dt = NOW()
+    <update id="shiftSortAfterDelete" parameterType="menuVO">
+        UPDATE t_menu SET sort_no = sort_no - 1, upd_dt = NOW()
         WHERE use_yn = 'Y'
           AND area = (SELECT area FROM t_menu WHERE menu_id = #{rowId}::integer)
           AND p_menu_id = (SELECT p_menu_id FROM t_menu WHERE menu_id = #{rowId}::integer)
-          AND ordr > (SELECT ordr FROM t_menu WHERE menu_id = #{rowId}::integer)
+          AND sort_no > (SELECT sort_no FROM t_menu WHERE menu_id = #{rowId}::integer)
     </update>
 
 </mapper>

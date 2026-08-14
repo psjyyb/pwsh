@@ -6,12 +6,12 @@
         (SELECT r.file_id FROM r_file r
           JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
           WHERE r.map_key = h.hobby_id AND r.file_loc = 'HOBBY'
-          ORDER BY r.ordr LIMIT 1)
+          ORDER BY r.sort_no LIMIT 1)
     </sql>
 
     <select id="selectList" parameterType="hobbyVO" resultType="hobbyVO">
         SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary, h.difficulty_cd, h.equipment, h.est_cost,
-               h.bbsinfo_id, h.sort_ordr,
+               h.bbsinfo_id, h.sort_no,
                dc.code_nm AS difficulty_nm,
                bi.bbsinfo_nm,
                <include refid="thumb"/> AS thumb_id,
@@ -22,7 +22,7 @@
         LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
         WHERE h.use_yn = 'Y'
         <if test="filterKeyword != null and filterKeyword != ''">AND h.hobby_nm LIKE '%' || #{filterKeyword} || '%'</if>
-        ORDER BY h.sort_ordr, h.hobby_id
+        ORDER BY h.sort_no, h.hobby_id
     </select>
 
     <!-- 특정 게시판이 취미 게시판인지(취미 커뮤니티 공개 판정용) -->
@@ -37,7 +37,7 @@
 
     <select id="selectView" parameterType="hobbyVO" resultType="hobbyVO">
         SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary, h.intro, h.guide, h.difficulty_cd,
-               h.equipment, h.est_cost, h.bbsinfo_id, h.sort_ordr,
+               h.equipment, h.est_cost, h.bbsinfo_id, h.sort_no,
                dc.code_nm AS difficulty_nm,
                bi.bbsinfo_nm,
                <include refid="thumb"/> AS thumb_id
@@ -48,12 +48,12 @@
     </select>
 
     <insert id="insert" parameterType="hobbyVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="hobby_id">
-        INSERT INTO t_hobby (hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_ordr, use_yn,
+        INSERT INTO t_hobby (hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_no, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{hobbyNm}, NULLIF(#{summary}, ''), #{intro}, #{guide}, NULLIF(#{difficultyCd}, ''),
             NULLIF(#{equipment}, ''), NULLIF(#{estCost}, ''),
             NULLIF(#{bbsinfoId}, '')::integer,
-            COALESCE(NULLIF(#{sortOrdr}, '')::integer, (SELECT COALESCE(MAX(sort_ordr), 0) + 1 FROM t_hobby WHERE use_yn = 'Y')),
+            COALESCE(NULLIF(#{sortNo}, '')::integer, (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_hobby WHERE use_yn = 'Y')),
             'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
@@ -62,7 +62,7 @@
         UPDATE t_hobby SET
             hobby_nm = #{hobbyNm}, summary = NULLIF(#{summary}, ''), intro = #{intro}, guide = #{guide},
             difficulty_cd = NULLIF(#{difficultyCd}, ''), equipment = NULLIF(#{equipment}, ''), est_cost = NULLIF(#{estCost}, ''),
-            bbsinfo_id = NULLIF(#{bbsinfoId}, '')::integer, sort_ordr = COALESCE(NULLIF(#{sortOrdr}, '')::integer, 0),
+            bbsinfo_id = NULLIF(#{bbsinfoId}, '')::integer, sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE hobby_id = #{rowId}::integer
     </update>

@@ -38,8 +38,8 @@ export default function HobbyListPage() {
   const openNew = () => {
     form.resetFields()
     // 노출 순서 기본값 = 기존 취미 최대값 + 1
-    const nextOrdr = rows.length ? Math.max(0, ...rows.map((r) => Number(r.sortOrdr) || 0)) + 1 : 1
-    form.setFieldsValue({ sortOrdr: String(nextOrdr) })
+    const nextSort = rows.length ? Math.max(0, ...rows.map((r) => Number(r.sortNo) || 0)) + 1 : 1
+    form.setFieldsValue({ sortNo: String(nextSort) })
     setIntroHtml(''); setGuideHtml('')
     setSelectedKey(null); setSeq((s) => s + 1); setMode('insert')
   }
@@ -50,7 +50,7 @@ export default function HobbyListPage() {
       form.resetFields()
       form.setFieldsValue({
         hobbyNm: h.hobbyNm, summary: h.summary, difficultyCd: h.difficultyCd, bbsinfoId: h.bbsinfoId,
-        sortOrdr: h.sortOrdr, equipment: h.equipment, estCost: h.estCost, thumbId: h.thumbId,
+        sortNo: h.sortNo, equipment: h.equipment, estCost: h.estCost, thumbId: h.thumbId,
       })
       setIntroHtml(h.intro ?? ''); setGuideHtml(h.guide ?? '')
       setSelectedKey(rowId); setSeq((s) => s + 1); setMode('edit')
@@ -65,7 +65,7 @@ export default function HobbyListPage() {
     const guide = guideRef.current?.getHTML() ?? guideHtml
     const payload: Partial<Hobby> = {
       hobbyNm: v.hobbyNm, summary: v.summary ?? '', difficultyCd: v.difficultyCd ?? '', bbsinfoId: v.bbsinfoId ?? '',
-      sortOrdr: v.sortOrdr ?? '0', equipment: v.equipment ?? '', estCost: v.estCost ?? '', intro, guide,
+      sortNo: v.sortNo ?? '0', equipment: v.equipment ?? '', estCost: v.estCost ?? '', intro, guide,
     }
     try {
       const id = mode === 'edit'
@@ -97,7 +97,7 @@ export default function HobbyListPage() {
     { title: '취미명', dataIndex: 'hobbyNm' },
     { title: '난이도', width: 90, render: (_, r) => r.difficultyNm ?? '-' },
     { title: '연결 게시판', width: 130, render: (_, r) => r.bbsinfoNm ?? '-' },
-    { title: '순서', dataIndex: 'sortOrdr', width: 70 },
+    { title: '순서', dataIndex: 'sortNo', width: 70 },
   ]
 
   const list = (
@@ -128,7 +128,7 @@ export default function HobbyListPage() {
       {mode === 'none' ? (
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
-        <Form form={form} layout="vertical" initialValues={{ sortOrdr: '0' }}>
+        <Form form={form} layout="vertical" initialValues={{ sortNo: '0' }}>
           <Form.Item name="hobbyNm" label="취미명" rules={[{ required: true, message: '취미명을 입력하세요.' }]}>
             <Input maxLength={50} />
           </Form.Item>
@@ -143,7 +143,7 @@ export default function HobbyListPage() {
               extra={mode === 'insert' ? '비우면 취미 전용 게시판을 자동 생성' : undefined}>
               <Select allowClear placeholder="비우면 자동 생성" options={boards.map((b) => ({ value: b.rowId, label: b.bbsinfoNm }))} />
             </Form.Item>
-            <Form.Item name="sortOrdr" label="노출 순서"><NumberInput /></Form.Item>
+            <Form.Item name="sortNo" label="노출 순서"><NumberInput /></Form.Item>
           </Space>
           <Form.Item name="thumbId" label="대표 이미지">
             <ImageUpload />

@@ -33,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileController {
 
     private final FileService fileService;
+    private final com.pwsh.global.security.GenAccessGuard genAccessGuard;
 
     /** 파일 관리(정리·삭제·목록)는 관리자 전용. (업로드/다운로드/매핑은 게시판 작성 흐름이라 로그인만) */
     private void requireAdmin() {
@@ -98,9 +99,19 @@ public class FileController {
         return ApiResponse.ok();
     }
 
-    /** 엔티티(map_key+file_loc)에 연결된 파일 목록 */
+    /**
+     * 엔티티(map_key+file_loc)에 연결된 파일 목록.
+     *
+     * <p>게시글 첨부(BBS*)는 <b>그 글의 열람 권한</b>으로 판정한다 — 공개 글이면 비로그인도 목록을 볼 수 있고
+     * (막아두면 게스트가 첨부 있는 글을 열자마자 401로 로그인 화면에 튕긴다), 접근 권한이 없는 게시판의
+     * 글이면 로그인 회원이라도 파일명조차 얻지 못한다. 그 외 위치(팝업·로고)는 공개 자산이다.
+     */
     @RequestMapping("/selectFileMapList.do")
     public ApiResponse<List<FileVO>> selectFileMapList(@RequestBody FileVO searchVO) {
+        String loc = searchVO.getFileLoc();
+        if (loc != null && loc.startsWith("BBS")) {
+            genAccessGuard.checkPost(searchVO.getMapKey());
+        }
         return ApiResponse.ok(fileService.selectFilesByMap(searchVO));
     }
 

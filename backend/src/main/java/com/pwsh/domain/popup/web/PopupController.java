@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 팝업 관리 — 컨트롤러는 매핑만, 로직은 {@link PopupService}.
- * selectPopupList{variant}: ''=목록 / Main=사용자 메인 노출용 · updatePopup{variant}: ''=수정 / ordr=교환
+ * selectPopupList{variant}: ''=목록 / Main=사용자 메인 노출용 · updatePopup{variant}: ''=수정 / sortNo=교환
  */
 @RestController
 @RequestMapping("/api/adm/popup")
@@ -51,12 +51,12 @@ public class PopupController {
         return ApiResponse.ok();
     }
 
-    /** 수정. variant: "ordr"=정렬 교환, 빈값=일반수정(+이미지 동기화) */
+    /** 수정. variant: "sortNo"=정렬 교환, 빈값=일반수정(+이미지 동기화) */
     @RequestMapping("/updatePopup{variant}.do")
     public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody PopupVO searchVO) {
-        if ("Ordr".equals(variant)) {
-            popupService.swapOrdr(searchVO);
+        if ("Sort".equals(variant)) {
+            popupService.swapSort(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getPopNm(), "팝업명");
             popupService.update(searchVO);

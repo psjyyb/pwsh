@@ -9,7 +9,7 @@
                (SELECT r.file_id FROM r_file r
                  JOIN t_file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
                  WHERE r.map_key = 1 AND r.file_loc = 'LOGO'
-                 ORDER BY r.ordr LIMIT 1) AS logo_file_id  <!-- 단일행 config(map_key=1)의 로고, 없으면 프론트 기본 로고 -->
+                 ORDER BY r.sort_no LIMIT 1) AS logo_file_id  <!-- 단일행 config(map_key=1)의 로고, 없으면 프론트 기본 로고 -->
         FROM t_config
         LIMIT 1
     </select>

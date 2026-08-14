@@ -40,7 +40,7 @@
                (SELECT r.file_id FROM r_file r
                  JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
                  WHERE r.map_key = b.bbs_id AND r.file_loc = 'BBS_IMG'
-                 ORDER BY r.ordr LIMIT 1) AS file_id,
+                 ORDER BY r.sort_no LIMIT 1) AS file_id,
                (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
                CASE WHEN t.lvl = 0 THEN t.root_notice ELSE 'N' END AS notice_eff
         FROM thread t JOIN t_bbs b ON b.bbs_id = t.bbs_id
@@ -111,7 +111,7 @@
 
     <select id="selectView" parameterType="bbsVO" resultType="bbsVO">
         SELECT bbs_id::TEXT AS row_id, bbsinfo_id, title, context,
-               p_bbs_id, bbs_depth, bbs_ordr, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
+               p_bbs_id, bbs_depth, bbs_sort_no, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
                (CASE WHEN EXISTS (SELECT 1 FROM t_content_like l WHERE l.target_type = 'BBS' AND l.target_id = t_bbs.bbs_id AND l.user_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                notice_yn, notice_start_dt, notice_end_dt, bbs_dt,
                reg_id, <!-- 서버 인가용(비밀글 작성자 판정). 응답 직전 BbsService에서 제거 -->
@@ -125,12 +125,12 @@
 
     <insert id="insert" parameterType="bbsVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="bbs_id">
         INSERT INTO t_bbs (bbsinfo_id, title, context, p_bbs_id, bbs_depth,
-            bbs_ordr, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
+            bbs_sort_no, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
             notice_yn, notice_start_dt, notice_end_dt, bbs_dt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{bbsinfoId}::integer, #{title}, #{context},
             COALESCE(NULLIF(#{pBbsId}, '')::integer, 0), COALESCE(NULLIF(#{bbsDepth}, '')::integer, 1),
-            (SELECT COALESCE(MAX(bbs_ordr), 0) + 1 FROM t_bbs WHERE bbsinfo_id = #{bbsinfoId}::integer),
+            (SELECT COALESCE(MAX(bbs_sort_no), 0) + 1 FROM t_bbs WHERE bbsinfo_id = #{bbsinfoId}::integer),
             COALESCE(#{secretYn}, 'N'), NULLIF(#{bbsPw}, ''), 0, 0, 0,
             COALESCE(#{noticeYn}, 'N'), NULLIF(#{noticeStartDt}, ''), NULLIF(#{noticeEndDt}, ''),
             TO_CHAR(NOW(), 'YYYY-MM-DD'), 'Y',

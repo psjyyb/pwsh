@@ -14,7 +14,7 @@ public class MenuVO extends BaseVO {
     private String area;      // ADM=관리자, GEN=사용자
     private String menuNm;
     private String menuDesc;
-    private String ordr;
+    private String sortNo;
     private String connTy;    // 연결유형 t_code MENU00: MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹
     private String connId;    // 게시판/페이지 대상 ID (MENU02/MENU03)
     private String linkUrl;   // 라우트/URL (MENU01)

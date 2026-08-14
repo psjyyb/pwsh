@@ -20,7 +20,7 @@ public class FileVO extends BaseVO {
     // r_file 매핑용 (엔티티 연결)
     private String mapKey;   // 연결 대상 PK
     private String fileLoc;  // 위치 구분 (예: BBS/BBS_IMG/BBS_EDITOR/POPUP)
-    private String ordr;
+    private String sortNo;
     private String[] fileIds;   // 매핑 저장 시 파일 ID 목록
     private String[] fileDescs; // 매핑 저장 시 파일별 설명(캡션) — fileIds와 같은 순서(갤러리)
 }

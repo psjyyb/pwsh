@@ -3,7 +3,7 @@
 <mapper namespace="policyDAO">
 
     <select id="selectList" parameterType="policyVO" resultType="policyVO">
-        SELECT p.policy_id::TEXT AS row_id, p.title, p.type_cd, c.code_nm AS type_cd_nm, p.req_yn, p.ordr, p.use_yn
+        SELECT p.policy_id::TEXT AS row_id, p.title, p.type_cd, c.code_nm AS type_cd_nm, p.req_yn, p.sort_no, p.use_yn
         FROM t_policy p
         LEFT JOIN t_code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
         WHERE p.use_yn = 'Y'
@@ -11,7 +11,7 @@
         <if test="filterKeyword != null and filterKeyword != ''">
             AND p.title LIKE '%' || #{filterKeyword} || '%'
         </if>
-        ORDER BY p.type_cd, p.ordr
+        ORDER BY p.type_cd, p.sort_no
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
@@ -22,17 +22,17 @@
     </select>
 
     <select id="selectView" parameterType="policyVO" resultType="policyVO">
-        SELECT policy_id::TEXT AS row_id, title, content, type_cd, req_yn, ordr, use_yn
+        SELECT policy_id::TEXT AS row_id, title, content, type_cd, req_yn, sort_no, use_yn
         FROM t_policy WHERE policy_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="policyVO">
-        INSERT INTO t_policy (title, content, type_cd, req_yn, ordr, use_yn,
+        INSERT INTO t_policy (title, content, type_cd, req_yn, sort_no, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{title}, #{content}, #{typeCd}, COALESCE(#{reqYn}, 'Y'),
             -- 같은 약관유형(type_cd) 내 마지막 순서+1 자동 부여
-            COALESCE(NULLIF(#{ordr}, '')::integer,
-                (SELECT COALESCE(MAX(ordr), 0) + 1 FROM t_policy WHERE type_cd = #{typeCd} AND use_yn = 'Y')),
+            COALESCE(NULLIF(#{sortNo}, '')::integer,
+                (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_policy WHERE type_cd = #{typeCd} AND use_yn = 'Y')),
             'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
@@ -45,25 +45,25 @@
     </update>
 
     <!-- 순서 교환용: 같은 약관유형(type_cd) 내 인접 약관 (UP=바로 위, 그 외=바로 아래) -->
-    <select id="selectAdjacentOrdr" parameterType="policyVO" resultType="policyVO">
-        SELECT policy_id::TEXT AS row_id, ordr
+    <select id="selectAdjacentSort" parameterType="policyVO" resultType="policyVO">
+        SELECT policy_id::TEXT AS row_id, sort_no
         FROM t_policy
         WHERE use_yn = 'Y' AND type_cd = #{typeCd}
         <choose>
             <when test="direction == 'UP'">
-                AND ordr &lt; #{ordr}::integer ORDER BY ordr DESC
+                AND sort_no &lt; #{sortNo}::integer ORDER BY sort_no DESC
             </when>
             <otherwise>
-                AND ordr &gt; #{ordr}::integer ORDER BY ordr ASC
+                AND sort_no &gt; #{sortNo}::integer ORDER BY sort_no ASC
             </otherwise>
         </choose>
         LIMIT 1
     </select>
 
-    <!-- 정렬순서 변경 (updatePolicyordr.do 분기용: 대상 행 ordr를 지정값으로 → 교환에 사용) -->
-    <update id="updateordr" parameterType="policyVO">
+    <!-- 정렬순서 변경 (updatePolicysort.do 분기용: 대상 행 sort_no를 지정값으로 → 교환에 사용) -->
+    <update id="updatesort" parameterType="policyVO">
         UPDATE t_policy SET
-            ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
+            sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE policy_id = #{rowId}::integer
     </update>
@@ -74,11 +74,11 @@
     </update>
 
     <!-- 삭제 후 순서 당김: 같은 약관유형(type_cd)에서 지운 행보다 큰 순서를 -1 -->
-    <update id="shiftOrdrAfterDelete" parameterType="policyVO">
-        UPDATE t_policy SET ordr = ordr - 1, upd_dt = NOW()
+    <update id="shiftSortAfterDelete" parameterType="policyVO">
+        UPDATE t_policy SET sort_no = sort_no - 1, upd_dt = NOW()
         WHERE use_yn = 'Y'
           AND type_cd = (SELECT type_cd FROM t_policy WHERE policy_id = #{rowId}::integer)
-          AND ordr > (SELECT ordr FROM t_policy WHERE policy_id = #{rowId}::integer)
+          AND sort_no > (SELECT sort_no FROM t_policy WHERE policy_id = #{rowId}::integer)
     </update>
 
 </mapper>
