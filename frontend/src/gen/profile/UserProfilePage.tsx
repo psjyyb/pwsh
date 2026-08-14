@@ -184,7 +184,7 @@ export default function UserProfilePage() {
             <List
               size="small" dataSource={recruits}
               renderItem={(r) => (
-                <List.Item style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/recruit/${r.dbKey}`)}>
+                <List.Item style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/recruit/${r.rowId}`)}>
                   <List.Item.Meta
                     title={r.title}
                     description={`${r.hobbyNm ?? '-'} · 인원 ${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ' (제한없음)'} · ${r.regDt ?? ''}`}
@@ -204,7 +204,7 @@ export default function UserProfilePage() {
             <List
               size="small" dataSource={posts}
               renderItem={(p) => (
-                <List.Item style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}>
+                <List.Item style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}>
                   <List.Item.Meta
                     title={p.title}
                     description={`${p.bbsinfoNm ?? '-'} · 💬 ${p.commentCnt ?? 0} · ❤ ${p.goodCnt ?? 0} · ${p.regDt ?? ''}`}

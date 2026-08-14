@@ -3,7 +3,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 게시판 정의(설정) VO */
 export interface Bbsinfo {
-  dbKey?: string // PK(bbsinfo_id)
+  rowId?: string // PK(bbsinfo_id)
   bbsinfoNm?: string
   bbsinfoCd?: string
   bbsinfoCdNm?: string // 유형명(목록 표시)
@@ -19,7 +19,7 @@ export interface Bbsinfo {
 
 export const bbsinfoApi = {
   ...createCrudApi<Bbsinfo>('/adm/bbsinfo', 'Bbsinfo'),
-  /** 게시판 콤보(메뉴 게시판 연결 선택용) — selectList{path=Combo} */
+  /** 게시판 콤보(메뉴 게시판 연결 선택용) — selectList{variant=Combo} */
   comboList: () => apiPost<Bbsinfo[]>('/adm/bbsinfo/selectBbsinfoListCombo.do', {}),
 }
 export const BBSINFO_LIST_URL = bbsinfoApi.listUrl

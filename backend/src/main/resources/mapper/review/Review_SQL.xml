@@ -5,7 +5,7 @@
 
     <!-- 회원이 받은 후기 목록(공개 프로필). 작성자/대상 로그인 ID 미노출 — 표시는 닉네임, 링크는 handle -->
     <select id="selectListByTarget" parameterType="reviewVO" resultType="reviewVO">
-        SELECT r.review_id::TEXT AS db_key, r.recruit_id, r.rating, r.content,
+        SELECT r.review_id::TEXT AS row_id, r.recruit_id, r.rating, r.content,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt,
                (SELECT nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
                (SELECT handle FROM t_user u WHERE u.user_id = r.reg_id) AS reg_handle,
@@ -89,14 +89,14 @@
     </insert>
 
     <select id="selectView" parameterType="reviewVO" resultType="reviewVO">
-        SELECT review_id::TEXT AS db_key, recruit_id, target_id, rating, content, reg_id
-        FROM t_review WHERE review_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT review_id::TEXT AS row_id, recruit_id, target_id, rating, content, reg_id
+        FROM t_review WHERE review_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <!-- 삭제(논리) — 작성자·관리자 -->
     <update id="delete" parameterType="reviewVO">
         UPDATE t_review SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE review_id = #{dbKey}::integer
+        WHERE review_id = #{rowId}::integer
     </update>
 
 </mapper>

@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class PolicyVO extends BaseVO {
 
-    // PK(policy_id)는 BaseVO.dbKey로 통일
+    // PK(policy_id)는 BaseVO.rowId로 통일
     private String title;
     private String content;
     private String typeCd;

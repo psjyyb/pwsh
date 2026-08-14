@@ -12,7 +12,7 @@
 
     <!-- 취미: 이름·소개 부분일치 -->
     <select id="searchHobbies" parameterType="map" resultType="hobbyVO">
-        SELECT h.hobby_id::TEXT AS db_key, h.hobby_nm, h.summary,
+        SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary,
                dc.code_nm AS difficulty_nm
         FROM t_hobby h
         LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
@@ -25,7 +25,7 @@
 
     <!-- 모집: 모임명·설명 부분일치 -->
     <select id="searchRecruits" parameterType="map" resultType="recruitVO">
-        SELECT r.recruit_id::TEXT AS db_key, r.title, r.region, r.meet_dt, r.status_cd,
+        SELECT r.recruit_id::TEXT AS row_id, r.title, r.region, r.meet_dt, r.status_cd,
                ho.hobby_nm, sc.code_nm AS status_nm
         FROM t_recruit r
         LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
@@ -54,7 +54,7 @@
             WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
               AND EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y')
         )
-        SELECT hit.bbs_id::TEXT AS db_key, hit.bbsinfo_id, hit.title,
+        SELECT hit.bbs_id::TEXT AS row_id, hit.bbsinfo_id, hit.title,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = hit.reg_id) AS reg_nm,
                bi.bbsinfo_nm,
                TO_CHAR(hit.reg_dt, 'YYYY-MM-DD') AS reg_dt,

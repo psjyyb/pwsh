@@ -15,7 +15,7 @@ function toTreeData(list: Menu[]): TreeDataNode[] {
     byParent.get(p)!.push(m)
   }
   const build = (pid: string): TreeDataNode[] =>
-    (byParent.get(pid) ?? []).map((m) => ({ key: m.dbKey!, title: m.menuNm, children: build(m.dbKey!) }))
+    (byParent.get(pid) ?? []).map((m) => ({ key: m.rowId!, title: m.menuNm, children: build(m.rowId!) }))
   return build('0')
 }
 
@@ -41,16 +41,16 @@ export default function AuthgrpMenuModal({ open, authgrp, onClose }: Props) {
           { key: 'grp-ADM', title: '관리자 메뉴 (ADM)', checkable: false, selectable: false, children: toTreeData(adm) },
           { key: 'grp-GEN', title: '사용자 메뉴 (GEN)', checkable: false, selectable: false, children: toTreeData(gen) },
         ])
-        setExpandedKeys(['grp-ADM', 'grp-GEN', ...adm.map((m) => m.dbKey!), ...gen.map((m) => m.dbKey!)])
+        setExpandedKeys(['grp-ADM', 'grp-GEN', ...adm.map((m) => m.rowId!), ...gen.map((m) => m.rowId!)])
       })
       .catch(() => setTreeData([]))
-    authgrpApi.getMenuIds(authgrp.dbKey!).then(setChecked).catch(() => setChecked([]))
+    authgrpApi.getMenuIds(authgrp.rowId!).then(setChecked).catch(() => setChecked([]))
   }, [open, authgrp])
 
   const onOk = async () => {
     if (!authgrp) return
     try {
-      await authgrpApi.saveMenu(authgrp.dbKey!, checked)
+      await authgrpApi.saveMenu(authgrp.rowId!, checked)
       message.success('저장되었습니다.')
       onClose()
     } catch (e) {

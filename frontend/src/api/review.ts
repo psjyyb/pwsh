@@ -2,7 +2,7 @@ import { apiPost } from './http'
 
 /** 받은 후기 1건. */
 export interface Review {
-  dbKey?: string
+  rowId?: string
   recruitId?: string
   rating?: string
   content?: string
@@ -36,5 +36,5 @@ export const reviewApi = {
   insert: (recruitId: string, targetHandle: string, rating: number, content?: string) =>
     apiPost<void>('/adm/review/insertReview.do', { recruitId, targetHandle, rating: String(rating), content: content ?? '' }),
   /** 후기 삭제(작성자·관리자) */
-  remove: (dbKey: string) => apiPost<void>('/adm/review/deleteReview.do', { dbKey }),
+  remove: (rowId: string) => apiPost<void>('/adm/review/deleteReview.do', { rowId }),
 }

@@ -182,7 +182,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "인증코드가 올바르지 않거나 만료되었습니다.");
         }
         UserVO upd = new UserVO();
-        upd.setDbKey(request.userId());
+        upd.setRowId(request.userId());
         upd.setUserPw(passwordEncoder.encode(request.newPw()));
         commonDAO.update("userDAO.updatePw", upd);
         commonDAO.selectOne("userDAO.incrementTokenVer", userIdParam(request.userId())); // 기존 세션 전부 무효화
@@ -253,7 +253,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "현재 비밀번호가 일치하지 않습니다.");
         }
         UserVO upd = new UserVO();
-        upd.setDbKey(userId);
+        upd.setRowId(userId);
         commonDAO.update("userDAO.delete", upd);            // use_yn='N' (로그인 차단)
         commonDAO.selectOne("userDAO.incrementTokenVer", userIdParam(userId)); // 현재 토큰 즉시 무효화
     }
@@ -279,7 +279,7 @@ public class AuthService {
             }
         }
         UserVO upd = new UserVO();
-        upd.setDbKey(userId);
+        upd.setRowId(userId);
         upd.setProfileFileId(normalized);
         commonDAO.update("userDAO.updateProfileImage", upd);
     }
@@ -296,7 +296,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.DUPLICATE, "이미 사용 중인 닉네임입니다.");
         }
         UserVO upd = new UserVO();
-        upd.setDbKey(userId);
+        upd.setRowId(userId);
         upd.setNickname(request.nickname());
         commonDAO.update("userDAO.updateNickname", upd);
     }
@@ -320,7 +320,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "현재 비밀번호가 일치하지 않습니다.");
         }
         UserVO upd = new UserVO();
-        upd.setDbKey(userId);
+        upd.setRowId(userId);
         upd.setUserPw(passwordEncoder.encode(request.newPw()));
         commonDAO.update("userDAO.updatePw", upd);
         commonDAO.selectOne("userDAO.incrementTokenVer", param); // 비번 변경 → 세션 무효화

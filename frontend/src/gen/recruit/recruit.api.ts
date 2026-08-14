@@ -3,7 +3,7 @@ import type { ListResult } from '../../api/http'
 
 /** 모집 VO. 주최자는 regId(표시명 regNm). */
 export interface Recruit {
-  dbKey?: string
+  rowId?: string
   hobbyId?: string
   title?: string
   content?: string
@@ -28,7 +28,7 @@ export interface Recruit {
 
 /** 참여 신청 VO. */
 export interface RecruitApply {
-  dbKey?: string
+  rowId?: string
   recruitId?: string
   userId?: string // 신청자 로그인 ID — 주최자·관리자용 신청자 목록에서만 내려옴(내 신청 내역엔 없음)
   applyStatus?: string
@@ -48,7 +48,7 @@ export interface RecruitApply {
 
 /** 모임 단체 대화 한 줄. 주최자 + 수락된 참여자만 조회·작성 가능(서버 판정). */
 export interface RecruitChat {
-  dbKey?: string
+  rowId?: string
   recruitId?: string
   content?: string
   regNm?: string            // 작성자 닉네임
@@ -73,20 +73,20 @@ export const RECRUIT_LIST_URL = '/adm/recruit/selectRecruitList.do'
 
 export const recruitApi = {
   list: (params: RecruitListParams) => apiPost<ListResult<Recruit>>(RECRUIT_LIST_URL, params),
-  view: (dbKey: string, viewUp = false) =>
-    apiPost<Recruit>('/adm/recruit/selectRecruitView.do', { dbKey, viewUp: viewUp ? 'Y' : 'N' }),
+  view: (rowId: string, viewUp = false) =>
+    apiPost<Recruit>('/adm/recruit/selectRecruitView.do', { rowId, viewUp: viewUp ? 'Y' : 'N' }),
   insert: (vo: Partial<Recruit>) => apiPost<string>('/adm/recruit/insertRecruit.do', vo),
   /**
-   * 다음 회차 만들기(정기 모임) — dbKey=원본 모집. 비운 항목은 원본 값을 그대로 물려받는다.
+   * 다음 회차 만들기(정기 모임) — rowId=원본 모집. 비운 항목은 원본 값을 그대로 물려받는다.
    * 반환값은 새로 만들어진 모집 ID. 참여자·대화는 복제되지 않는다.
    */
-  copy: (dbKey: string, vo: Partial<Recruit>) =>
-    apiPost<string>('/adm/recruit/insertRecruitCopy.do', { ...vo, dbKey }),
+  copy: (rowId: string, vo: Partial<Recruit>) =>
+    apiPost<string>('/adm/recruit/insertRecruitCopy.do', { ...vo, rowId }),
   update: (vo: Partial<Recruit>) => apiPost<void>('/adm/recruit/updateRecruit.do', vo),
   /** 모집상태 변경(마감 RECRUIT02 / 재개 RECRUIT01) */
-  changeStatus: (dbKey: string, statusCd: string) =>
-    apiPost<void>('/adm/recruit/updateRecruitStatus.do', { dbKey, statusCd }),
-  remove: (dbKey: string) => apiPost<void>('/adm/recruit/deleteRecruit.do', { dbKey }),
+  changeStatus: (rowId: string, statusCd: string) =>
+    apiPost<void>('/adm/recruit/updateRecruitStatus.do', { rowId, statusCd }),
+  remove: (rowId: string) => apiPost<void>('/adm/recruit/deleteRecruit.do', { rowId }),
 }
 
 export const applyApi = {
@@ -99,13 +99,13 @@ export const applyApi = {
   apply: (recruitId: string, applyMemo?: string) =>
     apiPost<void>('/adm/recruitApply/insertRecruitApply.do', { recruitId, applyMemo }),
   /** 수락(APPLY02)/거절(APPLY03) — 주최자·관리자 */
-  changeStatus: (dbKey: string, applyStatus: string) =>
-    apiPost<void>('/adm/recruitApply/updateRecruitApply.do', { dbKey, applyStatus }),
+  changeStatus: (rowId: string, applyStatus: string) =>
+    apiPost<void>('/adm/recruitApply/updateRecruitApply.do', { rowId, applyStatus }),
   /** 참석 결과 기록(주최자·관리자, 모임 종료 후). attendCd 빈 값이면 미기록으로 되돌림 */
-  setAttend: (dbKey: string, attendCd: string) =>
-    apiPost<void>('/adm/recruitApply/updateRecruitApplyAttend.do', { dbKey, attendCd }),
+  setAttend: (rowId: string, attendCd: string) =>
+    apiPost<void>('/adm/recruitApply/updateRecruitApplyAttend.do', { rowId, attendCd }),
   /** 신청 취소 — 본인 */
-  cancel: (dbKey: string) => apiPost<void>('/adm/recruitApply/deleteRecruitApply.do', { dbKey }),
+  cancel: (rowId: string) => apiPost<void>('/adm/recruitApply/deleteRecruitApply.do', { rowId }),
 }
 
 /** 모임 단체 대화 — 자격 없는 사용자는 403이므로 호출부에서 조용히 감춘다. */
@@ -114,5 +114,5 @@ export const recruitChatApi = {
     apiPost<RecruitChat[]>('/adm/recruitChat/selectRecruitChatList.do', { recruitId }),
   send: (recruitId: string, content: string) =>
     apiPost<void>('/adm/recruitChat/insertRecruitChat.do', { recruitId, content }),
-  remove: (dbKey: string) => apiPost<void>('/adm/recruitChat/deleteRecruitChat.do', { dbKey }),
+  remove: (rowId: string) => apiPost<void>('/adm/recruitChat/deleteRecruitChat.do', { rowId }),
 }

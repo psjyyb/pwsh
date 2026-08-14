@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 사용자 관리 — 컨트롤러는 매핑·입력검증만, 로직은 {@link UserService}.
- * selectUserList{path}: ''=목록 / Authgrp=사용자의 권한그룹ID 목록
- * updateUser{path}: ''=정보수정 / Password=비번변경 / Authgrp=권한그룹 매핑 저장 / ForceLogout=강제 로그아웃
+ * selectUserList{variant}: ''=목록 / Authgrp=사용자의 권한그룹ID 목록
+ * updateUser{variant}: ''=정보수정 / Password=비번변경 / Authgrp=권한그룹 매핑 저장 / ForceLogout=강제 로그아웃
  */
 @RestController
 @RequestMapping("/api/adm/user")
@@ -27,11 +27,11 @@ public class UserController {
     private final UserService userService;
 
     /** 목록 계열: ''=페이징목록 / Authgrp=권한그룹ID 목록 */
-    @RequestMapping("/selectUserList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectUserList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable(name = "variant", required = false) String variant,
                                      @RequestBody(required = false) UserVO searchVO) {
         UserVO vo = searchVO == null ? new UserVO() : searchVO;
-        if ("Authgrp".equals(path)) {
+        if ("Authgrp".equals(variant)) {
             return ApiResponse.ok(userService.selectAuthgrpIds(vo));
         }
         int totCnt = userService.selectListTotCnt(vo);
@@ -56,23 +56,23 @@ public class UserController {
         return ApiResponse.ok();
     }
 
-    /** 수정. path: Password=비번변경 / Authgrp=권한그룹 매핑 / 빈값=정보수정 */
-    @RequestMapping("/updateUser{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    /** 수정. variant: Password=비번변경 / Authgrp=권한그룹 매핑 / 빈값=정보수정 */
+    @RequestMapping("/updateUser{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody UserVO searchVO) {
-        if ("Password".equals(path)) {
+        if ("Password".equals(variant)) {
             PasswordPolicy.validate(searchVO.getUserPw());
             userService.updatePassword(searchVO);
-        } else if ("Authgrp".equals(path)) {
+        } else if ("Authgrp".equals(variant)) {
             userService.saveAuthgrp(searchVO);
-        } else if ("ForceLogout".equals(path)) {
+        } else if ("ForceLogout".equals(variant)) {
             Validate.required(searchVO.getUserId(), "사용자");
             userService.forceLogout(searchVO);
-        } else if ("Status".equals(path)) { // 제재: 정지(STATUS03)/해제(STATUS01)
+        } else if ("Status".equals(variant)) { // 제재: 정지(STATUS03)/해제(STATUS01)
             Validate.required(searchVO.getUserId(), "사용자");
             Validate.required(searchVO.getStatusCd(), "상태");
             userService.updateStatus(searchVO);
-        } else if (StringUtil.isEmpty(path)) {
+        } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getUserNm(), "이름");
             Validate.required(searchVO.getMemCd(), "회원유형");
             userService.updateInfo(searchVO);

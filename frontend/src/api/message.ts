@@ -2,7 +2,7 @@ import { apiPost } from './http'
 
 /** 대화 목록 항목(상대별 최근 메시지 + 안읽음). */
 export interface Conversation {
-  dbKey?: string       // = 상대 handle
+  rowId?: string       // = 상대 handle
   otherHandle?: string // 상대 공개 식별자(대화 키)
   otherNm?: string
   otherFileId?: string
@@ -14,7 +14,7 @@ export interface Conversation {
 
 /** 대화 스레드의 개별 쪽지. 발신/수신 로그인 ID는 내려오지 않고 mine으로 구분. */
 export interface Message {
-  dbKey?: string
+  rowId?: string
   content?: string
   readYn?: string
   regDt?: string

@@ -10,7 +10,7 @@
     </sql>
 
     <select id="selectList" parameterType="hobbyVO" resultType="hobbyVO">
-        SELECT h.hobby_id::TEXT AS db_key, h.hobby_nm, h.summary, h.difficulty_cd, h.equipment, h.est_cost,
+        SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary, h.difficulty_cd, h.equipment, h.est_cost,
                h.bbsinfo_id, h.sort_ordr,
                dc.code_nm AS difficulty_nm,
                bi.bbsinfo_nm,
@@ -36,7 +36,7 @@
     </select>
 
     <select id="selectView" parameterType="hobbyVO" resultType="hobbyVO">
-        SELECT h.hobby_id::TEXT AS db_key, h.hobby_nm, h.summary, h.intro, h.guide, h.difficulty_cd,
+        SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary, h.intro, h.guide, h.difficulty_cd,
                h.equipment, h.est_cost, h.bbsinfo_id, h.sort_ordr,
                dc.code_nm AS difficulty_nm,
                bi.bbsinfo_nm,
@@ -44,10 +44,10 @@
         FROM t_hobby h
         LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
-        WHERE h.hobby_id = #{dbKey}::integer AND h.use_yn = 'Y'
+        WHERE h.hobby_id = #{rowId}::integer AND h.use_yn = 'Y'
     </select>
 
-    <insert id="insert" parameterType="hobbyVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="hobby_id">
+    <insert id="insert" parameterType="hobbyVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="hobby_id">
         INSERT INTO t_hobby (hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_ordr, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{hobbyNm}, NULLIF(#{summary}, ''), #{intro}, #{guide}, NULLIF(#{difficultyCd}, ''),
@@ -64,12 +64,12 @@
             difficulty_cd = NULLIF(#{difficultyCd}, ''), equipment = NULLIF(#{equipment}, ''), est_cost = NULLIF(#{estCost}, ''),
             bbsinfo_id = NULLIF(#{bbsinfoId}, '')::integer, sort_ordr = COALESCE(NULLIF(#{sortOrdr}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE hobby_id = #{dbKey}::integer
+        WHERE hobby_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="hobbyVO">
         UPDATE t_hobby SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE hobby_id = #{dbKey}::integer
+        WHERE hobby_id = #{rowId}::integer
     </update>
 
 </mapper>

@@ -129,7 +129,7 @@ public class NotificationService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 알림입니다.");
         }
         NotificationVO vo = new NotificationVO();
-        vo.setDbKey(notiId);
+        vo.setRowId(notiId);
         vo.setUserId(currentUserId());
         commonDAO.update("notificationDAO.markRead", vo);
     }

@@ -37,7 +37,7 @@ const EDITOR_LOC = 'BBS_EDITOR' // 본문 에디터 삽입 이미지(고아 추�
  * 유형별 차이: 갤러리=카드목록+대표이미지, 1:1=비밀글 강제+답변상태(댓글=답변).
  */
 export default function StandardBoard({ board }: { board: Bbsinfo }) {
-  const bbsinfoId = board.dbKey
+  const bbsinfoId = board.rowId
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const isGallery = board.bbsinfoCd === 'BBSINFO004'
@@ -175,7 +175,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   }
   const openEdit = async () => {
     if (!post) return
-    setEditKey(post.dbKey!)
+    setEditKey(post.rowId!)
     setReplyTo(null)
     setContext(post.context ?? '')
     form.setFieldsValue({
@@ -187,12 +187,12 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       noticeEndDt: post.noticeEndDt,
     })
     if (isGallery) {
-      const imgs = await fileApi.listByMap(post.dbKey!, IMG_LOC)
+      const imgs = await fileApi.listByMap(post.rowId!, IMG_LOC)
       setGalleryItems(imgs.map((f) => ({ fileId: f.fileId!, fileOrgNm: f.fileOrgNm, fileDesc: f.fileDesc })))
       setFileMetas([])
       setFileIds([])
     } else if (board.fileYn === 'Y') {
-      const metas = await fileApi.listByMap(post.dbKey!, FILE_LOC)
+      const metas = await fileApi.listByMap(post.rowId!, FILE_LOC)
       setFileMetas(metas)
       setFileIds(metas.map((f) => f.fileId!))
       setGalleryItems([])
@@ -227,9 +227,9 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         noticeYn: isQna ? 'N' : v.noticeYn ?? 'N',
         noticeStartDt: v.noticeStartDt,
         noticeEndDt: v.noticeEndDt,
-        ...(replyTo && !editKey ? { pBbsId: replyTo.dbKey } : {}), // 답글: 원글 id 전송(서버가 게시판·depth 상속)
+        ...(replyTo && !editKey ? { pBbsId: replyTo.rowId } : {}), // 답글: 원글 id 전송(서버가 게시판·depth 상속)
       }
-      const id = editKey ? (await bbsApi.update({ ...payload, dbKey: editKey }), editKey) : await bbsApi.insert(payload)
+      const id = editKey ? (await bbsApi.update({ ...payload, rowId: editKey }), editKey) : await bbsApi.insert(payload)
       if (isGallery) {
         await fileApi.saveMapping(id, IMG_LOC, galleryItems.map((i) => i.fileId), galleryItems.map((i) => i.fileDesc ?? ''))
       } else if (board.fileYn === 'Y') {
@@ -248,7 +248,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const removeBbs = async () => {
     if (!post) return
     try {
-      await bbsApi.remove(post.dbKey!)
+      await bbsApi.remove(post.rowId!)
       message.success('삭제되었습니다.')
       setMode('list')
       loadList(1)
@@ -260,17 +260,17 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const addComment = async () => {
     if (!post || !commentText.trim()) return
     try {
-      await commentApi.insert(post.dbKey!, commentText.trim())
+      await commentApi.insert(post.rowId!, commentText.trim())
       setCommentText('')
-      setComments(await commentApi.list(post.dbKey!))
+      setComments(await commentApi.list(post.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '댓글 등록 실패')
     }
   }
-  const removeComment = async (dbKey: string) => {
+  const removeComment = async (rowId: string) => {
     try {
-      await commentApi.remove(dbKey)
-      if (post) setComments(await commentApi.list(post.dbKey!))
+      await commentApi.remove(rowId)
+      if (post) setComments(await commentApi.list(post.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '댓글 삭제 실패')
     }
@@ -281,7 +281,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       await commentApi.update(editCommentKey, editCommentText.trim())
       setEditCommentKey(null)
       setEditCommentText('')
-      if (post) setComments(await commentApi.list(post.dbKey!))
+      if (post) setComments(await commentApi.list(post.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '댓글 수정 실패')
     }
@@ -289,7 +289,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const toggleLikePost = async () => {
     if (!post) return
     try {
-      const r = await likeApi.toggle('BBS', post.dbKey!)
+      const r = await likeApi.toggle('BBS', post.rowId!)
       setPost({ ...post, likedYn: r.likedYn, goodCnt: r.goodCnt })
     } catch (e) {
       message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
@@ -299,7 +299,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const toggleBookmark = async () => {
     if (!post) return
     try {
-      const r = await bookmarkApi.toggle('BBS', post.dbKey!)
+      const r = await bookmarkApi.toggle('BBS', post.rowId!)
       const on = r.markedYn === 'Y'
       setBookmarked(on)
       message.success(on ? '북마크에 저장했습니다.' : '북마크를 해제했습니다.')
@@ -309,20 +309,20 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   }
   const toggleLikeComment = async (c: Comment) => {
     try {
-      const r = await likeApi.toggle('COMMENT', c.dbKey!)
-      setComments(comments.map((x) => (x.dbKey === c.dbKey ? { ...x, likedYn: r.likedYn, goodCnt: r.goodCnt } : x)))
+      const r = await likeApi.toggle('COMMENT', c.rowId!)
+      setComments(comments.map((x) => (x.rowId === c.rowId ? { ...x, likedYn: r.likedYn, goodCnt: r.goodCnt } : x)))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
     }
   }
   const submitReply = async (parent: Comment) => {
     if (!post || !replyText.trim()) return
-    const parentId = Number(parent.pCommentId) > 0 ? parent.pCommentId! : parent.dbKey! // 대댓글은 원 댓글(root) 아래로
+    const parentId = Number(parent.pCommentId) > 0 ? parent.pCommentId! : parent.rowId! // 대댓글은 원 댓글(root) 아래로
     try {
-      await commentApi.insert(post.dbKey!, replyText.trim(), parentId)
+      await commentApi.insert(post.rowId!, replyText.trim(), parentId)
       setReplyKey(null)
       setReplyText('')
-      setComments(await commentApi.list(post.dbKey!))
+      setComments(await commentApi.list(post.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '답글 등록 실패')
     }
@@ -357,8 +357,8 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
           {rows.map((r) => (
             <div
-              key={r.dbKey}
-              onClick={() => openView(r.dbKey!)}
+              key={r.rowId}
+              onClick={() => openView(r.rowId!)}
               style={{ cursor: 'pointer', border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
             >
               <div style={{ height: 140, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -417,7 +417,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         ) : (
           <>
             <Table<Bbs>
-              rowKey="dbKey"
+              rowKey="rowId"
               size="small"
               loading={loading}
               columns={columns}
@@ -429,7 +429,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
                     message.info('본인 문의만 열람할 수 있습니다.')
                     return
                   }
-                  openView(r.dbKey!)
+                  openView(r.rowId!)
                 },
                 style: { cursor: 'pointer' },
               })}
@@ -501,7 +501,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             </Button>
           )}
           {meId && post.mineYn !== 'Y' && (
-            <span style={{ marginLeft: 14 }}><ReportAction targetType="BBS" targetId={post.dbKey!} /></span>
+            <span style={{ marginLeft: 14 }}><ReportAction targetType="BBS" targetId={post.rowId!} /></span>
           )}
         </div>
 
@@ -523,19 +523,19 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
           {comments.map((c) => {
             const isReply = Number(c.pCommentId) > 0
             return (
-            <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
+            <div key={c.rowId} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
               <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {isReply && <span style={{ color: '#bbb' }}>↳</span>}
                 <UserAvatar fileId={c.regProfileFileId} name={c.regNm || '-'} handle={c.regHandle} size={18} />
                 <span>· {c.regDt}</span>
-                {canEdit(c.mineYn) && editCommentKey !== c.dbKey && (
+                {canEdit(c.mineYn) && editCommentKey !== c.rowId && (
                   <>
-                    <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.dbKey!); setEditCommentText(c.context ?? '') }}>수정</a>
-                    <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.dbKey!)}>삭제</a>
+                    <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.rowId!); setEditCommentText(c.context ?? '') }}>수정</a>
+                    <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.rowId!)}>삭제</a>
                   </>
                 )}
               </div>
-              {editCommentKey === c.dbKey ? (
+              {editCommentKey === c.rowId ? (
                 <Space.Compact style={{ width: '100%', marginTop: 4 }}>
                   <Input.TextArea value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} autoSize={{ minRows: 1, maxRows: 4 }} />
                   <Button type="primary" onClick={saveEditComment}>저장</Button>
@@ -552,10 +552,10 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
                     ) : (
                       <span style={{ color: '#bbb', fontSize: 12 }}>♥ {Number(c.goodCnt) || 0}</span>
                     )}
-                    {meId && <a style={{ color: '#999', fontSize: 12 }} onClick={() => { setReplyKey(replyKey === c.dbKey ? null : c.dbKey!); setReplyText('') }}>답글</a>}
-                    {meId && c.mineYn !== 'Y' && <ReportAction targetType="COMMENT" targetId={c.dbKey!} />}
+                    {meId && <a style={{ color: '#999', fontSize: 12 }} onClick={() => { setReplyKey(replyKey === c.rowId ? null : c.rowId!); setReplyText('') }}>답글</a>}
+                    {meId && c.mineYn !== 'Y' && <ReportAction targetType="COMMENT" targetId={c.rowId!} />}
                   </div>
-                  {replyKey === c.dbKey && (
+                  {replyKey === c.rowId && (
                     <Space.Compact style={{ width: '100%', marginTop: 6 }}>
                       <Input.TextArea value={replyText} onChange={(e) => setReplyText(e.target.value)} autoSize={{ minRows: 1, maxRows: 4 }} placeholder="답글을 입력하세요" />
                       <Button type="primary" onClick={() => submitReply(c)}>등록</Button>

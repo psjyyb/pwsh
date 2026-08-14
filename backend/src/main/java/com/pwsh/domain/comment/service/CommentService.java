@@ -37,7 +37,7 @@ public class CommentService {
         genAccessGuard.checkPost(vo.getBbsId());
         commonDAO.insert("commentDAO.insert", vo);
         BbsVO key = new BbsVO();
-        key.setDbKey(vo.getBbsId());
+        key.setRowId(vo.getBbsId());
         BbsVO post = commonDAO.selectOne("bbsDAO.selectView", key);
         String link = post != null ? "/gen/board/" + post.getBbsinfoId() + "?post=" + vo.getBbsId() : null;
 
@@ -45,7 +45,7 @@ public class CommentService {
         if (pid != null && !pid.isEmpty() && !"0".equals(pid)) {
             // 대댓글 → 부모 댓글 작성자에게
             CommentVO pk = new CommentVO();
-            pk.setDbKey(pid);
+            pk.setRowId(pid);
             CommentVO parent = commonDAO.selectOne("commentDAO.selectView", pk);
             if (parent != null) {
                 notificationService.notify(parent.getRegId(), "COMMENT", "내 댓글에 답글이 달렸어요.", link);

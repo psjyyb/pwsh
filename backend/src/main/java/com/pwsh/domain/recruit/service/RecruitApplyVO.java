@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 모집 참여 신청 VO (t_recruit_apply). PK(apply_id)는 BaseVO.dbKey. 신청자는 userId(=reg_id). */
+/** 모집 참여 신청 VO (t_recruit_apply). PK(apply_id)는 BaseVO.rowId. 신청자는 userId(=reg_id). */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class RecruitApplyVO extends BaseVO {

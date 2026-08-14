@@ -18,10 +18,10 @@ export default function AuthgrpListPage() {
   const [userTarget, setUserTarget] = useState<Authgrp | null>(null)
   const isEdit = mode === 'edit'
 
-  const target = (): Authgrp => ({ dbKey: selectedKey!, authgrpNm: form.getFieldValue('authgrpNm') })
+  const target = (): Authgrp => ({ rowId: selectedKey!, authgrpNm: form.getFieldValue('authgrpNm') })
 
   const columns: TableColumnsType<Authgrp> = [
-    { title: '그룹ID', dataIndex: 'dbKey', width: 180 },
+    { title: '그룹ID', dataIndex: 'rowId', width: 180 },
     { title: '그룹명', dataIndex: 'authgrpNm' },
     { title: '사용', dataIndex: 'useYn', width: 60 },
   ]
@@ -33,14 +33,14 @@ export default function AuthgrpListPage() {
         onSearch={(v) => search(v)}
       />
       <Table<Authgrp>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}
         loading={loading}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
@@ -65,7 +65,7 @@ export default function AuthgrpListPage() {
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
         <Form form={form} layout="vertical">
-          <Form.Item name="dbKey" label="그룹 ID" rules={[{ required: true, message: '그룹 ID를 입력하세요.' }]}>
+          <Form.Item name="rowId" label="그룹 ID" rules={[{ required: true, message: '그룹 ID를 입력하세요.' }]}>
             <Input disabled={isEdit} placeholder="예: EDITOR_GROUP" />
           </Form.Item>
           <Form.Item name="authgrpNm" label="그룹명" rules={[{ required: true, message: '그룹명을 입력하세요.' }]}>

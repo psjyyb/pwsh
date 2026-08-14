@@ -47,7 +47,7 @@ class ReviewEligibilityTest extends IntegrationTest {
                 "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'rvjoin'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + joinApply + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + joinApply + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
 
         // 1) 모임이 끝나기 전에는 쓸 수 없다
         assertNotEquals(200, post("/api/adm/review/insertReview.do",
@@ -56,7 +56,7 @@ class ReviewEligibilityTest extends IntegrationTest {
 
         // 모임 종료(마감)
         assertEquals(200, post("/api/adm/recruit/updateRecruitStatus.do",
-                "{\"dbKey\":\"" + rid + "\",\"statusCd\":\"RECRUIT02\"}", host).statusCode());
+                "{\"rowId\":\"" + rid + "\",\"statusCd\":\"RECRUIT02\"}", host).statusCode());
 
         // 2) 참여자 → 주최자 : 허용
         assertEquals(200, post("/api/adm/review/insertReview.do",
@@ -98,7 +98,7 @@ class ReviewEligibilityTest extends IntegrationTest {
         String revId = jdbc.queryForObject(
                 "SELECT review_id::text FROM t_review WHERE recruit_id = ?::integer AND reg_id = 'rvjoin'",
                 String.class, rid);
-        assertEquals(403, post("/api/adm/review/deleteReview.do", "{\"dbKey\":\"" + revId + "\"}", out).statusCode());
-        assertEquals(200, post("/api/adm/review/deleteReview.do", "{\"dbKey\":\"" + revId + "\"}", join).statusCode());
+        assertEquals(403, post("/api/adm/review/deleteReview.do", "{\"rowId\":\"" + revId + "\"}", out).statusCode());
+        assertEquals(200, post("/api/adm/review/deleteReview.do", "{\"rowId\":\"" + revId + "\"}", join).statusCode());
     }
 }

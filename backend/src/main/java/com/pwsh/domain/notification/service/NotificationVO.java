@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 인앱 알림 VO (t_notification). PK(noti_id)는 BaseVO.dbKey. 수신자=user_id(서버 세팅). */
+/** 인앱 알림 VO (t_notification). PK(noti_id)는 BaseVO.rowId. 수신자=user_id(서버 세팅). */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class NotificationVO extends BaseVO {

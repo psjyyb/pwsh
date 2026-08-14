@@ -213,7 +213,7 @@ export default function MessagePage() {
                 thread.map((m) => {
                   const mine = m.mine === 'Y'
                   return (
-                    <div key={m.dbKey} style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+                    <div key={m.rowId} style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
                       <div style={{ maxWidth: '76%' }}>
                         <div style={{
                           background: mine ? gen.primary : '#F2F0FA', color: mine ? '#fff' : '#333',

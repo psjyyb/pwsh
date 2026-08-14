@@ -40,7 +40,7 @@ public class HobbyController {
     public ApiResponse<String> insert(@RequestBody HobbyVO searchVO) {
         Validate.required(searchVO.getHobbyNm(), "취미명");
         hobbyService.insert(searchVO);
-        return ApiResponse.ok(searchVO.getDbKey());
+        return ApiResponse.ok(searchVO.getRowId());
     }
 
     @RequestMapping("/updateHobby.do")

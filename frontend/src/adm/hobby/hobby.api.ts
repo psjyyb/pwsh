@@ -4,7 +4,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 취미 카탈로그 VO */
 export interface Hobby {
-  dbKey?: string // PK(hobby_id)
+  rowId?: string // PK(hobby_id)
   hobbyNm?: string
   summary?: string
   intro?: string
@@ -34,7 +34,7 @@ export const HOBBY_LIST_URL = hobbyApi.listUrl
 
 /** 회원별 취미 레벨 */
 export interface UserHobby {
-  dbKey?: string // = hobby_id
+  rowId?: string // = hobby_id
   hobbyId?: string
   levelCd?: string
   hobbyNm?: string

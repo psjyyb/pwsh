@@ -41,10 +41,10 @@ public class ReportController {
                 "page", PageUtil.of(vo.getPageIndex(), vo.getSize(), totCnt)));
     }
 
-    /** 신고 처리(관리자). body {dbKey, status} */
+    /** 신고 처리(관리자). body {rowId, status} */
     @RequestMapping("/updateReportStatus.do")
     public ApiResponse<Void> updateStatus(@RequestBody ReportVO vo) {
-        Validate.required(vo.getDbKey(), "신고");
+        Validate.required(vo.getRowId(), "신고");
         Validate.required(vo.getStatus(), "상태");
         reportService.updateStatus(vo);
         return ApiResponse.ok();

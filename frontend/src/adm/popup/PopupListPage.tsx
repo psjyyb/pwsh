@@ -17,7 +17,7 @@ export default function PopupListPage() {
   const isEdit = mode === 'edit'
 
   const move = (row: Popup, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => popupApi.moveOrdr(row.dbKey!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => popupApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   const columns: TableColumnsType<Popup> = [
     { title: '팝업명', dataIndex: 'popNm' },
@@ -42,14 +42,14 @@ export default function PopupListPage() {
         onSearch={(v) => search(v)}
       />
       <Table<Popup>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}
         loading={loading}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>

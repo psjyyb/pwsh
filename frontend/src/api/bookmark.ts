@@ -2,7 +2,7 @@ import { apiPost } from './http'
 
 /** 북마크 목록 항목(대상이 살아있는 것만). */
 export interface Bookmark {
-  dbKey?: string
+  rowId?: string
   targetType?: string // BBS/RECRUIT
   targetId?: string
   title?: string

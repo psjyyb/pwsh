@@ -64,7 +64,7 @@ export default function SearchPage() {
           {data!.hobbies.length > 0 && (
             <Card title={`취미 (${data!.hobbies.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.hobbies.map((h) => (
-                <div key={h.dbKey} style={rowStyle} onClick={() => navigate(`/gen/hobby/${h.dbKey}`)}>
+                <div key={h.rowId} style={rowStyle} onClick={() => navigate(`/gen/hobby/${h.rowId}`)}>
                   <span style={{ fontWeight: 600 }}>{h.hobbyNm}</span>
                   {h.difficultyNm && <Tag color="purple" style={{ marginLeft: 8 }}>{h.difficultyNm}</Tag>}
                   {h.summary && <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{h.summary}</div>}
@@ -75,7 +75,7 @@ export default function SearchPage() {
           {data!.recruits.length > 0 && (
             <Card title={`모집 (${data!.recruits.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.recruits.map((r) => (
-                <div key={r.dbKey} style={rowStyle} onClick={() => navigate(`/gen/recruit/${r.dbKey}`)}>
+                <div key={r.rowId} style={rowStyle} onClick={() => navigate(`/gen/recruit/${r.rowId}`)}>
                   <Tag color="cyan">{r.hobbyNm}</Tag>
                   <span style={{ fontWeight: 600 }}>{r.title}</span>
                   <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>
@@ -88,7 +88,7 @@ export default function SearchPage() {
           {data!.posts.length > 0 && (
             <Card title={`게시글 (${data!.posts.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.posts.map((p) => (
-                <div key={p.dbKey} style={rowStyle} onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}>
+                <div key={p.rowId} style={rowStyle} onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}>
                   <Tag>{p.bbsinfoNm}</Tag>
                   <span style={{ fontWeight: 600 }}>{p.title}</span>
                   <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa' }}>{p.regNm} · {p.regDt}</span>

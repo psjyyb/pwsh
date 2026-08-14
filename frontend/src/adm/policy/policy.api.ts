@@ -3,7 +3,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 약관/정책 VO */
 export interface Policy {
-  dbKey?: string // PK(policy_id)
+  rowId?: string // PK(policy_id)
   title?: string
   content?: string
   typeCd: string
@@ -16,7 +16,7 @@ export interface Policy {
 export const policyApi = {
   ...createCrudApi<Policy>('/adm/policy', 'Policy'),
   /** 순서 변경(같은 약관유형 내 인접 약관과 교환) */
-  moveOrdr: (dbKey: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/policy/updatePolicyOrdr.do', { dbKey, searchCondition: direction }),
+  moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
+    apiPost<void>('/adm/policy/updatePolicyOrdr.do', { rowId, searchCondition: direction }),
 }
 export const POLICY_LIST_URL = policyApi.listUrl

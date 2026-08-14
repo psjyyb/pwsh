@@ -37,7 +37,7 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
 
   // 새 말이 붙으면 맨 아래로 — 사용자가 위를 읽고 있을 때 끌어내리지 않도록 마지막 키가 바뀔 때만
   useEffect(() => {
-    const lastKey = rows.length ? rows[rows.length - 1].dbKey : undefined
+    const lastKey = rows.length ? rows[rows.length - 1].rowId : undefined
     if (lastKey !== lastKeyRef.current) {
       lastKeyRef.current = lastKey
       const box = boxRef.current
@@ -70,9 +70,9 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
     }
   }
 
-  const remove = async (dbKey: string) => {
+  const remove = async (rowId: string) => {
     try {
-      await recruitChatApi.remove(dbKey)
+      await recruitChatApi.remove(rowId)
       await load()
     } catch (e) {
       message.error(e instanceof Error ? e.message : '삭제 실패')
@@ -109,7 +109,7 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
             {rows.map((c) => {
               const mine = c.mineYn === 'Y'
               return (
-                <div key={c.dbKey} style={{ display: 'flex', flexDirection: mine ? 'row-reverse' : 'row', gap: 8 }}>
+                <div key={c.rowId} style={{ display: 'flex', flexDirection: mine ? 'row-reverse' : 'row', gap: 8 }}>
                   <UserAvatar fileId={c.regProfileFileId} name={c.regNm} handle={c.regHandle} size={28} showName={false} />
                   <div style={{ maxWidth: '78%' }}>
                     <div style={{
@@ -120,7 +120,7 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
                       {c.hostYn === 'Y' && <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>주최자</Tag>}
                       <span style={{ fontSize: 11, color: gen.inkFaint }}>{c.regDt}</span>
                       {mine && (
-                        <Popconfirm title="이 대화를 삭제할까요?" onConfirm={() => remove(c.dbKey!)} okText="삭제" cancelText="취소">
+                        <Popconfirm title="이 대화를 삭제할까요?" onConfirm={() => remove(c.rowId!)} okText="삭제" cancelText="취소">
                           <a style={{ fontSize: 11, color: gen.inkFaint }}>삭제</a>
                         </Popconfirm>
                       )}

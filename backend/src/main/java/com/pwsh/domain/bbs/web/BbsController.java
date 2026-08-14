@@ -54,7 +54,7 @@ public class BbsController {
         Validate.required(searchVO.getBbsinfoId(), "게시판");
         Validate.required(searchVO.getTitle(), "제목");
         bbsService.insert(searchVO);
-        return ApiResponse.ok(searchVO.getDbKey());
+        return ApiResponse.ok(searchVO.getRowId());
     }
 
     @RequestMapping("/updateBbs.do")

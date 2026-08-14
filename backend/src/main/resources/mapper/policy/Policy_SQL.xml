@@ -3,7 +3,7 @@
 <mapper namespace="policyDAO">
 
     <select id="selectList" parameterType="policyVO" resultType="policyVO">
-        SELECT p.policy_id::TEXT AS db_key, p.title, p.type_cd, c.code_nm AS type_cd_nm, p.req_yn, p.ordr, p.use_yn
+        SELECT p.policy_id::TEXT AS row_id, p.title, p.type_cd, c.code_nm AS type_cd_nm, p.req_yn, p.ordr, p.use_yn
         FROM t_policy p
         LEFT JOIN t_code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
         WHERE p.use_yn = 'Y'
@@ -22,8 +22,8 @@
     </select>
 
     <select id="selectView" parameterType="policyVO" resultType="policyVO">
-        SELECT policy_id::TEXT AS db_key, title, content, type_cd, req_yn, ordr, use_yn
-        FROM t_policy WHERE policy_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT policy_id::TEXT AS row_id, title, content, type_cd, req_yn, ordr, use_yn
+        FROM t_policy WHERE policy_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="policyVO">
@@ -41,12 +41,12 @@
         UPDATE t_policy SET
             title = #{title}, content = #{content}, type_cd = #{typeCd}, req_yn = #{reqYn},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE policy_id = #{dbKey}::integer
+        WHERE policy_id = #{rowId}::integer
     </update>
 
     <!-- 순서 교환용: 같은 약관유형(type_cd) 내 인접 약관 (UP=바로 위, 그 외=바로 아래) -->
     <select id="selectAdjacentOrdr" parameterType="policyVO" resultType="policyVO">
-        SELECT policy_id::TEXT AS db_key, ordr
+        SELECT policy_id::TEXT AS row_id, ordr
         FROM t_policy
         WHERE use_yn = 'Y' AND type_cd = #{typeCd}
         <choose>
@@ -65,20 +65,20 @@
         UPDATE t_policy SET
             ordr = COALESCE(NULLIF(#{ordr}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE policy_id = #{dbKey}::integer
+        WHERE policy_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="policyVO">
         UPDATE t_policy SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE policy_id = #{dbKey}::integer
+        WHERE policy_id = #{rowId}::integer
     </update>
 
     <!-- 삭제 후 순서 당김: 같은 약관유형(type_cd)에서 지운 행보다 큰 순서를 -1 -->
     <update id="shiftOrdrAfterDelete" parameterType="policyVO">
         UPDATE t_policy SET ordr = ordr - 1, upd_dt = NOW()
         WHERE use_yn = 'Y'
-          AND type_cd = (SELECT type_cd FROM t_policy WHERE policy_id = #{dbKey}::integer)
-          AND ordr > (SELECT ordr FROM t_policy WHERE policy_id = #{dbKey}::integer)
+          AND type_cd = (SELECT type_cd FROM t_policy WHERE policy_id = #{rowId}::integer)
+          AND ordr > (SELECT ordr FROM t_policy WHERE policy_id = #{rowId}::integer)
     </update>
 
 </mapper>

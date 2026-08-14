@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 모집(취미 모임원 모집). 컨트롤러는 매핑·입력검증만, 로직은 {@link RecruitService}.
  * 목록/상세는 공개(SecurityConfig permitAll), 등록/수정/삭제는 로그인(주최자·관리자).
- * insertRecruit{path}: ''=새 모집 / Copy=다음 회차 복제.
- * updateRecruit{path}: ''=수정 / Status=모집상태 변경(마감/재개).
+ * insertRecruit{variant}: ''=새 모집 / Copy=다음 회차 복제.
+ * updateRecruit{variant}: ''=수정 / Status=모집상태 변경(마감/재개).
  * 참여 신청은 {@link RecruitApplyController}(peer, 댓글 패턴).
  */
 @RestController
@@ -49,27 +49,27 @@ public class RecruitController {
 
     /**
      * 등록 후 생성된 모집 ID 반환.
-     * insertRecruit{path}: ''=새 모집 / Copy=기존 모집 복제(정기 모임 다음 회차, dbKey=원본).
+     * insertRecruit{variant}: ''=새 모집 / Copy=기존 모집 복제(정기 모임 다음 회차, rowId=원본).
      */
-    @RequestMapping("/insertRecruit{path}.do")
-    public ApiResponse<String> insert(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/insertRecruit{variant}.do")
+    public ApiResponse<String> insert(@PathVariable(name = "variant", required = false) String variant,
                                       @RequestBody RecruitVO searchVO) {
-        if ("Copy".equals(path)) {
-            Validate.required(searchVO.getDbKey(), "원본 모집");
+        if ("Copy".equals(variant)) {
+            Validate.required(searchVO.getRowId(), "원본 모집");
             Validate.required(searchVO.getMeetDt(), "모임 일정");
             recruitService.copy(searchVO);
-            return ApiResponse.ok(searchVO.getDbKey()); // 복제로 생성된 새 모집 ID
+            return ApiResponse.ok(searchVO.getRowId()); // 복제로 생성된 새 모집 ID
         }
         Validate.required(searchVO.getHobbyId(), "취미");
         Validate.required(searchVO.getTitle(), "모임명");
         recruitService.insert(searchVO);
-        return ApiResponse.ok(searchVO.getDbKey());
+        return ApiResponse.ok(searchVO.getRowId());
     }
 
-    @RequestMapping("/updateRecruit{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/updateRecruit{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody RecruitVO searchVO) {
-        if ("Status".equals(path)) {
+        if ("Status".equals(variant)) {
             recruitService.updateStatus(searchVO);
         } else {
             Validate.required(searchVO.getTitle(), "모임명");

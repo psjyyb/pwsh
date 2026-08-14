@@ -29,7 +29,7 @@ export default function AuthgrpUserModal({ open, authgrp, onClose }: Props) {
     apiPost<ListResult<User>>(USER_LIST_URL, { pageIndex: 1, size: 1000 })
       .then((r) => setItems(r.list.map((u) => ({ key: u.userId!, title: `${u.userNm} (${u.userId})` }))))
       .catch(() => setItems([]))
-    authgrpApi.getUserIds(authgrp.dbKey!).then(setTargetKeys).catch(() => setTargetKeys([]))
+    authgrpApi.getUserIds(authgrp.rowId!).then(setTargetKeys).catch(() => setTargetKeys([]))
   }, [open, authgrp])
 
   const onChange: TransferProps<UserItem>['onChange'] = (next) => setTargetKeys(next as string[])
@@ -37,7 +37,7 @@ export default function AuthgrpUserModal({ open, authgrp, onClose }: Props) {
   const onOk = async () => {
     if (!authgrp) return
     try {
-      await authgrpApi.saveUsers(authgrp.dbKey!, targetKeys)
+      await authgrpApi.saveUsers(authgrp.rowId!, targetKeys)
       message.success('저장되었습니다.')
       onClose()
     } catch (e) {

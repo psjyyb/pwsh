@@ -4,7 +4,7 @@
 
     <!-- 내 알림 최근 30건 -->
     <select id="selectMyList" parameterType="notificationVO" resultType="notificationVO">
-        SELECT noti_id::TEXT AS db_key, noti_type, content, link_url, read_yn,
+        SELECT noti_id::TEXT AS row_id, noti_type, content, link_url, read_yn,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM t_notification
         WHERE use_yn = 'Y' AND user_id = #{userId}
@@ -28,7 +28,7 @@
     <!-- 단건 읽음(본인 것만) -->
     <update id="markRead" parameterType="notificationVO">
         UPDATE t_notification SET read_yn = 'Y', upd_dt = NOW()
-        WHERE noti_id = #{dbKey}::integer AND user_id = #{userId}
+        WHERE noti_id = #{rowId}::integer AND user_id = #{userId}
     </update>
 
     <!-- 전체 읽음(본인) -->

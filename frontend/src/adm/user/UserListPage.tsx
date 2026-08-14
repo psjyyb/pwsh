@@ -26,7 +26,7 @@ export default function UserListPage() {
     const values = await form.validateFields()
     try {
       if (isEdit) {
-        await userApi.update({ ...values, dbKey: selectedKey! })
+        await userApi.update({ ...values, rowId: selectedKey! })
         if (values.changePw && values.userPw) {
           await userApi.changePassword(selectedKey!, values.userPw)
         }
@@ -85,14 +85,14 @@ export default function UserListPage() {
         onSearch={(v) => search(v)}
       />
       <Table<User>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}
         loading={loading}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>

@@ -24,7 +24,7 @@ function buildTree(list: Menu[]): Menu[] {
   }
   const build = (pid: string): Menu[] =>
     (byParent.get(pid) ?? []).map((m) => {
-      const children = build(m.dbKey!)
+      const children = build(m.rowId!)
       return children.length ? { ...m, children } : { ...m }
     })
   return build('0')
@@ -40,7 +40,7 @@ function filterTree(nodes: Menu[], kw: string): Menu[] {
 }
 
 function allKeys(nodes: Menu[]): string[] {
-  return nodes.flatMap((n) => [n.dbKey!, ...(n.children ? allKeys(n.children) : [])])
+  return nodes.flatMap((n) => [n.rowId!, ...(n.children ? allKeys(n.children) : [])])
 }
 
 /**
@@ -83,7 +83,7 @@ export default function MenuListPage() {
   const [connTitle, setConnTitle] = useState('') // 연결 대상(페이지/게시판) 표시용 이름
 
   const move = (row: Menu, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => menuApi.moveOrdr(row.dbKey!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => menuApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   /** 신규 — 영역(area)은 현재 선택 탭으로 자동 세팅 (initialValues는 마운트 후 갱신 안 되므로 명시) */
   const openNewMenu = () => {
@@ -101,8 +101,8 @@ export default function MenuListPage() {
   }
 
   /** 행 선택(수정) — 연결유형이 페이지/게시판이면 연결 대상 이름도 로드 */
-  const openRowMenu = async (dbKey: string) => {
-    await openRow(dbKey)
+  const openRowMenu = async (rowId: string) => {
+    await openRow(rowId)
     const cty = form.getFieldValue('connTy')
     const cid = form.getFieldValue('connId')
     setConnTitle('')
@@ -117,7 +117,7 @@ export default function MenuListPage() {
 
   const columns: TableColumnsType<Menu> = [
     { title: '메뉴명', dataIndex: 'menuNm' },
-    { title: '메뉴ID', dataIndex: 'dbKey', width: 80 },
+    { title: '메뉴ID', dataIndex: 'rowId', width: 80 },
     {
       title: '순서',
       width: 100,
@@ -146,7 +146,7 @@ export default function MenuListPage() {
         onSearch={(v) => setKeyword(v.searchKeyword ?? '')}
       />
       <Table<Menu>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
@@ -154,8 +154,8 @@ export default function MenuListPage() {
         loading={loading}
         pagination={false}
         expandable={{ expandedRowKeys, onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]) }}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRowMenu(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRowMenu(r.rowId!), style: { cursor: 'pointer' } })}
       />
     </Card>
   )
@@ -256,7 +256,7 @@ export default function MenuListPage() {
         open={pagePickerOpen}
         onClose={() => setPagePickerOpen(false)}
         onSelect={(p) => {
-          form.setFieldsValue({ connId: p.dbKey })
+          form.setFieldsValue({ connId: p.rowId })
           setConnTitle(p.title ?? '')
         }}
       />
@@ -264,7 +264,7 @@ export default function MenuListPage() {
         open={bbsPickerOpen}
         onClose={() => setBbsPickerOpen(false)}
         onSelect={(b) => {
-          form.setFieldsValue({ connId: b.dbKey })
+          form.setFieldsValue({ connId: b.rowId })
           setConnTitle(b.bbsinfoNm ?? '')
         }}
       />

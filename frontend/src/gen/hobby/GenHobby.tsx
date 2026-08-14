@@ -155,7 +155,7 @@ export default function GenHobby() {
         ) : (
           <Card styles={{ body: { padding: 0 } }}>
             {recruits.map((r, i) => (
-              <div key={r.dbKey} onClick={() => navigate(`/gen/recruit/${r.dbKey}`)}
+              <div key={r.rowId} onClick={() => navigate(`/gen/recruit/${r.rowId}`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1px solid #f0f0f0' }}>
                 <span style={{ flex: 1 }}>{r.title}</span>
                 <span style={{ fontSize: 13, color: '#888' }}>{r.region || '-'} · {r.meetDt || '-'}</span>
@@ -177,7 +177,7 @@ export default function GenHobby() {
         ) : (
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
-              <div key={p.dbKey} onClick={() => navigate(`/gen/board/${hobby.bbsinfoId}?post=${p.dbKey}`)}
+              <div key={p.rowId} onClick={() => navigate(`/gen/board/${hobby.bbsinfoId}?post=${p.rowId}`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1px solid #f0f0f0' }}>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                 {Number(p.commentCnt) > 0 && <span style={{ color: TEAL }}>[{p.commentCnt}]</span>}

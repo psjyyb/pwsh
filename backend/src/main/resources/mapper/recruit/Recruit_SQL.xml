@@ -16,7 +16,7 @@
 
     <select id="selectList" parameterType="recruitVO" resultType="recruitVO">
         <!-- 공개 목록: 주최자 로그인 ID(reg_id) 미노출. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
-        SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
+        SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, r.view_cnt,
                ho.hobby_nm,
                sc.code_nm AS status_nm,
@@ -44,7 +44,7 @@
 
     <!-- 내가 연 모집(마이페이지): 본인 reg_id, 전체 상태 -->
     <select id="selectListMine" parameterType="recruitVO" resultType="recruitVO">
-        SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
+        SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, ho.hobby_nm, sc.code_nm AS status_nm, ac.code_nm AS area_nm,
                (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
                (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
@@ -58,7 +58,7 @@
     </select>
 
     <select id="selectView" parameterType="recruitVO" resultType="recruitVO">
-        SELECT r.recruit_id::TEXT AS db_key, r.hobby_id, r.title, r.content, r.capacity, r.area_cd, r.region, r.meet_dt,
+        SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.content, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, r.view_cnt,
                r.reg_id, <!-- 서버 인가용(주최자 판정). 공개 응답 직전 RecruitService에서 제거 -->
                ho.hobby_nm,
@@ -75,10 +75,10 @@
         LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
         LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
         LEFT JOIN t_code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
-        WHERE r.recruit_id = #{dbKey}::integer AND r.use_yn = 'Y'
+        WHERE r.recruit_id = #{rowId}::integer AND r.use_yn = 'Y'
     </select>
 
-    <insert id="insert" parameterType="recruitVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="recruit_id">
+    <insert id="insert" parameterType="recruitVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="recruit_id">
         INSERT INTO t_recruit (hobby_id, title, content, capacity, area_cd, region, meet_dt, status_cd, view_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{hobbyId}::integer, #{title}, #{content},
@@ -93,21 +93,21 @@
             capacity = NULLIF(#{capacity}, '')::integer,
             area_cd = NULLIF(#{areaCd}, ''), region = NULLIF(#{region}, ''), meet_dt = NULLIF(#{meetDt}, ''),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE recruit_id = #{dbKey}::integer
+        WHERE recruit_id = #{rowId}::integer
     </update>
 
     <update id="updateStatus" parameterType="recruitVO">
         UPDATE t_recruit SET status_cd = #{statusCd}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE recruit_id = #{dbKey}::integer
+        WHERE recruit_id = #{rowId}::integer
     </update>
 
     <update id="updateViewCnt" parameterType="recruitVO">
-        UPDATE t_recruit SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE recruit_id = #{dbKey}::integer
+        UPDATE t_recruit SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE recruit_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="recruitVO">
         UPDATE t_recruit SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE recruit_id = #{dbKey}::integer
+        WHERE recruit_id = #{rowId}::integer
     </update>
 
     <!--
@@ -149,7 +149,7 @@
     </select>
 
     <select id="selectChatList" parameterType="map" resultType="recruitChatVO">
-        SELECT c.chat_id::TEXT AS db_key, c.recruit_id, c.content,
+        SELECT c.chat_id::TEXT AS row_id, c.recruit_id, c.content,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = c.reg_id) AS reg_nm,
                (SELECT u.handle   FROM t_user u WHERE u.user_id = c.reg_id) AS reg_handle,
                (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = c.reg_id) AS reg_profile_file_id,
@@ -169,13 +169,13 @@
     </insert>
 
     <select id="selectChatView" parameterType="recruitChatVO" resultType="recruitChatVO">
-        SELECT chat_id::TEXT AS db_key, recruit_id, content, reg_id
-        FROM t_recruit_chat WHERE chat_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT chat_id::TEXT AS row_id, recruit_id, content, reg_id
+        FROM t_recruit_chat WHERE chat_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <update id="deleteChat" parameterType="recruitChatVO">
         UPDATE t_recruit_chat SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE chat_id = #{dbKey}::integer
+        WHERE chat_id = #{rowId}::integer
     </update>
 
     <!-- 대화 참여자(작성 알림 대상) — 주최자 + 수락 참여자 중 나를 제외 -->
@@ -220,7 +220,7 @@
     </select>
 
     <select id="selectApplyList" parameterType="recruitApplyVO" resultType="recruitApplyVO">
-        SELECT a.apply_id::TEXT AS db_key, a.recruit_id, a.user_id, a.apply_status, a.apply_memo, a.reg_id,
+        SELECT a.apply_id::TEXT AS row_id, a.recruit_id, a.user_id, a.apply_status, a.apply_memo, a.reg_id,
                a.attend_cd,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = a.user_id) AS nickname,
                (SELECT u.handle FROM t_user u WHERE u.user_id = a.user_id) AS user_handle,
@@ -242,7 +242,7 @@
 
     <!-- 내 신청 내역 (+ 모임 일정·지역: '내 모임 일정'에서 다가오는 모임을 모아보기 위함) -->
     <select id="selectApplyListMine" parameterType="recruitApplyVO" resultType="recruitApplyVO">
-        SELECT a.apply_id::TEXT AS db_key, a.recruit_id, a.apply_status, a.apply_memo,
+        SELECT a.apply_id::TEXT AS row_id, a.recruit_id, a.apply_status, a.apply_memo,
                r.title AS recruit_title, r.meet_dt, r.region, r.status_cd AS recruit_status_cd,
                sc.code_nm AS apply_status_nm,
                <!-- 내 대기 순번(대기 상태일 때만) — '앞에 몇 명'인지 신청자가 볼 수 있게 -->
@@ -264,7 +264,7 @@
         UPDATE t_recruit_apply
            SET attend_cd = NULLIF(#{attendCd}, ''),
                upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-         WHERE apply_id = #{dbKey}::integer
+         WHERE apply_id = #{rowId}::integer
     </update>
 
     <!--
@@ -281,8 +281,8 @@
 
     <!-- 신청 단건(인가용: 신청자·소속 모집 확인) -->
     <select id="selectApplyView" parameterType="recruitApplyVO" resultType="recruitApplyVO">
-        SELECT apply_id::TEXT AS db_key, recruit_id, user_id, apply_status
-        FROM t_recruit_apply WHERE apply_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT apply_id::TEXT AS row_id, recruit_id, user_id, apply_status
+        FROM t_recruit_apply WHERE apply_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <!-- 활성 중복신청 여부 -->
@@ -301,12 +301,12 @@
 
     <update id="updateApplyStatus" parameterType="recruitApplyVO">
         UPDATE t_recruit_apply SET apply_status = #{applyStatus}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE apply_id = #{dbKey}::integer
+        WHERE apply_id = #{rowId}::integer
     </update>
 
     <update id="deleteApply" parameterType="recruitApplyVO">
         UPDATE t_recruit_apply SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE apply_id = #{dbKey}::integer
+        WHERE apply_id = #{rowId}::integer
     </update>
 
     <!-- 모집 삭제 시 딸린 신청 일괄 비활성 -->

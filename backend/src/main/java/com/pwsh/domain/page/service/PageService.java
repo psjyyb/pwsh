@@ -26,7 +26,7 @@ public class PageService {
     }
 
     public PageVO selectView(PageVO vo) {
-        genAccessGuard.checkPage(vo.getDbKey());
+        genAccessGuard.checkPage(vo.getRowId());
         return commonDAO.selectOne("pageDAO.selectView", vo);
     }
 

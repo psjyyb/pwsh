@@ -3,7 +3,7 @@
 <mapper namespace="bbsinfoDAO">
 
     <select id="selectList" parameterType="bbsinfoVO" resultType="bbsinfoVO">
-        SELECT b.bbsinfo_id::TEXT AS db_key, b.bbsinfo_nm, b.bbsinfo_cd, c.code_nm AS bbsinfo_cd_nm,
+        SELECT b.bbsinfo_id::TEXT AS row_id, b.bbsinfo_nm, b.bbsinfo_cd, c.code_nm AS bbsinfo_cd_nm,
                b.bbsinfo_desc, b.list_cnt, b.file_yn, b.file_cnt, b.file_size,
                b.notice_yn, b.new_cnt, b.use_yn
         FROM t_bbsinfo b
@@ -23,18 +23,18 @@
 
     <!-- 단건(게시판 설정 조회, 사용자 게시판 화면에서도 사용 → 권한 예외) -->
     <select id="selectView" parameterType="bbsinfoVO" resultType="bbsinfoVO">
-        SELECT bbsinfo_id::TEXT AS db_key, bbsinfo_nm, bbsinfo_cd, bbsinfo_desc, list_cnt,
+        SELECT bbsinfo_id::TEXT AS row_id, bbsinfo_nm, bbsinfo_cd, bbsinfo_desc, list_cnt,
                file_yn, file_cnt, file_size, notice_yn, new_cnt, use_yn
-        FROM t_bbsinfo WHERE bbsinfo_id = #{dbKey}::integer AND use_yn = 'Y'
+        FROM t_bbsinfo WHERE bbsinfo_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <!-- 콤보(메뉴 게시판 연결 선택용) -->
     <select id="selectComboList" parameterType="bbsinfoVO" resultType="bbsinfoVO">
-        SELECT bbsinfo_id::TEXT AS db_key, bbsinfo_nm
+        SELECT bbsinfo_id::TEXT AS row_id, bbsinfo_nm
         FROM t_bbsinfo WHERE use_yn = 'Y' ORDER BY bbsinfo_id DESC
     </select>
 
-    <insert id="insert" parameterType="bbsinfoVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="bbsinfo_id">
+    <insert id="insert" parameterType="bbsinfoVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="bbsinfo_id">
         INSERT INTO t_bbsinfo (bbsinfo_nm, bbsinfo_cd, bbsinfo_desc, list_cnt,
             file_yn, file_cnt, file_size, notice_yn, new_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
@@ -57,12 +57,12 @@
             notice_yn = COALESCE(#{noticeYn}, 'N'),
             new_cnt = COALESCE(NULLIF(#{newCnt}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE bbsinfo_id = #{dbKey}::integer
+        WHERE bbsinfo_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="bbsinfoVO">
         UPDATE t_bbsinfo SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE bbsinfo_id = #{dbKey}::integer
+        WHERE bbsinfo_id = #{rowId}::integer
     </update>
 
 </mapper>

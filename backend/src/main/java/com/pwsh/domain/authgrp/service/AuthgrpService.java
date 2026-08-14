@@ -42,7 +42,7 @@ public class AuthgrpService {
     /** 삭제 — 그룹 행 + 그룹-메뉴(t_auth)·그룹-사용자(t_auth_user) 매핑까지 정리(고아 방지) */
     @Transactional
     public void delete(AuthgrpVO vo) {
-        vo.setAuthgrpId(vo.getDbKey()); // 매핑 삭제 매퍼는 authgrpId(conn_id) 기준
+        vo.setAuthgrpId(vo.getRowId()); // 매핑 삭제 매퍼는 authgrpId(conn_id) 기준
         commonDAO.delete("authgrpDAO.deleteAuthByGrp", vo);
         commonDAO.delete("authgrpDAO.deleteAuthUserByGrp", vo);
         commonDAO.delete("authgrpDAO.delete", vo);

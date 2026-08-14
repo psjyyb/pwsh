@@ -9,7 +9,7 @@
     -->
     <sql id="feedBase">
         SELECT 'BBS' AS feed_type,
-               b.bbs_id::TEXT AS db_key,
+               b.bbs_id::TEXT AS row_id,
                b.title,
                h.hobby_id,
                h.hobby_nm,
@@ -38,7 +38,7 @@
           )
         UNION ALL
         SELECT 'RECRUIT' AS feed_type,
-               r.recruit_id::TEXT AS db_key,
+               r.recruit_id::TEXT AS row_id,
                r.title,
                h.hobby_id,
                h.hobby_nm,
@@ -67,7 +67,7 @@
     </sql>
 
     <select id="selectList" parameterType="feedVO" resultType="feedVO">
-        SELECT f.feed_type, f.db_key, f.title, f.hobby_id, f.hobby_nm, f.bbsinfo_id,
+        SELECT f.feed_type, f.row_id, f.title, f.hobby_id, f.hobby_nm, f.bbsinfo_id,
                f.reg_nm, f.reg_handle, f.mine_yn, f.comment_cnt, f.good_cnt,
                f.meet_dt, f.area_nm, f.region, f.status_cd, f.status_nm, f.capacity, f.accepted_cnt,
                TO_CHAR(f.sort_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt

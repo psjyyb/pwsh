@@ -3,7 +3,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 사용자 VO (백엔드 UserVO 대응, 비밀번호는 등록/변경 시에만) */
 export interface User {
-  dbKey?: string // 자기 PK(user_id) — 자체 CRUD용(rowKey/조회/삭제)
+  rowId?: string // 자기 PK(user_id) — 자체 CRUD용(rowKey/조회/삭제)
   userId?: string // 로그인 ID(등록·표시·매핑 참조용)
   userPw?: string
   memCd?: string
@@ -23,18 +23,18 @@ export interface User {
 
 export const userApi = {
   ...createCrudApi<User>('/adm/user', 'User'),
-  /** 비밀번호 변경 (dbKey=user_id) */
-  changePassword: (dbKey: string, userPw: string) =>
-    apiPost<void>('/adm/user/updateUserPassword.do', { dbKey, userPw }),
-  /** 사용자의 권한그룹 ID 목록 — selectList{path=Authgrp} */
+  /** 비밀번호 변경 (rowId=user_id) */
+  changePassword: (rowId: string, userPw: string) =>
+    apiPost<void>('/adm/user/updateUserPassword.do', { rowId, userPw }),
+  /** 사용자의 권한그룹 ID 목록 — selectList{variant=Authgrp} */
   getAuthgrps: (userId: string) => apiPost<string[]>('/adm/user/selectUserListAuthgrp.do', { userId }),
-  /** 사용자-권한그룹 저장 — update{path=Authgrp} */
+  /** 사용자-권한그룹 저장 — update{variant=Authgrp} */
   saveAuthgrps: (userId: string, authgrpIds: string[]) =>
     apiPost<void>('/adm/user/updateUserAuthgrp.do', { userId, authgrpIds }),
-  /** 강제 로그아웃 — token_ver를 올려 해당 사용자의 발급 토큰 즉시 무효화 (update{path=ForceLogout}) */
+  /** 강제 로그아웃 — token_ver를 올려 해당 사용자의 발급 토큰 즉시 무효화 (update{variant=ForceLogout}) */
   forceLogout: (userId: string) =>
     apiPost<void>('/adm/user/updateUserForceLogout.do', { userId }),
-  /** 제재: 정지(STATUS03)/해제(STATUS01) — 정지 시 세션 즉시 무효화 (update{path=Status}) */
+  /** 제재: 정지(STATUS03)/해제(STATUS01) — 정지 시 세션 즉시 무효화 (update{variant=Status}) */
   changeStatus: (userId: string, statusCd: 'STATUS01' | 'STATUS03') =>
     apiPost<void>('/adm/user/updateUserStatus.do', { userId, statusCd }),
 }

@@ -3,7 +3,7 @@
 <mapper namespace="eventlogDAO">
 
     <select id="selectList" parameterType="eventlogVO" resultType="eventlogVO">
-        SELECT e.event_log_id::TEXT AS db_key, e.event_type, c.code_nm AS event_type_nm,
+        SELECT e.event_log_id::TEXT AS row_id, e.event_type, c.code_nm AS event_type_nm,
                e.user_id, e.target_table, e.target_id, e.device_type, e.user_agent, e.reg_dt, e.reg_ip
         FROM t_event_log e
         LEFT JOIN t_code c ON c.code_id = e.event_type AND c.p_code_id = 'EVENT00'
@@ -32,11 +32,11 @@
     </sql>
 
     <select id="selectView" parameterType="eventlogVO" resultType="eventlogVO">
-        SELECT e.event_log_id::TEXT AS db_key, e.event_type, c.code_nm AS event_type_nm,
+        SELECT e.event_log_id::TEXT AS row_id, e.event_type, c.code_nm AS event_type_nm,
                e.user_id, e.target_table, e.target_id, e.device_type, e.user_agent, e.reg_dt, e.reg_ip
         FROM t_event_log e
         LEFT JOIN t_code c ON c.code_id = e.event_type AND c.p_code_id = 'EVENT00'
-        WHERE e.event_log_id = #{dbKey}::integer
+        WHERE e.event_log_id = #{rowId}::integer
     </select>
 
     <!-- 행위 로그 기록(EventLogService). reg_ip는 AuditInterceptor 자동, reg_dt는 NOW() -->

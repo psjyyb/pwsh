@@ -43,11 +43,11 @@ function buildItems(list: MenuVO[]): MenuItem[] {
             <MenuGlyph name={m.icon} size={18} />
           </span>
         ) : undefined
-      const children = byParent.get(m.dbKey!)
+      const children = byParent.get(m.rowId!)
       if (children && children.length) {
-        return { key: `g${m.dbKey}`, label: m.menuNm, icon, children: build(m.dbKey!, depth + 1) }
+        return { key: `g${m.rowId}`, label: m.menuNm, icon, children: build(m.rowId!, depth + 1) }
       }
-      return { key: menuDest(m) || `m${m.dbKey}`, label: m.menuNm, icon }
+      return { key: menuDest(m) || `m${m.rowId}`, label: m.menuNm, icon }
     })
   return build('0', 0)
 }

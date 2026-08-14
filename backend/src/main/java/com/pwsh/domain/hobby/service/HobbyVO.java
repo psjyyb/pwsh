@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 취미 카탈로그 VO (t_hobby). PK(hobby_id)는 BaseVO.dbKey. */
+/** 취미 카탈로그 VO (t_hobby). PK(hobby_id)는 BaseVO.rowId. */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class HobbyVO extends BaseVO {

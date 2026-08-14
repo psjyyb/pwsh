@@ -3,7 +3,7 @@
 <mapper namespace="authgrpDAO">
 
     <select id="selectList" parameterType="authgrpVO" resultType="authgrpVO">
-        SELECT authgrp_id AS db_key, authgrp_nm, authgrp_desc, use_yn
+        SELECT authgrp_id AS row_id, authgrp_nm, authgrp_desc, use_yn
         FROM t_auth_grp
         WHERE use_yn = 'Y'
         <if test="searchKeyword != null and searchKeyword != ''">
@@ -26,14 +26,14 @@
     </select>
 
     <select id="selectView" parameterType="authgrpVO" resultType="authgrpVO">
-        SELECT authgrp_id AS db_key, authgrp_nm, authgrp_desc, use_yn
-        FROM t_auth_grp WHERE authgrp_id = #{dbKey} AND use_yn = 'Y'
+        SELECT authgrp_id AS row_id, authgrp_nm, authgrp_desc, use_yn
+        FROM t_auth_grp WHERE authgrp_id = #{rowId} AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="authgrpVO">
         INSERT INTO t_auth_grp (authgrp_id, authgrp_nm, authgrp_desc, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{dbKey}, #{authgrpNm}, #{authgrpDesc}, 'Y',
+        VALUES (#{rowId}, #{authgrpNm}, #{authgrpDesc}, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
@@ -41,12 +41,12 @@
         UPDATE t_auth_grp SET
             authgrp_nm = #{authgrpNm}, authgrp_desc = #{authgrpDesc},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE authgrp_id = #{dbKey}
+        WHERE authgrp_id = #{rowId}
     </update>
 
     <update id="delete" parameterType="authgrpVO">
         UPDATE t_auth_grp SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE authgrp_id = #{dbKey}
+        WHERE authgrp_id = #{rowId}
     </update>
 
     <!-- 그룹의 권한(메뉴) ID 목록 -->

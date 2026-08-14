@@ -30,7 +30,7 @@
             WHERE c.use_yn = 'Y'
         )
         <!-- 공개 목록: 작성자 로그인 ID(reg_id)는 내보내지 않는다. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
-        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.notice_yn, b.secret_yn,
+        SELECT b.bbs_id::TEXT AS row_id, b.bbsinfo_id, b.title, b.notice_yn, b.secret_yn,
                b.view_cnt, b.good_cnt, b.bbs_dt, t.lvl AS bbs_depth,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
                (SELECT u.handle FROM t_user u WHERE u.user_id = b.reg_id) AS reg_handle,
@@ -49,7 +49,7 @@
 
     <!-- 내가 쓴 글(마이페이지): 본인 원글, 게시판명 조인 -->
     <select id="selectListMine" parameterType="bbsVO" resultType="bbsVO">
-        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.view_cnt,
+        SELECT b.bbs_id::TEXT AS row_id, b.bbsinfo_id, b.title, b.view_cnt,
                bi.bbsinfo_nm,
                (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
                TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
@@ -66,7 +66,7 @@
       점수 = 좋아요*3 + 댓글*2 + 조회*0.1 (참여도 가중).
     -->
     <select id="selectListWeeklyBest" parameterType="bbsVO" resultType="bbsVO">
-        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.view_cnt, b.good_cnt,
+        SELECT b.bbs_id::TEXT AS row_id, b.bbsinfo_id, b.title, b.view_cnt, b.good_cnt,
                bi.bbsinfo_nm,
                (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
@@ -86,7 +86,7 @@
 
     <!-- 회원 공개 프로필용: 그 회원이 '취미(공개) 게시판'에 쓴 글만(비밀글·비공개 게시판 제외). -->
     <select id="selectListByAuthor" parameterType="bbsVO" resultType="bbsVO">
-        SELECT b.bbs_id::TEXT AS db_key, b.bbsinfo_id, b.title, b.view_cnt, b.good_cnt,
+        SELECT b.bbs_id::TEXT AS row_id, b.bbsinfo_id, b.title, b.view_cnt, b.good_cnt,
                bi.bbsinfo_nm,
                (SELECT COUNT(*) FROM t_comment cm WHERE cm.bbs_id = b.bbs_id AND cm.use_yn = 'Y') AS comment_cnt,
                TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
@@ -110,7 +110,7 @@
     </select>
 
     <select id="selectView" parameterType="bbsVO" resultType="bbsVO">
-        SELECT bbs_id::TEXT AS db_key, bbsinfo_id, title, context,
+        SELECT bbs_id::TEXT AS row_id, bbsinfo_id, title, context,
                p_bbs_id, bbs_depth, bbs_ordr, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
                (CASE WHEN EXISTS (SELECT 1 FROM t_content_like l WHERE l.target_type = 'BBS' AND l.target_id = t_bbs.bbs_id AND l.user_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                notice_yn, notice_start_dt, notice_end_dt, bbs_dt,
@@ -120,10 +120,10 @@
                (CASE WHEN #{viewerId}::text IS NOT NULL AND reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
                (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = t_bbs.reg_id) AS reg_profile_file_id,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
-        FROM t_bbs WHERE bbs_id = #{dbKey}::integer AND use_yn = 'Y'
+        FROM t_bbs WHERE bbs_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
-    <insert id="insert" parameterType="bbsVO" useGeneratedKeys="true" keyProperty="dbKey" keyColumn="bbs_id">
+    <insert id="insert" parameterType="bbsVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="bbs_id">
         INSERT INTO t_bbs (bbsinfo_id, title, context, p_bbs_id, bbs_depth,
             bbs_ordr, secret_yn, bbs_pw, good_cnt, bad_cnt, view_cnt,
             notice_yn, notice_start_dt, notice_end_dt, bbs_dt, use_yn,
@@ -145,17 +145,17 @@
             notice_yn = COALESCE(#{noticeYn}, 'N'),
             notice_start_dt = NULLIF(#{noticeStartDt}, ''), notice_end_dt = NULLIF(#{noticeEndDt}, ''),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE bbs_id = #{dbKey}::integer
+        WHERE bbs_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="bbsVO">
         UPDATE t_bbs SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE bbs_id = #{dbKey}::integer
+        WHERE bbs_id = #{rowId}::integer
     </update>
 
     <!-- 조회수 증가 -->
     <update id="updateViewCnt" parameterType="bbsVO">
-        UPDATE t_bbs SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE bbs_id = #{dbKey}::integer
+        UPDATE t_bbs SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE bbs_id = #{rowId}::integer
     </update>
 
     <!-- 글의 소속 게시판 ID(콘텐츠 인가에서 취미 게시판 공개 판정용) -->

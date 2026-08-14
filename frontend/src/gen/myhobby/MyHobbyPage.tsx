@@ -72,7 +72,7 @@ export default function MyHobbyPage() {
       ) : (
         <Row gutter={[16, 16]}>
           {myHobbies.map((u) => {
-            const hb = hobbies.find((h) => h.dbKey === u.hobbyId)
+            const hb = hobbies.find((h) => h.rowId === u.hobbyId)
             const hc = hobbyColor(u.hobbyId) // 메인 도감과 같은 색(취미별 고정)
             return (
               <Col xs={24} sm={12} key={u.hobbyId}>

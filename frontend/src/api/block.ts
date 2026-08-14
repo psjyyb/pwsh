@@ -2,7 +2,7 @@ import { apiPost } from './http'
 
 /** 차단한 회원 1건. */
 export interface Block {
-  dbKey?: string
+  rowId?: string
   blockedHandle?: string // 대상 공개 식별자
   blockedNm?: string
   blockedFileId?: string

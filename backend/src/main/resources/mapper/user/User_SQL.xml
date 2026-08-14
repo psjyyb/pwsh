@@ -51,7 +51,7 @@
 
     <!-- 목록 (비밀번호 제외, 코드명 조인) -->
     <select id="selectList" parameterType="userVO" resultType="userVO">
-        SELECT u.user_id AS db_key, u.user_id, u.mem_cd, mc.code_nm AS mem_cd_nm, u.nickname, u.gen_cd,
+        SELECT u.user_id AS row_id, u.user_id, u.mem_cd, mc.code_nm AS mem_cd_nm, u.nickname, u.gen_cd,
                CONVERT_FROM(DECRYPT(DECODE(u.user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
                CONVERT_FROM(DECRYPT(DECODE(u.phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
                CONVERT_FROM(DECRYPT(DECODE(u.email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
@@ -83,13 +83,13 @@
 
     <!-- 단건 (비밀번호 제외) -->
     <select id="selectView" parameterType="userVO" resultType="userVO">
-        SELECT user_id AS db_key, user_id, mem_cd, nickname, gen_cd, status_cd, use_yn,
+        SELECT user_id AS row_id, user_id, mem_cd, nickname, gen_cd, status_cd, use_yn,
                CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8') AS user_nm,
                CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS phone,
                CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS email,
                CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{encKey}::BYTEA,'AES'),'UTF8')   AS birth
         FROM t_user
-        WHERE user_id = #{dbKey} AND use_yn = 'Y'
+        WHERE user_id = #{rowId} AND use_yn = 'Y'
     </select>
 
     <!-- 등록 (audit는 AuditInterceptor 자동. 비번은 Controller에서 BCrypt 인코딩 후 전달)
@@ -124,19 +124,19 @@
             email   = ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
             birth   = ENCODE(ENCRYPT(CONVERT_TO(#{birth},'UTF8'),#{encKey}::BYTEA,'AES'),'HEX'),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE user_id = #{dbKey}
+        WHERE user_id = #{rowId}
     </update>
 
     <!-- 닉네임 변경(본인) -->
     <update id="updateNickname" parameterType="userVO">
         UPDATE t_user SET nickname = #{nickname}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE user_id = #{dbKey}
+        WHERE user_id = #{rowId}
     </update>
 
     <!-- 프로필 사진 변경(본인). profileFileId null → 해제(NULL) -->
     <update id="updateProfileImage" parameterType="userVO">
         UPDATE t_user SET profile_file_id = #{profileFileId}::integer, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE user_id = #{dbKey}
+        WHERE user_id = #{rowId}
     </update>
 
     <!-- 비밀번호 변경 (Controller에서 BCrypt 인코딩 후 전달). 변경 시 만료일 재형성 -->
@@ -145,7 +145,7 @@
             user_pw = #{userPw}, last_upd_dt = NOW(),
             pw_expire_dt = NOW() + (COALESCE((SELECT pw_expire_cnt FROM t_config LIMIT 1), 90) * INTERVAL '1 day'),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE user_id = #{dbKey}
+        WHERE user_id = #{rowId}
     </update>
 
     <!-- 로그인 성공 시 마지막 로그인 일시/IP 기록 + 실패횟수 초기화 (audit upd_dt는 건드리지 않음) -->
@@ -198,7 +198,7 @@
     <!-- 삭제(논리, 탈퇴) -->
     <update id="delete" parameterType="userVO">
         UPDATE t_user SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE user_id = #{dbKey}
+        WHERE user_id = #{rowId}
     </update>
 
     <!-- 사용자의 권한그룹 ID 목록 (t_auth_user) -->

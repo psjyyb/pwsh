@@ -3,7 +3,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 메뉴 VO (백엔드 MenuVO 대응) */
 export interface Menu {
-  dbKey?: string // PK(menu_id)
+  rowId?: string // PK(menu_id)
   pMenuId?: string // 부모 메뉴 참조(FK)
   area?: string // ADM=관리자, GEN=사용자
   menuNm: string
@@ -20,13 +20,13 @@ export interface Menu {
 
 export const menuApi = {
   ...createCrudApi<Menu>('/adm/menu', 'Menu'),
-  /** 사이드바용 트리(area별, 권한 필터 적용) — selectList{path=Tree} */
+  /** 사이드바용 트리(area별, 권한 필터 적용) — selectList{variant=Tree} */
   tree: (area = 'ADM') => apiPost<Menu[]>('/adm/menu/selectMenuListTree.do', { area }),
-  /** 관리 화면용 트리(권한필터 없이 area 전체) — selectList{path=ManageTree} */
+  /** 관리 화면용 트리(권한필터 없이 area 전체) — selectList{variant=ManageTree} */
   manageTree: (area = 'ADM') => apiPost<Menu[]>('/adm/menu/selectMenuListManageTree.do', { area }),
   /** 순서 변경(같은 부모 내 인접 메뉴와 교환) */
-  moveOrdr: (dbKey: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/menu/updateMenuOrdr.do', { dbKey, searchCondition: direction }),
+  moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
+    apiPost<void>('/adm/menu/updateMenuOrdr.do', { rowId, searchCondition: direction }),
 }
 
 export const MENU_LIST_URL = menuApi.listUrl

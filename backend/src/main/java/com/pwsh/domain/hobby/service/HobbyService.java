@@ -47,8 +47,8 @@ public class HobbyService {
             board.setFileSize("10");
             board.setNoticeYn("N");
             board.setNewCnt("7");
-            commonDAO.insert("bbsinfoDAO.insert", board); // useGeneratedKeys → board.dbKey
-            vo.setBbsinfoId(board.getDbKey());
+            commonDAO.insert("bbsinfoDAO.insert", board); // useGeneratedKeys → board.rowId
+            vo.setBbsinfoId(board.getRowId());
         }
         commonDAO.insert("hobbyDAO.insert", vo);
     }
@@ -62,6 +62,6 @@ public class HobbyService {
     public void delete(HobbyVO vo) {
         commonDAO.delete("hobbyDAO.delete", vo);
         commonDAO.update("fileDAO.deactivateFilesByOwner",
-                Map.of("mapKey", vo.getDbKey(), "locs", List.of("HOBBY", "HOBBY_EDITOR")));
+                Map.of("mapKey", vo.getRowId(), "locs", List.of("HOBBY", "HOBBY_EDITOR")));
     }
 }

@@ -61,8 +61,8 @@ export default function FeedPage() {
   }
 
   const goItem = (it: FeedItem) => {
-    if (it.feedType === 'RECRUIT') navigate(`/gen/recruit/${it.dbKey}`)
-    else navigate(`/gen/board/${it.bbsinfoId}?post=${it.dbKey}`)
+    if (it.feedType === 'RECRUIT') navigate(`/gen/recruit/${it.rowId}`)
+    else navigate(`/gen/board/${it.bbsinfoId}?post=${it.rowId}`)
   }
 
   return (

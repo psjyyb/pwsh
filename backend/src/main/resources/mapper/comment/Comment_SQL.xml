@@ -4,7 +4,7 @@
 
     <select id="selectList" parameterType="commentVO" resultType="commentVO">
         <!-- 공개 목록: 작성자 로그인 ID(reg_id) 미노출. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
-        SELECT comment_id::TEXT AS db_key, bbs_id, p_comment_id, context, good_cnt, bad_cnt,
+        SELECT comment_id::TEXT AS row_id, bbs_id, p_comment_id, context, good_cnt, bad_cnt,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_nm,
                (SELECT u.handle FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_handle,
                (CASE WHEN #{viewerId}::text IS NOT NULL AND t_comment.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
@@ -24,8 +24,8 @@
 
     <!-- 단건(수정/삭제 인가용: 작성자·소속 게시글 확인) -->
     <select id="selectView" parameterType="commentVO" resultType="commentVO">
-        SELECT comment_id::TEXT AS db_key, bbs_id, context, reg_id
-        FROM t_comment WHERE comment_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT comment_id::TEXT AS row_id, bbs_id, context, reg_id
+        FROM t_comment WHERE comment_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="commentVO">
@@ -37,12 +37,12 @@
 
     <update id="update" parameterType="commentVO">
         UPDATE t_comment SET context = #{context}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE comment_id = #{dbKey}::integer
+        WHERE comment_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="commentVO">
         UPDATE t_comment SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE comment_id = #{dbKey}::integer
+        WHERE comment_id = #{rowId}::integer
     </update>
 
 </mapper>

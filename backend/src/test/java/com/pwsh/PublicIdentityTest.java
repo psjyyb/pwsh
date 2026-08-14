@@ -29,7 +29,7 @@ class PublicIdentityTest extends IntegrationTest {
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
                 "{\"hobbyNm\":\"식별자취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String boardId = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
-                "{\"dbKey\":\"" + hobbyId + "\"}", null).body(), "$.data.bbsinfoId");
+                "{\"rowId\":\"" + hobbyId + "\"}", null).body(), "$.data.bbsinfoId");
 
         assertEquals(200, signup("ida", "식별자A", "ida@test.local").statusCode());
         assertEquals(200, signup("idb", "식별자B", "idb@test.local").statusCode());
@@ -53,7 +53,7 @@ class PublicIdentityTest extends IntegrationTest {
         assertNoKey(listBody, "encKey", "게시글 목록");
 
         String viewBody = post("/api/adm/bbs/selectBbsView.do",
-                "{\"dbKey\":\"" + bbsId + "\",\"viewUp\":\"N\"}", tb).body();
+                "{\"rowId\":\"" + bbsId + "\",\"viewUp\":\"N\"}", tb).body();
         assertNoKey(viewBody, "regId", "게시글 상세");
         assertEquals("N", JsonPath.read(viewBody, "$.data.mineYn"), "남의 글은 mineYn=N (서버 계산)");
 
@@ -75,7 +75,7 @@ class PublicIdentityTest extends IntegrationTest {
         assertNoKey(rListBody, "regId", "모집 목록");
         assertNoKey(rListBody, "encKey", "모집 목록");
         String rViewBody = post("/api/adm/recruit/selectRecruitView.do",
-                "{\"dbKey\":\"" + rid + "\",\"viewUp\":\"N\"}", tb).body();
+                "{\"rowId\":\"" + rid + "\",\"viewUp\":\"N\"}", tb).body();
         assertNoKey(rViewBody, "regId", "모집 상세");
 
         // 공개 프로필 — handle로 조회하고, 응답에 로그인 ID가 없어야 한다
@@ -99,7 +99,7 @@ class PublicIdentityTest extends IntegrationTest {
         String applyOk = applyAndAccept(rid, ta, tb, "idb");
         assertEquals("APPLY02", applyOk);
         assertEquals(200, post("/api/adm/recruit/updateRecruitStatus.do",
-                "{\"dbKey\":\"" + rid + "\",\"statusCd\":\"RECRUIT02\"}", ta).statusCode());
+                "{\"rowId\":\"" + rid + "\",\"statusCd\":\"RECRUIT02\"}", ta).statusCode());
         assertEquals(200, post("/api/adm/review/insertReview.do",
                 "{\"recruitId\":\"" + rid + "\",\"targetHandle\":\"" + handleA + "\",\"rating\":\"5\",\"content\":\"좋았어요\"}",
                 tb).statusCode());
@@ -128,7 +128,7 @@ class PublicIdentityTest extends IntegrationTest {
                 "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = ?",
                 String.class, recruitId, applicantId);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", hostTok).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", hostTok).statusCode());
         return jdbc.queryForObject("SELECT apply_status FROM t_recruit_apply WHERE apply_id = ?::integer",
                 String.class, applyId);
     }

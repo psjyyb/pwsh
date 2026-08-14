@@ -23,12 +23,12 @@ class BbsOwnershipTest extends IntegrationTest {
         String user = accessToken("user", "user1234!");
         String postId = insertBbs("adminpost", admin);
 
-        assertThat(post("/api/adm/bbs/updateBbs.do", "{\"dbKey\":\"" + postId + "\",\"title\":\"hack\"}", user).statusCode())
+        assertThat(post("/api/adm/bbs/updateBbs.do", "{\"rowId\":\"" + postId + "\",\"title\":\"hack\"}", user).statusCode())
                 .isEqualTo(403);
-        assertThat(post("/api/adm/bbs/deleteBbs.do", "{\"dbKey\":\"" + postId + "\"}", user).statusCode())
+        assertThat(post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + postId + "\"}", user).statusCode())
                 .isEqualTo(403);
         // 작성자(관리자)는 삭제 가능
-        assertThat(post("/api/adm/bbs/deleteBbs.do", "{\"dbKey\":\"" + postId + "\"}", admin).statusCode())
+        assertThat(post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + postId + "\"}", admin).statusCode())
                 .isEqualTo(200);
     }
 
@@ -37,7 +37,7 @@ class BbsOwnershipTest extends IntegrationTest {
     void memberCanManageOwnPost() throws Exception {
         String user = accessToken("user", "user1234!");
         String postId = insertBbs("userpost", user);
-        assertThat(post("/api/adm/bbs/deleteBbs.do", "{\"dbKey\":\"" + postId + "\"}", user).statusCode())
+        assertThat(post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + postId + "\"}", user).statusCode())
                 .isEqualTo(200);
     }
 }

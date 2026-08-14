@@ -38,9 +38,9 @@ export default function ReportListPage() {
 
   useEffect(() => { load() }, [load])
 
-  const handle = async (dbKey: string, next: string) => {
+  const handle = async (rowId: string, next: string) => {
     try {
-      await reportApi.updateStatus(dbKey, next)
+      await reportApi.updateStatus(rowId, next)
       const msg = next === 'RESOLVED' ? '삭제조치했습니다. (대상을 숨김 처리)'
         : next === 'DISMISSED' ? '반려했습니다.'
           : '대기로 되돌렸습니다. (대상 복원)'
@@ -72,15 +72,15 @@ export default function ReportListPage() {
       render: (_, r) =>
         r.status === 'PENDING' ? (
           <Space>
-            <Popconfirm title="신고 대상을 삭제(숨김) 처리하시겠습니까?" onConfirm={() => handle(r.dbKey!, 'RESOLVED')} okText="삭제조치" okButtonProps={{ danger: true }} cancelText="취소">
+            <Popconfirm title="신고 대상을 삭제(숨김) 처리하시겠습니까?" onConfirm={() => handle(r.rowId!, 'RESOLVED')} okText="삭제조치" okButtonProps={{ danger: true }} cancelText="취소">
               <Button size="small" danger>삭제조치</Button>
             </Popconfirm>
-            <Popconfirm title="반려(오신고) 처리하시겠습니까?" onConfirm={() => handle(r.dbKey!, 'DISMISSED')} okText="반려" cancelText="취소">
+            <Popconfirm title="반려(오신고) 처리하시겠습니까?" onConfirm={() => handle(r.rowId!, 'DISMISSED')} okText="반려" cancelText="취소">
               <Button size="small">반려</Button>
             </Popconfirm>
           </Space>
         ) : (
-          <Popconfirm title="대기로 되돌립니다. (삭제조치였다면 대상이 다시 노출됩니다)" onConfirm={() => handle(r.dbKey!, 'PENDING')} okText="되돌리기" cancelText="취소">
+          <Popconfirm title="대기로 되돌립니다. (삭제조치였다면 대상이 다시 노출됩니다)" onConfirm={() => handle(r.rowId!, 'PENDING')} okText="되돌리기" cancelText="취소">
             <a style={{ fontSize: 12 }}>대기로</a>
           </Popconfirm>
         ),
@@ -103,7 +103,7 @@ export default function ReportListPage() {
         <Button onClick={load}>새로고침</Button>
       </Space>
       <Table<Report>
-        rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} loading={loading}
+        rowKey="rowId" size="small" scroll={{ x: 'max-content' }} loading={loading}
         columns={columns} dataSource={rows}
         pagination={{
           current: page, pageSize: size, total: totCnt,

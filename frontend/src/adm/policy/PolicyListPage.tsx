@@ -16,7 +16,7 @@ export default function PolicyListPage() {
   const isEdit = mode === 'edit'
 
   const move = (row: Policy, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => policyApi.moveOrdr(row.dbKey!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => policyApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   const columns: TableColumnsType<Policy> = [
     { title: '제목', dataIndex: 'title' },
@@ -45,14 +45,14 @@ export default function PolicyListPage() {
         onSearch={(v) => search(v)}
       />
       <Table<Policy>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}
         loading={loading}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>

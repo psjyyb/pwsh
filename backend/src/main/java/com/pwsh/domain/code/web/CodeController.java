@@ -16,10 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 공통코드 관리 (표준 CRUD 패턴 원형).
  * - 컨트롤러는 매핑만, 업무 로직은 {@link CodeService}.
- * - 엔드포인트는 표준 5개(selectList/selectView/insert/update/delete) + {path} 분기:
- *   · selectCodeList{path}  : ''=페이징목록 / Tree=계층 / Combo=콤보
- *   · selectCodeView{path}  : ''=단건 / NextChild=하위코드추가용 다음값
- *   · updateCode{path}      : ''=수정 / ordr=정렬 교환
+ * - 엔드포인트는 표준 5개(selectList/selectView/insert/update/delete) + {variant} 분기:
+ *   · selectCodeList{variant}  : ''=페이징목록 / Tree=계층 / Combo=콤보
+ *   · selectCodeView{variant}  : ''=단건 / NextChild=하위코드추가용 다음값
+ *   · updateCode{variant}      : ''=수정 / ordr=정렬 교환
  * - 요청 JSON(@RequestBody), 응답 ApiResponse 봉투(에러는 GlobalExceptionHandler), audit은 AuditInterceptor 자동.
  */
 @RestController
@@ -30,14 +30,14 @@ public class CodeController {
     private final CodeService codeService;
 
     /** 목록 계열: ''=페이징목록 / Tree=계층 / Combo=콤보 */
-    @RequestMapping("/selectCodeList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectCodeList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable(name = "variant", required = false) String variant,
                                      @RequestBody(required = false) CodeVO searchVO) {
         CodeVO vo = searchVO == null ? new CodeVO() : searchVO;
-        if ("Tree".equals(path)) {
+        if ("Tree".equals(variant)) {
             return ApiResponse.ok(codeService.selectTree(vo));
         }
-        if ("Combo".equals(path)) {
+        if ("Combo".equals(variant)) {
             return ApiResponse.ok(codeService.selectComboList(vo));
         }
         int totCnt = codeService.selectListTotCnt(vo);
@@ -48,10 +48,10 @@ public class CodeController {
     }
 
     /** 단건 계열: ''=단건조회 / NextChild=하위코드추가용 다음값 */
-    @RequestMapping("/selectCodeView{path}.do")
-    public ApiResponse<CodeVO> selectView(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectCodeView{variant}.do")
+    public ApiResponse<CodeVO> selectView(@PathVariable(name = "variant", required = false) String variant,
                                           @RequestBody CodeVO searchVO) {
-        if ("NextChild".equals(path)) {
+        if ("NextChild".equals(variant)) {
             return ApiResponse.ok(codeService.nextChildCode(searchVO));
         }
         return ApiResponse.ok(codeService.selectView(searchVO));
@@ -59,20 +59,20 @@ public class CodeController {
 
     @RequestMapping("/insertCode.do")
     public ApiResponse<Void> insert(@RequestBody CodeVO searchVO) {
-        Validate.required(searchVO.getDbKey(), "코드ID");
+        Validate.required(searchVO.getRowId(), "코드ID");
         Validate.required(searchVO.getPCodeId(), "상위코드");
         Validate.required(searchVO.getCodeNm(), "코드명");
         codeService.insert(searchVO);
         return ApiResponse.ok();
     }
 
-    /** 수정. path: "ordr"=정렬 위/아래 교환(searchCondition=UP/DOWN), 빈값=일반수정 */
-    @RequestMapping("/updateCode{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    /** 수정. variant: "ordr"=정렬 위/아래 교환(searchCondition=UP/DOWN), 빈값=일반수정 */
+    @RequestMapping("/updateCode{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody CodeVO searchVO) {
-        if ("Ordr".equals(path)) {
+        if ("Ordr".equals(variant)) {
             codeService.swapOrdr(searchVO);
-        } else if (StringUtil.isEmpty(path)) {
+        } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getCodeNm(), "코드명");
             codeService.update(searchVO);
         }

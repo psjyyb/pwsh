@@ -22,7 +22,7 @@ export default function BbsinfoPickerModal({ open, onSelect, onClose }: Props) {
   }, [open])
 
   const columns: TableColumnsType<Bbsinfo> = [
-    { title: '게시판ID', dataIndex: 'dbKey', width: 90 },
+    { title: '게시판ID', dataIndex: 'rowId', width: 90 },
     { title: '게시판명', dataIndex: 'bbsinfoNm' },
     {
       title: '',
@@ -36,7 +36,7 @@ export default function BbsinfoPickerModal({ open, onSelect, onClose }: Props) {
   return (
     <Modal open={open} onCancel={onClose} footer={null} title="게시판 선택" width={560} destroyOnHidden>
       <Table<Bbsinfo>
-        rowKey="dbKey"
+        rowKey="rowId"
         size="small"
         columns={columns}
         dataSource={rows}

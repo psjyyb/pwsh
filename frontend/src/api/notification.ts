@@ -2,7 +2,7 @@ import { apiPost } from './http'
 
 /** 인앱 알림 */
 export interface Noti {
-  dbKey?: string
+  rowId?: string
   notiType?: string // APPLY/ACCEPT/REJECT/COMMENT
   content?: string
   linkUrl?: string
@@ -28,7 +28,7 @@ export const notificationApi = {
   /** 내 미읽음 수(헤더 배지) */
   unreadCnt: () => apiPost<number>('/adm/notification/selectNotificationListUnreadCnt.do', {}),
   /** 단건 읽음 */
-  read: (dbKey: string) => apiPost<void>('/adm/notification/updateNotificationRead.do', { dbKey }),
+  read: (rowId: string) => apiPost<void>('/adm/notification/updateNotificationRead.do', { rowId }),
   /** 전체 읽음 */
   readAll: () => apiPost<void>('/adm/notification/updateNotificationReadAll.do', {}),
 }

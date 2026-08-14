@@ -15,7 +15,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 쪽지 API — 컨트롤러는 매핑·입력검증만, 로직은 {@link MessageService}. 전 경로 로그인 필요(본인 기준).
- * 조회는 {path}로 분기: ''=대화 목록, Thread=특정 상대 대화, UnreadCnt=전체 안읽음.
+ * 조회는 {variant}로 분기: ''=대화 목록, Thread=특정 상대 대화, UnreadCnt=전체 안읽음.
  */
 @RestController
 @RequestMapping("/api/adm/message")
@@ -24,13 +24,13 @@ public class MessageController {
 
     private final MessageService messageService;
 
-    @PostMapping("/selectMessageList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable String path, @RequestBody MessageVO vo) {
-        if ("Thread".equals(path)) {
+    @PostMapping("/selectMessageList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable String variant, @RequestBody MessageVO vo) {
+        if ("Thread".equals(variant)) {
             Validate.required(vo.getOtherHandle(), "상대");
             return ApiResponse.ok(messageService.selectThread(vo.getOtherHandle()));
         }
-        if ("UnreadCnt".equals(path)) {
+        if ("UnreadCnt".equals(variant)) {
             return ApiResponse.ok(messageService.unreadCnt());
         }
         return ApiResponse.ok(messageService.selectConvList());

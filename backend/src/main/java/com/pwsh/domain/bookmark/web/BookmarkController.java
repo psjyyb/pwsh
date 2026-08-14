@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 북마크 API — 매핑·입력검증만, 로직은 {@link BookmarkService}. 전 경로 로그인 필요(본인 기준).
- * 조회 {path}: ''=내 북마크 목록(targetType별), Ids=내가 북마크한 id 목록.
+ * 조회 {variant}: ''=내 북마크 목록(targetType별), Ids=내가 북마크한 id 목록.
  */
 @RestController
 @RequestMapping("/api/adm/bookmark")
@@ -22,9 +22,9 @@ public class BookmarkController {
 
     private final BookmarkService bookmarkService;
 
-    @PostMapping("/selectBookmarkList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable String path, @RequestBody BookmarkVO vo) {
-        if ("Ids".equals(path)) {
+    @PostMapping("/selectBookmarkList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable String variant, @RequestBody BookmarkVO vo) {
+        if ("Ids".equals(variant)) {
             return ApiResponse.ok(bookmarkService.selectMyIds(vo.getTargetType()));
         }
         return ApiResponse.ok(bookmarkService.selectMyList(vo.getTargetType()));

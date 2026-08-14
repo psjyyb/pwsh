@@ -63,14 +63,14 @@ public class MenuService {
         if (adj == null) {
             return;
         }
-        setOrdr(cur.getDbKey(), "-1");
-        setOrdr(adj.getDbKey(), cur.getOrdr());
-        setOrdr(cur.getDbKey(), adj.getOrdr());
+        setOrdr(cur.getRowId(), "-1");
+        setOrdr(adj.getRowId(), cur.getOrdr());
+        setOrdr(cur.getRowId(), adj.getOrdr());
     }
 
-    private void setOrdr(String dbKey, String ordr) {
+    private void setOrdr(String rowId, String ordr) {
         MenuVO v = new MenuVO();
-        v.setDbKey(dbKey);
+        v.setRowId(rowId);
         v.setOrdr(ordr);
         commonDAO.update("menuDAO.updateordr", v);
     }

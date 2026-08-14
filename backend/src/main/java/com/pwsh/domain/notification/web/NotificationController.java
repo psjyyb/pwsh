@@ -32,8 +32,8 @@ public class NotificationController {
 
     @RequestMapping("/updateNotificationRead.do")
     public ApiResponse<Void> read(@RequestBody NotificationVO vo) {
-        Validate.required(vo.getDbKey(), "알림");
-        notificationService.markRead(vo.getDbKey());
+        Validate.required(vo.getRowId(), "알림");
+        notificationService.markRead(vo.getRowId());
         return ApiResponse.ok();
     }
 

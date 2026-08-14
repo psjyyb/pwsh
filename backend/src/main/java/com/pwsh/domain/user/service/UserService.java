@@ -50,7 +50,7 @@ public class UserService {
         vo.setUserPw(passwordEncoder.encode(vo.getUserPw()));
         commonDAO.update("userDAO.updatePw", vo);
         UserVO t = new UserVO();
-        t.setUserId(vo.getDbKey()); // updatePw는 dbKey(=user_id) 기준
+        t.setUserId(vo.getRowId()); // updatePw는 rowId(=user_id) 기준
         commonDAO.selectOne("userDAO.incrementTokenVer", t);
     }
 
@@ -62,7 +62,7 @@ public class UserService {
     /** 삭제(논리, 탈퇴) — 사용자의 권한그룹 매핑(t_auth_user)도 정리(고아 방지) */
     @Transactional
     public void delete(UserVO vo) {
-        vo.setUserId(vo.getDbKey()); // 매핑 삭제는 userId 기준
+        vo.setUserId(vo.getRowId()); // 매핑 삭제는 userId 기준
         commonDAO.delete("userDAO.deleteAuthUser", vo);
         commonDAO.delete("userDAO.delete", vo);
     }

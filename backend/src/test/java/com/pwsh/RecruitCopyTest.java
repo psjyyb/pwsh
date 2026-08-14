@@ -49,7 +49,7 @@ class RecruitCopyTest extends IntegrationTest {
                 "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'cpmem'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
         // 1회차 대화도 남겨 둔다(복제되지 않아야 한다)
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
                 "{\"recruitId\":\"" + rid + "\",\"content\":\"1회차 잘 다녀왔습니다\"}", host).statusCode());
@@ -57,25 +57,25 @@ class RecruitCopyTest extends IntegrationTest {
         // 남이 남의 모집을 복제할 수 없다
         String d2 = LocalDate.now().plusDays(10).toString();
         assertNotEquals(200, post("/api/adm/recruit/insertRecruitCopy.do",
-                "{\"dbKey\":\"" + rid + "\",\"meetDt\":\"" + d2 + "\"}", other).statusCode(), "비주최자 복제 차단");
+                "{\"rowId\":\"" + rid + "\",\"meetDt\":\"" + d2 + "\"}", other).statusCode(), "비주최자 복제 차단");
         assertNotEquals(200, post("/api/adm/recruit/insertRecruitCopy.do",
-                "{\"dbKey\":\"" + rid + "\",\"meetDt\":\"" + d2 + "\"}", null).statusCode(), "비로그인 복제 차단");
+                "{\"rowId\":\"" + rid + "\",\"meetDt\":\"" + d2 + "\"}", null).statusCode(), "비로그인 복제 차단");
         // 일정 없이·지난 날짜로는 만들 수 없다
         assertNotEquals(200, post("/api/adm/recruit/insertRecruitCopy.do",
-                "{\"dbKey\":\"" + rid + "\"}", host).statusCode(), "일정 필수");
+                "{\"rowId\":\"" + rid + "\"}", host).statusCode(), "일정 필수");
         assertNotEquals(200, post("/api/adm/recruit/insertRecruitCopy.do",
-                "{\"dbKey\":\"" + rid + "\",\"meetDt\":\"" + LocalDate.now().minusDays(1) + "\"}", host).statusCode(),
+                "{\"rowId\":\"" + rid + "\",\"meetDt\":\"" + LocalDate.now().minusDays(1) + "\"}", host).statusCode(),
                 "지난 날짜 차단");
 
         int notiBefore = notiCnt("cpmem");
 
         // 복제(일정만 변경) — 새 모집 ID 반환
         String nid = JsonPath.read(post("/api/adm/recruit/insertRecruitCopy.do",
-                "{\"dbKey\":\"" + rid + "\",\"meetDt\":\"" + d2 + "\"}", host).body(), "$.data");
+                "{\"rowId\":\"" + rid + "\",\"meetDt\":\"" + d2 + "\"}", host).body(), "$.data");
         assertNotNull(nid);
         assertNotEquals(rid, nid, "새 모집이 만들어진다");
 
-        String body = post("/api/adm/recruit/selectRecruitView.do", "{\"dbKey\":\"" + nid + "\"}", host).body();
+        String body = post("/api/adm/recruit/selectRecruitView.do", "{\"rowId\":\"" + nid + "\"}", host).body();
         assertEquals("주말 정기산행", JsonPath.read(body, "$.data.title"), "제목 승계");
         assertEquals("매주 토요일", JsonPath.read(body, "$.data.content"), "설명 승계");
         assertEquals("4", String.valueOf(JsonPath.<Object>read(body, "$.data.capacity")), "정원 승계");
@@ -103,7 +103,7 @@ class RecruitCopyTest extends IntegrationTest {
                 "{\"recruitId\":\"" + nid + "\"}", mem).statusCode());
 
         // 원본은 그대로 남는다(복제는 원본을 건드리지 않는다)
-        String srcBody = post("/api/adm/recruit/selectRecruitView.do", "{\"dbKey\":\"" + rid + "\"}", host).body();
+        String srcBody = post("/api/adm/recruit/selectRecruitView.do", "{\"rowId\":\"" + rid + "\"}", host).body();
         assertEquals(d1, JsonPath.read(srcBody, "$.data.meetDt"), "원본 일정 유지");
         assertEquals("1", String.valueOf(JsonPath.<Object>read(srcBody, "$.data.acceptedCnt")), "원본 참여자 유지");
         assertEquals(1, jdbc.queryForObject(

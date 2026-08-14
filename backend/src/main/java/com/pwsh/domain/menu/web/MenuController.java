@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 메뉴 관리 — 컨트롤러는 매핑만, 로직은 {@link MenuService}.
- * selectMenuList{path}: ''=목록 / Tree=사이드바(권한필터) / ManageTree=관리트리 · updateMenu{path}: ''=수정 / ordr=교환
+ * selectMenuList{variant}: ''=목록 / Tree=사이드바(권한필터) / ManageTree=관리트리 · updateMenu{variant}: ''=수정 / ordr=교환
  */
 @RestController
 @RequestMapping("/api/adm/menu")
@@ -25,14 +25,14 @@ public class MenuController {
     private final MenuService menuService;
 
     /** 목록 계열: ''=페이징목록 / Tree=사이드바 트리 / ManageTree=관리 트리 */
-    @RequestMapping("/selectMenuList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectMenuList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable(name = "variant", required = false) String variant,
                                      @RequestBody(required = false) MenuVO searchVO) {
         MenuVO vo = searchVO == null ? new MenuVO() : searchVO;
-        if ("Tree".equals(path)) {
+        if ("Tree".equals(variant)) {
             return ApiResponse.ok(menuService.selectMenuTree(vo));
         }
-        if ("ManageTree".equals(path)) {
+        if ("ManageTree".equals(variant)) {
             return ApiResponse.ok(menuService.selectManageTree(vo));
         }
         int totCnt = menuService.selectListTotCnt(vo);
@@ -54,13 +54,13 @@ public class MenuController {
         return ApiResponse.ok();
     }
 
-    /** 수정. path: "ordr"=정렬 교환, 빈값=일반수정 */
-    @RequestMapping("/updateMenu{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    /** 수정. variant: "ordr"=정렬 교환, 빈값=일반수정 */
+    @RequestMapping("/updateMenu{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody MenuVO searchVO) {
-        if ("Ordr".equals(path)) {
+        if ("Ordr".equals(variant)) {
             menuService.swapOrdr(searchVO);
-        } else if (StringUtil.isEmpty(path)) {
+        } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getMenuNm(), "메뉴명");
             menuService.update(searchVO);
         }

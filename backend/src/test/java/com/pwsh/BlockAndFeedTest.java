@@ -28,11 +28,11 @@ class BlockAndFeedTest extends IntegrationTest {
         String hobbyIn = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
                 "{\"hobbyNm\":\"피드담은취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String boardIn = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
-                "{\"dbKey\":\"" + hobbyIn + "\"}", null).body(), "$.data.bbsinfoId");
+                "{\"rowId\":\"" + hobbyIn + "\"}", null).body(), "$.data.bbsinfoId");
         String hobbyOut = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
                 "{\"hobbyNm\":\"피드안담은취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String boardOut = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
-                "{\"dbKey\":\"" + hobbyOut + "\"}", null).body(), "$.data.bbsinfoId");
+                "{\"rowId\":\"" + hobbyOut + "\"}", null).body(), "$.data.bbsinfoId");
 
         assertEquals(200, signup("blkme", "차단하는사람", "blkme@test.local").statusCode());
         assertEquals(200, signup("blkyou", "차단당하는사람", "blkyou@test.local").statusCode());
@@ -109,7 +109,7 @@ class BlockAndFeedTest extends IntegrationTest {
         String afterBlock = post("/api/adm/bbs/selectBbsList.do",
                 "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", me).body();
         int totAfter = JsonPath.read(afterBlock, "$.data.totCnt");
-        List<Object> ids = JsonPath.read(afterBlock, "$.data.list[?(@.dbKey=='" + postIn + "')]");
+        List<Object> ids = JsonPath.read(afterBlock, "$.data.list[?(@.rowId=='" + postIn + "')]");
         assertEquals(0, ids.size(), "차단 회원의 글이 내 목록에 남아 있다");
         assertTrue(totAfter < totBefore, "totCnt도 함께 줄어야 한다 (" + totBefore + " -> " + totAfter + ")");
         assertEquals(totAfter, ((List<Object>) JsonPath.read(afterBlock, "$.data.list")).size(),
@@ -121,7 +121,7 @@ class BlockAndFeedTest extends IntegrationTest {
 
         // 모집 목록에서도 제외
         String recList = post("/api/adm/recruit/selectRecruitList.do", "{\"pageIndex\":1,\"size\":50}", me).body();
-        assertEquals(0, ((List<Object>) JsonPath.read(recList, "$.data.list[?(@.dbKey=='" + recIn + "')]")).size(),
+        assertEquals(0, ((List<Object>) JsonPath.read(recList, "$.data.list[?(@.rowId=='" + recIn + "')]")).size(),
                 "차단 회원의 모집이 보인다");
 
         // 피드에서도 제외
@@ -132,7 +132,7 @@ class BlockAndFeedTest extends IntegrationTest {
         // 다른 사람(비로그인)에게는 그대로 보인다 — 차단은 내 화면에만 적용
         String guestList = post("/api/adm/bbs/selectBbsList.do",
                 "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", null).body();
-        assertEquals(1, ((List<Object>) JsonPath.read(guestList, "$.data.list[?(@.dbKey=='" + postIn + "')]")).size(),
+        assertEquals(1, ((List<Object>) JsonPath.read(guestList, "$.data.list[?(@.rowId=='" + postIn + "')]")).size(),
                 "차단은 나에게만 적용돼야 한다");
 
         // 해제하면 복원
@@ -140,15 +140,15 @@ class BlockAndFeedTest extends IntegrationTest {
                 "{\"blockedHandle\":\"" + yourHandle + "\"}", me).statusCode());
         String restored = post("/api/adm/bbs/selectBbsList.do",
                 "{\"bbsinfoId\":\"" + boardIn + "\",\"pageIndex\":1,\"size\":50}", me).body();
-        assertEquals(1, ((List<Object>) JsonPath.read(restored, "$.data.list[?(@.dbKey=='" + postIn + "')]")).size(),
+        assertEquals(1, ((List<Object>) JsonPath.read(restored, "$.data.list[?(@.rowId=='" + postIn + "')]")).size(),
                 "차단 해제 후 복원되지 않았다");
         assertEquals(totBefore, (int) (Integer) JsonPath.read(restored, "$.data.totCnt"));
     }
 
     /** 피드 응답에 해당 유형·PK 항목이 있는지. */
-    private boolean feedHas(String body, String feedType, String dbKey) {
+    private boolean feedHas(String body, String feedType, String rowId) {
         List<Object> hit = JsonPath.read(body,
-                "$.data.list[?(@.feedType=='" + feedType + "' && @.dbKey=='" + dbKey + "')]");
+                "$.data.list[?(@.feedType=='" + feedType + "' && @.rowId=='" + rowId + "')]");
         return !hit.isEmpty();
     }
 }

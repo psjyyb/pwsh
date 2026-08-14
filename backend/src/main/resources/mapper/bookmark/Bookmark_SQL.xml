@@ -30,7 +30,7 @@
 
     <!-- 내 북마크 목록(게시글) — 삭제된 대상은 제외 -->
     <select id="selectMyBbsList" parameterType="bookmarkVO" resultType="bookmarkVO">
-        SELECT bm.bookmark_id::TEXT AS db_key, bm.target_type, bm.target_id,
+        SELECT bm.bookmark_id::TEXT AS row_id, bm.target_type, bm.target_id,
                b.title, b.bbsinfo_id, bi.bbsinfo_nm AS sub_nm,
                TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
         FROM t_bookmark bm
@@ -42,7 +42,7 @@
 
     <!-- 내 북마크 목록(모집) -->
     <select id="selectMyRecruitList" parameterType="bookmarkVO" resultType="bookmarkVO">
-        SELECT bm.bookmark_id::TEXT AS db_key, bm.target_type, bm.target_id,
+        SELECT bm.bookmark_id::TEXT AS row_id, bm.target_type, bm.target_id,
                r.title, ho.hobby_nm AS sub_nm, sc.code_nm AS status_nm,
                TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
         FROM t_bookmark bm

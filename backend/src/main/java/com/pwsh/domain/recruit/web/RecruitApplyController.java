@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 모집 참여 신청 (모집의 하위 엔티티, 댓글(CommentController) 패턴의 peer 컨트롤러).
  * 로직은 {@link RecruitService}(모집 도메인 단일 서비스)에 위임.
- * selectRecruitApplyList{path}: ''=특정 모집 신청자 목록(주최자·관리자) / Mine=내 신청 내역.
+ * selectRecruitApplyList{variant}: ''=특정 모집 신청자 목록(주최자·관리자) / Mine=내 신청 내역.
  * insert=참여신청(회원), update=수락/거절(주최자·관리자), delete=신청취소(본인·관리자).
  */
 @RestController
@@ -24,10 +24,10 @@ public class RecruitApplyController {
 
     private final RecruitService recruitService;
 
-    @RequestMapping("/selectRecruitApplyList{path}.do")
-    public ApiResponse<List<RecruitApplyVO>> selectList(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectRecruitApplyList{variant}.do")
+    public ApiResponse<List<RecruitApplyVO>> selectList(@PathVariable(name = "variant", required = false) String variant,
                                                         @RequestBody RecruitApplyVO searchVO) {
-        if ("Mine".equals(path)) {
+        if ("Mine".equals(variant)) {
             return ApiResponse.ok(recruitService.selectApplyListMine(searchVO));
         }
         Validate.required(searchVO.getRecruitId(), "모집");
@@ -41,12 +41,12 @@ public class RecruitApplyController {
         return ApiResponse.ok();
     }
 
-    /** update{path}: ''=수락/거절 / Attend=참석 결과 기록(주최자·관리자, 모임 종료 후) */
-    @RequestMapping("/updateRecruitApply{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    /** update{variant}: ''=수락/거절 / Attend=참석 결과 기록(주최자·관리자, 모임 종료 후) */
+    @RequestMapping("/updateRecruitApply{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody RecruitApplyVO searchVO) {
-        if ("Attend".equals(path)) {
-            Validate.required(searchVO.getDbKey(), "신청");
+        if ("Attend".equals(variant)) {
+            Validate.required(searchVO.getRowId(), "신청");
             recruitService.applyAttend(searchVO);
             return ApiResponse.ok();
         }

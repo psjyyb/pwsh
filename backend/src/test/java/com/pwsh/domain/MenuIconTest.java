@@ -26,9 +26,9 @@ class MenuIconTest extends IntegrationTest {
         assertThat(icons).contains("star");
 
         // 정리: 등록한 테스트 메뉴 삭제
-        List<String> ids = JsonPath.read(tree.body(), "$.data[?(@.menuNm=='아이콘테스트')].dbKey");
+        List<String> ids = JsonPath.read(tree.body(), "$.data[?(@.menuNm=='아이콘테스트')].rowId");
         for (String id : ids) {
-            post("/api/adm/menu/deleteMenu.do", "{\"dbKey\":\"" + id + "\"}", admin);
+            post("/api/adm/menu/deleteMenu.do", "{\"rowId\":\"" + id + "\"}", admin);
         }
     }
 }

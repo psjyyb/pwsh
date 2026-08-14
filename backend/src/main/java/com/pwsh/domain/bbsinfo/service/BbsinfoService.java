@@ -31,7 +31,7 @@ public class BbsinfoService {
     }
 
     public BbsinfoVO selectView(BbsinfoVO vo) {
-        genAccessGuard.checkBoard(vo.getDbKey());
+        genAccessGuard.checkBoard(vo.getRowId());
         return commonDAO.selectOne("bbsinfoDAO.selectView", vo);
     }
 

@@ -13,13 +13,13 @@ interface Props {
 
 /**
  * 일반페이지 선택 팝업 — 제목으로 검색해 한 건 선택. (메뉴 연결유형=페이지 등에서 재사용)
- * 선택 시 onSelect(page)로 전체 정보를 넘김(연결에는 page.dbKey=page_id 사용).
+ * 선택 시 onSelect(page)로 전체 정보를 넘김(연결에는 page.rowId=page_id 사용).
  */
 export default function PagePickerModal({ open, onSelect, onClose }: Props) {
   const { rows, total, loading, page, size, search, changePage } = useList<Page>(PAGE_LIST_URL)
 
   const columns: TableColumnsType<Page> = [
-    { title: '페이지ID', dataIndex: 'dbKey', width: 90 },
+    { title: '페이지ID', dataIndex: 'rowId', width: 90 },
     { title: '제목', dataIndex: 'title' },
     {
       title: '',
@@ -39,7 +39,7 @@ export default function PagePickerModal({ open, onSelect, onClose }: Props) {
         onSearch={(v) => search(v)}
       />
       <Table<Page>
-        rowKey="dbKey"
+        rowKey="rowId"
         size="small"
         columns={columns}
         dataSource={rows}

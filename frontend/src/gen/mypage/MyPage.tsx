@@ -147,10 +147,10 @@ export default function MyPage() {
   const scheduleAll: ScheduleItem[] = (() => {
     const mine = recruits
       .filter((r) => r.meetDt)
-      .map((r) => ({ key: `h-${r.dbKey}`, id: r.dbKey!, title: r.title ?? '', meetDt: r.meetDt!, region: r.region, role: '주최' as const }))
+      .map((r) => ({ key: `h-${r.rowId}`, id: r.rowId!, title: r.title ?? '', meetDt: r.meetDt!, region: r.region, role: '주최' as const }))
     const joined = applies
       .filter((a) => a.applyStatus === 'APPLY02' && a.meetDt)
-      .map((a) => ({ key: `a-${a.dbKey}`, id: a.recruitId!, title: a.recruitTitle ?? '', meetDt: a.meetDt!, region: a.region, role: '참여' as const }))
+      .map((a) => ({ key: `a-${a.rowId}`, id: a.recruitId!, title: a.recruitTitle ?? '', meetDt: a.meetDt!, region: a.region, role: '참여' as const }))
     return [...mine, ...joined].sort((x, y) => x.meetDt.localeCompare(y.meetDt))
   })()
 
@@ -254,9 +254,9 @@ export default function MyPage() {
     }
   }
 
-  const cancelApply = async (dbKey: string) => {
+  const cancelApply = async (rowId: string) => {
     try {
-      await applyApi.cancel(dbKey)
+      await applyApi.cancel(rowId)
       setApplies(await applyApi.mine())
     } catch (e) {
       message.error(e instanceof Error ? e.message : '취소 실패')
@@ -299,7 +299,7 @@ export default function MyPage() {
         </Space>
       ),
     },
-    { title: '', width: 80, render: (_, r) => (r.applyStatus !== 'APPLY02' ? <a onClick={(e) => { e.stopPropagation(); cancelApply(r.dbKey!) }}>취소</a> : null) },
+    { title: '', width: 80, render: (_, r) => (r.applyStatus !== 'APPLY02' ? <a onClick={(e) => { e.stopPropagation(); cancelApply(r.rowId!) }}>취소</a> : null) },
   ]
 
   return (
@@ -376,23 +376,23 @@ export default function MyPage() {
       {/* 내가 쓴 글 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('📝', '내가 쓴 글', posts.length)}>
         {posts.length === 0 ? <Empty description="작성한 글이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<Bbs> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={postCols} dataSource={posts} pagination={false}
-            onRow={(r) => ({ onClick: () => navigate(`/gen/board/${r.bbsinfoId}?post=${r.dbKey}`), style: { cursor: 'pointer' } })} />
+          <Table<Bbs> rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={postCols} dataSource={posts} pagination={false}
+            onRow={(r) => ({ onClick: () => navigate(`/gen/board/${r.bbsinfoId}?post=${r.rowId}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
 
       {/* 내가 연 모집 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('📣', '내가 연 모집', recruits.length)}>
         {recruits.length === 0 ? <Empty description="등록한 모집이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<Recruit> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={recruitCols} dataSource={recruits} pagination={false}
-            onRow={(r) => ({ onClick: () => navigate(`/gen/recruit/${r.dbKey}`), style: { cursor: 'pointer' } })} />
+          <Table<Recruit> rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={recruitCols} dataSource={recruits} pagination={false}
+            onRow={(r) => ({ onClick: () => navigate(`/gen/recruit/${r.rowId}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
 
       {/* 내가 신청한 모집 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('✋', '내가 신청한 모집', applies.length)}>
         {applies.length === 0 ? <Empty description="신청한 모집이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<RecruitApply> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={applyCols} dataSource={applies} pagination={false}
+          <Table<RecruitApply> rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={applyCols} dataSource={applies} pagination={false}
             onRow={(r) => ({ onClick: () => navigate(`/gen/recruit/${r.recruitId}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
@@ -404,7 +404,7 @@ export default function MyPage() {
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size={6}>
             {bmPosts.map((b) => (
-              <div key={`b-${b.dbKey}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div key={`b-${b.rowId}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Tag color="cyan" style={{ flexShrink: 0 }}>{b.subNm || '게시판'}</Tag>
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                   onClick={() => navigate(`/gen/board/${b.bbsinfoId}?post=${b.targetId}`)}>{b.title}</span>
@@ -412,7 +412,7 @@ export default function MyPage() {
               </div>
             ))}
             {bmRecruits.map((b) => (
-              <div key={`r-${b.dbKey}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div key={`r-${b.rowId}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Tag color="purple" style={{ flexShrink: 0 }}>{b.subNm || '모집'}</Tag>
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                   onClick={() => navigate(`/gen/recruit/${b.targetId}`)}>{b.title}</span>
@@ -431,7 +431,7 @@ export default function MyPage() {
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             {blocks.map((b) => (
-              <div key={b.dbKey} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div key={b.rowId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }} onClick={() => navigate(`/gen/user/${b.blockedHandle}`)}>
                   {b.blockedNm || '-'}
                 </span>

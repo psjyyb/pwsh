@@ -5,7 +5,7 @@
 
 ## 이 프로젝트의 도메인
 - **취미 게시판**: 취미(등산·보드게임·낚시…) 1개 = 게시판 1개. 게시판/댓글/첨부/권한은 틀의 기능을 그대로 쓴다. 취미 추가 = 기초데이터에 게시판 + 메뉴 등록만(코드 수정 없음). 작성자 표기는 **닉네임**.
-- **모집**(`domain/recruit`): 모임원 모집 + 참여신청(수락/거절/대기) + 참석 기록 + **확정자 단체 대화**(SSE 실시간) + **다음 회차 복제**. `RecruitController`(5메서드, `insertRecruit{path}` ''=신규/Copy=복제, `updateRecruit{path}` ''=수정/Status=마감) + `RecruitApplyController`·`RecruitChatController`(peer) + 단일 `RecruitService`. 목록/조회는 공개, 등록·신청·수락은 로그인(세부 인가는 서비스의 `assertOwnerOrAdmin`).
+- **모집**(`domain/recruit`): 모임원 모집 + 참여신청(수락/거절/대기) + 참석 기록 + **확정자 단체 대화**(SSE 실시간) + **다음 회차 복제**. `RecruitController`(5메서드, `insertRecruit{variant}` ''=신규/Copy=복제, `updateRecruit{variant}` ''=수정/Status=마감) + `RecruitApplyController`·`RecruitChatController`(peer) + 단일 `RecruitService`. 목록/조회는 공개, 등록·신청·수락은 로그인(세부 인가는 서비스의 `assertOwnerOrAdmin`).
 - **부가 도메인**: 알림·쪽지(SSE)·후기·북마크·차단·신고·통합검색·내 취미 피드·활동 배지·마이페이지(내 일정 캘린더).
 - **셀프 회원가입**: `POST /api/auth/signup`(공개, 이메일 인증 + 닉네임 필수). 프론트 공개 라우트 `/signup`.
 
@@ -16,13 +16,13 @@
 
 ## ★ 백엔드 도메인 패턴 (반드시 준수)
 - **레이어**: Controller(매핑·입력검증만) → **단일 `@Service`**(로직+`@Transactional`, 인터페이스/Impl 분리 없음) → `CommonDAO`(MyBatis).
-- **컨트롤러 5메서드 고정 + `{path}` 분기.** URL·sql_id는 **리터럴**(상수화 금지 — grep 추적성).
-  - `select{Name}List{path}.do` · `select{Name}View.do` · `insert{Name}{path}.do` · `update{Name}{path}.do` · `delete{Name}.do` (전부 `@RequestMapping("/api/adm/{name}/...")`).
-  - 변형은 `{path}`로 흡수: 예 `updateUserPassword.do`(비번), `updateUserForceLogout.do`(강제로그아웃), `updateMenuOrdr.do`(정렬).
+- **컨트롤러 5메서드 고정 + `{variant}` 분기.** URL·sql_id는 **리터럴**(상수화 금지 — grep 추적성).
+  - `select{Name}List{variant}.do` · `select{Name}View.do` · `insert{Name}{variant}.do` · `update{Name}{variant}.do` · `delete{Name}.do` (전부 `@RequestMapping("/api/adm/{name}/...")`).
+  - 변형은 `{variant}`로 흡수: 예 `updateUserPassword.do`(비번), `updateUserForceLogout.do`(강제로그아웃), `updateMenuOrdr.do`(정렬).
   - 입력 필수검증은 컨트롤러 진입부 `Validate.required(value, "라벨")`.
 - 요청 **JSON `@RequestBody`**, 응답 **`ApiResponse{success,data,error}`**. 목록 data=`{list,totCnt,page}`. 예외는 `GlobalExceptionHandler`가 처리(컨트롤러 try/catch 금지).
-- **VO**: `BaseVO` 상속(`dbKey`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
-- **매퍼**: `resultType`=VO, PK는 문자열로 캐스팅해 VO의 `dbKey`로 받는다. `${}` 절대 금지(전부 `#{}`). 논리삭제 플래그로 항상 필터. 등록/수정 이력 값은 `AuditInterceptor`가 자동 세팅.
+- **VO**: `BaseVO` 상속(`rowId`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
+- **매퍼**: `resultType`=VO, PK는 문자열로 캐스팅해 VO의 `rowId`로 받는다. `${}` 절대 금지(전부 `#{}`). 논리삭제 플래그로 항상 필터. 등록/수정 이력 값은 `AuditInterceptor`가 자동 세팅.
 
 ## ★ 새 도메인 추가 순서
 1. `sql/schema.sql`에 테이블 1개(자동증가 PK + 등록/수정 이력 + 논리삭제 플래그 — 기존 테이블 형태를 그대로 따른다), 필요 시 `data.sql`에 시드. 자주 조회하는 컬럼엔 인덱스.

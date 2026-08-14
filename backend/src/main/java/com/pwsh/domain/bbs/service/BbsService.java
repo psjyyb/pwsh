@@ -70,7 +70,7 @@ public class BbsService {
                         && passwordEncoder.matches(inputPw, post.getBbsPw());
                 if (!pwOk) {
                     BbsVO locked = new BbsVO();
-                    locked.setDbKey(post.getDbKey());
+                    locked.setRowId(post.getRowId());
                     locked.setBbsinfoId(post.getBbsinfoId());
                     locked.setTitle("비밀글입니다.");
                     locked.setSecretYn("Y");
@@ -88,14 +88,14 @@ public class BbsService {
     }
 
     /**
-     * 등록 후 생성된 게시글 ID는 vo.dbKey에 세팅됨(useGeneratedKeys). 접근 불가 게시판엔 작성 차단.
+     * 등록 후 생성된 게시글 ID는 vo.rowId에 세팅됨(useGeneratedKeys). 접근 불가 게시판엔 작성 차단.
      * pBbsId가 있으면 답글 — 원글의 게시판을 상속하고 depth+1로 저장(스레드 표시는 목록 CTE가 처리).
      */
     public void insert(BbsVO vo) {
         String pId = vo.getPBbsId();
         if (pId != null && !pId.isEmpty() && !"0".equals(pId)) {
             BbsVO key = new BbsVO();
-            key.setDbKey(pId);
+            key.setRowId(pId);
             BbsVO parent = commonDAO.selectOne("bbsDAO.selectView", key);
             if (parent == null) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "원글을 찾을 수 없습니다.");
@@ -131,7 +131,7 @@ public class BbsService {
         loadForModify(vo);
         commonDAO.delete("bbsDAO.delete", vo);
         commonDAO.update("fileDAO.deactivateFilesByOwner",
-                Map.of("mapKey", vo.getDbKey(), "locs", List.of("BBS", "BBS_IMG", "BBS_EDITOR")));
+                Map.of("mapKey", vo.getRowId(), "locs", List.of("BBS", "BBS_IMG", "BBS_EDITOR")));
     }
 
     /** 현재 조회자 id(비로그인/system은 null → liked_yn 'N'). */

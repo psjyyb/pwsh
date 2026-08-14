@@ -3,7 +3,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 팝업 VO */
 export interface Popup {
-  dbKey?: string // PK(pop_id)
+  rowId?: string // PK(pop_id)
   popNm?: string
   startDt?: string
   endDt?: string
@@ -21,9 +21,9 @@ export interface Popup {
 export const popupApi = {
   ...createCrudApi<Popup>('/adm/popup', 'Popup'),
   /** 순서 변경(인접 팝업과 교환) */
-  moveOrdr: (dbKey: string, direction: 'UP' | 'DOWN') =>
-    apiPost<void>('/adm/popup/updatePopupOrdr.do', { dbKey, searchCondition: direction }),
-  /** 사용자 메인 노출용(사용중+기간내) 팝업 목록 — selectList{path=Main} */
+  moveOrdr: (rowId: string, direction: 'UP' | 'DOWN') =>
+    apiPost<void>('/adm/popup/updatePopupOrdr.do', { rowId, searchCondition: direction }),
+  /** 사용자 메인 노출용(사용중+기간내) 팝업 목록 — selectList{variant=Main} */
   mainList: () => apiPost<Popup[]>('/adm/popup/selectPopupListMain.do', {}),
 }
 export const POPUP_LIST_URL = popupApi.listUrl

@@ -72,7 +72,7 @@ export default function RecruitPage() {
   // 취미 카테고리 = t_hobby 카탈로그
   useEffect(() => {
     hobbyApi.listAll()
-      .then((list) => setCategories(list.map((h) => ({ hobbyId: h.dbKey!, name: h.hobbyNm ?? '' }))))
+      .then((list) => setCategories(list.map((h) => ({ hobbyId: h.rowId!, name: h.hobbyNm ?? '' }))))
       .catch(() => {})
   }, [])
 
@@ -100,22 +100,22 @@ export default function RecruitPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCat, filterStatus, filterArea])
 
-  const openView = async (dbKey: string) => {
+  const openView = async (rowId: string) => {
     try {
-      const countUp = !hasViewedRecently(`recruit-${dbKey}`) // 새로고침 중복증가 방지
-      const r = await recruitApi.view(dbKey, countUp)
-      if (countUp) markViewed(`recruit-${dbKey}`)
+      const countUp = !hasViewedRecently(`recruit-${rowId}`) // 새로고침 중복증가 방지
+      const r = await recruitApi.view(rowId, countUp)
+      if (countUp) markViewed(`recruit-${rowId}`)
       setRecruit(r)
       if (meId) {
-        bookmarkApi.ids('RECRUIT').then((ids) => setBookmarked(ids.includes(dbKey))).catch(() => setBookmarked(false))
+        bookmarkApi.ids('RECRUIT').then((ids) => setBookmarked(ids.includes(rowId))).catch(() => setBookmarked(false))
       } else {
         setBookmarked(false)
       }
       const owner = admin || r.mineYn === 'Y'
-      setApplies(owner ? await applyApi.listByRecruit(dbKey) : [])
+      setApplies(owner ? await applyApi.listByRecruit(rowId) : [])
       if (loggedIn && !owner) {
         const mine = await applyApi.mine()
-        setMyApply(mine.find((a) => a.recruitId === dbKey) ?? null)
+        setMyApply(mine.find((a) => a.recruitId === rowId) ?? null)
       } else {
         setMyApply(null)
       }
@@ -137,7 +137,7 @@ export default function RecruitPage() {
 
   const openWrite = (r?: Recruit) => {
     if (r) {
-      setEditKey(r.dbKey!)
+      setEditKey(r.rowId!)
       form.setFieldsValue({
         hobbyId: r.hobbyId, title: r.title, capacity: r.capacity ? Number(r.capacity) : undefined,
         areaCd: r.areaCd, region: r.region, meetDt: r.meetDt, content: r.content,
@@ -157,7 +157,7 @@ export default function RecruitPage() {
       areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt ?? '', content: v.content ?? '',
     }
     try {
-      if (editKey) await recruitApi.update({ ...payload, dbKey: editKey })
+      if (editKey) await recruitApi.update({ ...payload, rowId: editKey })
       else await recruitApi.insert(payload)
       message.success('저장되었습니다.')
       setMode('list')
@@ -170,7 +170,7 @@ export default function RecruitPage() {
   const remove = async () => {
     if (!recruit) return
     try {
-      await recruitApi.remove(recruit.dbKey!)
+      await recruitApi.remove(recruit.rowId!)
       message.success('삭제되었습니다.')
       setMode('list')
       loadList(1)
@@ -184,7 +184,7 @@ export default function RecruitPage() {
     if (!recruit) return
     try {
       await applyApi.setAttend(applyId, attendCd)
-      setApplies(await applyApi.listByRecruit(recruit.dbKey!))
+      setApplies(await applyApi.listByRecruit(recruit.rowId!))
       message.success(attendCd ? '참석 결과를 기록했습니다.' : '참석 기록을 지웠습니다.')
     } catch (e) {
       message.error(e instanceof Error ? e.message : '기록 실패')
@@ -195,7 +195,7 @@ export default function RecruitPage() {
   const toggleBookmark = async () => {
     if (!recruit) return
     try {
-      const r = await bookmarkApi.toggle('RECRUIT', recruit.dbKey!)
+      const r = await bookmarkApi.toggle('RECRUIT', recruit.rowId!)
       const on = r.markedYn === 'Y'
       setBookmarked(on)
       message.success(on ? '북마크에 저장했습니다.' : '북마크를 해제했습니다.')
@@ -220,7 +220,7 @@ export default function RecruitPage() {
     const v = await copyForm.validateFields()
     setCopying(true)
     try {
-      const newId = await recruitApi.copy(recruit.dbKey!, {
+      const newId = await recruitApi.copy(recruit.rowId!, {
         title: v.title, capacity: v.capacity != null ? String(v.capacity) : '',
         areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt,
       })
@@ -237,9 +237,9 @@ export default function RecruitPage() {
   const changeStatus = async (statusCd: string) => {
     if (!recruit) return
     try {
-      await recruitApi.changeStatus(recruit.dbKey!, statusCd)
+      await recruitApi.changeStatus(recruit.rowId!, statusCd)
       message.success(statusCd === STATUS_CLOSED ? '마감되었습니다.' : '다시 모집합니다.')
-      openView(recruit.dbKey!)
+      openView(recruit.rowId!)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '상태 변경 실패')
     }
@@ -248,9 +248,9 @@ export default function RecruitPage() {
   const doApply = async () => {
     if (!recruit) return
     try {
-      await applyApi.apply(recruit.dbKey!, applyMemo.trim() || undefined)
+      await applyApi.apply(recruit.rowId!, applyMemo.trim() || undefined)
       message.success('참여 신청했습니다.')
-      openView(recruit.dbKey!)
+      openView(recruit.rowId!)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '신청 실패')
     }
@@ -259,9 +259,9 @@ export default function RecruitPage() {
   const cancelApply = async () => {
     if (!myApply) return
     try {
-      await applyApi.cancel(myApply.dbKey!)
+      await applyApi.cancel(myApply.rowId!)
       message.success('신청을 취소했습니다.')
-      if (recruit) openView(recruit.dbKey!)
+      if (recruit) openView(recruit.rowId!)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '취소 실패')
     }
@@ -271,20 +271,20 @@ export default function RecruitPage() {
   const reApply = async () => {
     if (!myApply || !recruit) return
     try {
-      await applyApi.cancel(myApply.dbKey!)
-      await applyApi.apply(recruit.dbKey!, applyMemo.trim() || undefined)
+      await applyApi.cancel(myApply.rowId!)
+      await applyApi.apply(recruit.rowId!, applyMemo.trim() || undefined)
       message.success('다시 신청했습니다.')
-      openView(recruit.dbKey!)
+      openView(recruit.rowId!)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '재신청 실패')
     }
   }
 
-  const decideApply = async (dbKey: string, applyStatus: string) => {
+  const decideApply = async (rowId: string, applyStatus: string) => {
     try {
-      await applyApi.changeStatus(dbKey, applyStatus)
+      await applyApi.changeStatus(rowId, applyStatus)
       message.success(applyStatus === 'APPLY02' ? '수락했습니다.' : '거절했습니다.')
-      if (recruit) setApplies(await applyApi.listByRecruit(recruit.dbKey!))
+      if (recruit) setApplies(await applyApi.listByRecruit(recruit.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '처리 실패')
     }
@@ -336,7 +336,7 @@ export default function RecruitPage() {
           <>
             <Space direction="vertical" style={{ width: '100%' }} size={10}>
               {rows.map((r) => (
-                <Card key={r.dbKey} size="small" hoverable onClick={() => openView(r.dbKey!)} styles={{ body: { padding: 12 } }}>
+                <Card key={r.rowId} size="small" hoverable onClick={() => openView(r.rowId!)} styles={{ body: { padding: 12 } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                     <span style={{ fontWeight: 600 }}>{r.title}</span>
                     {statusTag(r.statusCd, r.statusNm)}
@@ -357,8 +357,8 @@ export default function RecruitPage() {
           </>
         ) : (
           <Table<Recruit>
-            rowKey="dbKey" size="small" loading={loading} columns={columns} dataSource={rows}
-            onRow={(r) => ({ onClick: () => openView(r.dbKey!), style: { cursor: 'pointer' } })}
+            rowKey="rowId" size="small" loading={loading} columns={columns} dataSource={rows}
+            onRow={(r) => ({ onClick: () => openView(r.rowId!), style: { cursor: 'pointer' } })}
             pagination={{
               current: pageIndex, pageSize: size, total, onChange: (p) => loadList(p),
               showSizeChanger: false,
@@ -405,7 +405,7 @@ export default function RecruitPage() {
             )}
             {/* 신청 전에 궁금한 걸 물어볼 수 있게 — 주최자와의 쪽지 대화로 이동(모집 정보는 자동 입력) */}
             {loggedIn && !owner && recruit.regHandle && (
-              <Button onClick={() => navigate(`/gen/message?with=${recruit.regHandle}&ref=recruit:${recruit.dbKey}`)}>
+              <Button onClick={() => navigate(`/gen/message?with=${recruit.regHandle}&ref=recruit:${recruit.rowId}`)}>
                 문의하기
               </Button>
             )}
@@ -437,7 +437,7 @@ export default function RecruitPage() {
 
         <div style={{ whiteSpace: 'pre-wrap', marginTop: 16, minHeight: 60 }}>{recruit.content}</div>
         {loggedIn && !owner && (
-          <div style={{ marginTop: 8, textAlign: 'right' }}><ReportAction targetType="RECRUIT" targetId={recruit.dbKey!} /></div>
+          <div style={{ marginTop: 8, textAlign: 'right' }}><ReportAction targetType="RECRUIT" targetId={recruit.rowId!} /></div>
         )}
 
         {/* 참여 신청 영역(비주최자) */}
@@ -484,7 +484,7 @@ export default function RecruitPage() {
         )}
 
         {/* 모임 대화 — 주최자 본인 또는 수락(APPLY02)된 참여자만. 관리자라도 멤버가 아니면 서버가 막는다. */}
-        {chatMember && <RecruitChatPanel recruitId={recruit.dbKey!} />}
+        {chatMember && <RecruitChatPanel recruitId={recruit.rowId!} />}
 
         {/* 신청자 목록(주최자·관리자) */}
         {owner && (
@@ -497,7 +497,7 @@ export default function RecruitPage() {
               </div>
             )}
             <Table<RecruitApply>
-              rowKey="dbKey" size="small" style={{ marginTop: 8 }} pagination={false}
+              rowKey="rowId" size="small" style={{ marginTop: 8 }} pagination={false}
               dataSource={applies}
               locale={{ emptyText: '신청자가 없습니다.' }}
               columns={[
@@ -524,7 +524,7 @@ export default function RecruitPage() {
                     return (
                       <Select
                         size="small" style={{ width: 170 }} value={a.attendCd ?? ''}
-                        onChange={(v) => setAttend(a.dbKey!, v)}
+                        onChange={(v) => setAttend(a.rowId!, v)}
                         options={[
                           { value: '', label: '미기록' },
                           { value: 'ATTEND01', label: '참석' },
@@ -540,8 +540,8 @@ export default function RecruitPage() {
                   render: (_, a) =>
                     a.applyStatus === 'APPLY01' ? (
                       <Space>
-                        <Button size="small" type="primary" onClick={() => decideApply(a.dbKey!, 'APPLY02')}>수락</Button>
-                        <Button size="small" danger onClick={() => decideApply(a.dbKey!, 'APPLY03')}>거절</Button>
+                        <Button size="small" type="primary" onClick={() => decideApply(a.rowId!, 'APPLY02')}>수락</Button>
+                        <Button size="small" danger onClick={() => decideApply(a.rowId!, 'APPLY03')}>거절</Button>
                       </Space>
                     ) : '-',
                 },

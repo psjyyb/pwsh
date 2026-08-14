@@ -14,7 +14,7 @@ import SafeHtml from '../../common/SafeHtml'
 
 /** FAQ 스킨 — 질문(제목) 클릭 시 답변(내용) 아코디언으로 펼침. 작성/수정/삭제는 관리자만. */
 export default function FaqBoard({ board }: { board: Bbsinfo }) {
-  const bbsinfoId = board.dbKey
+  const bbsinfoId = board.rowId
   const admin = isAdmin()
 
   const [rows, setRows] = useState<Bbs[]>([])
@@ -66,8 +66,8 @@ export default function FaqBoard({ board }: { board: Bbsinfo }) {
   }
   const openEdit = async (r: Bbs) => {
     try {
-      const p = await bbsApi.view(r.dbKey!)
-      setEditKey(r.dbKey!)
+      const p = await bbsApi.view(r.rowId!)
+      setEditKey(r.rowId!)
       setContext(p.context ?? '')
       form.setFieldsValue({ title: p.title })
       setMode('write')
@@ -84,7 +84,7 @@ export default function FaqBoard({ board }: { board: Bbsinfo }) {
     }
     try {
       const payload = { bbsinfoId, title: v.title, context: html }
-      const id = editKey ? (await bbsApi.update({ ...payload, dbKey: editKey }), editKey) : await bbsApi.insert(payload)
+      const id = editKey ? (await bbsApi.update({ ...payload, rowId: editKey }), editKey) : await bbsApi.insert(payload)
       // 본문(답변) 에디터 삽입 이미지 추적(고아 판별용)
       await fileApi.saveMapping(id, 'BBS_EDITOR', extractEditorImageIds(html))
       message.success('저장되었습니다.')
@@ -130,7 +130,7 @@ export default function FaqBoard({ board }: { board: Bbsinfo }) {
   }
 
   const items = rows.map((r) => ({
-    key: r.dbKey!,
+    key: r.rowId!,
     label: (
       <span>
         <b style={{ color: '#1677ff', marginRight: 8 }}>Q</b>
@@ -139,11 +139,11 @@ export default function FaqBoard({ board }: { board: Bbsinfo }) {
     ),
     children: (
       <div>
-        <SafeHtml className="toastui-editor-contents" html={answers[r.dbKey!] ?? '불러오는 중…'} />
+        <SafeHtml className="toastui-editor-contents" html={answers[r.rowId!] ?? '불러오는 중…'} />
         {admin && (
           <Space style={{ marginTop: 8 }}>
             <a onClick={() => openEdit(r)}>수정</a>
-            <Popconfirm title="삭제하시겠습니까?" onConfirm={() => remove(r.dbKey!)} okText="삭제" cancelText="취소">
+            <Popconfirm title="삭제하시겠습니까?" onConfirm={() => remove(r.rowId!)} okText="삭제" cancelText="취소">
               <a>삭제</a>
             </Popconfirm>
           </Space>

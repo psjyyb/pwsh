@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class PopupVO extends BaseVO {
 
-    // PK(pop_id)는 BaseVO.dbKey로 통일
+    // PK(pop_id)는 BaseVO.rowId로 통일
     private String popNm;
     private String startDt;
     private String endDt;

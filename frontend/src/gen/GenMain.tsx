@@ -71,7 +71,7 @@ function PopupLayer({ popup, onClose }: { popup: Popup; onClose: () => void }) {
       {href ? <a href={href} target="_blank" rel="noreferrer">{image}</a> : image}
       {popup.txt && <div style={{ padding: 8, fontSize: 13 }}>{popup.txt}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderTop: '1px solid #eee', background: '#f7f7f7', fontSize: 13 }}>
-        <a onClick={() => { hideToday(popup.dbKey!); onClose() }} style={{ cursor: 'pointer' }}>오늘 하루 보지 않기</a>
+        <a onClick={() => { hideToday(popup.rowId!); onClose() }} style={{ cursor: 'pointer' }}>오늘 하루 보지 않기</a>
         <a onClick={onClose} style={{ cursor: 'pointer' }}>닫기</a>
       </div>
     </div>
@@ -119,7 +119,7 @@ export default function GenMain() {
   const [myIds, setMyIds] = useState<Set<string>>(new Set()) // 내가 담은 취미 id
 
   useEffect(() => {
-    popupApi.mainList().then((list) => setPopups(list.filter((p) => !isHidden(p.dbKey)))).catch(() => {})
+    popupApi.mainList().then((list) => setPopups(list.filter((p) => !isHidden(p.rowId)))).catch(() => {})
     if (loggedIn) userHobbyApi.list().then((l) => setMyIds(new Set(l.map((u) => u.hobbyId!).filter(Boolean)))).catch(() => {})
     recruitApi.list({ statusCd: STATUS_OPEN, pageIndex: 1, size: 4 })
       .then((r) => setRecruits(r.list)).catch(() => {})
@@ -127,7 +127,7 @@ export default function GenMain() {
 
     hobbyApi.listAll().then(async (hobbies) => {
       const cats: Category[] = hobbies.map((h) => ({
-        hobbyId: h.dbKey!, bbsinfoId: h.bbsinfoId, name: h.hobbyNm ?? '', count: Number(h.postCnt ?? 0),
+        hobbyId: h.rowId!, bbsinfoId: h.bbsinfoId, name: h.hobbyNm ?? '', count: Number(h.postCnt ?? 0),
         thumbId: h.thumbId, difficultyCd: h.difficultyCd, difficultyNm: h.difficultyNm,
         summary: h.summary, memberCnt: Number(h.memberCnt ?? 0),
       }))
@@ -143,13 +143,13 @@ export default function GenMain() {
       )
       const merged: RecentPost[] = results
         .flatMap(({ cat, res }) => res.list.filter((b) => Number(b.bbsDepth ?? 0) === 0).map((b) => ({ ...b, catName: cat.name })))
-        .sort((a, b) => (b.regDt ?? '').localeCompare(a.regDt ?? '') || Number(b.dbKey) - Number(a.dbKey))
+        .sort((a, b) => (b.regDt ?? '').localeCompare(a.regDt ?? '') || Number(b.rowId) - Number(a.rowId))
         .slice(0, 6)
       setPosts(merged)
     }).catch(() => {})
   }, [])
 
-  const close = (dbKey?: string) => setPopups((prev) => prev.filter((p) => p.dbKey !== dbKey))
+  const close = (rowId?: string) => setPopups((prev) => prev.filter((p) => p.rowId !== rowId))
 
   const toggleMy = async (hobbyId: string) => {
     const has = myIds.has(hobbyId)
@@ -255,8 +255,8 @@ export default function GenMain() {
         ) : (
           <Row gutter={[12, 12]}>
             {recruits.map((r) => (
-              <Col key={r.dbKey} xs={24} sm={12}>
-                <Card hoverable onClick={() => navigate(`/gen/recruit/${r.dbKey}`)} styles={{ body: { padding: 16 } }}>
+              <Col key={r.rowId} xs={24} sm={12}>
+                <Card hoverable onClick={() => navigate(`/gen/recruit/${r.rowId}`)} styles={{ body: { padding: 16 } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span className="gen-tile-chip">{r.hobbyNm}</span>
                     {statusTag(r.statusCd, r.statusNm)}
@@ -280,8 +280,8 @@ export default function GenMain() {
           <SectionHead eyebrow="인기" title="이번 주 많이 읽은 글" />
           <Card styles={{ body: { padding: 0 } }}>
             {best.map((p, i) => (
-              <div key={p.dbKey} className="gen-row"
-                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}
+              <div key={p.rowId} className="gen-row"
+                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
                   borderTop: i === 0 ? 'none' : `1px solid ${gen.line}`,
@@ -310,8 +310,8 @@ export default function GenMain() {
         ) : (
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
-              <div key={p.dbKey} className="gen-row"
-                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.dbKey}`)}
+              <div key={p.rowId} className="gen-row"
+                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
                   borderTop: i === 0 ? 'none' : `1px solid ${gen.line}`,
@@ -329,7 +329,7 @@ export default function GenMain() {
       </section>
 
       {popups.map((p) => (
-        <PopupLayer key={p.dbKey} popup={p} onClose={() => close(p.dbKey)} />
+        <PopupLayer key={p.rowId} popup={p} onClose={() => close(p.rowId)} />
       ))}
     </div>
   )

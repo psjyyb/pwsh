@@ -46,7 +46,7 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid + "\"}", t1).statusCode());
         String a1 = applyId(rid, "wl1");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + a1 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + a1 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
         assertEquals("RECRUIT02", status(rid), "정원 충족 시 자동 마감");
 
         // 정원으로 닫힌 모집 → 대기 신청 허용
@@ -67,16 +67,16 @@ class RecruitWaitlistTest extends IntegrationTest {
         // 정원 초과 수락은 차단(자리가 없을 때)
         String a2 = applyId(rid, "wl2");
         assertNotEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + a2 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode(),
+                "{\"rowId\":\"" + a2 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode(),
                 "정원이 찬 상태에선 수락 불가");
 
         // 자리가 나면(수락자 취소) 대기자를 수락할 수 있다 — 자동 승격은 하지 않는다
         assertEquals(200, post("/api/adm/recruitApply/deleteRecruitApply.do",
-                "{\"dbKey\":\"" + a1 + "\"}", t1).statusCode());
+                "{\"rowId\":\"" + a1 + "\"}", t1).statusCode());
         assertEquals("RECRUIT02", status(rid), "자리가 나도 자동 재개하지 않는다(주최자 판단)");
         assertEquals("APPLY01", applyStatus(a2), "자동 승격되지 않는다");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + a2 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode(),
+                "{\"rowId\":\"" + a2 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode(),
                 "주최자가 대기자를 수락");
         assertEquals("APPLY02", applyStatus(a2));
 
@@ -90,7 +90,7 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"수동마감\",\"capacity\":\"5\","
                         + "\"meetDt\":\"" + future + "\"}", host).body(), "$.data");
         assertEquals(200, post("/api/adm/recruit/updateRecruitStatus.do",
-                "{\"dbKey\":\"" + rid2 + "\",\"statusCd\":\"RECRUIT02\"}", host).statusCode());
+                "{\"rowId\":\"" + rid2 + "\",\"statusCd\":\"RECRUIT02\"}", host).statusCode());
         assertNotEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + rid2 + "\"}", t1).statusCode(),
                 "수동 마감 건은 신청 차단");
@@ -103,7 +103,7 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid3 + "\"}", t1).statusCode());
         String a3 = applyId(rid3, "wl1");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + a3 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + a3 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
         assertEquals("RECRUIT01", status(rid3), "정원 미설정은 자동 마감 없음");
 
         // 이미 지난 모임에는 신청할 수 없다

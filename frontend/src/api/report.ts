@@ -2,7 +2,7 @@ import { apiPost } from './http'
 import type { ListResult } from './http'
 
 export interface Report {
-  dbKey?: string
+  rowId?: string
   targetType?: string // BBS/COMMENT/RECRUIT
   targetId?: string
   reasonCd?: string // 신고 사유 분류(t_code REPORT00)
@@ -23,6 +23,6 @@ export const reportApi = {
   list: (status?: string, pageIndex = 1, size = 20) =>
     apiPost<ListResult<Report>>('/adm/report/selectReportList.do', { status: status ?? '', pageIndex, size }),
   /** 신고 처리(관리자) */
-  updateStatus: (dbKey: string, status: string) =>
-    apiPost<void>('/adm/report/updateReportStatus.do', { dbKey, status }),
+  updateStatus: (rowId: string, status: string) =>
+    apiPost<void>('/adm/report/updateReportStatus.do', { rowId, status }),
 }

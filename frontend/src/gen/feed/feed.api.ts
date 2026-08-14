@@ -3,7 +3,7 @@ import { apiPost } from '../../api/http'
 /** 피드 항목 — feedType으로 게시글/모집을 구분한다(해당 없는 필드는 비어 있음). */
 export interface FeedItem {
   feedType?: 'BBS' | 'RECRUIT'
-  dbKey?: string
+  rowId?: string
   title?: string
   hobbyId?: string
   hobbyNm?: string

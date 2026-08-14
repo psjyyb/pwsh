@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 팝업 관리 — 컨트롤러는 매핑만, 로직은 {@link PopupService}.
- * selectPopupList{path}: ''=목록 / Main=사용자 메인 노출용 · updatePopup{path}: ''=수정 / ordr=교환
+ * selectPopupList{variant}: ''=목록 / Main=사용자 메인 노출용 · updatePopup{variant}: ''=수정 / ordr=교환
  */
 @RestController
 @RequestMapping("/api/adm/popup")
@@ -25,11 +25,11 @@ public class PopupController {
     private final PopupService popupService;
 
     /** 목록 계열: ''=페이징목록 / Main=사용자 메인 노출용(사용중+기간내) */
-    @RequestMapping("/selectPopupList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectPopupList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable(name = "variant", required = false) String variant,
                                      @RequestBody(required = false) PopupVO searchVO) {
         PopupVO vo = searchVO == null ? new PopupVO() : searchVO;
-        if ("Main".equals(path)) {
+        if ("Main".equals(variant)) {
             return ApiResponse.ok(popupService.selectMainList(vo));
         }
         int totCnt = popupService.selectListTotCnt(vo);
@@ -51,13 +51,13 @@ public class PopupController {
         return ApiResponse.ok();
     }
 
-    /** 수정. path: "ordr"=정렬 교환, 빈값=일반수정(+이미지 동기화) */
-    @RequestMapping("/updatePopup{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    /** 수정. variant: "ordr"=정렬 교환, 빈값=일반수정(+이미지 동기화) */
+    @RequestMapping("/updatePopup{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody PopupVO searchVO) {
-        if ("Ordr".equals(path)) {
+        if ("Ordr".equals(variant)) {
             popupService.swapOrdr(searchVO);
-        } else if (StringUtil.isEmpty(path)) {
+        } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getPopNm(), "팝업명");
             popupService.update(searchVO);
         }

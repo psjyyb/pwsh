@@ -3,7 +3,7 @@
 <mapper namespace="pageDAO">
 
     <select id="selectList" parameterType="pageVO" resultType="pageVO">
-        SELECT page_id::TEXT AS db_key, title, use_yn
+        SELECT page_id::TEXT AS row_id, title, use_yn
         FROM t_page
         WHERE use_yn = 'Y'
         <if test="searchKeyword != null and searchKeyword != ''">
@@ -19,8 +19,8 @@
     </select>
 
     <select id="selectView" parameterType="pageVO" resultType="pageVO">
-        SELECT page_id::TEXT AS db_key, title, context, use_yn
-        FROM t_page WHERE page_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT page_id::TEXT AS row_id, title, context, use_yn
+        FROM t_page WHERE page_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="pageVO">
@@ -31,12 +31,12 @@
     <update id="update" parameterType="pageVO">
         UPDATE t_page SET title = #{title}, context = #{context},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE page_id = #{dbKey}::integer
+        WHERE page_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="pageVO">
         UPDATE t_page SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE page_id = #{dbKey}::integer
+        WHERE page_id = #{rowId}::integer
     </update>
 
 </mapper>

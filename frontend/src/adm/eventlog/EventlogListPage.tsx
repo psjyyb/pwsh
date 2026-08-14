@@ -40,13 +40,13 @@ export default function EventlogListPage() {
         onSearch={(v) => search(v)}
       />
       <Table<Eventlog>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
         dataSource={rows}
         loading={loading}
-        rowClassName={(r) => (r.dbKey === selected?.dbKey ? 'ant-table-row-selected' : '')}
+        rowClassName={(r) => (r.rowId === selected?.rowId ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
@@ -59,7 +59,7 @@ export default function EventlogListPage() {
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하세요.</div>
       ) : (
         <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="이벤트ID">{selected.dbKey}</Descriptions.Item>
+          <Descriptions.Item label="이벤트ID">{selected.rowId}</Descriptions.Item>
           <Descriptions.Item label="유형">{selected.eventTypeNm ?? selected.eventType}</Descriptions.Item>
           <Descriptions.Item label="수행자">{selected.userId}</Descriptions.Item>
           <Descriptions.Item label="대상 테이블">{selected.targetTable ?? '-'}</Descriptions.Item>

@@ -28,7 +28,7 @@
 
     <!-- 관리자 신고 목록(상태 필터 옵션) + 대상 제목·신고자 닉네임 -->
     <select id="selectList" parameterType="reportVO" resultType="reportVO">
-        SELECT r.report_id::TEXT AS db_key, r.target_type, r.target_id, r.reason_cd, r.reason, r.status,
+        SELECT r.report_id::TEXT AS row_id, r.target_type, r.target_id, r.reason_cd, r.reason, r.status,
                (SELECT c.code_nm FROM t_code c WHERE c.code_id = r.reason_cd AND c.p_code_id = 'REPORT00') AS reason_nm,
                (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt,
@@ -60,13 +60,13 @@
 
     <update id="updateStatus" parameterType="reportVO">
         UPDATE t_report SET status = #{status}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE report_id = #{dbKey}::integer
+        WHERE report_id = #{rowId}::integer
     </update>
 
     <!-- 신고 단건(대상 조치용): 유형·대상 PK -->
     <select id="selectView" parameterType="reportVO" resultType="reportVO">
-        SELECT report_id::TEXT AS db_key, target_type, target_id, status
-        FROM t_report WHERE report_id = #{dbKey}::integer AND use_yn = 'Y'
+        SELECT report_id::TEXT AS row_id, target_type, target_id, status
+        FROM t_report WHERE report_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <!-- 신고 대상 콘텐츠 숨김/복원(삭제조치=useYn 'N', 되돌리기='Y') -->

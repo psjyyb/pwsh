@@ -18,7 +18,7 @@ function buildTree(list: Code[]): Code[] {
   }
   const build = (pid: string): Code[] =>
     (byParent.get(pid) ?? []).map((c) => {
-      const children = build(c.dbKey!)
+      const children = build(c.rowId!)
       return children.length ? { ...c, children } : { ...c }
     })
   return build('ROOT')
@@ -29,14 +29,14 @@ function filterTree(nodes: Code[], kw: string): Code[] {
   const res: Code[] = []
   for (const n of nodes) {
     const kids = n.children ? filterTree(n.children, kw) : []
-    const hit = (n.codeNm ?? '').includes(kw) || (n.dbKey ?? '').includes(kw)
+    const hit = (n.codeNm ?? '').includes(kw) || (n.rowId ?? '').includes(kw)
     if (hit || kids.length) res.push(kids.length ? { ...n, children: kids } : { ...n, children: undefined })
   }
   return res
 }
 
 function allKeys(nodes: Code[]): string[] {
-  return nodes.flatMap((n) => [n.dbKey!, ...(n.children ? allKeys(n.children) : [])])
+  return nodes.flatMap((n) => [n.rowId!, ...(n.children ? allKeys(n.children) : [])])
 }
 
 /**
@@ -73,7 +73,7 @@ export default function CodeListPage() {
   const isEdit = mode === 'edit'
 
   const move = (row: Code, dir: 'UP' | 'DOWN') =>
-    runWithMessage(() => codeApi.moveOrdr(row.dbKey!, dir), '순서를 변경했습니다.', reload)
+    runWithMessage(() => codeApi.moveOrdr(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   /** 선택 코드 하위에 신규: 부모코드 + 다음 코드ID(연번) + 다음 정렬순서 자동 채움 */
   const addChild = async () => {
@@ -82,14 +82,14 @@ export default function CodeListPage() {
     openNew()
     try {
       const next = await codeApi.nextChild(parent)
-      form.setFieldsValue({ pCodeId: parent, dbKey: next.dbKey, ordr: next.ordr })
+      form.setFieldsValue({ pCodeId: parent, rowId: next.rowId, ordr: next.ordr })
     } catch {
       form.setFieldsValue({ pCodeId: parent })
     }
   }
 
   const columns: TableColumnsType<Code> = [
-    { title: '코드ID', dataIndex: 'dbKey', width: 180 },
+    { title: '코드ID', dataIndex: 'rowId', width: 180 },
     { title: '코드명', dataIndex: 'codeNm' },
     {
       title: '순서',
@@ -111,7 +111,7 @@ export default function CodeListPage() {
         onSearch={(v) => setKeyword(v.searchKeyword ?? '')}
       />
       <Table<Code>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         size="small"
         columns={columns}
@@ -119,8 +119,8 @@ export default function CodeListPage() {
         loading={loading}
         pagination={false}
         expandable={{ expandedRowKeys, onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]) }}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
       />
     </Card>
   )
@@ -143,7 +143,7 @@ export default function CodeListPage() {
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
         <Form form={form} layout="vertical" initialValues={{ pCodeId: 'ROOT' }}>
-          <Form.Item name="dbKey" label="코드ID" rules={[{ required: true, message: '코드ID를 입력하세요.' }]}>
+          <Form.Item name="rowId" label="코드ID" rules={[{ required: true, message: '코드ID를 입력하세요.' }]}>
             <Input disabled={isEdit} />
           </Form.Item>
           <Form.Item name="pCodeId" label="상위코드" rules={[{ required: true, message: '상위코드를 입력하세요.' }]}>

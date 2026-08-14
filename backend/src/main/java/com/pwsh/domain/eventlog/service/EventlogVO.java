@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class EventlogVO extends BaseVO {
 
-    // PK(event_log_id)는 BaseVO.dbKey로 통일
+    // PK(event_log_id)는 BaseVO.rowId로 통일
     private String eventType;    // 행위(t_code EVENT00): LOGIN/INSERT/UPDATE/DELETE
     private String eventTypeNm;  // 행위 한글명(t_code.code_nm 조인, 조회 전용)
     private String userId;       // 수행자(FK)

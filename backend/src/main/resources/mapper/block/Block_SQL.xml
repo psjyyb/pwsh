@@ -20,7 +20,7 @@
     <!-- 내가 차단한 회원 목록(닉네임·프로필 조인) -->
     <select id="selectMyList" parameterType="blockVO" resultType="blockVO">
         <!-- 대상 로그인 ID 미노출 — 클라이언트는 handle로 지목 -->
-        SELECT b.block_id::TEXT AS db_key,
+        SELECT b.block_id::TEXT AS row_id,
                u.handle AS blocked_handle,
                u.nickname AS blocked_nm, u.profile_file_id::TEXT AS blocked_file_id,
                TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt

@@ -2,10 +2,10 @@ import { apiPost } from './http'
 
 export interface CrudApi<T> {
   listUrl: string
-  view: (dbKey: string) => Promise<T>
+  view: (rowId: string) => Promise<T>
   insert: (vo: Partial<T>) => Promise<void>
   update: (vo: Partial<T>) => Promise<void>
-  remove: (dbKey: string) => Promise<void>
+  remove: (rowId: string) => Promise<void>
 }
 
 /**
@@ -18,9 +18,9 @@ export interface CrudApi<T> {
 export function createCrudApi<T>(base: string, name: string): CrudApi<T> {
   return {
     listUrl: `${base}/select${name}List.do`,
-    view: (dbKey) => apiPost<T>(`${base}/select${name}View.do`, { dbKey }),
+    view: (rowId) => apiPost<T>(`${base}/select${name}View.do`, { rowId }),
     insert: (vo) => apiPost<void>(`${base}/insert${name}.do`, vo),
     update: (vo) => apiPost<void>(`${base}/update${name}.do`, vo),
-    remove: (dbKey) => apiPost<void>(`${base}/delete${name}.do`, { dbKey }),
+    remove: (rowId) => apiPost<void>(`${base}/delete${name}.do`, { rowId }),
   }
 }

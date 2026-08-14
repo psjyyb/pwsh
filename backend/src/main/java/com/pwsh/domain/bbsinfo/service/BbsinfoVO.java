@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 게시판 정의 VO (t_bbsinfo). PK(bbsinfo_id)는 BaseVO.dbKey. */
+/** 게시판 정의 VO (t_bbsinfo). PK(bbsinfo_id)는 BaseVO.rowId. */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class BbsinfoVO extends BaseVO {

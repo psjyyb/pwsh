@@ -48,7 +48,7 @@ class RecruitChatTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid + "\"}", wait).statusCode());
         String okApply = applyId(rid, "rcok");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + okApply + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + okApply + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
 
         // 주최자·확정 멤버는 작성 가능
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
@@ -84,11 +84,11 @@ class RecruitChatTest extends IntegrationTest {
         assertEquals("확정멤버", JsonPath.read(body, "$.data[1].regNm"));
 
         // 삭제는 작성자 본인만
-        String myChat = JsonPath.read(body, "$.data[1].dbKey");
+        String myChat = JsonPath.read(body, "$.data[1].rowId");
         assertNotEquals(200, post("/api/adm/recruitChat/deleteRecruitChat.do",
-                "{\"dbKey\":\"" + myChat + "\"}", host).statusCode(), "남의 말은 주최자도 못 지운다");
+                "{\"rowId\":\"" + myChat + "\"}", host).statusCode(), "남의 말은 주최자도 못 지운다");
         assertEquals(200, post("/api/adm/recruitChat/deleteRecruitChat.do",
-                "{\"dbKey\":\"" + myChat + "\"}", ok).statusCode());
+                "{\"rowId\":\"" + myChat + "\"}", ok).statusCode());
         assertEquals(1, JsonPath.<List<Object>>read(post("/api/adm/recruitChat/selectRecruitChatList.do",
                 "{\"recruitId\":\"" + rid + "\"}", host).body(), "$.data[*].content").size(),
                 "삭제 후 1건");
@@ -99,7 +99,7 @@ class RecruitChatTest extends IntegrationTest {
 
         // 수락 취소 → 다음 요청부터 바로 권한 상실(멤버 테이블 없이 조인 판정)
         assertEquals(200, post("/api/adm/recruitApply/deleteRecruitApply.do",
-                "{\"dbKey\":\"" + okApply + "\"}", ok).statusCode());
+                "{\"rowId\":\"" + okApply + "\"}", ok).statusCode());
         assertNotEquals(200, post("/api/adm/recruitChat/selectRecruitChatList.do",
                 "{\"recruitId\":\"" + rid + "\"}", ok).statusCode(), "수락 취소 시 즉시 차단");
         assertEquals(200, post("/api/adm/recruitChat/selectRecruitChatList.do",

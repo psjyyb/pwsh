@@ -88,7 +88,7 @@ public class ReportService {
         commonDAO.update("reportDAO.updateStatus", vo);
         // 감사: 이 메서드는 컨트롤러 메서드명이 updateStatus라 EventLogAspect(insert/update/delete)가 잡지 못한다.
         // 관리자 조치는 추적이 필수라 여기서 유형별로 직접 기록한다.
-        eventLogService.write(auditType(status), "t_report", vo.getDbKey());
+        eventLogService.write(auditType(status), "t_report", vo.getRowId());
     }
 
     /** 신고 처리 상태 → 감사 이벤트 유형(t_code EVENT00). */

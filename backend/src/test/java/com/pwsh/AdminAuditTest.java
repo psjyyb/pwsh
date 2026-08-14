@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 관리자 조치 감사 로그 검증 — 신고 처리·회원 제재·강제 로그아웃·권한 변경이
- * t_event_log에 '누가/언제/무엇에/어떤 조치'로 남는지. (EventLogAspect가 못 잡는 {path} 변형 지점)
+ * t_event_log에 '누가/언제/무엇에/어떤 조치'로 남는지. (EventLogAspect가 못 잡는 {variant} 변형 지점)
  */
 class AdminAuditTest extends IntegrationTest {
 
@@ -24,7 +24,7 @@ class AdminAuditTest extends IntegrationTest {
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
                 "{\"hobbyNm\":\"감사취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String boardId = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
-                "{\"dbKey\":\"" + hobbyId + "\"}", null).body(), "$.data.bbsinfoId");
+                "{\"rowId\":\"" + hobbyId + "\"}", null).body(), "$.data.bbsinfoId");
         String bbsId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
                 "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"신고될 글\",\"context\":\"x\"}", victim).body(), "$.data");
         assertNotNull(bbsId);
@@ -36,18 +36,18 @@ class AdminAuditTest extends IntegrationTest {
 
         // 1) 삭제조치 → REPORT_RESOLVE
         assertEquals(200, post("/api/adm/report/updateReportStatus.do",
-                "{\"dbKey\":\"" + reportId + "\",\"status\":\"RESOLVED\"}", admin).statusCode());
+                "{\"rowId\":\"" + reportId + "\",\"status\":\"RESOLVED\"}", admin).statusCode());
         assertEquals(1, auditCnt("REPORT_RESOLVE", "t_report", reportId));
         assertEquals("admin", auditActor("REPORT_RESOLVE", reportId), "조치자가 기록된다");
 
         // 2) 되돌리기 → REPORT_REOPEN
         assertEquals(200, post("/api/adm/report/updateReportStatus.do",
-                "{\"dbKey\":\"" + reportId + "\",\"status\":\"PENDING\"}", admin).statusCode());
+                "{\"rowId\":\"" + reportId + "\",\"status\":\"PENDING\"}", admin).statusCode());
         assertEquals(1, auditCnt("REPORT_REOPEN", "t_report", reportId));
 
         // 3) 반려 → REPORT_DISMISS
         assertEquals(200, post("/api/adm/report/updateReportStatus.do",
-                "{\"dbKey\":\"" + reportId + "\",\"status\":\"DISMISSED\"}", admin).statusCode());
+                "{\"rowId\":\"" + reportId + "\",\"status\":\"DISMISSED\"}", admin).statusCode());
         assertEquals(1, auditCnt("REPORT_DISMISS", "t_report", reportId));
 
         // 4) 회원 정지 → USER_SUSPEND, 해제 → USER_RESTORE

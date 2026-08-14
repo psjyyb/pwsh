@@ -49,8 +49,8 @@ export default function PageListPage() {
   }
   const openEdit = async (row: Page) => {
     try {
-      const data = await pageApi.view(row.dbKey!)
-      setEditKey(row.dbKey!)
+      const data = await pageApi.view(row.rowId!)
+      setEditKey(row.rowId!)
       setPendingTitle(data.title ?? '')
       setContext(data.context ?? '')
       setContentMode('html')
@@ -85,7 +85,7 @@ export default function PageListPage() {
     const values = await form.validateFields()
     const html = currentHtml()
     try {
-      if (editKey) await pageApi.update({ dbKey: editKey, title: values.title, context: html })
+      if (editKey) await pageApi.update({ rowId: editKey, title: values.title, context: html })
       else await pageApi.insert({ title: values.title, context: html })
       message.success('저장되었습니다.')
       setMode('list')
@@ -94,10 +94,10 @@ export default function PageListPage() {
       message.error(e instanceof Error ? e.message : '저장에 실패했습니다.')
     }
   }
-  const remove = (row: Page) => runWithMessage(() => pageApi.remove(row.dbKey!), '삭제되었습니다.', reload)
+  const remove = (row: Page) => runWithMessage(() => pageApi.remove(row.rowId!), '삭제되었습니다.', reload)
 
   const columns: TableColumnsType<Page> = [
-    { title: '페이지ID', dataIndex: 'dbKey', width: 110 },
+    { title: '페이지ID', dataIndex: 'rowId', width: 110 },
     { title: '제목', dataIndex: 'title' },
     { title: '사용', dataIndex: 'useYn', width: 70 },
     {
@@ -179,7 +179,7 @@ export default function PageListPage() {
         createText="신규"
       />
       <Table<Page>
-        rowKey="dbKey"
+        rowKey="rowId"
         scroll={{ x: 'max-content' }}
         columns={columns}
         dataSource={rows}

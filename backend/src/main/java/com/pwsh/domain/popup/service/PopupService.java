@@ -37,14 +37,14 @@ public class PopupService {
 
     @Transactional
     public void insert(PopupVO vo) {
-        commonDAO.insert("popupDAO.insert", vo); // useGeneratedKeys → dbKey=pop_id
-        syncPopupImage(vo.getDbKey(), vo.getFileId());
+        commonDAO.insert("popupDAO.insert", vo); // useGeneratedKeys → rowId=pop_id
+        syncPopupImage(vo.getRowId(), vo.getFileId());
     }
 
     @Transactional
     public void update(PopupVO vo) {
         commonDAO.update("popupDAO.update", vo);
-        syncPopupImage(vo.getDbKey(), vo.getFileId());
+        syncPopupImage(vo.getRowId(), vo.getFileId());
     }
 
     /** 팝업 이미지(단일)를 r_file(POPUP)로 동기화 — 기존 매핑 제거 후 이미지 있으면 등록. */
@@ -72,14 +72,14 @@ public class PopupService {
         if (adj == null) {
             return;
         }
-        setOrdr(cur.getDbKey(), "-1");
-        setOrdr(adj.getDbKey(), cur.getOrdr());
-        setOrdr(cur.getDbKey(), adj.getOrdr());
+        setOrdr(cur.getRowId(), "-1");
+        setOrdr(adj.getRowId(), cur.getOrdr());
+        setOrdr(cur.getRowId(), adj.getOrdr());
     }
 
-    private void setOrdr(String dbKey, String ordr) {
+    private void setOrdr(String rowId, String ordr) {
         PopupVO v = new PopupVO();
-        v.setDbKey(dbKey);
+        v.setRowId(rowId);
         v.setOrdr(ordr);
         commonDAO.update("popupDAO.updateordr", v);
     }
@@ -90,6 +90,6 @@ public class PopupService {
         commonDAO.delete("popupDAO.delete", vo);
         commonDAO.update("popupDAO.shiftOrdrAfterDelete", vo);
         commonDAO.update("fileDAO.deactivateFilesByOwner",
-                Map.of("mapKey", vo.getDbKey(), "locs", List.of("POPUP")));
+                Map.of("mapKey", vo.getRowId(), "locs", List.of("POPUP")));
     }
 }

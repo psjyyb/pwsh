@@ -22,13 +22,13 @@ class BbsReplyTest extends IntegrationTest {
         String root = insertBbs("{\"bbsinfoId\":\"1\",\"title\":\"원글\",\"context\":\"x\"}", admin);
         String reply = insertBbs("{\"bbsinfoId\":\"1\",\"pBbsId\":\"" + root + "\",\"title\":\"답글\",\"context\":\"y\"}", admin);
 
-        HttpResponse<String> view = post("/api/adm/bbs/selectBbsView.do", "{\"dbKey\":\"" + reply + "\"}", admin);
+        HttpResponse<String> view = post("/api/adm/bbs/selectBbsView.do", "{\"rowId\":\"" + reply + "\"}", admin);
         assertThat(view.statusCode()).isEqualTo(200);
         assertThat((String) JsonPath.read(view.body(), "$.data.bbsinfoId")).isEqualTo("1"); // 원글 게시판 상속
         assertThat((String) JsonPath.read(view.body(), "$.data.pBbsId")).isEqualTo(root);
         assertThat((String) JsonPath.read(view.body(), "$.data.bbsDepth")).isEqualTo("2"); // 원글1 → 답글2
 
-        post("/api/adm/bbs/deleteBbs.do", "{\"dbKey\":\"" + reply + "\"}", admin);
-        post("/api/adm/bbs/deleteBbs.do", "{\"dbKey\":\"" + root + "\"}", admin);
+        post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + reply + "\"}", admin);
+        post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + root + "\"}", admin);
     }
 }

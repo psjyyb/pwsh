@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 신고 VO (t_report). PK(report_id)는 BaseVO.dbKey. 신고자는 reg_id(서버 세팅). */
+/** 신고 VO (t_report). PK(report_id)는 BaseVO.rowId. 신고자는 reg_id(서버 세팅). */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class ReportVO extends BaseVO {

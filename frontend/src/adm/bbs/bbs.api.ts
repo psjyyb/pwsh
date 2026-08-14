@@ -2,7 +2,7 @@ import { apiPost } from '../../api/http'
 
 /** 게시글 VO. 작성자는 regId. */
 export interface Bbs {
-  dbKey?: string // PK(bbs_id)
+  rowId?: string // PK(bbs_id)
   bbsinfoId?: string
   title?: string
   context?: string
@@ -34,10 +34,10 @@ export interface Bbs {
 export const BBS_LIST_URL = '/adm/bbs/selectBbsList.do'
 
 export const bbsApi = {
-  view: (dbKey: string, bbsPw?: string, viewUp = false) =>
-    apiPost<Bbs>('/adm/bbs/selectBbsView.do', { dbKey, bbsPw, viewUp: viewUp ? 'Y' : 'N' }),
+  view: (rowId: string, bbsPw?: string, viewUp = false) =>
+    apiPost<Bbs>('/adm/bbs/selectBbsView.do', { rowId, bbsPw, viewUp: viewUp ? 'Y' : 'N' }),
   /** 등록 → 생성된 게시글 ID 반환 */
   insert: (vo: Partial<Bbs>) => apiPost<string>('/adm/bbs/insertBbs.do', vo),
   update: (vo: Partial<Bbs>) => apiPost<void>('/adm/bbs/updateBbs.do', vo),
-  remove: (dbKey: string) => apiPost<void>('/adm/bbs/deleteBbs.do', { dbKey }),
+  remove: (rowId: string) => apiPost<void>('/adm/bbs/deleteBbs.do', { rowId }),
 }

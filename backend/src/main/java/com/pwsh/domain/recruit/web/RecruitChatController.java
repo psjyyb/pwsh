@@ -51,7 +51,7 @@ public class RecruitChatController {
 
     @RequestMapping("/deleteRecruitChat.do")
     public ApiResponse<Void> delete(@RequestBody RecruitChatVO searchVO) {
-        Validate.required(searchVO.getDbKey(), "대화");
+        Validate.required(searchVO.getRowId(), "대화");
         recruitService.chatDelete(searchVO);
         return ApiResponse.ok();
     }

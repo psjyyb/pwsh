@@ -98,11 +98,11 @@ public class RecruitService {
             return;
         }
         RecruitVO key = new RecruitVO();
-        key.setDbKey(vo.getDbKey());
+        key.setRowId(vo.getRowId());
         RecruitVO saved = commonDAO.selectOne("recruitDAO.selectView", key);
         String hobbyNm = saved != null && saved.getHobbyNm() != null ? saved.getHobbyNm() : "관심 취미";
         String title = saved != null && saved.getTitle() != null ? saved.getTitle() : "새 모집";
-        String link = "/gen/recruit/" + vo.getDbKey();
+        String link = "/gen/recruit/" + vo.getRowId();
         for (String uid : followers) {
             if (already.contains(uid) || blockService.isBlockedBy(host, uid)) {
                 continue; // 이미 받은 회원(이전 회차 참여자)·주최자를 차단한 회원에게는 보내지 않는다
@@ -125,10 +125,10 @@ public class RecruitService {
      */
     @Transactional
     public void copy(RecruitVO vo) {
-        String srcId = vo.getDbKey();
+        String srcId = vo.getRowId();
         assertOwner(srcId);
         RecruitVO key = new RecruitVO();
-        key.setDbKey(srcId);
+        key.setRowId(srcId);
         RecruitVO src = commonDAO.selectOne("recruitDAO.selectView", key);
         if (src == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
@@ -150,7 +150,7 @@ public class RecruitService {
         next.setRegion(pick(vo.getRegion(), src.getRegion()));
         next.setMeetDt(meetDt); // 상태는 매퍼 기본값(RECRUIT01 모집중) — 복제본은 항상 새로 모집한다
         commonDAO.insert("recruitDAO.insert", next);
-        vo.setDbKey(next.getDbKey()); // 컨트롤러가 새 모집 ID를 반환
+        vo.setRowId(next.getRowId()); // 컨트롤러가 새 모집 ID를 반환
 
         java.util.Set<String> notified = notifyPrevMembers(srcId, next);
         notifyHobbyFollowers(next, notified);
@@ -166,7 +166,7 @@ public class RecruitService {
         p.put("recruitId", srcId);
         p.put("userId", host);
         java.util.Set<String> sent = new java.util.LinkedHashSet<>();
-        String link = "/gen/recruit/" + next.getDbKey();
+        String link = "/gen/recruit/" + next.getRowId();
         for (String uid : commonDAO.<String>selectList("recruitDAO.selectAcceptedUsers", p)) {
             if (blockService.isBlockedBy(host, uid)) {
                 continue;
@@ -176,7 +176,7 @@ public class RecruitService {
             sent.add(uid);
         }
         if (!sent.isEmpty()) {
-            log.info("[RecruitCopy] 모집 {} → {} 이전 회차 참여자 {}명에게 알림", srcId, next.getDbKey(), sent.size());
+            log.info("[RecruitCopy] 모집 {} → {} 이전 회차 참여자 {}명에게 알림", srcId, next.getRowId(), sent.size());
         }
         return sent;
     }
@@ -188,23 +188,23 @@ public class RecruitService {
 
     /** 수정 — 주최자·관리자만. */
     public void update(RecruitVO vo) {
-        assertOwner(vo.getDbKey());
+        assertOwner(vo.getRowId());
         commonDAO.update("recruitDAO.update", vo);
     }
 
     /** 모집 상태 변경(마감/재개) — 주최자·관리자만. */
     public void updateStatus(RecruitVO vo) {
-        assertOwner(vo.getDbKey());
+        assertOwner(vo.getRowId());
         commonDAO.update("recruitDAO.updateStatus", vo);
     }
 
     /** 삭제(논리) + 딸린 신청 일괄 비활성 — 주최자·관리자만. */
     @Transactional
     public void delete(RecruitVO vo) {
-        assertOwner(vo.getDbKey());
+        assertOwner(vo.getRowId());
         commonDAO.delete("recruitDAO.delete", vo);
         RecruitApplyVO applyParam = new RecruitApplyVO();
-        applyParam.setRecruitId(vo.getDbKey());
+        applyParam.setRecruitId(vo.getRowId());
         commonDAO.update("recruitDAO.deleteApplyByRecruit", applyParam);
     }
 
@@ -230,7 +230,7 @@ public class RecruitService {
     public void applyInsert(RecruitApplyVO vo) {
         String me = currentUserId();
         RecruitVO key = new RecruitVO();
-        key.setDbKey(vo.getRecruitId());
+        key.setRowId(vo.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         if (recruit == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
@@ -265,7 +265,7 @@ public class RecruitService {
         }
         assertOwner(apply.getRecruitId());
         RecruitVO key = new RecruitVO();
-        key.setDbKey(apply.getRecruitId());
+        key.setRowId(apply.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         boolean accept = "APPLY02".equals(vo.getApplyStatus());
 
@@ -278,7 +278,7 @@ public class RecruitService {
             commonDAO.update("recruitDAO.updateApplyStatus", vo);
             if (cap > 0 && accepted + 1 >= cap) { // 정원 충족 → 자동 마감
                 RecruitVO close = new RecruitVO();
-                close.setDbKey(apply.getRecruitId());
+                close.setRowId(apply.getRecruitId());
                 close.setStatusCd("RECRUIT02");
                 commonDAO.update("recruitDAO.updateStatus", close);
             }
@@ -311,13 +311,13 @@ public class RecruitService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 참석 결과입니다.");
         }
         RecruitVO key = new RecruitVO();
-        key.setDbKey(apply.getRecruitId());
+        key.setRowId(apply.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         if (recruit != null && !isFinished(recruit)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "모임이 끝난 뒤에 기록할 수 있습니다. (마감 또는 모임일 경과)");
         }
         RecruitApplyVO upd = new RecruitApplyVO();
-        upd.setDbKey(vo.getDbKey());
+        upd.setRowId(vo.getRowId());
         upd.setAttendCd(clear ? "" : cd);
         commonDAO.update("recruitDAO.updateApplyAttend", upd);
     }
@@ -457,7 +457,7 @@ public class RecruitService {
     /** 모집 주최자 또는 관리자만 통과. 없으면 예외. */
     private void assertOwner(String recruitId) {
         RecruitVO key = new RecruitVO();
-        key.setDbKey(recruitId);
+        key.setRowId(recruitId);
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         if (recruit == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");

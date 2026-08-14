@@ -131,16 +131,16 @@ export default function BbsMngPage() {
   const openEdit = async () => {
     if (!post) return
     if (bbsinfoId) bbsinfoApi.view(bbsinfoId).then(setBoard).catch(() => {})
-    setEditKey(post.dbKey!)
+    setEditKey(post.rowId!)
     setContext(post.context ?? '')
     form.setFieldsValue({ title: post.title, noticeYn: post.noticeYn ?? 'N', noticeStartDt: post.noticeStartDt, noticeEndDt: post.noticeEndDt })
     if (isGallery) {
-      const imgs = await fileApi.listByMap(post.dbKey!, IMG_LOC)
+      const imgs = await fileApi.listByMap(post.rowId!, IMG_LOC)
       setGalleryItems(imgs.map((f) => ({ fileId: f.fileId!, fileOrgNm: f.fileOrgNm, fileDesc: f.fileDesc })))
       setFileMetas([])
       setFileIds([])
     } else if (board?.fileYn === 'Y') {
-      const metas = await fileApi.listByMap(post.dbKey!, FILE_LOC)
+      const metas = await fileApi.listByMap(post.rowId!, FILE_LOC)
       setFileMetas(metas)
       setFileIds(metas.map((f) => f.fileId!))
       setGalleryItems([])
@@ -168,7 +168,7 @@ export default function BbsMngPage() {
     try {
       // 관리자는 비밀글을 설정/해제하지 않음 — 신규는 'N', 수정은 기존값 유지(비번도 COALESCE로 보존)
       const payload = { bbsinfoId, title: v.title, context: html, secretYn: editKey ? (post?.secretYn ?? 'N') : 'N', noticeYn: v.noticeYn ?? 'N', noticeStartDt: v.noticeStartDt, noticeEndDt: v.noticeEndDt }
-      const id = editKey ? (await bbsApi.update({ ...payload, dbKey: editKey }), editKey) : await bbsApi.insert(payload)
+      const id = editKey ? (await bbsApi.update({ ...payload, rowId: editKey }), editKey) : await bbsApi.insert(payload)
       if (isGallery) {
         await fileApi.saveMapping(id, IMG_LOC, galleryItems.map((i) => i.fileId), galleryItems.map((i) => i.fileDesc ?? ''))
       } else if (board?.fileYn === 'Y') {
@@ -187,7 +187,7 @@ export default function BbsMngPage() {
   const removeBbs = async () => {
     if (!post) return
     try {
-      await bbsApi.remove(post.dbKey!)
+      await bbsApi.remove(post.rowId!)
       message.success('삭제되었습니다.')
       setMode('list')
       loadList(1)
@@ -199,17 +199,17 @@ export default function BbsMngPage() {
   const addComment = async () => {
     if (!post || !commentText.trim()) return
     try {
-      await commentApi.insert(post.dbKey!, commentText.trim())
+      await commentApi.insert(post.rowId!, commentText.trim())
       setCommentText('')
-      setComments(await commentApi.list(post.dbKey!))
+      setComments(await commentApi.list(post.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '댓글 등록 실패')
     }
   }
-  const removeComment = async (dbKey: string) => {
+  const removeComment = async (rowId: string) => {
     try {
-      await commentApi.remove(dbKey)
-      if (post) setComments(await commentApi.list(post.dbKey!))
+      await commentApi.remove(rowId)
+      if (post) setComments(await commentApi.list(post.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '댓글 삭제 실패')
     }
@@ -296,12 +296,12 @@ export default function BbsMngPage() {
           />
         </Space>
         <Table<Bbs>
-          rowKey="dbKey"
+          rowKey="rowId"
           scroll={{ x: 'max-content' }}
           size="small"
           columns={columns}
           dataSource={rows}
-          onRow={(r) => ({ onClick: () => openView(r.dbKey!), style: { cursor: 'pointer' } })}
+          onRow={(r) => ({ onClick: () => openView(r.rowId!), style: { cursor: 'pointer' } })}
           pagination={{ current: pageIndex, pageSize: size, total, onChange: (p) => loadList(p) }}
         />
       </Card>
@@ -358,10 +358,10 @@ export default function BbsMngPage() {
           <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
             <b>{isQna ? `답변 ${comments.length}` : `댓글 ${comments.length}`}</b>
             {comments.map((c) => (
-              <div key={c.dbKey} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+              <div key={c.rowId} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
                 <div style={{ fontSize: 12, color: '#888' }}>
                   {c.regNm || c.regId} · {c.regDt}
-                  <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.dbKey!)}>삭제</a>
+                  <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.rowId!)}>삭제</a>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>
               </div>

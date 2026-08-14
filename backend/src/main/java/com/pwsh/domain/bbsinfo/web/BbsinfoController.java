@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 게시판 정의(설정) 관리 — 컨트롤러는 매핑만, 로직은 {@link BbsinfoService}.
- * selectBbsinfoList{path}: ''=목록 / Combo=메뉴 게시판 연결 선택용 콤보
+ * selectBbsinfoList{variant}: ''=목록 / Combo=메뉴 게시판 연결 선택용 콤보
  */
 @RestController
 @RequestMapping("/api/adm/bbsinfo")
@@ -24,11 +24,11 @@ public class BbsinfoController {
     private final BbsinfoService bbsinfoService;
 
     /** 목록 계열: ''=페이징목록 / Combo=콤보(권한 예외) */
-    @RequestMapping("/selectBbsinfoList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/selectBbsinfoList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable(name = "variant", required = false) String variant,
                                      @RequestBody(required = false) BbsinfoVO searchVO) {
         BbsinfoVO vo = searchVO == null ? new BbsinfoVO() : searchVO;
-        if ("Combo".equals(path)) {
+        if ("Combo".equals(variant)) {
             return ApiResponse.ok(bbsinfoService.selectComboList(vo));
         }
         int totCnt = bbsinfoService.selectListTotCnt(vo);

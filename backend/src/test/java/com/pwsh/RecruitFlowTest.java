@@ -39,7 +39,7 @@ class RecruitFlowTest extends IntegrationTest {
         String appTok = accessToken("app1", "Test1234!@");
 
         // 취미 등록 시 전용 게시판 자동 생성·연결 확인
-        HttpResponse<String> hv = post("/api/adm/hobby/selectHobbyView.do", "{\"dbKey\":\"" + hobbyId + "\"}", null);
+        HttpResponse<String> hv = post("/api/adm/hobby/selectHobbyView.do", "{\"rowId\":\"" + hobbyId + "\"}", null);
         String boardId = JsonPath.read(hv.body(), "$.data.bbsinfoId");
         assertNotNull(boardId);
         // 노출 순서 미지정 → 기존 최대값+1 자동 부여
@@ -73,14 +73,14 @@ class RecruitFlowTest extends IntegrationTest {
         assertEquals(200, ares.statusCode());
         List<Object> applies = JsonPath.read(ares.body(), "$.data");
         assertEquals(1, applies.size());
-        String applyId = JsonPath.read(ares.body(), "$.data[0].dbKey");
+        String applyId = JsonPath.read(ares.body(), "$.data[0].rowId");
         assertEquals("신청왕", JsonPath.read(ares.body(), "$.data[0].nickname"));
 
         // 수락 → 상세에서 수락수 1, 주최자 닉네임
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", orgTok).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", orgTok).statusCode());
         HttpResponse<String> vres = post("/api/adm/recruit/selectRecruitView.do",
-                "{\"dbKey\":\"" + recruitId + "\"}", null);
+                "{\"rowId\":\"" + recruitId + "\"}", null);
         assertEquals("1", JsonPath.read(vres.body(), "$.data.acceptedCnt"));
         assertEquals("주최왕", JsonPath.read(vres.body(), "$.data.regNm"));
 

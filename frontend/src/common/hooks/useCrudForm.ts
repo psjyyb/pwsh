@@ -12,7 +12,7 @@ interface Options<T> {
 
 /**
  * 등록/수정 모달 공통 로직 — 폼 인스턴스 + open 시 값 세팅/초기화 + 저장(insert/update) 처리.
- * 수정 시 PK는 dbKey(해당 테이블 자기 PK)로 넘긴다. editing(목록 행)에는 dbKey가 담겨 있다.
+ * 수정 시 PK는 rowId(해당 테이블 자기 PK)로 넘긴다. editing(목록 행)에는 rowId가 담겨 있다.
  *   const { form, submit } = useCrudForm({ open, editing,
  *     insert: codeApi.insert, update: codeApi.update, onSaved, onClose })
  */
@@ -32,7 +32,7 @@ export function useCrudForm<T extends Record<string, any>>(opts: Options<T>) {
     const values = await form.validateFields()
     try {
       if (opts.editing) {
-        await opts.update({ ...values, dbKey: opts.editing.dbKey })
+        await opts.update({ ...values, rowId: opts.editing.rowId })
         message.success('수정되었습니다.')
       } else {
         await opts.insert(values)

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 모임 후기·평점 API — 매핑·입력검증만, 로직은 {@link ReviewService}.
- * 조회 {path}: ''=회원이 받은 후기(공개), Stats=평균·건수(공개), Targets=내가 쓸 수 있는 대상(로그인).
+ * 조회 {variant}: ''=회원이 받은 후기(공개), Stats=평균·건수(공개), Targets=내가 쓸 수 있는 대상(로그인).
  */
 @RestController
 @RequestMapping("/api/adm/review")
@@ -22,13 +22,13 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @PostMapping("/selectReviewList{path}.do")
-    public ApiResponse<?> selectList(@PathVariable String path, @RequestBody ReviewVO vo) {
-        if ("Stats".equals(path)) {
+    @PostMapping("/selectReviewList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable String variant, @RequestBody ReviewVO vo) {
+        if ("Stats".equals(variant)) {
             Validate.required(vo.getTargetHandle(), "대상 회원");
             return ApiResponse.ok(reviewService.selectStats(vo.getTargetHandle()));
         }
-        if ("Targets".equals(path)) {
+        if ("Targets".equals(variant)) {
             return ApiResponse.ok(reviewService.selectMyTargets());
         }
         Validate.required(vo.getTargetHandle(), "대상 회원");
@@ -48,7 +48,7 @@ public class ReviewController {
     /** 후기 삭제(논리) — 작성자·관리자 */
     @PostMapping("/deleteReview.do")
     public ApiResponse<Void> delete(@RequestBody ReviewVO vo) {
-        Validate.required(vo.getDbKey(), "후기");
+        Validate.required(vo.getRowId(), "후기");
         reviewService.delete(vo);
         return ApiResponse.ok();
     }

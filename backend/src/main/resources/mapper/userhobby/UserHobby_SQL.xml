@@ -3,7 +3,7 @@
 <mapper namespace="userHobbyDAO">
 
     <select id="selectMyList" parameterType="userHobbyVO" resultType="userHobbyVO">
-        SELECT uh.hobby_id::TEXT AS db_key, uh.hobby_id, uh.level_cd,
+        SELECT uh.hobby_id::TEXT AS row_id, uh.hobby_id, uh.level_cd,
                h.hobby_nm,
                lc.code_nm AS level_nm
         FROM t_user_hobby uh

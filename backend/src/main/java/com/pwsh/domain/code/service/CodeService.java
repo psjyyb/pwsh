@@ -57,7 +57,7 @@ public class CodeService {
         int maxNum = 0;
         int maxOrdr = 0;
         for (CodeVO c : children) {
-            String id = c.getDbKey();
+            String id = c.getRowId();
             // 코드ID 연번은 삭제분 포함 최대값(PK 충돌 방지)
             if (id != null && id.length() > prefix.length() && id.startsWith(prefix)) {
                 try {
@@ -77,7 +77,7 @@ public class CodeService {
         }
         CodeVO res = new CodeVO();
         res.setPCodeId(parent);
-        res.setDbKey(prefix + String.format("%0" + width + "d", maxNum + 1));
+        res.setRowId(prefix + String.format("%0" + width + "d", maxNum + 1));
         res.setOrdr(String.valueOf(maxOrdr + 1));
         return res;
     }
@@ -96,7 +96,7 @@ public class CodeService {
      */
     @Transactional
     public void swapOrdr(CodeVO vo) {
-        CodeVO cur = commonDAO.selectOne("codeDAO.selectView", vo); // dbKey → pCodeId, ordr
+        CodeVO cur = commonDAO.selectOne("codeDAO.selectView", vo); // rowId → pCodeId, ordr
         if (cur == null) {
             return;
         }
@@ -105,14 +105,14 @@ public class CodeService {
         if (adj == null) {
             return; // 목록 끝
         }
-        setOrdr(cur.getDbKey(), "-1");
-        setOrdr(adj.getDbKey(), cur.getOrdr());
-        setOrdr(cur.getDbKey(), adj.getOrdr());
+        setOrdr(cur.getRowId(), "-1");
+        setOrdr(adj.getRowId(), cur.getOrdr());
+        setOrdr(cur.getRowId(), adj.getOrdr());
     }
 
-    private void setOrdr(String dbKey, String ordr) {
+    private void setOrdr(String rowId, String ordr) {
         CodeVO v = new CodeVO();
-        v.setDbKey(dbKey);
+        v.setRowId(rowId);
         v.setOrdr(ordr);
         commonDAO.update("codeDAO.updateordr", v);
     }

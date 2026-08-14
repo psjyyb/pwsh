@@ -53,9 +53,9 @@ function toNav(list: MenuVO[]): NavNode[] {
   }
   const build = (parentId: string): NavNode[] =>
     (byParent.get(parentId) ?? []).map((m) => {
-      const children = byParent.get(m.dbKey!)
-      const base = { key: `n${m.dbKey}`, label: m.menuNm ?? '', iconKey: iconFor(m) }
-      if (children && children.length) return { ...base, children: build(m.dbKey!) }
+      const children = byParent.get(m.rowId!)
+      const base = { key: `n${m.rowId}`, label: m.menuNm ?? '', iconKey: iconFor(m) }
+      if (children && children.length) return { ...base, children: build(m.rowId!) }
       return { ...base, dest: targetOf(m) || undefined }
     })
   return build('0')
@@ -79,11 +79,11 @@ function buildItems(list: MenuVO[]): MenuItem[] {
   }
   const build = (parentId: string): MenuItem[] =>
     (byParent.get(parentId) ?? []).map((m) => {
-      const children = byParent.get(m.dbKey!)
+      const children = byParent.get(m.rowId!)
       if (children && children.length) {
-        return { key: `g${m.dbKey}`, label: m.menuNm, children: build(m.dbKey!) }
+        return { key: `g${m.rowId}`, label: m.menuNm, children: build(m.rowId!) }
       }
-      return { key: targetOf(m) || `m${m.dbKey}`, label: m.menuNm }
+      return { key: targetOf(m) || `m${m.rowId}`, label: m.menuNm }
     })
   return build('0')
 }
@@ -185,7 +185,7 @@ export default function GenLayout() {
   const clickNoti = async (n: Noti) => {
     setNotiOpen(false)
     if (n.readYn !== 'Y') {
-      try { await notificationApi.read(n.dbKey!); setNotiUnread((u) => Math.max(0, u - 1)) } catch { /* 무시 */ }
+      try { await notificationApi.read(n.rowId!); setNotiUnread((u) => Math.max(0, u - 1)) } catch { /* 무시 */ }
     }
     if (n.linkUrl) navigate(n.linkUrl)
   }
@@ -206,7 +206,7 @@ export default function GenLayout() {
         <div style={{ color: '#999', padding: '16px 0', textAlign: 'center' }}>새 알림이 없어요</div>
       ) : (
         notiList.map((n) => (
-          <div key={n.dbKey} onClick={() => clickNoti(n)}
+          <div key={n.rowId} onClick={() => clickNoti(n)}
             style={{ padding: '8px 8px', marginTop: 4, borderRadius: 8, cursor: 'pointer', background: n.readYn === 'Y' ? '#fff' : '#f2ecff' }}>
             <div style={{ fontSize: 13, color: '#333' }}>{n.content}</div>
             <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{n.regDt}</div>

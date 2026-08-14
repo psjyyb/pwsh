@@ -7,7 +7,7 @@ import lombok.Data;
  * 공통 VO 최상위 부모. 모든 도메인 VO가 상속(필드는 String 통일, DB snake_case ↔ camelCase 자동 매핑).
  * - 페이징: pageIndex(1-base), size → offset 계산
  * - 검색: searchCondition/searchKeyword
- * - 공통키: dbKey/dbKeys (조회 결과 PK 별칭 + 단건 조회/수정/삭제 WHERE 바인딩 겸용)
+ * - 공통키: rowId/rowIds (조회 결과 PK 별칭 + 단건 조회/수정/삭제 WHERE 바인딩 겸용)
  * - audit: regId/updId/regDt/updDt/regIp/updIp, useYn (AuditInterceptor가 자동 세팅)
  */
 @Data
@@ -46,9 +46,9 @@ public class BaseVO implements Serializable {
     }
 
     // ===== 공통키(단건/다건 선택) =====
-    /** 해당 화면 주체 테이블의 자기 PK. 조회 결과 별칭(AS db_key) + 단건 조회/수정/삭제 WHERE 바인딩 겸용 */
-    private String dbKey;
-    private String[] dbKeys;
+    /** 해당 화면 주체 테이블의 자기 PK. 조회 결과 별칭(AS row_id) + 단건 조회/수정/삭제 WHERE 바인딩 겸용 */
+    private String rowId;
+    private String[] rowIds;
 
     // ===== audit (AuditInterceptor 자동 세팅) =====
     private String regId;

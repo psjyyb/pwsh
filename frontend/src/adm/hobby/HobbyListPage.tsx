@@ -44,16 +44,16 @@ export default function HobbyListPage() {
     setSelectedKey(null); setSeq((s) => s + 1); setMode('insert')
   }
 
-  const openRow = async (dbKey: string) => {
+  const openRow = async (rowId: string) => {
     try {
-      const h = await hobbyApi.view(dbKey)
+      const h = await hobbyApi.view(rowId)
       form.resetFields()
       form.setFieldsValue({
         hobbyNm: h.hobbyNm, summary: h.summary, difficultyCd: h.difficultyCd, bbsinfoId: h.bbsinfoId,
         sortOrdr: h.sortOrdr, equipment: h.equipment, estCost: h.estCost, thumbId: h.thumbId,
       })
       setIntroHtml(h.intro ?? ''); setGuideHtml(h.guide ?? '')
-      setSelectedKey(dbKey); setSeq((s) => s + 1); setMode('edit')
+      setSelectedKey(rowId); setSeq((s) => s + 1); setMode('edit')
     } catch (e) {
       message.error(e instanceof Error ? e.message : '조회 실패')
     }
@@ -69,7 +69,7 @@ export default function HobbyListPage() {
     }
     try {
       const id = mode === 'edit'
-        ? (await hobbyApi.update({ ...payload, dbKey: selectedKey! }), selectedKey!)
+        ? (await hobbyApi.update({ ...payload, rowId: selectedKey! }), selectedKey!)
         : await hobbyApi.insertReturnId(payload)
       await fileApi.saveMapping(id, THUMB_LOC, v.thumbId ? [v.thumbId] : [])
       await fileApi.saveMapping(id, EDITOR_LOC, extractEditorImageIds(`${intro}${guide}`))
@@ -104,9 +104,9 @@ export default function HobbyListPage() {
     <Card title="목록">
       <SearchBar fields={[{ type: 'text', name: 'searchKeyword', placeholder: '취미명', width: 220 }]} onSearch={(v) => search(v)} />
       <Table<Hobby>
-        rowKey="dbKey" size="small" columns={columns} dataSource={rows} loading={loading}
-        rowClassName={(r) => (r.dbKey === selectedKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowKey="rowId" size="small" columns={columns} dataSource={rows} loading={loading}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
@@ -141,7 +141,7 @@ export default function HobbyListPage() {
             </Form.Item>
             <Form.Item name="bbsinfoId" label="연결 게시판(소통)" style={{ minWidth: 240 }}
               extra={mode === 'insert' ? '비우면 취미 전용 게시판을 자동 생성' : undefined}>
-              <Select allowClear placeholder="비우면 자동 생성" options={boards.map((b) => ({ value: b.dbKey, label: b.bbsinfoNm }))} />
+              <Select allowClear placeholder="비우면 자동 생성" options={boards.map((b) => ({ value: b.rowId, label: b.bbsinfoNm }))} />
             </Form.Item>
             <Form.Item name="sortOrdr" label="노출 순서"><NumberInput /></Form.Item>
           </Space>

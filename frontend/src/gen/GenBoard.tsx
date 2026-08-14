@@ -9,7 +9,7 @@ import FaqBoard from './boards/FaqBoard'
 /**
  * 사용자 게시판 진입점(/gen/board/:bbsinfoId) — 게시판 유형(bbsinfo_cd)에 따라 스킨 분기.
  *   FAQ(BBSINFO002) → 아코디언, 그 외(일반/갤러리/1:1) → 표준 스킨.
- * board.dbKey로 스킨을 재마운트해 게시판 전환 시 상태가 섞이지 않도록 함.
+ * board.rowId로 스킨을 재마운트해 게시판 전환 시 상태가 섞이지 않도록 함.
  * 로드 실패(접근권 없음/미존재)는 빈 화면 대신 안내를 표시한다.
  */
 export default function GenBoard() {
@@ -40,6 +40,6 @@ export default function GenBoard() {
     )
   }
 
-  if (board.bbsinfoCd === 'BBSINFO002') return <FaqBoard key={board.dbKey} board={board} />
-  return <StandardBoard key={board.dbKey} board={board} />
+  if (board.bbsinfoCd === 'BBSINFO002') return <FaqBoard key={board.rowId} board={board} />
+  return <StandardBoard key={board.rowId} board={board} />
 }

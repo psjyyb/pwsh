@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class MenuVO extends BaseVO {
 
-    // 자기 PK(menu_id)는 BaseVO.dbKey로 통일. p_menu_id는 부모 참조라 명시 필드 유지.
+    // 자기 PK(menu_id)는 BaseVO.rowId로 통일. p_menu_id는 부모 참조라 명시 필드 유지.
     private String pMenuId;
     private String area;      // ADM=관리자, GEN=사용자
     private String menuNm;

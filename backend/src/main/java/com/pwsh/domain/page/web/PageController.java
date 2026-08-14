@@ -45,10 +45,10 @@ public class PageController {
     }
 
     /** 수정. 빈값=일반수정 */
-    @RequestMapping("/updatePage{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    @RequestMapping("/updatePage{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody PageVO searchVO) {
-        if (StringUtil.isEmpty(path)) {
+        if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getTitle(), "제목");
             Validate.required(searchVO.getContext(), "내용");
             pageService.update(searchVO);

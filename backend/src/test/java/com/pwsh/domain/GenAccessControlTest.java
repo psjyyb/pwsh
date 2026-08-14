@@ -50,12 +50,12 @@ class GenAccessControlTest extends IntegrationTest {
     @Test
     @DisplayName("비회원은 회원전용 게시판 상세(스킨) 조회 시 403")
     void guestBlockedFromMemberOnlyBoardInfo() throws Exception {
-        assertThat(post(BBSINFO_VIEW, "{\"dbKey\":\"4\"}", null).statusCode()).isEqualTo(403);
+        assertThat(post(BBSINFO_VIEW, "{\"rowId\":\"4\"}", null).statusCode()).isEqualTo(403);
     }
 
     @Test
     @DisplayName("비회원도 공개 게시판 상세는 조회 가능")
     void guestCanReadPublicBoardInfo() throws Exception {
-        assertThat(post(BBSINFO_VIEW, "{\"dbKey\":\"1\"}", null).statusCode()).isEqualTo(200);
+        assertThat(post(BBSINFO_VIEW, "{\"rowId\":\"1\"}", null).statusCode()).isEqualTo(200);
     }
 }

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 약관/정책 관리 — 컨트롤러는 매핑만, 로직은 {@link PolicyService}.
- * updatePolicy{path}: ''=수정 / ordr=정렬 교환
+ * updatePolicy{variant}: ''=수정 / ordr=정렬 교환
  */
 @RestController
 @RequestMapping("/api/adm/policy")
@@ -46,13 +46,13 @@ public class PolicyController {
         return ApiResponse.ok();
     }
 
-    /** 수정. path: "ordr"=정렬 교환, 빈값=일반수정 */
-    @RequestMapping("/updatePolicy{path}.do")
-    public ApiResponse<Void> update(@PathVariable(name = "path", required = false) String path,
+    /** 수정. variant: "ordr"=정렬 교환, 빈값=일반수정 */
+    @RequestMapping("/updatePolicy{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
                                     @RequestBody PolicyVO searchVO) {
-        if ("Ordr".equals(path)) {
+        if ("Ordr".equals(variant)) {
             policyService.swapOrdr(searchVO);
-        } else if (StringUtil.isEmpty(path)) {
+        } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getTypeCd(), "약관유형");
             policyService.update(searchVO);
         }

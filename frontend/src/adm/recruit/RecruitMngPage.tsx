@@ -32,10 +32,10 @@ export default function RecruitMngPage() {
     finally { setApplyLoading(false) }
   }
 
-  const openRow = async (dbKey: string) => {
+  const openRow = async (rowId: string) => {
     try {
-      setSel(await recruitApi.view(dbKey)) // viewUp=false: 관리자 조회는 조회수 증가 안 함
-      loadApplies(dbKey)
+      setSel(await recruitApi.view(rowId)) // viewUp=false: 관리자 조회는 조회수 증가 안 함
+      loadApplies(rowId)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '조회 실패')
     }
@@ -43,31 +43,31 @@ export default function RecruitMngPage() {
 
   // 조치 후 상세/신청자/목록 동기화
   const refresh = async () => {
-    if (!sel?.dbKey) return
-    try { setSel(await recruitApi.view(sel.dbKey)) } catch { /* 삭제됨 등 */ }
-    if (sel.dbKey) loadApplies(sel.dbKey)
+    if (!sel?.rowId) return
+    try { setSel(await recruitApi.view(sel.rowId)) } catch { /* 삭제됨 등 */ }
+    if (sel.rowId) loadApplies(sel.rowId)
     reload()
   }
 
   const changeStatus = async (statusCd: string) => {
-    if (!sel?.dbKey) return
-    try { await recruitApi.changeStatus(sel.dbKey, statusCd); message.success(statusCd === 'RECRUIT02' ? '마감했습니다.' : '다시 모집중으로 변경했습니다.'); refresh() }
+    if (!sel?.rowId) return
+    try { await recruitApi.changeStatus(sel.rowId, statusCd); message.success(statusCd === 'RECRUIT02' ? '마감했습니다.' : '다시 모집중으로 변경했습니다.'); refresh() }
     catch (e) { message.error(e instanceof Error ? e.message : '처리 실패') }
   }
 
   const removeRecruit = async () => {
-    if (!sel?.dbKey) return
-    try { await recruitApi.remove(sel.dbKey); message.success('모집을 삭제(숨김)했습니다.'); setSel(null); setApplies([]); reload() }
+    if (!sel?.rowId) return
+    try { await recruitApi.remove(sel.rowId); message.success('모집을 삭제(숨김)했습니다.'); setSel(null); setApplies([]); reload() }
     catch (e) { message.error(e instanceof Error ? e.message : '삭제 실패') }
   }
 
-  const changeApply = async (dbKey: string, applyStatus: string) => {
-    try { await applyApi.changeStatus(dbKey, applyStatus); message.success(applyStatus === 'APPLY02' ? '수락했습니다.' : '거절했습니다.'); refresh() }
+  const changeApply = async (rowId: string, applyStatus: string) => {
+    try { await applyApi.changeStatus(rowId, applyStatus); message.success(applyStatus === 'APPLY02' ? '수락했습니다.' : '거절했습니다.'); refresh() }
     catch (e) { message.error(e instanceof Error ? e.message : '처리 실패') }
   }
 
-  const removeApply = async (dbKey: string) => {
-    try { await applyApi.cancel(dbKey); message.success('신청자를 제거했습니다.'); refresh() }
+  const removeApply = async (rowId: string) => {
+    try { await applyApi.cancel(rowId); message.success('신청자를 제거했습니다.'); refresh() }
     catch (e) { message.error(e instanceof Error ? e.message : '제거 실패') }
   }
 
@@ -88,9 +88,9 @@ export default function RecruitMngPage() {
       title: '처리', width: 170, align: 'center',
       render: (_, r) => (
         <Space size={4}>
-          {r.applyStatus !== 'APPLY02' && <Button size="small" type="link" onClick={() => changeApply(r.dbKey!, 'APPLY02')}>수락</Button>}
-          {r.applyStatus !== 'APPLY03' && <Button size="small" type="link" onClick={() => changeApply(r.dbKey!, 'APPLY03')}>거절</Button>}
-          <Popconfirm title="이 신청을 제거하시겠습니까?" onConfirm={() => removeApply(r.dbKey!)} okText="제거" okButtonProps={{ danger: true }} cancelText="취소">
+          {r.applyStatus !== 'APPLY02' && <Button size="small" type="link" onClick={() => changeApply(r.rowId!, 'APPLY02')}>수락</Button>}
+          {r.applyStatus !== 'APPLY03' && <Button size="small" type="link" onClick={() => changeApply(r.rowId!, 'APPLY03')}>거절</Button>}
+          <Popconfirm title="이 신청을 제거하시겠습니까?" onConfirm={() => removeApply(r.rowId!)} okText="제거" okButtonProps={{ danger: true }} cancelText="취소">
             <Button size="small" type="link" danger>제거</Button>
           </Popconfirm>
         </Space>
@@ -108,9 +108,9 @@ export default function RecruitMngPage() {
         <SearchBar fields={[{ type: 'text', name: 'searchKeyword', placeholder: '제목·내용', width: 200 }]} onSearch={(v) => search(v)} />
       </Space>
       <Table<Recruit>
-        rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={columns} dataSource={rows} loading={loading}
-        rowClassName={(r) => (r.dbKey === sel?.dbKey ? 'ant-table-row-selected' : '')}
-        onRow={(r) => ({ onClick: () => openRow(r.dbKey!), style: { cursor: 'pointer' } })}
+        rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={columns} dataSource={rows} loading={loading}
+        rowClassName={(r) => (r.rowId === sel?.rowId ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
         pagination={{ current: page, pageSize: size, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
       />
     </Card>
@@ -147,7 +147,7 @@ export default function RecruitMngPage() {
           <div style={{ margin: '14px 0 6px', fontWeight: 600 }}>신청자 ({applies.length})</div>
           {applies.length === 0 && !applyLoading
             ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="신청자가 없습니다." />
-            : <Table<RecruitApply> rowKey="dbKey" size="small" scroll={{ x: 'max-content' }} columns={applyColumns} dataSource={applies} loading={applyLoading} pagination={false} />}
+            : <Table<RecruitApply> rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={applyColumns} dataSource={applies} loading={applyLoading} pagination={false} />}
         </>
       )}
     </Card>

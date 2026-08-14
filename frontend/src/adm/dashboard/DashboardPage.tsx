@@ -133,7 +133,7 @@ export default function DashboardPage() {
 
       <Card title="최근 활동" style={{ marginTop: 16 }} styles={{ body: { padding: 0 } }}>
         <Table<Eventlog>
-          rowKey="dbKey"
+          rowKey="rowId"
           scroll={{ x: 'max-content' }}
           size="small"
           loading={logLoading}

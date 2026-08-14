@@ -2,7 +2,7 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 페이지(단일 콘텐츠) VO */
 export interface Page {
-  dbKey?: string // PK(page_id)
+  rowId?: string // PK(page_id)
   title: string
   context: string
   useYn?: string

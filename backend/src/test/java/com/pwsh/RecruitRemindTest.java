@@ -55,7 +55,7 @@ class RecruitRemindTest extends IntegrationTest {
                 "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'rmok'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"dbKey\":\"" + okApplyId + "\",\"applyStatus\":\"APPLY02\"}", hostTok).statusCode());
+                "{\"rowId\":\"" + okApplyId + "\",\"applyStatus\":\"APPLY02\"}", hostTok).statusCode());
 
         // 신청/수락 알림은 이미 적재되므로 리마인더만 세어 비교한다
         int sent = recruitService.sendMeetReminders(tomorrow);
@@ -82,13 +82,13 @@ class RecruitRemindTest extends IntegrationTest {
 
         // 마감(RECRUIT02) 모임도 대상 — 확정된 모임이라 리마인더가 필요
         assertEquals(200, post("/api/adm/recruit/updateRecruitStatus.do",
-                "{\"dbKey\":\"" + ridLater + "\",\"statusCd\":\"RECRUIT02\"}", hostTok).statusCode());
+                "{\"rowId\":\"" + ridLater + "\",\"statusCd\":\"RECRUIT02\"}", hostTok).statusCode());
         assertEquals(1, recruitService.sendMeetReminders(later), "마감 모임도 발송(주최자 1명)");
         assertEquals(1, remindCnt("rmhost", ridLater));
 
         // 삭제된 모집은 대상에서 제외
         assertEquals(200, post("/api/adm/recruit/deleteRecruit.do",
-                "{\"dbKey\":\"" + rid + "\"}", hostTok).statusCode());
+                "{\"rowId\":\"" + rid + "\"}", hostTok).statusCode());
         jdbc.update("DELETE FROM t_notification WHERE noti_type = 'REMIND'");
         assertEquals(0, recruitService.sendMeetReminders(tomorrow), "삭제된 모집은 발송하지 않음");
     }
