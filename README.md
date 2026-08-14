@@ -51,30 +51,13 @@ npm install
 npm run dev        # http://localhost:3000 (백엔드 8080 필요, /api 프록시)
 ```
 
-## 문서
-> **개발 시작점: 루트 [CLAUDE.md](CLAUDE.md)** — 개발 규약·새 도메인 추가법·인증/파일 모델 요약(다른 세션/개발자 참고용).
-
-| 문서 | 내용 |
-|---|---|
-| [CLAUDE.md](CLAUDE.md) | **개발 가이드(규약·새 도메인 추가·인증/파일)** — 시작점 |
-| [docs/standard-template-spec.md](docs/standard-template-spec.md) | 표준 기본틀 규격서(상세) |
-| [docs/db-conventions.md](docs/db-conventions.md) | DB/테이블 설계 규칙 |
-| [docs/file-orphan-gc.md](docs/file-orphan-gc.md) | 파일 참조 모델·고아파일 정리(GC)·삭제 복구 SQL |
-
 ## 규약 요약
 - DB 컬럼은 `snake_case`, Java/JS는 `camelCase` (자동 매핑)
 - FK 컬럼명 = 참조 대상 PK명 그대로, 물리 FK 제약 미사용
-- 공통 audit 컬럼(`reg_*`/`upd_*`) + 논리삭제(`use_yn`)
 - **컨트롤러=매핑만(5메서드+`{path}`), 로직은 도메인당 단일 `@Service`**
 - **RBAC 3계층(관리자/회원/비회원) + 단일세션(`token_ver`)**, 인증 JWT
-- **파일 참조는 `r_file` 매핑만**(직접 file_id 컬럼 미사용)
 - API 응답은 `ApiResponse{success,data,error}` 표준
 - 테스트는 실 PostgreSQL 통합테스트(모킹 0) + GitHub Actions CI
-- (상세 규약·새 도메인 추가 절차는 [CLAUDE.md](CLAUDE.md))
-
-## 화면·메뉴 규약 (동적 매핑)
-메뉴/화면 메타데이터는 **`t_menu`(DB)가 단일 소스**다. 하드코딩 화면 레지스트리는 없다.
-메뉴명·노출·순서·계층·탭 제목·경로는 모두 `t_menu`에서 오고, 화면 컴포넌트만 아래 파일 규칙으로 자동 연결된다.
 
 ### 1) 관리자 기능화면 (고유 CRUD 로직)
 파일을 규칙대로 만들고 **메뉴만 등록**하면 사이드바·탭·라우팅·렌더가 전부 자동. (등록 코드 수정 불필요)
@@ -86,12 +69,6 @@ npm run dev        # http://localhost:3000 (백엔드 8080 필요, /api 프록�
   - 예: `/adm/board` → `src/adm/board/BoardListPage.tsx`
 - **메뉴 등록**: 메뉴관리에서 연결유형=`URL`, `link_url=/adm/{domain}`, 메뉴명 입력
 - **동작 원리**: `admScreens.tsx`가 `import.meta.glob('./*/*Page.tsx')`로 화면을 빌드시 자동 수집 → `resolveScreen('/adm/{domain}')`가 컴포넌트를 찾아 렌더. 슈퍼관리자(MEM02)는 자동 노출, 그 외 그룹은 권한그룹관리에서 권한 부여.
-
-### 2) 사용자(gen) 콘텐츠 페이지 (코드 불필요)
-- 일반페이지관리에서 페이지 작성(제목+본문 HTML) → `page_id` 생성
-- 메뉴관리에서 영역=`사용자`, 연결유형=`페이지`, 페이지ID=`page_id` 로 등록
-- `/gen` 상단 메뉴 클릭 시 범용 `GenPageView`가 `conn_id(page_id)`로 `t_page`를 조회해 렌더. **파일 작성 없이** 노출.
-- 게시판(연결유형=`게시판`)은 bbs 모듈 구축 후 동일 방식.
 
 ### 정리
 | 구분 | 필요한 작업 |
