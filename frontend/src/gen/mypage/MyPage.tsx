@@ -10,6 +10,7 @@ import type { Recruit, RecruitApply } from '../recruit/recruit.api'
 import type { Bbs } from '../../adm/bbs/bbs.api'
 import { myPosts, myRecruits, changeNickname } from './mypage.api'
 import ScheduleCalendar from './ScheduleCalendar'
+import { downloadIcs } from '../../common/util/ics'
 import type { ScheduleItem } from './ScheduleCalendar'
 import { reviewApi } from '../../api/review'
 import type { ReviewStats, ReviewTarget } from '../../api/review'
@@ -21,6 +22,8 @@ import type { Bookmark } from '../../api/bookmark'
 import { notificationApi } from '../../api/notification'
 import type { NotiSetting } from '../../api/notification'
 import { blockApi } from '../../api/block'
+import { followApi } from '../../api/follow'
+import type { Follow } from '../../api/follow'
 import type { Block } from '../../api/block'
 import { gen } from '../theme'
 
@@ -62,6 +65,9 @@ export default function MyPage() {
   const [notiSaving, setNotiSaving] = useState(false)
 
   const [blocks, setBlocks] = useState<Block[]>([])
+  const [following, setFollowing] = useState<Follow[]>([])
+  const [followers, setFollowers] = useState<Follow[]>([])
+  const [followTab, setFollowTab] = useState<'following' | 'followers'>('following')
   const [scheduleView, setScheduleView] = useState<'list' | 'calendar'>('list')
 
   // 활동 배지 재료 — 내 참석 통계와 받은 후기 통계(공개 프로필 API에서 가져온다)
@@ -74,6 +80,20 @@ export default function MyPage() {
     reviewCnt: num(myReview?.reviewCnt),
     avgRating: num(myReview?.avgRating),
   })
+
+  const loadFollows = () => {
+    followApi.following().then(setFollowing).catch(() => {})
+    followApi.followers().then(setFollowers).catch(() => {})
+  }
+  const unfollow = async (followeeHandle: string) => {
+    try {
+      await followApi.toggle(followeeHandle)
+      message.success('팔로우를 해제했습니다.')
+      loadFollows()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '해제 실패')
+    }
+  }
 
   const loadBlocks = () => { blockApi.list().then(setBlocks).catch(() => {}) }
   const unblock = async (blockedHandle: string) => {
@@ -134,6 +154,7 @@ export default function MyPage() {
     loadReviewTargets()
     loadBookmarks()
     loadBlocks()
+    loadFollows()
     notificationApi.setting().then((s) => setNotiSet(s ?? {})).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn])
@@ -156,6 +177,20 @@ export default function MyPage() {
 
   const today = new Date().toISOString().slice(0, 10)
   const schedule = scheduleAll.filter((s) => s.meetDt >= today)
+
+  /** 다가오는 모임을 한 파일(.ics)로 내보내기 — 개인 캘린더에 한 번에 넣는다. */
+  const exportSchedule = () => {
+    if (schedule.length === 0) return
+    downloadIcs(schedule.map((s) => ({
+      uid: `recruit-${s.id}@pwsh`,
+      title: s.title,
+      date: s.meetDt,
+      location: s.region ?? '',
+      description: `${s.role} · ${window.location.origin}/gen/recruit/${s.id}`,
+      url: `${window.location.origin}/gen/recruit/${s.id}`,
+    })), 'my-meetings.ics')
+    message.success(`다가오는 모임 ${schedule.length}건을 캘린더 파일로 내려받았습니다.`)
+  }
 
   /** 오늘까지 남은 일수 표기(D-day). */
   const dday = (meetDt: string) => {
@@ -346,10 +381,15 @@ export default function MyPage() {
       <Card
         style={{ borderRadius: 18 }} title={cardTitle('📅', '내 모임 일정', schedule.length)}
         extra={
-          <Segmented
-            size="small" value={scheduleView} onChange={(v) => setScheduleView(v as 'list' | 'calendar')}
-            options={[{ value: 'list', label: '목록' }, { value: 'calendar', label: '캘린더' }]}
-          />
+          <Space size={8}>
+            {schedule.length > 0 && (
+              <Button size="small" onClick={exportSchedule}>📅 내보내기</Button>
+            )}
+            <Segmented
+              size="small" value={scheduleView} onChange={(v) => setScheduleView(v as 'list' | 'calendar')}
+              options={[{ value: 'list', label: '목록' }, { value: 'calendar', label: '캘린더' }]}
+            />
+          </Space>
         }
       >
         {scheduleView === 'calendar' ? (
@@ -418,6 +458,45 @@ export default function MyPage() {
                   onClick={() => navigate(`/gen/recruit/${b.targetId}`)}>{b.title}</span>
                 {b.statusNm && <Tag style={{ flexShrink: 0 }}>{b.statusNm}</Tag>}
                 <a style={{ fontSize: 12, color: '#999', flexShrink: 0 }} onClick={() => removeBookmark('RECRUIT', b.targetId!)}>해제</a>
+              </div>
+            ))}
+          </Space>
+        )}
+      </Card>
+
+      {/* 팔로우 — 팔로우한 회원의 새 모집은 알림으로 오고, 그 회원의 글·모집이 내 피드에 함께 뜬다 */}
+      <Card
+        style={{ borderRadius: 18 }}
+        title={cardTitle('👥', followTab === 'following' ? '팔로잉' : '팔로워',
+          followTab === 'following' ? following.length : followers.length)}
+        extra={
+          <Segmented
+            size="small" value={followTab} onChange={(v) => setFollowTab(v as 'following' | 'followers')}
+            options={[{ value: 'following', label: '팔로잉' }, { value: 'followers', label: '팔로워' }]}
+          />
+        }
+      >
+        {(followTab === 'following' ? following : followers).length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={followTab === 'following'
+              ? '팔로우한 회원이 없습니다. 마음 맞는 회원을 팔로우하면 그 회원의 새 모집을 놓치지 않아요.'
+              : '아직 나를 팔로우한 회원이 없습니다.'}
+          />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {(followTab === 'following' ? following : followers).map((f) => (
+              <div key={f.rowId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }}
+                  onClick={() => navigate(`/gen/user/${f.followeeHandle}`)}>
+                  {f.followeeNm || '-'}
+                </span>
+                <Space size={8}>
+                  <span style={{ fontSize: 12, color: '#aaa' }}>{f.regDt}</span>
+                  {followTab === 'following' && (
+                    <Button size="small" onClick={() => unfollow(f.followeeHandle!)}>팔로우 해제</Button>
+                  )}
+                </Space>
               </div>
             ))}
           </Space>

@@ -37,6 +37,9 @@ public class FeedVO extends BaseVO {
     private String capacity;
     private String acceptedCnt;
 
+    /** 피드에 오른 이유: HOBBY(담은 취미) / FOLLOW(팔로우한 회원) — 화면에서 출처 표시 */
+    private String feedSrc;
+
     /** 피드 필터: ''=전체 / BBS / RECRUIT */
     private String feedFilter;
 

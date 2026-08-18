@@ -14,6 +14,7 @@ public class NotificationVO extends BaseVO {
     private String content;  // 표시 문구
     private String linkUrl;  // 클릭 시 이동 경로
     private String readYn;   // 읽음 여부
+    private String nickname; // 멘션 대상 조회 결과(@닉네임 → 회원) 표시용
 
     // ===== 알림 수신 설정(t_noti_setting). 행 없으면 전부 'Y'(기본 수신) =====
     private String notiApply;   // 모집 신청/수락/거절

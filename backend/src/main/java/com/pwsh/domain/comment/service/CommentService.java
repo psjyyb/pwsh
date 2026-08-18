@@ -41,17 +41,20 @@ public class CommentService {
         BbsVO post = commonDAO.selectOne("bbsDAO.selectView", key);
         String link = post != null ? "/gen/board/" + post.getBbsinfoId() + "?post=" + vo.getBbsId() : null;
 
+        // @닉네임 멘션이 있으면 그 회원에게 먼저 알린다. 아래 댓글 알림과 중복되지 않게 대상을 모아 둔다.
+        java.util.Set<String> mentioned = notificationService.notifyMentions(vo.getContext(), link, java.util.Set.of());
+
         String pid = vo.getPCommentId();
         if (pid != null && !pid.isEmpty() && !"0".equals(pid)) {
             // 대댓글 → 부모 댓글 작성자에게
             CommentVO pk = new CommentVO();
             pk.setRowId(pid);
             CommentVO parent = commonDAO.selectOne("commentDAO.selectView", pk);
-            if (parent != null) {
+            if (parent != null && !mentioned.contains(parent.getRegId())) {
                 notificationService.notify(parent.getRegId(), "COMMENT", "내 댓글에 답글이 달렸어요.", link);
             }
-        } else if (post != null) {
-            // 최상위 댓글 → 글 작성자에게
+        } else if (post != null && !mentioned.contains(post.getRegId())) {
+            // 최상위 댓글 → 글 작성자에게(멘션으로 이미 알린 경우는 건너뛴다)
             notificationService.notify(post.getRegId(), "COMMENT",
                     "'" + post.getTitle() + "' 글에 새 댓글이 달렸어요.", link);
         }

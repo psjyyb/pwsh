@@ -28,6 +28,7 @@ public class RecruitService {
     private final com.pwsh.domain.notification.service.NotificationService notificationService;
     private final com.pwsh.domain.block.service.BlockService blockService;
     private final com.pwsh.global.realtime.RealtimeService realtimeService;
+    private final com.pwsh.domain.follow.service.FollowService followService;
 
     // ===== 모집 =====
     public List<RecruitVO> selectList(RecruitVO vo) {
@@ -67,10 +68,47 @@ public class RecruitService {
         return recruit;
     }
 
-    /** 등록(로그인 회원). 주최자=reg_id(AuditInterceptor), 상태=모집중 기본. 등록 후 관심 회원에게 알림. */
+    /**
+     * 등록(로그인 회원). 주최자=reg_id(AuditInterceptor), 상태=모집중 기본.
+     * 등록 후 관심 회원에게 알림 — <b>나를 팔로우한 사람 먼저</b>, 그다음 그 취미를 담은 회원(중복 제외).
+     */
     public void insert(RecruitVO vo) {
         commonDAO.insert("recruitDAO.insert", vo);
-        notifyHobbyFollowers(vo);
+        java.util.Set<String> notified = notifyMyFollowers(vo);
+        notifyHobbyFollowers(vo, notified);
+    }
+
+    /**
+     * 나를 팔로우한 회원에게 '팔로우한 사람의 새 모집' 알림.
+     * 반환값(발송한 회원)은 취미 알림과 중복되지 않도록 호출자가 제외 목록으로 넘긴다.
+     */
+    private java.util.Set<String> notifyMyFollowers(RecruitVO vo) {
+        String host = SecurityUtil.getCurrentUserId();
+        java.util.Set<String> sent = new java.util.LinkedHashSet<>();
+        if (host == null) {
+            return sent;
+        }
+        List<String> followers = followService.selectFollowerIds(host);
+        if (followers.isEmpty()) {
+            return sent;
+        }
+        RecruitVO key = new RecruitVO();
+        key.setRowId(vo.getRowId());
+        RecruitVO saved = commonDAO.selectOne("recruitDAO.selectView", key);
+        String hostNm = saved != null && saved.getRegNm() != null ? saved.getRegNm() : "팔로우한 회원";
+        String title = saved != null && saved.getTitle() != null ? saved.getTitle() : "새 모집";
+        String link = "/gen/recruit/" + vo.getRowId();
+        for (String uid : followers) {
+            if (blockService.isBlockedBy(host, uid)) {
+                continue; // 주최자를 차단한 회원에게는 보내지 않는다
+            }
+            notificationService.notify(uid, "NEWRECRUIT", hostNm + "님이 새 모집을 열었어요: " + title, link);
+            sent.add(uid);
+        }
+        if (!sent.isEmpty()) {
+            log.info("[NewRecruit] 팔로워 {}명에게 알림", sent.size());
+        }
+        return sent;
     }
 
     /**
@@ -416,9 +454,14 @@ public class RecruitService {
         Map<String, Object> p = new java.util.HashMap<>();
         p.put("recruitId", vo.getRecruitId());
         p.put("userId", me);
-        for (String uid : commonDAO.<String>selectList("recruitDAO.selectChatMembers", p)) {
+        List<String> members = commonDAO.selectList("recruitDAO.selectChatMembers", p);
+        for (String uid : members) {
             realtimeService.push(uid, "recruitchat");
         }
+        // 대화는 알림을 남기지 않지만(빈도가 높다), @닉네임으로 콕 집어 부른 경우는 예외로 알린다.
+        // 대상은 그 대화를 볼 수 있는 멤버로 제한한다 — 밖에 있는 사람을 사적인 대화방으로 부르지 않는다.
+        notificationService.notifyMentions(content, "/gen/recruit/" + vo.getRecruitId(),
+                java.util.Set.of(), new java.util.HashSet<>(members));
     }
 
     /**

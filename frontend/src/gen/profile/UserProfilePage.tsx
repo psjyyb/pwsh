@@ -8,6 +8,7 @@ import type { UserProfile } from '../../api/profile'
 import { reviewApi } from '../../api/review'
 import type { Review, ReviewStats } from '../../api/review'
 import { blockApi } from '../../api/block'
+import { followApi } from '../../api/follow'
 import { me } from '../../api/auth'
 import { tokenStore } from '../../auth/token'
 import { gen } from '../theme'
@@ -34,6 +35,8 @@ export default function UserProfilePage() {
   }, [handle])
 
   const [blocked, setBlocked] = useState(false)
+  const [following, setFollowing] = useState(false)
+  const [followCnt, setFollowCnt] = useState<{ follower: number; followingCnt: number }>({ follower: 0, followingCnt: 0 })
 
   // 본인 프로필에는 쪽지/차단 버튼을 숨기기 위해 로그인 사용자 확인
   useEffect(() => {
@@ -41,11 +44,33 @@ export default function UserProfilePage() {
     me().then((m) => setMyId(m.handle)).catch(() => {}) // 내 handle로 본인 판정
   }, [])
 
-  // 차단 여부(로그인 + 타인 프로필일 때만)
+  // 차단·팔로우 여부(로그인 + 타인 프로필일 때만)
   useEffect(() => {
-    if (!handle || !myId || myId === handle) { setBlocked(false); return }
+    if (!handle || !myId || myId === handle) { setBlocked(false); setFollowing(false); return }
     blockApi.check(handle).then((v) => setBlocked(v === 'Y')).catch(() => {})
+    followApi.check(handle).then((v) => setFollowing(v === 'Y')).catch(() => {})
   }, [handle, myId])
+
+  // 팔로워·팔로잉 수는 비로그인도 볼 수 있다(공개 지표)
+  useEffect(() => {
+    if (!handle) return
+    followApi.counts(handle)
+      .then((c) => setFollowCnt({ follower: Number(c.followerCnt) || 0, followingCnt: Number(c.followingCnt) || 0 }))
+      .catch(() => {})
+  }, [handle])
+
+  const toggleFollow = async () => {
+    if (!handle) return
+    try {
+      const r = await followApi.toggle(handle)
+      const on = r.followedYn === 'Y'
+      setFollowing(on)
+      setFollowCnt((prev) => ({ ...prev, follower: Math.max(0, prev.follower + (on ? 1 : -1)) }))
+      message.success(on ? '팔로우했습니다. 새 모집이 열리면 알려드릴게요.' : '팔로우를 해제했습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '팔로우 처리 실패')
+    }
+  }
 
   const toggleBlock = async () => {
     if (!handle) return
@@ -91,6 +116,9 @@ export default function UserProfilePage() {
             <div style={{ color: '#888', fontSize: 13, marginTop: 4 }}>
               담은 취미 {hobbies.length} · 작성글 {posts.length} · 주최 모집 {recruits.length}
             </div>
+            <div style={{ color: '#888', fontSize: 13, marginTop: 2 }}>
+              팔로워 <b style={{ color: gen.primary }}>{followCnt.follower}</b> · 팔로잉 {followCnt.followingCnt}
+            </div>
             {/* 참석 신뢰지표 — 주최자가 기록한 모임만 집계. 노쇼가 있으면 눈에 띄게 */}
             {(Number(data.attend?.attendedCnt) + Number(data.attend?.absentCnt) + Number(data.attend?.noshowCnt)) > 0 && (
               <Space size={6} style={{ marginTop: 6 }} wrap>
@@ -112,7 +140,11 @@ export default function UserProfilePage() {
           </div>
           {myId && myId !== data.handle && (
             <Space>
-              <Button type="primary" onClick={() => navigate(`/gen/message?with=${data.handle}`)}>쪽지 보내기</Button>
+              {/* 팔로우하면 이 회원이 새 모집을 열 때 알림이 오고, 내 피드에 이 회원의 글·모집이 함께 뜬다 */}
+              <Button type={following ? 'default' : 'primary'} ghost={following} onClick={toggleFollow}>
+                {following ? '✓ 팔로잉' : '+ 팔로우'}
+              </Button>
+              <Button onClick={() => navigate(`/gen/message?with=${data.handle}`)}>쪽지 보내기</Button>
               {blocked ? (
                 <Popconfirm title="차단 해제" description="이 회원의 쪽지를 다시 받습니다." onConfirm={toggleBlock} okText="해제" cancelText="취소">
                   <Button>차단 해제</Button>

@@ -89,7 +89,7 @@ export default function FeedPage() {
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description="담은 취미가 없어요. 취미를 담으면 그 취미의 새 글과 모집이 여기 모입니다."
             >
-              <Button type="primary" onClick={() => navigate('/gen/myhobby')}>취미 담으러 가기</Button>
+              <Button type="primary" onClick={() => navigate('/gen/onboarding')}>관심 취미 고르기</Button>
             </Empty>
           ) : (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="담은 취미에 아직 새 글·모집이 없어요." />
@@ -108,6 +108,7 @@ export default function FeedPage() {
                           ? <Tag color="purple">모집</Tag>
                           : <Tag color="blue">글</Tag>}
                         {it.hobbyNm && <Tag>{it.hobbyNm}</Tag>}
+                        {it.feedSrc === 'FOLLOW' && <Tag color="magenta">팔로우</Tag>}
                         <span style={{ fontWeight: 600 }}>{it.title}</span>
                         {it.mineYn === 'Y' && <Tag color="gold">내 글</Tag>}
                       </Space>

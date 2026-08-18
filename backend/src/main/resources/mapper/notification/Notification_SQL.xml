@@ -64,4 +64,16 @@
             upd_dt       = NOW()
     </insert>
 
+    <!--
+      멘션(@닉네임) 대상 조회 — 닉네임 '정확히 일치'만. 부분 일치로 엉뚱한 회원을 부르지 않게 한다.
+      탈퇴·정지 회원은 제외. 없는 닉네임은 결과에 안 나오고 호출부가 그냥 무시한다.
+    -->
+    <select id="selectUserIdsByNicknames" parameterType="map" resultType="notificationVO">
+        SELECT user_id, nickname
+        FROM t_user
+        WHERE use_yn = 'Y' AND status_cd = 'STATUS01' AND nickname IS NOT NULL
+          AND nickname IN
+          <foreach collection="nicknames" item="nm" open="(" separator="," close=")">#{nm}</foreach>
+    </select>
+
 </mapper>

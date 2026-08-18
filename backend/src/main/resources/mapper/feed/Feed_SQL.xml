@@ -3,9 +3,12 @@
 <mapper namespace="feedDAO">
 
     <!--
-      내 취미 피드 — 담은 취미(t_user_hobby)에 연결된 게시판의 새 글 + 그 취미의 모집을 한 타임라인으로.
+      내 피드 — (1) 담은 취미(t_user_hobby)에 연결된 게시판의 새 글·모집 + (2) 팔로우한 회원(t_user_follow)의 새 글·모집.
       전용 테이블 없음(집계 전용). viewerId는 서비스가 로그인 사용자로 강제 주입한다.
       UNION ALL이라 두 SELECT의 컬럼 수·타입이 같아야 해서 해당 없는 필드는 NULL을 명시 캐스팅한다.
+
+      ★ 글 쪽은 t_hobby와의 INNER JOIN을 유지한다 — 취미에 연결된 게시판만 피드에 오른다는 뜻이고,
+        동시에 "팔로우했다고 해서 열람 권한 없는 게시판(1:1문의·갤러리 등)의 글이 새어나오지 않는다"는 보증이다.
     -->
     <sql id="feedBase">
         SELECT 'BBS' AS feed_type,
@@ -26,13 +29,21 @@
                NULL::VARCHAR AS status_nm,
                NULL::INTEGER AS capacity,
                NULL::INTEGER AS accepted_cnt,
+               (CASE WHEN EXISTS (SELECT 1 FROM t_user_hobby uh
+                                   WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
+                     THEN 'HOBBY' ELSE 'FOLLOW' END) AS feed_src,
                b.reg_dt AS sort_dt
         FROM t_bbs b
         JOIN t_hobby h ON h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y'
-        JOIN t_user_hobby uh ON uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId}
         WHERE b.use_yn = 'Y'
           AND b.p_bbs_id = 0        <!-- 답글은 피드에 노출하지 않음(원글 기준) -->
           AND b.secret_yn = 'N'     <!-- 비밀글 제외 -->
+          AND ( <!-- 담은 취미의 글 또는 내가 팔로우한 회원의 글 -->
+              EXISTS (SELECT 1 FROM t_user_hobby uh
+                       WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
+              OR EXISTS (SELECT 1 FROM t_user_follow uf
+                          WHERE uf.user_id = #{viewerId} AND uf.followee_id = b.reg_id)
+          )
           AND NOT EXISTS ( <!-- 내가 차단한 회원의 글은 제외(목록 정책과 동일) -->
               SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = b.reg_id
           )
@@ -56,11 +67,19 @@
                r.capacity,
                (SELECT COUNT(*) FROM t_recruit_apply a
                  WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02')::INTEGER AS accepted_cnt,
+               (CASE WHEN EXISTS (SELECT 1 FROM t_user_hobby uh
+                                   WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
+                     THEN 'HOBBY' ELSE 'FOLLOW' END) AS feed_src,
                r.reg_dt AS sort_dt
         FROM t_recruit r
         JOIN t_hobby h ON h.hobby_id = r.hobby_id AND h.use_yn = 'Y'
-        JOIN t_user_hobby uh ON uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId}
         WHERE r.use_yn = 'Y'
+          AND ( <!-- 담은 취미의 모집 또는 내가 팔로우한 회원의 모집 -->
+              EXISTS (SELECT 1 FROM t_user_hobby uh
+                       WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
+              OR EXISTS (SELECT 1 FROM t_user_follow uf
+                          WHERE uf.user_id = #{viewerId} AND uf.followee_id = r.reg_id)
+          )
           AND NOT EXISTS (
               SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = r.reg_id
           )
@@ -70,6 +89,7 @@
         SELECT f.feed_type, f.row_id, f.title, f.hobby_id, f.hobby_nm, f.bbsinfo_id,
                f.reg_nm, f.reg_handle, f.mine_yn, f.comment_cnt, f.good_cnt,
                f.meet_dt, f.area_nm, f.region, f.status_cd, f.status_nm, f.capacity, f.accepted_cnt,
+               f.feed_src,
                TO_CHAR(f.sort_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM ( <include refid="feedBase"/> ) f
         <if test="feedFilter != null and feedFilter != ''">WHERE f.feed_type = #{feedFilter}</if>

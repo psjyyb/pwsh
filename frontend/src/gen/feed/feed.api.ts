@@ -10,6 +10,8 @@ export interface FeedItem {
   regNm?: string
   regHandle?: string
   mineYn?: string
+  /** 피드에 오른 이유: HOBBY(담은 취미) / FOLLOW(팔로우한 회원) */
+  feedSrc?: 'HOBBY' | 'FOLLOW'
   regDt?: string
   // BBS
   bbsinfoId?: string

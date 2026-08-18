@@ -58,7 +58,7 @@ public class NotificationService {
 
     /**
      * 수신자가 이 유형의 알림을 받도록 설정했는지. 설정 행이 없으면 기본 수신(Y).
-     * 유형 매핑: APPLY/ACCEPT/REJECT/REMIND/NEWRECRUIT→notiApply, COMMENT→notiComment,
+     * 유형 매핑: APPLY/ACCEPT/REJECT/REMIND/NEWRECRUIT→notiApply, COMMENT·MENTION→notiComment,
      * MESSAGE→notiMessage, REVIEW→notiReview.
      * (REMIND=모임 하루 전 리마인더, NEWRECRUIT=담은 취미에 새 모집 —
      *  둘 다 모임 관련이라 '모임 알림' 설정을 함께 따른다. 설정을 더 쪼개려면 t_noti_setting에 컬럼 추가가 필요하다)
@@ -71,7 +71,7 @@ public class NotificationService {
             if (s == null) {
                 return true;
             }
-            if ("COMMENT".equals(type)) {
+            if ("COMMENT".equals(type) || "MENTION".equals(type)) {
                 return !"N".equals(s.getNotiComment());
             }
             if ("MESSAGE".equals(type)) {
@@ -85,6 +85,62 @@ public class NotificationService {
             return true; // 설정 조회 실패 시 알림을 막지 않는다
         }
     }
+
+    /**
+     * 본문에서 <b>@닉네임</b>을 찾아 그 회원에게 멘션 알림.
+     *
+     * <p>닉네임은 정확히 일치해야 한다(부분 일치로 엉뚱한 사람을 부르지 않게). 존재하지 않는 닉네임은 그냥 무시한다.
+     * 이미 다른 사유로 알림을 보낸 사람(글쓴이·부모 댓글 작성자)은 {@code already}로 걸러 중복 발송을 막는다.
+     *
+     * @return 멘션 알림을 보낸 회원 ID
+     */
+    public java.util.Set<String> notifyMentions(String content, String link, java.util.Set<String> already) {
+        return notifyMentions(content, link, already, null);
+    }
+
+    /**
+     * @param allowed 알릴 수 있는 회원 화이트리스트(null이면 제한 없음).
+     *                비공개 대화(모임 단체 대화)에서 <b>바깥 사람을 불러들이지 않도록</b> 멤버로 제한할 때 쓴다.
+     */
+    public java.util.Set<String> notifyMentions(String content, String link,
+                                                java.util.Set<String> already, java.util.Set<String> allowed) {
+        java.util.Set<String> sent = new java.util.LinkedHashSet<>();
+        java.util.Set<String> names = parseMentions(content);
+        if (names.isEmpty()) {
+            return sent;
+        }
+        List<NotificationVO> users = commonDAO.selectList("notificationDAO.selectUserIdsByNicknames",
+                java.util.Map.of("nicknames", names));
+        String actor = SecurityUtil.getCurrentUserId();
+        for (NotificationVO u : users) {
+            String uid = u.getUserId();
+            if (uid == null || uid.equals(actor) || already.contains(uid) || sent.contains(uid)) {
+                continue;
+            }
+            if (allowed != null && !allowed.contains(uid)) {
+                continue; // 그 대화를 볼 수 없는 사람은 멘션해도 알리지 않는다
+            }
+            notify(uid, "MENTION", "누군가 회원님을 언급했어요: @" + u.getNickname(), link);
+            sent.add(uid);
+        }
+        return sent;
+    }
+
+    /** 본문에서 @뒤에 오는 닉네임 후보를 뽑는다(한글·영문·숫자·밑줄, 최대 30자 = 닉네임 컬럼 길이). */
+    private java.util.Set<String> parseMentions(String content) {
+        java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        if (content == null || content.isBlank()) {
+            return names;
+        }
+        java.util.regex.Matcher m = MENTION.matcher(content);
+        while (m.find()) {
+            names.add(m.group(1));
+        }
+        return names;
+    }
+
+    private static final java.util.regex.Pattern MENTION =
+            java.util.regex.Pattern.compile("@([\\p{L}\\p{N}_]{1,30})");
 
     /** 내 알림 수신 설정 조회(행 없으면 전부 Y). */
     public NotificationVO selectMySetting() {

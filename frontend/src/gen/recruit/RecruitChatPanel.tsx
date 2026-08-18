@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Empty, Input, Popconfirm, Space, Tag, message } from 'antd'
 import UserAvatar from '../../common/gen/components/UserAvatar'
+import MentionText from '../../common/gen/components/MentionText'
 import { useEventStream } from '../../common/gen/useEventStream'
 import { recruitChatApi } from './recruit.api'
 import type { RecruitChat } from './recruit.api'
@@ -129,9 +130,9 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
                       background: mine ? gen.primary : '#fff',
                       color: mine ? '#fff' : gen.ink,
                       border: mine ? 'none' : `1px solid ${gen.line}`,
-                      borderRadius: 12, padding: '7px 11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      borderRadius: 12, padding: '7px 11px',
                     }}>
-                      {c.content}
+                      <MentionText text={c.content} />
                     </div>
                   </div>
                 </div>

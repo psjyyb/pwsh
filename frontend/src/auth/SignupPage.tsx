@@ -61,11 +61,12 @@ export default function SignupPage() {
         email: values.email,
         code: values.code,
       })
-      // 가입 성공 → 바로 로그인 처리 후 메인으로(재로그인 불필요)
+      // 가입 성공 → 바로 로그인 처리(재로그인 불필요) 후 관심 취미 고르기로.
+      // 취미를 하나도 안 담으면 피드가 비고 새 모집 알림도 안 오므로, 첫 화면에서 고르게 한다(건너뛸 수 있음).
       const token = await login(values.userId, values.userPw)
       tokenStore.set(token.accessToken, token.refreshToken)
       message.success('환영합니다! 회원가입이 완료되었습니다.')
-      navigate('/gen', { replace: true })
+      navigate('/gen/onboarding', { replace: true })
     } catch (e) {
       message.error(e instanceof Error ? e.message : '회원가입에 실패했습니다.')
     } finally {

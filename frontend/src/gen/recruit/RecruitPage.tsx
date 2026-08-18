@@ -16,6 +16,7 @@ import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import ReportAction from '../../common/gen/components/ReportAction'
 import { bookmarkApi } from '../../api/bookmark'
+import { downloadIcs, safeFileName } from '../../common/util/ics'
 
 type Mode = 'list' | 'view' | 'write'
 interface Category { hobbyId: string; name: string }
@@ -189,6 +190,20 @@ export default function RecruitPage() {
     } catch (e) {
       message.error(e instanceof Error ? e.message : '기록 실패')
     }
+  }
+
+  /** 이 모임을 개인 캘린더로 내보내기(.ics). 종일 일정으로 만든다(모임일에 시간이 없음). */
+  const addToCalendar = () => {
+    if (!recruit?.meetDt) return
+    downloadIcs([{
+      uid: `recruit-${recruit.rowId}@pwsh`,
+      title: recruit.title ?? '모임',
+      date: recruit.meetDt,
+      location: [recruit.areaNm, recruit.region].filter(Boolean).join(' '),
+      description: recruit.content ?? '',
+      url: `${window.location.origin}/gen/recruit/${recruit.rowId}`,
+    }], `${safeFileName(recruit.title ?? 'meeting')}.ics`)
+    message.success('캘린더 파일을 내려받았습니다. 열면 캘린더에 추가됩니다.')
   }
 
   /** 북마크 토글 — 결과 상태를 서버 응답(markedYn)으로 반영. */
@@ -413,6 +428,10 @@ export default function RecruitPage() {
               <Button type={bookmarked ? 'primary' : 'default'} ghost={bookmarked} onClick={toggleBookmark}>
                 {bookmarked ? '🔖 북마크됨' : '🔖 북마크'}
               </Button>
+            )}
+            {/* 일정이 있는 모집만 — 개인 캘린더(구글·애플·아웃룩)로 가져가 잊지 않게 */}
+            {recruit.meetDt && (
+              <Button onClick={addToCalendar}>📅 캘린더에 추가</Button>
             )}
             <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
           </Space>

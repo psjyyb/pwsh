@@ -9,6 +9,7 @@ import FeedPage from './feed/FeedPage'
 import SearchPage from './search/SearchPage'
 import UserProfilePage from './profile/UserProfilePage'
 import MessagePage from './message/MessagePage'
+import OnboardingPage from './onboarding/OnboardingPage'
 
 /**
  * 사용자(gen) 화면 레지스트리 — adm/admScreens.tsx와 동일 패턴.
@@ -27,6 +28,7 @@ export const genScreens: GenScreen[] = [
   { path: '/gen/recruit/:id', label: '모집', element: <RecruitPage /> },
   { path: '/gen/hobby/:id', label: '취미', element: <GenHobby /> },
   { path: '/gen/myhobby', label: '나의 취미', element: <MyHobbyPage /> },
+  { path: '/gen/onboarding', label: '관심 취미 고르기', element: <OnboardingPage /> },
   { path: '/gen/feed', label: '내 피드', element: <FeedPage /> },
   { path: '/gen/search', label: '검색', element: <SearchPage /> },
   { path: '/gen/user/:userId', label: '회원 프로필', element: <UserProfilePage /> },

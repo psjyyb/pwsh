@@ -19,6 +19,7 @@ import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import { likeApi } from '../../api/like'
 import { bookmarkApi } from '../../api/bookmark'
 import UserAvatar from '../../common/gen/components/UserAvatar'
+import MentionText from '../../common/gen/components/MentionText'
 import ReportAction from '../../common/gen/components/ReportAction'
 import { extractEditorImageIds } from '../../common/util/editorImages'
 import type { Bbsinfo } from '../../adm/bbsinfo/bbsinfo.api'
@@ -72,6 +73,11 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
 
   const pageSize = Number(board.listCnt) || 10
   const meId = getClaims()?.sub
+
+  /** @멘션 후보 — 글쓴이 + 댓글 작성자(중복·빈값 제거, 최대 8명). 화면에 이미 보이는 사람들이다. */
+  const mentionCandidates = Array.from(
+    new Set([post?.regNm, ...comments.map((c) => c.regNm)].filter((n): n is string => !!n)),
+  ).slice(0, 8)
   const canEdit = (mineYn?: string) => isAdmin() || mineYn === 'Y' // 소유자 판정=서버계산 mineYn(로그인 ID 미노출)
   const isNew = (regDt?: string) => {
     const n = Number(board.newCnt)
@@ -543,7 +549,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
                 </Space.Compact>
               ) : (
                 <>
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>
+                  <div><MentionText text={c.context} /></div>
                   <div style={{ marginTop: 2, display: 'flex', gap: 12, alignItems: 'center' }}>
                     {meId ? (
                       <a onClick={() => toggleLikeComment(c)} style={{ color: c.likedYn === 'Y' ? '#6C4EE3' : '#999', fontSize: 12 }}>
@@ -568,15 +574,32 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
           )})}
           {/* 비로그인은 입력창 대신 로그인 유도 — 다 쓰고 나서 401로 튕기지 않도록 */}
           {meId ? (
-            <Space.Compact style={{ width: '100%', marginTop: 8 }}>
-              <Input.TextArea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                autoSize={{ minRows: 1, maxRows: 4 }}
-                placeholder={isQna ? '답변을 입력하세요' : '댓글을 입력하세요'}
-              />
-              <Button type="primary" onClick={addComment}>등록</Button>
-            </Space.Compact>
+            <>
+              {/* @자동완성 후보: 이 글에 이미 보이는 사람(글쓴이·댓글 작성자)만.
+                  회원 검색 API를 새로 열면 닉네임을 훑을 수 있게 되므로 그렇게 하지 않는다. */}
+              {mentionCandidates.length > 0 && (
+                <Space size={6} wrap style={{ marginTop: 8 }}>
+                  <span style={{ fontSize: 12, color: '#aaa' }}>@ 부르기</span>
+                  {mentionCandidates.map((nm) => (
+                    <Tag
+                      key={nm} style={{ cursor: 'pointer' }}
+                      onClick={() => setCommentText((t) => `${t}${t && !t.endsWith(' ') ? ' ' : ''}@${nm} `)}
+                    >
+                      @{nm}
+                    </Tag>
+                  ))}
+                </Space>
+              )}
+              <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+                <Input.TextArea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  autoSize={{ minRows: 1, maxRows: 4 }}
+                  placeholder={isQna ? '답변을 입력하세요' : '댓글을 입력하세요 (@닉네임으로 부를 수 있어요)'}
+                />
+                <Button type="primary" onClick={addComment}>등록</Button>
+              </Space.Compact>
+            </>
           ) : (
             <div style={{ marginTop: 10, padding: '10px 12px', background: '#fafafa', borderRadius: 8, textAlign: 'center', color: '#888', fontSize: 13 }}>
               댓글을 쓰려면 로그인이 필요합니다. <a onClick={() => navigate('/login')}>로그인</a>
