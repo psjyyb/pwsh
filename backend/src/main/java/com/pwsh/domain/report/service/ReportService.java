@@ -25,7 +25,7 @@ public class ReportService {
     public void insert(ReportVO vo) {
         String me = currentUserId();
         if (!"BBS".equals(vo.getTargetType()) && !"COMMENT".equals(vo.getTargetType())
-                && !"RECRUIT".equals(vo.getTargetType())) {
+                && !"RECRUIT".equals(vo.getTargetType()) && !"CHAT".equals(vo.getTargetType())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 신고 대상입니다.");
         }
         // 숫자 검증(::integer 캐스트 500 방지) + 대상 존재 확인(없는 콘텐츠 신고 차단)
@@ -82,6 +82,8 @@ public class ReportService {
                     commonDAO.update("reportDAO.setCommentUseYn", t);
                 } else if ("RECRUIT".equals(type)) {
                     commonDAO.update("reportDAO.setRecruitUseYn", t);
+                } else if ("CHAT".equals(type)) {
+                    commonDAO.update("reportDAO.setChatUseYn", t);
                 }
             }
         }

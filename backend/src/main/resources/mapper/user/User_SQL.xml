@@ -87,7 +87,10 @@
                CONVERT_FROM(DECRYPT(DECODE(user_nm,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') AS user_nm,
                CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS phone,
                CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS email,
-               CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS birth
+               CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS birth,
+               -- 어뷰징 판단 참고치(팔로워가 비정상적으로 많은 계정 등). 목록이 아닌 상세에서만 계산한다
+               (SELECT COUNT(*) FROM t_user_follow f WHERE f.followee_id = t_user.user_id)::TEXT AS follower_cnt,
+               (SELECT COUNT(*) FROM t_user_follow f WHERE f.user_id = t_user.user_id)::TEXT     AS following_cnt
         FROM t_user
         WHERE user_id = #{rowId} AND use_yn = 'Y'
     </select>

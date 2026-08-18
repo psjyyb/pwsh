@@ -4,13 +4,13 @@ import type { TableColumnsType } from 'antd'
 import { reportApi } from '../../api/report'
 import type { Report } from '../../api/report'
 
-const TYPE_NM: Record<string, string> = { BBS: '게시글', COMMENT: '댓글', RECRUIT: '모집' }
+const TYPE_NM: Record<string, string> = { BBS: '게시글', COMMENT: '댓글', RECRUIT: '모집', CHAT: '모임대화' }
 const statusTag = (s?: string) =>
   s === 'RESOLVED' ? <Tag color="red">삭제조치</Tag>
     : s === 'DISMISSED' ? <Tag>반려</Tag>
       : <Tag color="orange">대기</Tag>
 
-/** 신고 관리(관리자) — 게시글/댓글/모집 신고 목록 + 처리(삭제조치=대상 숨김 / 반려 / 대기로 복원). */
+/** 신고 관리(관리자) — 게시글/댓글/모집/모임대화 신고 목록 + 처리(삭제조치=대상 숨김 / 반려 / 대기로 복원). */
 export default function ReportListPage() {
   const [rows, setRows] = useState<Report[]>([])
   const [status, setStatus] = useState<string>('') // 기본 전체

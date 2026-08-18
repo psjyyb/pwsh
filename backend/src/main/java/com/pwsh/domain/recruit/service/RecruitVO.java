@@ -14,6 +14,10 @@ public class RecruitVO extends BaseVO {
     private String content;     // 모집 설명
     private String capacity;    // 모집 인원
     private String region;      // 활동 지역
+    private String placeNm;     // 만날 장소명(지도에서 선택)
+    private String addr;         // 장소 주소(지도에서 선택)
+    private String lat;          // 위도(지도 마커). 장소 미지정이면 빈 값
+    private String lng;          // 경도(지도 마커)
     private String meetDt;      // 모임 일정(YYYY-MM-DD)
     private String statusCd;    // 모집상태(RECRUIT00)
     private String viewCnt;

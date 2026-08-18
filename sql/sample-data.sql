@@ -26,11 +26,12 @@ INSERT INTO t_comment (bbs_id, context, good_cnt, bad_cnt, use_yn, reg_id, upd_i
 (3, '테라포밍마스 강추입니다', 0, 0, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- 모집 (취미 hobby_id: 등산1/보드게임2/낚시3)
-INSERT INTO t_recruit (recruit_id, hobby_id, title, content, capacity, region, meet_dt,
+-- area_cd=시/도 표준코드(필터 기준), region=상세 장소(자유입력). 둘에 같은 값을 넣으면 화면에 "서울 서울"로 찍힌다.
+INSERT INTO t_recruit (recruit_id, hobby_id, title, content, capacity, area_cd, region, meet_dt,
     status_cd, view_cnt, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
-(1, 1, '주말 북한산 정기 산행',    '초보 환영합니다. 천천히 올라가요.',       4, '서울', '2026-08-10', 'RECRUIT01', 18, 'Y', 'user',  'user',  NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(2, 2, '금요일 저녁 보드게임 번개', '강남 보드게임카페에서 만나요.',           6, '강남', '2026-08-08', 'RECRUIT01', 24, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(3, 3, '서해 새벽 낚시 동출',      '차량 2대 예정. 초보도 OK.',              5, '인천', '2026-08-15', 'RECRUIT01',  9, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+(1, 1, '주말 북한산 정기 산행',    '초보 환영합니다. 천천히 올라가요.',       4, 'AREA01', '은평구 북한산입구', '2026-08-10', 'RECRUIT01', 18, 'Y', 'user',  'user',  NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(2, 2, '금요일 저녁 보드게임 번개', '강남 보드게임카페에서 만나요.',           6, 'AREA01', '강남역 11번 출구', '2026-08-08', 'RECRUIT01', 24, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(3, 3, '서해 새벽 낚시 동출',      '차량 2대 예정. 초보도 OK.',              5, 'AREA04', '연안부두', '2026-08-15', 'RECRUIT01',  9, 'Y', 'admin', 'admin', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 SELECT setval(pg_get_serial_sequence('t_recruit','recruit_id'), (SELECT MAX(recruit_id) FROM t_recruit));
 
 -- 참여 신청 (본인 모집 아님)
@@ -46,9 +47,9 @@ SELECT 7, h.bbsinfo_id, '한강 야간 러닝 후기', '<p>10km 완주했습니�
 FROM t_hobby h WHERE h.hobby_nm = '러닝' AND h.use_yn = 'Y';
 SELECT setval(pg_get_serial_sequence('t_bbs','bbs_id'), (SELECT MAX(bbs_id) FROM t_bbs));
 
-INSERT INTO t_recruit (recruit_id, hobby_id, title, content, capacity, region, meet_dt, status_cd, view_cnt, use_yn,
+INSERT INTO t_recruit (recruit_id, hobby_id, title, content, capacity, area_cd, region, meet_dt, status_cd, view_cnt, use_yn,
     reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-SELECT 4, h.hobby_id, '주 3회 아침 러닝 크루', '초보 환영! 페이스 맞춰 함께 달려요.', 8, '서울', '2026-08-12', 'RECRUIT01', 11, 'Y', 'user', 'user', NOW(), NOW(), '127.0.0.1', '127.0.0.1'
+SELECT 4, h.hobby_id, '주 3회 아침 러닝 크루', '초보 환영! 페이스 맞춰 함께 달려요.', 8, 'AREA01', '여의도 한강공원', '2026-08-12', 'RECRUIT01', 11, 'Y', 'user', 'user', NOW(), NOW(), '127.0.0.1', '127.0.0.1'
 FROM t_hobby h WHERE h.hobby_nm = '러닝' AND h.use_yn = 'Y';
 SELECT setval(pg_get_serial_sequence('t_recruit','recruit_id'), (SELECT MAX(recruit_id) FROM t_recruit));
 
@@ -70,13 +71,13 @@ FROM (VALUES
 JOIN t_hobby h ON h.hobby_nm = v.hobby AND h.use_yn = 'Y';
 SELECT setval(pg_get_serial_sequence('t_bbs','bbs_id'), (SELECT MAX(bbs_id) FROM t_bbs));
 
-INSERT INTO t_recruit (hobby_id, title, content, capacity, region, meet_dt, status_cd, view_cnt, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-SELECT h.hobby_id, v.title, v.content, v.cap, v.region, v.meet_dt, 'RECRUIT01', v.vc, 'Y', v.reg, v.reg, NOW(), NOW(), '127.0.0.1', '127.0.0.1'
+INSERT INTO t_recruit (hobby_id, title, content, capacity, area_cd, region, meet_dt, status_cd, view_cnt, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+SELECT h.hobby_id, v.title, v.content, v.cap, v.area_cd, v.region, v.meet_dt, 'RECRUIT01', v.vc, 'Y', v.reg, v.reg, NOW(), NOW(), '127.0.0.1', '127.0.0.1'
 FROM (VALUES
-    ('클라이밍', '주말 볼더링 같이 하실 분',    '초보 환영! 서로 문제 봐주며 놀아요.', 0, '서울', '2026-08-18', 14, 'user'),
-    ('요가',     '평일 저녁 요가 클래스 같이',  '초보 위주 스튜디오예요.',              5, '서울', '2026-08-14',  8, 'admin'),
-    ('캠핑',     '가을 첫 캠핑 같이 가요',      '장비 없어도 OK, 렌탈 도와드려요.',     0, '경기', '2026-09-05', 20, 'user')
-  ) AS v(hobby, title, content, cap, region, meet_dt, vc, reg)
+    ('클라이밍', '주말 볼더링 같이 하실 분',    '초보 환영! 서로 문제 봐주며 놀아요.', 0, 'AREA01', '강남 실내암장',   '2026-08-18', 14, 'user'),
+    ('요가',     '평일 저녁 요가 클래스 같이',  '초보 위주 스튜디오예요.',              5, 'AREA01', '성수동 스튜디오', '2026-08-14',  8, 'admin'),
+    ('캠핑',     '가을 첫 캠핑 같이 가요',      '장비 없어도 OK, 렌탈 도와드려요.',     0, 'AREA09', '가평 캠핑장',     '2026-09-05', 20, 'user')
+  ) AS v(hobby, title, content, cap, area_cd, region, meet_dt, vc, reg)
 JOIN t_hobby h ON h.hobby_nm = v.hobby AND h.use_yn = 'Y';
 SELECT setval(pg_get_serial_sequence('t_recruit','recruit_id'), (SELECT MAX(recruit_id) FROM t_recruit));
 

@@ -73,6 +73,7 @@ public class RecruitService {
      * 등록 후 관심 회원에게 알림 — <b>나를 팔로우한 사람 먼저</b>, 그다음 그 취미를 담은 회원(중복 제외).
      */
     public void insert(RecruitVO vo) {
+        validatePlace(vo);
         commonDAO.insert("recruitDAO.insert", vo);
         java.util.Set<String> notified = notifyMyFollowers(vo);
         notifyHobbyFollowers(vo, notified);
@@ -186,6 +187,11 @@ public class RecruitService {
         next.setCapacity(pick(vo.getCapacity(), src.getCapacity()));
         next.setAreaCd(pick(vo.getAreaCd(), src.getAreaCd()));
         next.setRegion(pick(vo.getRegion(), src.getRegion()));
+        // 정기 모임은 같은 곳에서 다시 모이는 게 보통이라 장소·좌표도 물려받는다(일정만 바뀜)
+        next.setPlaceNm(pick(vo.getPlaceNm(), src.getPlaceNm()));
+        next.setAddr(pick(vo.getAddr(), src.getAddr()));
+        next.setLat(pick(vo.getLat(), src.getLat()));
+        next.setLng(pick(vo.getLng(), src.getLng()));
         next.setMeetDt(meetDt); // 상태는 매퍼 기본값(RECRUIT01 모집중) — 복제본은 항상 새로 모집한다
         commonDAO.insert("recruitDAO.insert", next);
         vo.setRowId(next.getRowId()); // 컨트롤러가 새 모집 ID를 반환
@@ -227,7 +233,39 @@ public class RecruitService {
     /** 수정 — 주최자·관리자만. */
     public void update(RecruitVO vo) {
         assertOwner(vo.getRowId());
+        validatePlace(vo);
         commonDAO.update("recruitDAO.update", vo);
+    }
+
+    /**
+     * 장소(지도) 입력 검증. 좌표는 클라이언트가 보내는 값이라 그대로 믿지 않는다.
+     * - 숫자가 아니면 400(매퍼의 ::numeric 캐스트가 500으로 터지는 걸 막는다)
+     * - 위도 ±90 / 경도 ±180 범위를 벗어나면 400
+     * - 둘 중 하나만 오면 마커를 찍을 수 없으니 400
+     * 장소를 아예 지정하지 않는 모집(온라인·미정)은 정상이라 빈 값은 통과시킨다.
+     */
+    private void validatePlace(RecruitVO vo) {
+        boolean hasLat = vo.getLat() != null && !vo.getLat().isBlank();
+        boolean hasLng = vo.getLng() != null && !vo.getLng().isBlank();
+        if (!hasLat && !hasLng) {
+            return;
+        }
+        if (hasLat != hasLng) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "장소 좌표가 올바르지 않습니다.");
+        }
+        double lat = parseCoord(vo.getLat());
+        double lng = parseCoord(vo.getLng());
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "장소 좌표가 올바르지 않습니다.");
+        }
+    }
+
+    private double parseCoord(String value) {
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "장소 좌표가 올바르지 않습니다.");
+        }
     }
 
     /** 모집 상태 변경(마감/재개) — 주최자·관리자만. */

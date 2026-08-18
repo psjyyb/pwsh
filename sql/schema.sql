@@ -491,6 +491,10 @@ CREATE TABLE t_recruit (
     capacity   INTEGER,                 -- 모집 인원(명)
     area_cd    VARCHAR(20),             -- 지역(시/도) 표준 코드(t_code AREA00) — 목록 필터 기준
     region     VARCHAR(100),            -- 상세 지역(자유입력: 구/동/장소). 표시용
+    place_nm   VARCHAR(100),            -- 만날 장소명(지도에서 선택. 예: 강남역 11번 출구)
+    addr       VARCHAR(200),            -- 장소 주소(지도에서 선택한 도로명/지번)
+    lat        NUMERIC(10,7),           -- 위도(지도 마커). 장소 미지정이면 NULL
+    lng        NUMERIC(10,7),           -- 경도(지도 마커)
     meet_dt    VARCHAR(20),             -- 모임 일정(YYYY-MM-DD)
     status_cd  VARCHAR(20)  NOT NULL DEFAULT 'RECRUIT01', -- 모집상태(t_code RECRUIT00: 01 모집중/02 마감)
     view_cnt   INTEGER      DEFAULT 0,
@@ -511,6 +515,10 @@ COMMENT ON COLUMN t_recruit.content IS '모집 설명';
 COMMENT ON COLUMN t_recruit.capacity IS '모집 인원(명)';
 COMMENT ON COLUMN t_recruit.area_cd IS '지역 시/도 표준코드(t_code AREA00) — 필터 기준';
 COMMENT ON COLUMN t_recruit.region IS '상세 지역(자유입력: 구/동/장소)';
+COMMENT ON COLUMN t_recruit.place_nm IS '만날 장소명(지도 선택)';
+COMMENT ON COLUMN t_recruit.addr IS '장소 주소(지도 선택)';
+COMMENT ON COLUMN t_recruit.lat IS '위도(지도 마커) — 미지정 NULL';
+COMMENT ON COLUMN t_recruit.lng IS '경도(지도 마커) — 미지정 NULL';
 COMMENT ON COLUMN t_recruit.meet_dt IS '모임 일정(YYYY-MM-DD)';
 COMMENT ON COLUMN t_recruit.status_cd IS '모집상태(t_code RECRUIT00: 01 모집중/02 마감)';
 COMMENT ON COLUMN t_recruit.reg_id IS '주최자(등록자)';

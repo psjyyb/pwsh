@@ -18,6 +18,7 @@
         <!-- 공개 목록: 주최자 로그인 ID(reg_id) 미노출. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
         SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, r.view_cnt,
+               r.place_nm, <!-- 목록 카드에 만날 장소 표시(좌표는 상세에서만 쓴다) -->
                ho.hobby_nm,
                sc.code_nm AS status_nm,
                ac.code_nm AS area_nm,
@@ -60,6 +61,8 @@
     <select id="selectView" parameterType="recruitVO" resultType="recruitVO">
         SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.content, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, r.view_cnt,
+               r.place_nm, r.addr, r.lat::TEXT AS lat, r.lng::TEXT AS lng, <!-- VO가 String 통일이라 좌표는 TEXT로 -->
+
                r.reg_id, <!-- 서버 인가용(주최자 판정). 공개 응답 직전 RecruitService에서 제거 -->
                ho.hobby_nm,
                sc.code_nm AS status_nm,
@@ -79,10 +82,13 @@
     </select>
 
     <insert id="insert" parameterType="recruitVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="recruit_id">
-        INSERT INTO t_recruit (hobby_id, title, content, capacity, area_cd, region, meet_dt, status_cd, view_cnt, use_yn,
+        INSERT INTO t_recruit (hobby_id, title, content, capacity, area_cd, region, place_nm, addr, lat, lng,
+            meet_dt, status_cd, view_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{hobbyId}::integer, #{title}, #{content},
-            NULLIF(#{capacity}, '')::integer, NULLIF(#{areaCd}, ''), NULLIF(#{region}, ''), NULLIF(#{meetDt}, ''),
+            NULLIF(#{capacity}, '')::integer, NULLIF(#{areaCd}, ''), NULLIF(#{region}, ''),
+            NULLIF(#{placeNm}, ''), NULLIF(#{addr}, ''),
+            NULLIF(#{lat}, '')::numeric, NULLIF(#{lng}, '')::numeric, NULLIF(#{meetDt}, ''),
             COALESCE(NULLIF(#{statusCd}, ''), 'RECRUIT01'), 0, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
@@ -91,7 +97,10 @@
         UPDATE t_recruit SET
             title = #{title}, content = #{content},
             capacity = NULLIF(#{capacity}, '')::integer,
-            area_cd = NULLIF(#{areaCd}, ''), region = NULLIF(#{region}, ''), meet_dt = NULLIF(#{meetDt}, ''),
+            area_cd = NULLIF(#{areaCd}, ''), region = NULLIF(#{region}, ''),
+            place_nm = NULLIF(#{placeNm}, ''), addr = NULLIF(#{addr}, ''),
+            lat = NULLIF(#{lat}, '')::numeric, lng = NULLIF(#{lng}, '')::numeric,
+            meet_dt = NULLIF(#{meetDt}, ''),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE recruit_id = #{rowId}::integer
     </update>

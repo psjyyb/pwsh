@@ -24,6 +24,8 @@ public class BbsController {
 
     @RequestMapping("/selectBbsList.do")
     public ApiResponse<Map<String, Object>> selectList(@RequestBody BbsVO searchVO) {
+        // 관리자 화면이 /adm/bbs/{bbsinfoId} 경로값을 그대로 보내므로 사용자가 URL을 손대면 문자열이 들어온다
+        Validate.numeric(searchVO.getBbsinfoId(), "게시판");
         int totalCount = bbsService.selectListTotalCount(searchVO);
         return ApiResponse.ok(Map.of(
                 "list", bbsService.selectList(searchVO),

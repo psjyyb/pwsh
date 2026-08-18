@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Empty, Input, Popconfirm, Space, Tag, message } from 'antd'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import MentionText from '../../common/gen/components/MentionText'
+import ReportAction from '../../common/gen/components/ReportAction'
 import { useEventStream } from '../../common/gen/useEventStream'
 import { recruitChatApi } from './recruit.api'
 import type { RecruitChat } from './recruit.api'
@@ -120,10 +121,13 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
                       <span style={{ fontSize: 12, fontWeight: 600 }}>{c.regNm || '회원'}</span>
                       {c.hostYn === 'Y' && <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>주최자</Tag>}
                       <span style={{ fontSize: 11, color: gen.inkFaint }}>{c.regDt}</span>
-                      {mine && (
+                      {mine ? (
                         <Popconfirm title="이 대화를 삭제할까요?" onConfirm={() => remove(c.rowId!)} okText="삭제" cancelText="취소">
                           <a style={{ fontSize: 11, color: gen.inkFaint }}>삭제</a>
                         </Popconfirm>
+                      ) : (
+                        // 사적인 대화라 관리자도 들여다보지 못한다 → 문제가 생기면 신고로만 올라온다
+                        <ReportAction targetType="CHAT" targetId={c.rowId!} />
                       )}
                     </div>
                     <div style={{

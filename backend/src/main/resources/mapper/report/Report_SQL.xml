@@ -15,6 +15,7 @@
                  WHEN 'BBS'     THEN (SELECT COUNT(*) FROM t_bbs     WHERE bbs_id = #{targetId}::integer AND use_yn = 'Y')
                  WHEN 'COMMENT' THEN (SELECT COUNT(*) FROM t_comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y')
                  WHEN 'RECRUIT' THEN (SELECT COUNT(*) FROM t_recruit WHERE recruit_id = #{targetId}::integer AND use_yn = 'Y')
+                 WHEN 'CHAT'    THEN (SELECT COUNT(*) FROM t_recruit_chat WHERE chat_id = #{targetId}::integer AND use_yn = 'Y')
                  ELSE 0
                END
     </select>
@@ -36,6 +37,7 @@
                    WHEN 'BBS'     THEN (SELECT title FROM t_bbs WHERE bbs_id = r.target_id)
                    WHEN 'RECRUIT' THEN (SELECT title FROM t_recruit WHERE recruit_id = r.target_id)
                    WHEN 'COMMENT' THEN (SELECT LEFT(context, 40) FROM t_comment WHERE comment_id = r.target_id)
+                   WHEN 'CHAT'    THEN (SELECT LEFT(content, 40) FROM t_recruit_chat WHERE chat_id = r.target_id)
                END AS target_title,
                -- 대상으로 이동할 링크(관리자가 신고 내용을 직접 확인). 대상 삭제 시 NULL/미존재.
                CASE r.target_type
@@ -44,6 +46,8 @@
                    WHEN 'COMMENT' THEN (SELECT '/gen/board/' || b.bbsinfo_id || '?post=' || b.bbs_id
                                           FROM t_comment c JOIN t_bbs b ON b.bbs_id = c.bbs_id
                                          WHERE c.comment_id = r.target_id)
+                   <!-- 대화는 그 모집 상세로 보낸다(관리자도 멤버가 아니면 대화 자체는 못 본다 — 신고 내용으로 판단) -->
+                   WHEN 'CHAT'    THEN (SELECT '/gen/recruit/' || ch.recruit_id FROM t_recruit_chat ch WHERE ch.chat_id = r.target_id)
                END AS link_url
         FROM t_report r
         WHERE r.use_yn = 'Y'
@@ -81,6 +85,12 @@
     <update id="setRecruitUseYn" parameterType="reportVO">
         UPDATE t_recruit SET use_yn = #{useYn}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE recruit_id = #{targetId}::integer
+    </update>
+
+    <!-- 모임 단체 대화 1건 숨김/복원(신고 처리). 대화방 전체가 아니라 신고된 말 한 줄만 대상이다. -->
+    <update id="setChatUseYn" parameterType="reportVO">
+        UPDATE t_recruit_chat SET use_yn = #{useYn}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE chat_id = #{targetId}::integer
     </update>
 
 </mapper>

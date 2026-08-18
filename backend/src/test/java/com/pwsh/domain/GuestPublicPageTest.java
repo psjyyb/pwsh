@@ -90,6 +90,36 @@ class GuestPublicPageTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("설정 조회는 게스트·일반회원에게 사이트명·로고만 준다(보안 정책값 비노출)")
+    void configViewExposesOnlyDisplayFieldsToNonAdmin() throws Exception {
+        String guest = post("/api/adm/config/selectConfigView.do", "{}", null).body();
+        assertThat(JsonPath.<String>read(guest, "$.data.title")).as("사이트명은 필요하다").isNotBlank();
+        assertThat(guest).as("잠금 임계값·만료일 같은 정책값은 게스트에게 나가지 않는다")
+                .doesNotContain("failCntLimit").doesNotContain("failCntDeniedTi")
+                .doesNotContain("pwExpireCnt").doesNotContain("sessionExpireCnt")
+                .doesNotContain("delLogCnt").doesNotContain("accIpYn");
+
+        // 일반회원(관리자 아님)도 같다
+        String member = post("/api/adm/config/selectConfigView.do", "{}",
+                accessToken("user", "user1234!")).body();
+        assertThat(member).doesNotContain("failCntLimit").doesNotContain("sessionExpireCnt");
+
+        // 관리자는 환경설정 화면을 채워야 하므로 전체를 받는다
+        String admin = post("/api/adm/config/selectConfigView.do", "{}",
+                accessToken("admin", "admin1234!")).body();
+        assertThat(admin).contains("failCntLimit").contains("sessionExpireCnt");
+    }
+
+    @Test
+    @DisplayName("게시판 ID에 숫자가 아닌 값이 오면 500이 아니라 400")
+    void nonNumericBoardIdIsRejected() throws Exception {
+        assertThat(post("/api/adm/bbs/selectBbsList.do",
+                "{\"bbsinfoId\":\"BBSINFO001\",\"pageNo\":1,\"pageSize\":10}",
+                accessToken("admin", "admin1234!")).statusCode())
+                .as("URL을 손으로 고쳐 들어와도 SQL 캐스트 에러가 새지 않는다").isEqualTo(400);
+    }
+
+    @Test
     @DisplayName("쓰기 API는 게스트에게 계속 막혀 있다")
     void writeApisStillBlockedForGuest() throws Exception {
         assertThat(post("/api/adm/recruit/insertRecruit.do",

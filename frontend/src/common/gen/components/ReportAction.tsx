@@ -4,7 +4,7 @@ import { reportApi } from '../../../api/report'
 import CodeSelect from '../../adm/components/CodeSelect'
 
 /** 콘텐츠 신고 링크 + 사유 모달(분류 선택 + 상세). 게시글/댓글/모집에 재사용. 로그인 사용자에게만 노출 권장. */
-export default function ReportAction({ targetType, targetId }: { targetType: 'BBS' | 'COMMENT' | 'RECRUIT'; targetId: string }) {
+export default function ReportAction({ targetType, targetId }: { targetType: 'BBS' | 'COMMENT' | 'RECRUIT' | 'CHAT'; targetId: string }) {
   const [open, setOpen] = useState(false)
   const [reasonCd, setReasonCd] = useState<string | undefined>()
   const [reason, setReason] = useState('')

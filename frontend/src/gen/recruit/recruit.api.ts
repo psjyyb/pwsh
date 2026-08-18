@@ -11,6 +11,10 @@ export interface Recruit {
   areaCd?: string // 지역 시/도 표준코드(AREA00) — 필터 기준
   areaNm?: string // 지역명(표시용)
   region?: string // 상세 지역(자유입력: 구/동/장소)
+  placeNm?: string // 만날 장소명(지도 선택) — 목록/상세
+  addr?: string    // 장소 주소(지도 선택) — 상세만
+  lat?: string     // 위도(지도 마커) — 상세만
+  lng?: string     // 경도(지도 마커) — 상세만
   meetDt?: string
   statusCd?: string
   viewCnt?: string

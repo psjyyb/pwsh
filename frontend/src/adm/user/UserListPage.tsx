@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, Checkbox, Form, Input, Popconfirm, Space, Table, message } from 'antd'
+import { Button, Card, Checkbox, Form, Input, Popconfirm, Space, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useList } from '../../common/hooks/useList'
 import { useSplitForm } from '../../common/hooks/useSplitForm'
@@ -17,6 +17,9 @@ import AuthgrpAssignModal from './AuthgrpAssignModal'
 export default function UserListPage() {
   const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<User>(USER_LIST_URL)
   const { form, mode, selectedKey, openNew, openRow, remove } = useSplitForm<User>(userApi, reload)
+  // 상세 조회로 폼에 실린 값(읽기 전용 지표)
+  const followerCnt = Form.useWatch('followerCnt', form)
+  const followingCnt = Form.useWatch('followingCnt', form)
   const [authTarget, setAuthTarget] = useState<User | null>(null)
   const isEdit = mode === 'edit'
   const changePw = Form.useWatch('changePw', form)
@@ -203,6 +206,15 @@ export default function UserListPage() {
           <Form.Item name="email" label="이메일" rules={fieldRules('email')}>
             <Input />
           </Form.Item>
+          {/* 커뮤니티 활동 지표 — 팔로워가 비정상적으로 많은 계정을 가려내는 참고치(읽기 전용) */}
+          {isEdit && (
+            <Form.Item label="팔로우">
+              <Space size={8}>
+                <Tag color="purple">팔로워 {followerCnt ?? 0}</Tag>
+                <Tag>팔로잉 {followingCnt ?? 0}</Tag>
+              </Space>
+            </Form.Item>
+          )}
         </Form>
       )}
     </Card>

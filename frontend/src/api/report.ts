@@ -17,7 +17,7 @@ export interface Report {
 
 export const reportApi = {
   /** 신고 등록(로그인 회원) — reasonCd=사유 분류(REPORT00), reason=상세 */
-  report: (targetType: 'BBS' | 'COMMENT' | 'RECRUIT', targetId: string, reason: string, reasonCd?: string) =>
+  report: (targetType: 'BBS' | 'COMMENT' | 'RECRUIT' | 'CHAT', targetId: string, reason: string, reasonCd?: string) =>
     apiPost<void>('/adm/report/insertReport.do', { targetType, targetId, reason, reasonCd: reasonCd ?? '' }),
   /** 신고 목록(관리자, 서버 페이징) — status 빈 값이면 전체 */
   list: (status?: string, pageNo = 1, pageSize = 20) =>

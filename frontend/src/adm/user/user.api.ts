@@ -16,6 +16,8 @@ export interface User {
   useYn?: string
   memCdNm?: string // 회원유형명(목록 표시, 조회 전용)
   statusCdNm?: string // 계정상태명(목록 표시, 조회 전용)
+  followerCnt?: string // 팔로워 수(상세 조회 계산값)
+  followingCnt?: string // 팔로잉 수(상세 조회 계산값)
   // 폼 전용(등록/수정 UI) — 서버로는 userPw만 사용
   changePw?: boolean
   userPwConfirm?: string

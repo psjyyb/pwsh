@@ -39,6 +39,8 @@ public class UserVO extends BaseVO {
     private String lockRemainMin; // 잠금 잔여 시간(분, 계산값)
 
     // 권한그룹 매핑(t_auth_user)용
+    private String followerCnt;  // 팔로워 수(상세 조회 계산값 — 어뷰징 판단 참고)
+    private String followingCnt; // 팔로잉 수(상세 조회 계산값)
     private String[] authgrpIds; // 저장 시 선택된 그룹 목록
     private String authgrpId;     // 개별 insert용
 }

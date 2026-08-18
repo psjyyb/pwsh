@@ -15,6 +15,8 @@ import type { Recruit, RecruitApply } from './recruit.api'
 import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
 import UserAvatar from '../../common/gen/components/UserAvatar'
 import ReportAction from '../../common/gen/components/ReportAction'
+import PlaceMap from '../../common/gen/components/PlaceMap'
+import PlacePicker from '../../common/gen/components/PlacePicker'
 import { bookmarkApi } from '../../api/bookmark'
 import { downloadIcs, safeFileName } from '../../common/util/ics'
 
@@ -142,6 +144,8 @@ export default function RecruitPage() {
       form.setFieldsValue({
         hobbyId: r.hobbyId, title: r.title, capacity: r.capacity ? Number(r.capacity) : undefined,
         areaCd: r.areaCd, region: r.region, meetDt: r.meetDt, content: r.content,
+        // 장소는 4개 컬럼을 한 덩어리로 다룬다(좌표만 남거나 이름만 남는 상태를 만들지 않는다)
+        place: r.placeNm ? { placeNm: r.placeNm, addr: r.addr, lat: r.lat, lng: r.lng } : undefined,
       })
     } else {
       setEditKey(null)
@@ -156,6 +160,9 @@ export default function RecruitPage() {
       hobbyId: v.hobbyId, title: v.title,
       capacity: v.capacity != null ? String(v.capacity) : '',
       areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt ?? '', content: v.content ?? '',
+      // 장소를 지우면 빈 문자열로 보내 서버가 NULL로 되돌린다
+      placeNm: v.place?.placeNm ?? '', addr: v.place?.addr ?? '',
+      lat: v.place?.lat ?? '', lng: v.place?.lng ?? '',
     }
     try {
       if (editKey) await recruitApi.update({ ...payload, rowId: editKey })
@@ -199,7 +206,10 @@ export default function RecruitPage() {
       uid: `recruit-${recruit.rowId}@pwsh`,
       title: recruit.title ?? '모임',
       date: recruit.meetDt,
-      location: [recruit.areaNm, recruit.region].filter(Boolean).join(' '),
+      // 캘린더 앱이 길찾기에 쓰는 값이라 정확한 주소가 있으면 그걸 우선한다
+      location: recruit.addr
+        ? [recruit.placeNm, recruit.addr].filter(Boolean).join(' ')
+        : [recruit.areaNm, recruit.region].filter(Boolean).join(' '),
       description: recruit.content ?? '',
       url: `${window.location.origin}/gen/recruit/${recruit.rowId}`,
     }], `${safeFileName(recruit.title ?? 'meeting')}.ics`)
@@ -226,6 +236,9 @@ export default function RecruitPage() {
       title: recruit.title,
       capacity: recruit.capacity ? Number(recruit.capacity) : undefined,
       areaCd: recruit.areaCd, region: recruit.region, meetDt: undefined,
+      place: recruit.placeNm
+        ? { placeNm: recruit.placeNm, addr: recruit.addr, lat: recruit.lat, lng: recruit.lng }
+        : undefined,
     })
     setCopyOpen(true)
   }
@@ -238,6 +251,8 @@ export default function RecruitPage() {
       const newId = await recruitApi.copy(recruit.rowId!, {
         title: v.title, capacity: v.capacity != null ? String(v.capacity) : '',
         areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt,
+        placeNm: v.place?.placeNm ?? '', addr: v.place?.addr ?? '',
+        lat: v.place?.lat ?? '', lng: v.place?.lng ?? '',
       })
       setCopyOpen(false)
       message.success('다음 회차 모집을 만들었습니다. 이전 회차 참여자에게 알림을 보냈습니다.')
@@ -310,7 +325,8 @@ export default function RecruitPage() {
     const columns: TableColumnsType<Recruit> = [
       { title: '취미', width: 110, render: (_, r) => r.hobbyNm ?? catName(r.hobbyId) ?? '-' },
       { title: '모임명', render: (_, r) => r.title },
-      { title: '지역', width: 140, render: (_, r) => [r.areaNm, r.region].filter(Boolean).join(' ') || '-' },
+      // 지도로 고른 장소가 있으면 그게 가장 구체적인 정보다
+      { title: '지역', width: 160, render: (_, r) => r.placeNm || [r.areaNm, r.region].filter(Boolean).join(' ') || '-' },
       { title: '일정', dataIndex: 'meetDt', width: 120, render: (v) => v || '-' },
       {
         title: '인원', width: 90, align: 'center',
@@ -358,7 +374,7 @@ export default function RecruitPage() {
                   </div>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <span>{r.hobbyNm ?? catName(r.hobbyId) ?? '-'}</span>
-                    <span>{[r.areaNm, r.region].filter(Boolean).join(' ') || '-'}</span>
+                    <span>{r.placeNm || [r.areaNm, r.region].filter(Boolean).join(' ') || '-'}</span>
                     <span>{r.meetDt || '-'}</span>
                     <span>인원 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
                   </div>
@@ -452,6 +468,12 @@ export default function RecruitPage() {
           </Descriptions.Item>
           <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || '-'} handle={recruit.regHandle} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
+          {/* 만날 장소 — 좌표가 있으면 마커 지도까지. 장소 미정 모집은 이 칸을 아예 그리지 않는다 */}
+          {(recruit.placeNm || recruit.addr) && (
+            <Descriptions.Item label="만날 장소" span={2}>
+              <PlaceMap placeNm={recruit.placeNm} addr={recruit.addr} lat={recruit.lat} lng={recruit.lng} />
+            </Descriptions.Item>
+          )}
         </Descriptions>
 
         <div style={{ whiteSpace: 'pre-wrap', marginTop: 16, minHeight: 60 }}>{recruit.content}</div>
@@ -607,6 +629,10 @@ export default function RecruitPage() {
                 <Input style={{ width: 180 }} maxLength={100} />
               </Form.Item>
             </Space>
+            {/* 같은 곳에서 다시 모이는 경우가 많아 원본 장소를 채워 둔다(바꿀 수도 있게) */}
+            <Form.Item name="place" label="만날 장소">
+              <PlacePicker />
+            </Form.Item>
           </Form>
         </Modal>
       </Card>
@@ -648,6 +674,10 @@ export default function RecruitPage() {
             <DateField allowClear />
           </Form.Item>
         </Space>
+        {/* 지도에서 고른 장소(이름·주소·좌표)를 한 값으로 담는다 — 처음 오는 사람이 헤매지 않게 */}
+        <Form.Item name="place" label="만날 장소">
+          <PlacePicker />
+        </Form.Item>
         <Form.Item name="content" label="모집 설명">
           <Input.TextArea autoSize={{ minRows: 4, maxRows: 12 }} placeholder="모임 소개, 준비물, 진행 방식 등" />
         </Form.Item>

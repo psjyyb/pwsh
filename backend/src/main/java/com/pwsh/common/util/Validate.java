@@ -18,4 +18,15 @@ public final class Validate {
             throw new BusinessException(ErrorCode.INVALID_INPUT, label + "은(는) 필수입니다.");
         }
     }
+
+    /**
+     * 숫자 PK/외래키 검증(빈 값은 통과 — 선택 조건에도 쓰기 위함).
+     * VO 필드가 전부 String이라 매퍼에서 ::integer로 캐스팅되는데, 사용자가 URL로 직접 넣은
+     * 문자열이 그대로 내려가면 SQL 캐스트 에러(500)가 난다. 그걸 400으로 되돌린다.
+     */
+    public static void numeric(String value, String label) {
+        if (!StringUtil.isEmpty(value) && !value.matches("\\d+")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, label + "이(가) 올바르지 않습니다.");
+        }
+    }
 }
