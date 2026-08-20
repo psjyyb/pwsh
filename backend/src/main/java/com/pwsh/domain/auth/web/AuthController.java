@@ -44,15 +44,15 @@ public class AuthController {
     /** 셀프 회원가입 — 비로그인 공개(SecurityConfig /api/auth/** permitAll). 이메일 인증코드 검증 후 MEMBER로 생성. */
     @PostMapping("/signup")
     public ApiResponse<Void> signup(@Valid @RequestBody SignupRequest request) {
-        PasswordPolicy.validate(request.userPw()); // 복잡도 정책(인코딩 전 원문)
+        PasswordPolicy.validate(request.password()); // 복잡도 정책(인코딩 전 원문)
         authService.signup(request);
         return ApiResponse.ok();
     }
 
-    /** 비밀번호 재설정 코드 발송(공개) — user_id로 조회해 등록 이메일로 발송. 계정 열거 방지 위해 항상 성공 응답. */
+    /** 비밀번호 재설정 코드 발송(공개) — member_id로 조회해 등록 이메일로 발송. 계정 열거 방지 위해 항상 성공 응답. */
     @PostMapping("/sendResetCode")
     public ApiResponse<Void> sendResetCode(@RequestBody Map<String, String> body) {
-        authService.sendResetCode(body.get("userId"));
+        authService.sendResetCode(body.get("memberId"));
         return ApiResponse.ok();
     }
 
@@ -79,7 +79,7 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
-    /** 내 정보(userId·nickname·memCd) — 마이페이지 표시용 */
+    /** 내 정보(memberId·nickname·typeCd) — 마이페이지 표시용 */
     @PostMapping("/me")
     public ApiResponse<Map<String, String>> me() {
         return ApiResponse.ok(authService.me());
@@ -89,9 +89,9 @@ public class AuthController {
      * 회원 공개 프로필(닉네임·프로필사진·담은취미·주최모집·작성글) — 비로그인 공개. PII·로그인 ID 미노출.
      * 조회 키는 공개 식별자(handle).
      */
-    @PostMapping("/userProfile")
-    public ApiResponse<Map<String, Object>> userProfile(@RequestBody Map<String, String> body) {
-        return ApiResponse.ok(authService.selectUserProfile(body.get("handle")));
+    @PostMapping("/memberProfile")
+    public ApiResponse<Map<String, Object>> memberProfile(@RequestBody Map<String, String> body) {
+        return ApiResponse.ok(authService.selectMemberProfile(body.get("handle")));
     }
 
     /** 본인 닉네임 변경 */
@@ -101,7 +101,7 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
-    /** 본인 프로필 사진 설정/해제 — 서버가 user_id 강제. body {fileId} 없으면 해제. */
+    /** 본인 프로필 사진 설정/해제 — 서버가 member_id 강제. body {fileId} 없으면 해제. */
     @PostMapping("/updateProfileImage")
     public ApiResponse<Void> updateProfileImage(@RequestBody Map<String, String> body) {
         authService.updateProfileImage(body.get("fileId"));

@@ -13,8 +13,8 @@ export default function EventlogListPage() {
   const [selected, setSelected] = useState<Eventlog | null>(null)
 
   const columns: TableColumnsType<Eventlog> = [
-    { title: '유형', width: 90, render: (_, r) => r.eventTypeNm ?? r.eventType },
-    { title: '수행자', dataIndex: 'userId', width: 130 },
+    { title: '유형', width: 90, render: (_, r) => r.eventName ?? r.eventCd },
+    { title: '수행자', dataIndex: 'memberId', width: 130 },
     {
       title: '대상',
       render: (_, r) => (r.targetTable ? `${r.targetTable}${r.targetId ? ` #${r.targetId}` : ''}` : '-'),
@@ -27,11 +27,11 @@ export default function EventlogListPage() {
     <Card title="목록">
       <SearchBar
         fields={[
-          { type: 'code', name: 'eventType', pCodeId: 'EVENT00' },
+          { type: 'code', name: 'eventCd', pCodeId: 'EVENT00' },
           {
             type: 'keyword',
             conditions: [
-              { value: 'user_id', label: '수행자ID' },
+              { value: 'member_id', label: '수행자ID' },
               { value: 'target_table', label: '대상테이블' },
             ],
             width: 220,
@@ -60,8 +60,8 @@ export default function EventlogListPage() {
       ) : (
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item label="이벤트ID">{selected.rowId}</Descriptions.Item>
-          <Descriptions.Item label="유형">{selected.eventTypeNm ?? selected.eventType}</Descriptions.Item>
-          <Descriptions.Item label="수행자">{selected.userId}</Descriptions.Item>
+          <Descriptions.Item label="유형">{selected.eventName ?? selected.eventCd}</Descriptions.Item>
+          <Descriptions.Item label="수행자">{selected.memberId}</Descriptions.Item>
           <Descriptions.Item label="대상 테이블">{selected.targetTable ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="대상 ID">{selected.targetId ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="기기">{selected.deviceType}</Descriptions.Item>

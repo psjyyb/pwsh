@@ -5,8 +5,8 @@ import { createCrudApi } from '../../api/crudApi'
 export interface Code {
   rowId?: string // 자기 PK(code_id) — 자체 CRUD용
   pCodeId: string // 부모 코드 참조(FK)
-  codeNm: string
-  codeDesc?: string | null
+  codeName: string
+  description?: string | null
   sortNo?: string
   useYn?: string
   children?: Code[] // 계층 트리(프론트 구성)

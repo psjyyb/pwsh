@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * 내 취미 피드(단일 @Service). 담은 취미(t_user_hobby) 기준으로 게시글·모집을 모아 보여준다.
+ * 내 취미 피드(단일 @Service). 담은 취미(member_hobby) 기준으로 게시글·모집을 모아 보여준다.
  * 항상 로그인 본인 기준 — viewerId를 서버에서 강제 세팅해 남의 피드를 조회할 수 없다.
  */
 @Service
@@ -38,15 +38,15 @@ public class FeedService {
 
     /** 조회자 강제 세팅 + 필터 화이트리스트. */
     private void prepare(FeedVO vo) {
-        vo.setViewerId(currentUserId());
+        vo.setViewerId(currentMemberId());
         String f = vo.getFeedFilter();
-        if (f != null && !f.isBlank() && !"BBS".equals(f) && !"RECRUIT".equals(f)) {
+        if (f != null && !f.isBlank() && !"POST".equals(f) && !"RECRUIT".equals(f)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 피드 구분입니다.");
         }
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }

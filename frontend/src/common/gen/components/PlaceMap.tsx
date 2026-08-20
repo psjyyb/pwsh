@@ -4,7 +4,7 @@ import { hasMapKey, kakaoMapLink, loadKakaoMap } from '../../util/kakaoMap'
 import { gen } from '../../../gen/theme'
 
 interface Props {
-  placeNm?: string
+  placeName?: string
   addr?: string
   lat?: string
   lng?: string
@@ -17,7 +17,7 @@ interface Props {
  * 키가 없거나 로드에 실패하면 지도 대신 사유를 보여주고 카카오맵 링크는 계속 제공한다
  * (링크는 SDK·키 없이 동작하므로 지도가 죽어도 길찾기는 살아 있다).
  */
-export default function PlaceMap({ placeNm, addr, lat, lng, height = 220 }: Props) {
+export default function PlaceMap({ placeName, addr, lat, lng, height = 220 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const hasCoord = !!(lat && lng)
@@ -33,9 +33,9 @@ export default function PlaceMap({ placeNm, addr, lat, lng, height = 220 }: Prop
         const map = new kakao.maps.Map(boxRef.current, { center, level: 4 })
         const marker = new kakao.maps.Marker({ position: center })
         marker.setMap(map)
-        if (placeNm) {
+        if (placeName) {
           new kakao.maps.InfoWindow({
-            content: `<div style="padding:5px 8px;font-size:12px;white-space:nowrap">${placeNm}</div>`,
+            content: `<div style="padding:5px 8px;font-size:12px;white-space:nowrap">${placeName}</div>`,
           }).open(map, marker)
         }
         // 컨테이너가 숨어 있다가 보이면 지도가 회색으로 남는다 → 다시 그려준다
@@ -43,18 +43,18 @@ export default function PlaceMap({ placeNm, addr, lat, lng, height = 220 }: Prop
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : '지도를 불러올 수 없습니다.'))
     return () => { disposed = true }
-  }, [hasCoord, lat, lng, placeNm])
+  }, [hasCoord, lat, lng, placeName])
 
-  if (!placeNm && !addr && !hasCoord) {
+  if (!placeName && !addr && !hasCoord) {
     return <span style={{ color: gen.inkFaint }}>장소 미정</span>
   }
 
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
       <Space size={8} wrap>
-        {placeNm && <b>{placeNm}</b>}
+        {placeName && <b>{placeName}</b>}
         {addr && <Typography.Text type="secondary" copyable style={{ fontSize: 13 }}>{addr}</Typography.Text>}
-        <Button size="small" href={kakaoMapLink(placeNm, lat, lng, addr)} target="_blank" rel="noreferrer">
+        <Button size="small" href={kakaoMapLink(placeName, lat, lng, addr)} target="_blank" rel="noreferrer">
           카카오맵으로 열기
         </Button>
       </Space>

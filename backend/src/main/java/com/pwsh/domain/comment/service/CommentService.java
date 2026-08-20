@@ -3,7 +3,7 @@ package com.pwsh.domain.comment.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
-import com.pwsh.domain.bbs.service.BbsVO;
+import com.pwsh.domain.post.service.PostVO;
 import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
@@ -25,8 +25,8 @@ public class CommentService {
     private final NotificationService notificationService;
 
     public List<CommentVO> selectList(CommentVO vo) {
-        genAccessGuard.checkPost(vo.getBbsId());
-        String me = SecurityUtil.getCurrentUserId();
+        genAccessGuard.checkPost(vo.getPostId());
+        String me = SecurityUtil.getCurrentMemberId();
         vo.setViewerId((me == null || "system".equals(me)) ? null : me); // 좋아요 여부(liked_yn) 판정용
         return commonDAO.selectList("commentDAO.selectList", vo);
     }
@@ -34,12 +34,12 @@ public class CommentService {
     /** 등록 — 접근 불가 게시판(게시글)엔 댓글 작성 차단. 등록 후 알림(답글=부모 댓글 작성자, 아니면 글 작성자). */
     @Transactional
     public void insert(CommentVO vo) {
-        genAccessGuard.checkPost(vo.getBbsId());
+        genAccessGuard.checkPost(vo.getPostId());
         commonDAO.insert("commentDAO.insert", vo);
-        BbsVO key = new BbsVO();
-        key.setRowId(vo.getBbsId());
-        BbsVO post = commonDAO.selectOne("bbsDAO.selectView", key);
-        String link = post != null ? "/gen/board/" + post.getBbsinfoId() + "?post=" + vo.getBbsId() : null;
+        PostVO key = new PostVO();
+        key.setRowId(vo.getPostId());
+        PostVO post = commonDAO.selectOne("postDAO.selectView", key);
+        String link = post != null ? "/gen/board/" + post.getBoardId() + "?post=" + vo.getPostId() : null;
 
         // @닉네임 멘션이 있으면 그 회원에게 먼저 알린다. 아래 댓글 알림과 중복되지 않게 대상을 모아 둔다.
         java.util.Set<String> mentioned = notificationService.notifyMentions(vo.getContext(), link, java.util.Set.of());

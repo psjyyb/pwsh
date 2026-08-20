@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Empty, List, Pagination, Segmented, Space, Spin, Tag, message } from 'antd'
-import UserAvatar from '../../common/gen/components/UserAvatar'
+import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import { tokenStore } from '../../auth/token'
 import { feedApi } from './feed.api'
 import type { FeedItem } from './feed.api'
@@ -27,7 +27,7 @@ export default function FeedPage() {
   const loggedIn = !!tokenStore.get()
 
   const [items, setItems] = useState<FeedItem[]>([])
-  const [filter, setFilter] = useState<'' | 'BBS' | 'RECRUIT'>('')
+  const [filter, setFilter] = useState<'' | 'POST' | 'RECRUIT'>('')
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [myHobbyCnt, setMyHobbyCnt] = useState(0)
@@ -62,7 +62,7 @@ export default function FeedPage() {
 
   const goItem = (it: FeedItem) => {
     if (it.feedType === 'RECRUIT') navigate(`/gen/recruit/${it.rowId}`)
-    else navigate(`/gen/board/${it.bbsinfoId}?post=${it.rowId}`)
+    else navigate(`/gen/board/${it.boardId}?post=${it.rowId}`)
   }
 
   return (
@@ -72,10 +72,10 @@ export default function FeedPage() {
         extra={
           <Segmented
             size="small" value={filter}
-            onChange={(v) => { setFilter(v as '' | 'BBS' | 'RECRUIT'); setPage(1) }}
+            onChange={(v) => { setFilter(v as '' | 'POST' | 'RECRUIT'); setPage(1) }}
             options={[
               { value: '', label: '전체' },
-              { value: 'BBS', label: '글' },
+              { value: 'POST', label: '글' },
               { value: 'RECRUIT', label: '모집' },
             ]}
           />
@@ -101,13 +101,13 @@ export default function FeedPage() {
               renderItem={(it) => (
                 <List.Item style={{ cursor: 'pointer' }} onClick={() => goItem(it)}>
                   <List.Item.Meta
-                    avatar={<UserAvatar name={it.regNm || '회원'} handle={it.regHandle} size={36} showName={false} />}
+                    avatar={<MemberAvatar name={it.regName || '회원'} handle={it.regHandle} size={36} showName={false} />}
                     title={
                       <Space size={8} wrap>
                         {it.feedType === 'RECRUIT'
                           ? <Tag color="purple">모집</Tag>
                           : <Tag color="blue">글</Tag>}
-                        {it.hobbyNm && <Tag>{it.hobbyNm}</Tag>}
+                        {it.hobbyName && <Tag>{it.hobbyName}</Tag>}
                         {it.feedSrc === 'FOLLOW' && <Tag color="magenta">팔로우</Tag>}
                         <span style={{ fontWeight: 600 }}>{it.title}</span>
                         {it.mineYn === 'Y' && <Tag color="gold">내 글</Tag>}
@@ -116,9 +116,9 @@ export default function FeedPage() {
                     description={
                       it.feedType === 'RECRUIT' ? (
                         <Space size={8} wrap style={{ fontSize: 13, color: '#888' }}>
-                          <span>{it.regNm || '회원'}</span>
-                          {[it.areaNm, it.region].filter(Boolean).length > 0 && (
-                            <span>· {[it.areaNm, it.region].filter(Boolean).join(' ')}</span>
+                          <span>{it.regName || '회원'}</span>
+                          {[it.areaName, it.region].filter(Boolean).length > 0 && (
+                            <span>· {[it.areaName, it.region].filter(Boolean).join(' ')}</span>
                           )}
                           {it.meetDt && <span>· {it.meetDt}</span>}
                           {dday(it.meetDt) && <Tag color="green">{dday(it.meetDt)}</Tag>}
@@ -129,7 +129,7 @@ export default function FeedPage() {
                         </Space>
                       ) : (
                         <Space size={8} wrap style={{ fontSize: 13, color: '#888' }}>
-                          <span>{it.regNm || '회원'}</span>
+                          <span>{it.regName || '회원'}</span>
                           <span>· 💬 {it.commentCnt ?? 0}</span>
                           <span>· ❤ {it.goodCnt ?? 0}</span>
                           <span>· {it.regDt}</span>

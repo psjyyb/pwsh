@@ -3,18 +3,18 @@ import { createCrudApi } from '../../api/crudApi'
 
 /** 팝업 VO */
 export interface Popup {
-  rowId?: string // PK(pop_id)
-  popNm?: string
+  rowId?: string // PK(popup_id)
+  popupName?: string
   startDt?: string
   endDt?: string
-  link?: string
-  txt?: string
+  linkUrl?: string
+  content?: string
   sortNo?: string
-  popWidth?: string
-  popHeight?: string
-  popTop?: string
-  popLeft?: string
-  fileId?: string // 팝업 이미지(t_file)
+  width?: string
+  height?: string
+  posTop?: string
+  posLeft?: string
+  fileId?: string // 팝업 이미지(file)
   useYn?: string
 }
 

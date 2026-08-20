@@ -25,10 +25,10 @@ class FollowTest extends IntegrationTest {
     void follow_toggle_notification_and_feed() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"팔로우취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"팔로우취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
         String boardId = jdbc.queryForObject(
-                "SELECT bbsinfo_id::text FROM t_hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
+                "SELECT board_id::text FROM hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
 
         assertEquals(200, signup("fwhost", "팔로우대상", "fwhost@test.local").statusCode());
         assertEquals(200, signup("fwfan", "팬", "fwfan@test.local").statusCode());
@@ -60,24 +60,24 @@ class FollowTest extends IntegrationTest {
                 "{\"followeeHandle\":\"" + hostHandle + "\"}", null).statusCode(), "비로그인 차단");
 
         // 팔로우한 회원이 새 모집을 열면 알림 — 팬은 그 취미를 담지 않았는데도 받는다
-        int before = notiCnt("fwfan");
+        int before = notificationCnt("fwfan");
         String future = LocalDate.now().plusDays(7).toString();
         String rid = JsonPath.read(post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"팔로워용 모집\",\"meetDt\":\"" + future + "\"}",
                 host).body(), "$.data");
-        assertEquals(before + 1, notiCnt("fwfan"), "팔로워에게 새 모집 알림 1건");
+        assertEquals(before + 1, notificationCnt("fwfan"), "팔로워에게 새 모집 알림 1건");
         assertEquals("/gen/recruit/" + rid, lastNotiLink("fwfan"), "알림은 그 모집으로 연결");
 
         // 팔로우한 회원의 글·모집이 피드에 뜨고, 출처가 FOLLOW로 표시된다
-        String bbsId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"팔로워용 글\",\"context\":\"본문\"}",
+        String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"팔로워용 글\",\"context\":\"본문\"}",
                 host).body(), "$.data");
         String feed = post("/api/adm/feed/selectFeedList.do", "{\"pageNo\":1,\"pageSize\":50}", fan).body();
         // rowId는 유형별 시퀀스라 글 id와 모집 id가 우연히 같을 수 있다 → feedType까지 함께 걸러야 한다
         List<Object> srcOfRecruit = JsonPath.read(feed,
                 "$.data.list[?(@.rowId=='" + rid + "' && @.feedType=='RECRUIT')].feedSrc");
         List<Object> srcOfPost = JsonPath.read(feed,
-                "$.data.list[?(@.rowId=='" + bbsId + "' && @.feedType=='BBS')].feedSrc");
+                "$.data.list[?(@.rowId=='" + postId + "' && @.feedType=='POST')].feedSrc");
         assertEquals(1, srcOfRecruit.size(), "팔로우한 회원의 모집이 피드에 있다");
         assertEquals("FOLLOW", srcOfRecruit.get(0));
         assertEquals(1, srcOfPost.size(), "팔로우한 회원의 글이 피드에 있다");
@@ -93,7 +93,7 @@ class FollowTest extends IntegrationTest {
                         "$.data.list[?(@.rowId=='" + rid + "' && @.feedType=='RECRUIT')]")).isEmpty(),
                 "해제하면 피드에서도 사라진다");
 
-        post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + bbsId + "\"}", host);
+        post("/api/adm/post/deletePost.do", "{\"rowId\":\"" + postId + "\"}", host);
     }
 
     private String check(String handle, String token) throws Exception {
@@ -101,19 +101,19 @@ class FollowTest extends IntegrationTest {
                 "{\"followeeHandle\":\"" + handle + "\"}", token).body(), "$.data");
     }
 
-    private String handleOf(String userId) {
-        return jdbc.queryForObject("SELECT handle FROM t_user WHERE user_id = ?", String.class, userId);
+    private String handleOf(String memberId) {
+        return jdbc.queryForObject("SELECT handle FROM member WHERE member_id = ?", String.class, memberId);
     }
 
-    private int notiCnt(String userId) {
+    private int notificationCnt(String memberId) {
         Integer n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_notification WHERE user_id = ? AND use_yn = 'Y'", Integer.class, userId);
+                "SELECT COUNT(*) FROM notification WHERE member_id = ? AND use_yn = 'Y'", Integer.class, memberId);
         return n == null ? 0 : n;
     }
 
-    private String lastNotiLink(String userId) {
+    private String lastNotiLink(String memberId) {
         return jdbc.queryForObject(
-                "SELECT link_url FROM t_notification WHERE user_id = ? ORDER BY noti_id DESC LIMIT 1",
-                String.class, userId);
+                "SELECT link_url FROM notification WHERE member_id = ? ORDER BY notification_id DESC LIMIT 1",
+                String.class, memberId);
     }
 }

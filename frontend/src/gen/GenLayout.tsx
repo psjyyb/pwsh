@@ -31,19 +31,19 @@ type NavNode = { key: string; label: string; iconKey: string; dest?: string; chi
 function iconFor(m: MenuVO): string {
   if (m.icon) return m.icon
   const u = m.linkUrl || ''
-  const nm = m.menuNm || ''
+  const nm = m.menuName || ''
   if (u.includes('/mypage')) return 'user'
   if (u.includes('/recruit')) return 'group'
   if (u.includes('/main')) return 'home'
   if (nm.includes('공지')) return 'bell'
   if (nm.includes('고객') || nm.includes('FAQ') || nm.includes('도움')) return 'help'
   if (nm.includes('문의')) return 'mail'
-  if (m.connTy === 'MENU02') return 'board'
-  if (m.connTy === 'MENU03') return 'page'
+  if (m.connCd === 'MENU02') return 'board'
+  if (m.connCd === 'MENU03') return 'page'
   return 'grid'
 }
 
-/** 플랫 메뉴(t_menu GEN) → 데스크톱 커스텀 nav 트리(아이콘 포함). */
+/** 플랫 메뉴(menu GEN) → 데스크톱 커스텀 nav 트리(아이콘 포함). */
 function toNav(list: MenuVO[]): NavNode[] {
   const byParent = new Map<string, MenuVO[]>()
   for (const m of list) {
@@ -54,22 +54,22 @@ function toNav(list: MenuVO[]): NavNode[] {
   const build = (parentId: string): NavNode[] =>
     (byParent.get(parentId) ?? []).map((m) => {
       const children = byParent.get(m.rowId!)
-      const base = { key: `n${m.rowId}`, label: m.menuNm ?? '', iconKey: iconFor(m) }
+      const base = { key: `n${m.rowId}`, label: m.menuName ?? '', iconKey: iconFor(m) }
       if (children && children.length) return { ...base, children: build(m.rowId!) }
       return { ...base, dest: targetOf(m) || undefined }
     })
   return build('0')
 }
 
-/** conn_ty별 이동 경로. 페이지→/gen/page/{connId}, URL→link_url, 게시판→/gen/board/{connId}, 그룹→없음 */
+/** conn_cd별 이동 경로. 페이지→/gen/page/{connId}, URL→link_url, 게시판→/gen/board/{connId}, 그룹→없음 */
 function targetOf(m: MenuVO): string | null {
-  if (m.connTy === 'MENU03') return m.connId ? `/gen/page/${m.connId}` : null
-  if (m.connTy === 'MENU02') return m.connId ? `/gen/board/${m.connId}` : null
-  if (m.connTy === 'MENU01') return m.linkUrl || null
+  if (m.connCd === 'MENU03') return m.connId ? `/gen/page/${m.connId}` : null
+  if (m.connCd === 'MENU02') return m.connId ? `/gen/board/${m.connId}` : null
+  if (m.connCd === 'MENU01') return m.linkUrl || null
   return null
 }
 
-/** 플랫 메뉴(t_menu GEN) → AntD 계층 메뉴. 자식 있으면 하위메뉴, 아니면 conn_ty 목적지를 key로 */
+/** 플랫 메뉴(menu GEN) → AntD 계층 메뉴. 자식 있으면 하위메뉴, 아니면 conn_cd 목적지를 key로 */
 function buildItems(list: MenuVO[]): MenuItem[] {
   const byParent = new Map<string, MenuVO[]>()
   for (const m of list) {
@@ -81,9 +81,9 @@ function buildItems(list: MenuVO[]): MenuItem[] {
     (byParent.get(parentId) ?? []).map((m) => {
       const children = byParent.get(m.rowId!)
       if (children && children.length) {
-        return { key: `g${m.rowId}`, label: m.menuNm, children: build(m.rowId!) }
+        return { key: `g${m.rowId}`, label: m.menuName, children: build(m.rowId!) }
       }
-      return { key: targetOf(m) || `m${m.rowId}`, label: m.menuNm }
+      return { key: targetOf(m) || `m${m.rowId}`, label: m.menuName }
     })
   return build('0')
 }
@@ -93,15 +93,15 @@ function labelMap(list: MenuVO[]): Map<string, string> {
   const map = new Map<string, string>()
   list.forEach((m) => {
     const t = targetOf(m)
-    if (t) map.set(t, m.menuNm ?? '')
+    if (t) map.set(t, m.menuName ?? '')
   })
   return map
 }
 
 /**
- * 사용자(gen) 공통 레이아웃 — 동적 메뉴(t_menu area=GEN) + conn_ty 기반 라우팅.
+ * 사용자(gen) 공통 레이아웃 — 동적 메뉴(menu area=GEN) + conn_cd 기반 라우팅.
  * 페이지관리에서 만든 콘텐츠를 메뉴(연결유형=페이지)로 연결하면 코드 수정 없이 노출됨(GenPageView).
- * 데스크톱=수평 메뉴, 모바일(md 미만)=햄버거+Drawer. 사이트명/문서제목은 환경설정(t_config.title) 연동.
+ * 데스크톱=수평 메뉴, 모바일(md 미만)=햄버거+Drawer. 사이트명/문서제목은 환경설정(config.title) 연동.
  */
 export default function GenLayout() {
   const navigate = useNavigate()
@@ -137,7 +137,7 @@ export default function GenLayout() {
     configApi
       .view()
       .then((c) => {
-        setIdleMinutes(Number(c.sessionExpireCnt) || 30)
+        setIdleMinutes(Number(c.sessionExpireMins) || 30)
         if (c.title) setSiteTitle(c.title)
         setLogoFileId(c.logoFileId ?? undefined)
       })
@@ -196,7 +196,7 @@ export default function GenLayout() {
       setNotiList((l) => l.map((n) => ({ ...n, readYn: 'Y' })))
     } catch { /* 무시 */ }
   }
-  const notiContent = (
+  const notificationContent = (
     <div style={{ width: 300, maxHeight: 380, overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <b>알림</b>
@@ -229,7 +229,7 @@ export default function GenLayout() {
     setDrawerOpen(false)
   }
 
-  // 로그인 회원 전용 '나의 취미' 탭을 nav에 주입(마이페이지 앞). t_menu 변경 없이 코드로 노출(헤더 마이페이지 버튼과 동일 방식).
+  // 로그인 회원 전용 '나의 취미' 탭을 nav에 주입(마이페이지 앞). menu 변경 없이 코드로 노출(헤더 마이페이지 버튼과 동일 방식).
   const myHobbyNode: NavNode = { key: 'myhobby', label: '나의 취미', iconKey: 'star', dest: '/gen/myhobby' }
   const displayNav: NavNode[] = loggedIn
     ? (() => {
@@ -308,7 +308,7 @@ export default function GenLayout() {
             <Space size={8}>
               {loggedIn ? (
                 <>
-                  <Popover content={notiContent} trigger="click" open={notiOpen} onOpenChange={openNoti} placement="bottomRight">
+                  <Popover content={notificationContent} trigger="click" open={notiOpen} onOpenChange={openNoti} placement="bottomRight">
                     <Badge count={notiUnread} size="small">
                       <Button shape="circle" aria-label="알림">🔔</Button>
                     </Badge>

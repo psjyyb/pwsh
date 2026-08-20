@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * 메뉴 아이콘 레지스트리 — t_menu.icon 키 → 라인 아이콘(SVG). 브랜드 무관 자체 제작 도형.
+ * 메뉴 아이콘 레지스트리 — menu.icon 키 → 라인 아이콘(SVG). 브랜드 무관 자체 제작 도형.
  * 관리자 메뉴관리에서 키를 선택해 저장하면 사이드바에 표시된다. 미지정/미등록 키는 'grid' 기본.
  */
 const PATHS: Record<string, ReactNode> = {

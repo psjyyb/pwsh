@@ -11,8 +11,8 @@ import RichTextEditor from '../../common/adm/components/RichTextEditor'
 import type { RichTextEditorHandle } from '../../common/adm/components/RichTextEditor'
 import { extractEditorImageIds } from '../../common/util/editorImages'
 import { fileApi } from '../../api/file'
-import { bbsinfoApi } from '../bbsinfo/bbsinfo.api'
-import type { Bbsinfo } from '../bbsinfo/bbsinfo.api'
+import { boardApi } from '../board/board.api'
+import type { Board } from '../board/board.api'
 import { HOBBY_LIST_URL, hobbyApi } from './hobby.api'
 import type { Hobby } from './hobby.api'
 
@@ -26,14 +26,14 @@ export default function HobbyListPage() {
   const [mode, setMode] = useState<Mode>('none')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [form] = Form.useForm()
-  const [boards, setBoards] = useState<Bbsinfo[]>([])
+  const [boards, setBoards] = useState<Board[]>([])
   const [seq, setSeq] = useState(0) // 에디터 remount 키
   const [introHtml, setIntroHtml] = useState('')
   const [guideHtml, setGuideHtml] = useState('')
   const introRef = useRef<RichTextEditorHandle>(null)
   const guideRef = useRef<RichTextEditorHandle>(null)
 
-  useEffect(() => { bbsinfoApi.comboList().then(setBoards).catch(() => {}) }, [])
+  useEffect(() => { boardApi.comboList().then(setBoards).catch(() => {}) }, [])
 
   const openNew = () => {
     form.resetFields()
@@ -49,8 +49,8 @@ export default function HobbyListPage() {
       const h = await hobbyApi.view(rowId)
       form.resetFields()
       form.setFieldsValue({
-        hobbyNm: h.hobbyNm, summary: h.summary, difficultyCd: h.difficultyCd, bbsinfoId: h.bbsinfoId,
-        sortNo: h.sortNo, equipment: h.equipment, estCost: h.estCost, thumbId: h.thumbId,
+        hobbyName: h.hobbyName, summary: h.summary, difficultyCd: h.difficultyCd, boardId: h.boardId,
+        sortNo: h.sortNo, equipment: h.equipment, estimatedCost: h.estimatedCost, thumbId: h.thumbId,
       })
       setIntroHtml(h.intro ?? ''); setGuideHtml(h.guide ?? '')
       setSelectedKey(rowId); setSeq((s) => s + 1); setMode('edit')
@@ -64,8 +64,8 @@ export default function HobbyListPage() {
     const intro = introRef.current?.getHTML() ?? introHtml
     const guide = guideRef.current?.getHTML() ?? guideHtml
     const payload: Partial<Hobby> = {
-      hobbyNm: v.hobbyNm, summary: v.summary ?? '', difficultyCd: v.difficultyCd ?? '', bbsinfoId: v.bbsinfoId ?? '',
-      sortNo: v.sortNo ?? '0', equipment: v.equipment ?? '', estCost: v.estCost ?? '', intro, guide,
+      hobbyName: v.hobbyName, summary: v.summary ?? '', difficultyCd: v.difficultyCd ?? '', boardId: v.boardId ?? '',
+      sortNo: v.sortNo ?? '0', equipment: v.equipment ?? '', estimatedCost: v.estimatedCost ?? '', intro, guide,
     }
     try {
       const id = mode === 'edit'
@@ -94,9 +94,9 @@ export default function HobbyListPage() {
   }
 
   const columns: TableColumnsType<Hobby> = [
-    { title: '취미명', dataIndex: 'hobbyNm' },
-    { title: '난이도', width: 90, render: (_, r) => r.difficultyNm ?? '-' },
-    { title: '연결 게시판', width: 130, render: (_, r) => r.bbsinfoNm ?? '-' },
+    { title: '취미명', dataIndex: 'hobbyName' },
+    { title: '난이도', width: 90, render: (_, r) => r.difficultyName ?? '-' },
+    { title: '연결 게시판', width: 130, render: (_, r) => r.boardName ?? '-' },
     { title: '순서', dataIndex: 'sortNo', width: 70 },
   ]
 
@@ -129,7 +129,7 @@ export default function HobbyListPage() {
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
         <Form form={form} layout="vertical" initialValues={{ sortNo: '0' }}>
-          <Form.Item name="hobbyNm" label="취미명" rules={[{ required: true, message: '취미명을 입력하세요.' }]}>
+          <Form.Item name="hobbyName" label="취미명" rules={[{ required: true, message: '취미명을 입력하세요.' }]}>
             <Input maxLength={50} />
           </Form.Item>
           <Form.Item name="summary" label="한줄 소개">
@@ -139,9 +139,9 @@ export default function HobbyListPage() {
             <Form.Item name="difficultyCd" label="난이도" style={{ minWidth: 160 }}>
               <CodeSelect pCodeId="HOBBYLV00" placeholder="난이도 선택" allowClear />
             </Form.Item>
-            <Form.Item name="bbsinfoId" label="연결 게시판(소통)" style={{ minWidth: 240 }}
+            <Form.Item name="boardId" label="연결 게시판(소통)" style={{ minWidth: 240 }}
               extra={mode === 'insert' ? '비우면 취미 전용 게시판을 자동 생성' : undefined}>
-              <Select allowClear placeholder="비우면 자동 생성" options={boards.map((b) => ({ value: b.rowId, label: b.bbsinfoNm }))} />
+              <Select allowClear placeholder="비우면 자동 생성" options={boards.map((b) => ({ value: b.rowId, label: b.boardName }))} />
             </Form.Item>
             <Form.Item name="sortNo" label="노출 순서"><NumberInput /></Form.Item>
           </Space>
@@ -151,7 +151,7 @@ export default function HobbyListPage() {
           <Form.Item name="equipment" label="필요 장비">
             <Input maxLength={500} placeholder="예: 운동화(입문)/등산화, 배낭, 물통" />
           </Form.Item>
-          <Form.Item name="estCost" label="대략 비용">
+          <Form.Item name="estimatedCost" label="대략 비용">
             <Input maxLength={200} placeholder="예: 입문 5만원 내외" />
           </Form.Item>
           <Form.Item label="소개">

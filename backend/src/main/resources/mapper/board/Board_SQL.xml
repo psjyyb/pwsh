@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="boardDAO">
+
+    <select id="selectList" parameterType="boardVO" resultType="boardVO">
+        SELECT b.board_id::TEXT AS row_id, b.name AS board_name, b.type_cd, c.name AS board_cd_name,
+               b.description, b.list_cnt, b.file_yn, b.file_cnt_limit, b.file_size_limit_mb,
+               b.notice_yn, b.new_cnt, b.use_yn
+        FROM board b
+        LEFT JOIN code c ON c.code_id = b.type_cd AND c.p_code_id = 'BOARD00'
+        WHERE b.use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND b.name LIKE '%' || #{filterKeyword} || '%'
+        </if>
+        ORDER BY b.board_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="boardVO" resultType="int">
+        SELECT COUNT(*) FROM board WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">AND name LIKE '%' || #{filterKeyword} || '%'</if>
+    </select>
+
+    <!-- 단건(게시판 설정 조회, 사용자 게시판 화면에서도 사용 → 권한 예외) -->
+    <select id="selectView" parameterType="boardVO" resultType="boardVO">
+        SELECT board_id::TEXT AS row_id, name AS board_name, type_cd, description, list_cnt,
+               file_yn, file_cnt_limit, file_size_limit_mb, notice_yn, new_cnt, use_yn
+        FROM board WHERE board_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 콤보(메뉴 게시판 연결 선택용) -->
+    <select id="selectComboList" parameterType="boardVO" resultType="boardVO">
+        SELECT board_id::TEXT AS row_id, name AS board_name 
+        FROM board WHERE use_yn = 'Y' ORDER BY board_id DESC
+    </select>
+
+    <insert id="insert" parameterType="boardVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="board_id">
+        INSERT INTO board (name, type_cd, description, list_cnt,
+            file_yn, file_cnt_limit, file_size_limit_mb, notice_yn, new_cnt, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{boardName}, #{typeCd}, #{description},
+            COALESCE(NULLIF(#{listCnt}, '')::integer, 10),
+            COALESCE(#{fileYn}, 'N'),
+            COALESCE(NULLIF(#{fileCntLimit}, '')::integer, 5),
+            COALESCE(NULLIF(#{fileSizeLimitMb}, '')::integer, 10),
+            COALESCE(#{noticeYn}, 'N'), COALESCE(NULLIF(#{newCnt}, '')::integer, 0), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="boardVO">
+        UPDATE board SET
+            name = #{boardName}, type_cd = #{typeCd}, description = #{description},
+            list_cnt = COALESCE(NULLIF(#{listCnt}, '')::integer, 10),
+            file_yn = COALESCE(#{fileYn}, 'N'),
+            file_cnt_limit = COALESCE(NULLIF(#{fileCntLimit}, '')::integer, 5),
+            file_size_limit_mb = COALESCE(NULLIF(#{fileSizeLimitMb}, '')::integer, 10),
+            notice_yn = COALESCE(#{noticeYn}, 'N'),
+            new_cnt = COALESCE(NULLIF(#{newCnt}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE board_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="boardVO">
+        UPDATE board SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE board_id = #{rowId}::integer
+    </update>
+
+</mapper>

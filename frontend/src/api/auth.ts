@@ -9,13 +9,13 @@ export interface TokenResponse {
 }
 
 /** 로그인 → JWT(Access/Refresh) 발급 */
-export function login(userId: string, userPw: string): Promise<TokenResponse> {
-  return apiPost<TokenResponse>('/auth/login', { userId, userPw })
+export function login(memberId: string, password: string): Promise<TokenResponse> {
+  return apiPost<TokenResponse>('/auth/login', { memberId, password })
 }
 
 export interface SignupParams {
-  userId: string
-  userPw: string
+  memberId: string
+  password: string
   pwConfirm: string
   nickname: string
   email: string
@@ -33,19 +33,19 @@ export function sendSignupCode(email: string): Promise<void> {
 }
 
 /** 비밀번호 재설정 코드 발송 — 아이디에 등록된 이메일로 코드 전송(계정 열거 방지: 항상 성공 응답). */
-export function sendResetCode(userId: string): Promise<void> {
-  return apiPost<void>('/auth/sendResetCode', { userId })
+export function sendResetCode(memberId: string): Promise<void> {
+  return apiPost<void>('/auth/sendResetCode', { memberId })
 }
 
 /** 비밀번호 재설정 — 인증코드 검증 후 새 비밀번호 적용. */
 export function resetPassword(params: {
-  userId: string; code: string; newPw: string; pwConfirm: string
+  memberId: string; code: string; newPw: string; pwConfirm: string
 }): Promise<void> {
   return apiPost<void>('/auth/resetPassword', params)
 }
 
-/** 내 정보. handle=내 공개 식별자(프로필 링크·본인 판정용), userId=로그인 ID(본인 화면 표시용) */
-export interface MeInfo { userId?: string; nickname?: string; memCd?: string; profileFileId?: string; handle?: string }
+/** 내 정보. handle=내 공개 식별자(프로필 링크·본인 판정용), memberId=로그인 ID(본인 화면 표시용) */
+export interface MeInfo { memberId?: string; nickname?: string; typeCd?: string; profileFileId?: string; handle?: string }
 /** 내 정보(마이페이지) */
 export function me(): Promise<MeInfo> {
   return apiPost<MeInfo>('/auth/me', {})
@@ -61,7 +61,7 @@ export function withdraw(currentPw: string): Promise<void> {
   return apiPost<void>('/auth/withdraw', { currentPw })
 }
 
-/** 비밀번호 만료 연장("나중에") — 본인 pw_expire_dt 재형성 */
+/** 비밀번호 만료 연장("나중에") — 본인 password_expire_dt 재형성 */
 export function extendPw(): Promise<void> {
   return apiPost<void>('/auth/pwExtend', {})
 }

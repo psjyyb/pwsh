@@ -18,7 +18,7 @@
 - **레이어**: Controller(매핑·입력검증만) → **단일 `@Service`**(로직+`@Transactional`, 인터페이스/Impl 분리 없음) → `CommonDAO`(MyBatis).
 - **컨트롤러 5메서드 고정 + `{variant}` 분기.** URL·sql_id는 **리터럴**(상수화 금지 — grep 추적성).
   - `select{Name}List{variant}.do` · `select{Name}View.do` · `insert{Name}{variant}.do` · `update{Name}{variant}.do` · `delete{Name}.do` (전부 `@RequestMapping("/api/adm/{name}/...")`).
-  - 변형은 `{variant}`로 흡수: 예 `updateUserPassword.do`(비번), `updateUserForceLogout.do`(강제로그아웃), `updateMenuSort.do`(정렬).
+  - 변형은 `{variant}`로 흡수: 예 `updateMemberPassword.do`(비번), `updateMemberForceLogout.do`(강제로그아웃), `updateMenuSort.do`(정렬).
   - 입력 필수검증은 컨트롤러 진입부 `Validate.required(value, "라벨")`.
 - 요청 **JSON `@RequestBody`**, 응답 **`ApiResponse{success,data,error}`**. 목록 data=`{list,totalCount,page}`. 예외는 `GlobalExceptionHandler`가 처리(컨트롤러 try/catch 금지).
 - **VO**: `BaseVO` 상속(`rowId`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
@@ -37,7 +37,7 @@
 - **공개 식별자**: 클라이언트에 로그인 ID를 내려보내지 않는다. 회원 지목은 12자리 `handle`, 본인 판정은 서버가 계산한 `mineYn`.
 
 ## 파일 / 실시간 / 브랜딩
-- 모든 파일 참조는 **매핑 테이블 경유만**(엔티티에 직접 파일 ID 컬럼을 두지 않는다). 용도 코드(BBS/BBS_IMG/BBS_EDITOR/POPUP/LOGO)로 구분.
+- 모든 파일 참조는 **매핑 테이블 경유만**(엔티티에 직접 파일 ID 컬럼을 두지 않는다). 용도 코드(POST/POST_IMG/POST_EDITOR/POPUP/LOGO)로 구분.
 - **고아 파일 GC**: 업로드 후 미저장(기본 24h 유예)·삭제된 엔티티의 파일(기본 180일 보존)을 스케줄러가 회수. 설정은 `application.yml`의 `file.gc.*`, 수동 실행은 `POST /api/adm/file/gc.do`(관리자).
   - ★ **삭제 전파 필수**: 파일을 매핑하는 도메인은 엔티티 삭제 시 `fileDAO.deactivateFilesByOwner`로 파일을 비활성화해야 한다. 누락하면 GC에 걸리지 않아 영구 누수된다(컴파일러가 못 잡음).
   - ⚠️ `FileController.saveFileMapping`은 매핑에서 빠진 파일을 **즉시 물리 삭제**한다. 복구 불가.

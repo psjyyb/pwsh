@@ -3,10 +3,10 @@ import { apiPost } from './http'
 
 export interface FileMeta {
   fileId?: string
-  fileOrgNm?: string
-  fileExt?: string
-  fileSize?: string
-  fileDesc?: string
+  originalName?: string
+  ext?: string
+  size?: string
+  description?: string
   regId?: string
   regDt?: string
   useYn?: string
@@ -49,10 +49,10 @@ export const fileApi = {
     const res = await client.get('/adm/file/download.do', { params: { fileId }, responseType: 'blob' })
     return URL.createObjectURL(res.data as Blob)
   },
-  /** 엔티티(map_key+file_loc) 연결 파일 목록 */
-  listByMap: (mapKey: string, fileLoc: string) =>
-    apiPost<FileMeta[]>('/adm/file/selectFileMapList.do', { mapKey, fileLoc }),
-  /** 엔티티-파일 매핑 저장. fileDescs 전달 시 파일별 설명(캡션)도 갱신(갤러리) */
-  saveMapping: (mapKey: string, fileLoc: string, fileIds: string[], fileDescs?: string[]) =>
-    apiPost<void>('/adm/file/saveFileMapping.do', { mapKey, fileLoc, fileIds, fileDescs }),
+  /** 엔티티(map_key+file_type) 연결 파일 목록 */
+  listByMap: (mapKey: string, fileType: string) =>
+    apiPost<FileMeta[]>('/adm/file/selectFileMapList.do', { mapKey, fileType }),
+  /** 엔티티-파일 매핑 저장. descriptions 전달 시 파일별 설명(캡션)도 갱신(갤러리) */
+  saveMapping: (mapKey: string, fileType: string, fileIds: string[], descriptions?: string[]) =>
+    apiPost<void>('/adm/file/saveFileMapping.do', { mapKey, fileType, fileIds, descriptions }),
 }

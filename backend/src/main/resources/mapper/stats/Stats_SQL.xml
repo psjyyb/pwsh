@@ -13,9 +13,9 @@
             FROM generate_series(#{days}::integer - 1, 0, -1) AS n
         )
         SELECT TO_CHAR(d.day, 'MM-DD') AS label,
-               (SELECT COUNT(*) FROM t_user u   WHERE u.reg_dt::date = d.day) AS signups,
-               (SELECT COUNT(*) FROM t_bbs b    WHERE b.reg_dt::date = d.day AND b.use_yn = 'Y' AND b.p_bbs_id = 0) AS posts,
-               (SELECT COUNT(*) FROM t_recruit r WHERE r.reg_dt::date = d.day AND r.use_yn = 'Y') AS recruits
+               (SELECT COUNT(*) FROM member u   WHERE u.reg_dt::date = d.day) AS signups,
+               (SELECT COUNT(*) FROM post b    WHERE b.reg_dt::date = d.day AND b.use_yn = 'Y' AND b.p_post_id = 0) AS posts,
+               (SELECT COUNT(*) FROM recruit r WHERE r.reg_dt::date = d.day AND r.use_yn = 'Y') AS recruits
         FROM d
         ORDER BY d.day
     </select>
@@ -26,14 +26,14 @@
         프론트가 camelCase로 읽으므로 별칭을 큰따옴표로 감싸 대소문자를 보존한다(Postgres는 미인용 식별자를 소문자화).
     -->
     <select id="selectTotals" resultType="map">
-        SELECT (SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y')                                    AS "userCnt",
-               (SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND status_cd = 'STATUS03')          AS "suspendedCnt",
-               (SELECT COUNT(*) FROM t_bbs WHERE use_yn = 'Y' AND p_bbs_id = 0)                     AS "postCnt",
-               (SELECT COUNT(*) FROM t_comment WHERE use_yn = 'Y')                                  AS "commentCnt",
-               (SELECT COUNT(*) FROM t_recruit WHERE use_yn = 'Y')                                  AS "recruitCnt",
-               (SELECT COUNT(*) FROM t_recruit WHERE use_yn = 'Y' AND status_cd = 'RECRUIT01')       AS "recruitOpenCnt",
-               (SELECT COUNT(*) FROM t_hobby WHERE use_yn = 'Y')                                    AS "hobbyCnt",
-               (SELECT COUNT(*) FROM t_report WHERE use_yn = 'Y' AND status = 'PENDING')             AS "reportPendingCnt"
+        SELECT (SELECT COUNT(*) FROM member WHERE use_yn = 'Y')                                    AS "memberCnt",
+               (SELECT COUNT(*) FROM member WHERE use_yn = 'Y' AND status_cd = 'STATUS03')          AS "suspendedCnt",
+               (SELECT COUNT(*) FROM post WHERE use_yn = 'Y' AND p_post_id = 0)                     AS "postCnt",
+               (SELECT COUNT(*) FROM comment WHERE use_yn = 'Y')                                  AS "commentCnt",
+               (SELECT COUNT(*) FROM recruit WHERE use_yn = 'Y')                                  AS "recruitCnt",
+               (SELECT COUNT(*) FROM recruit WHERE use_yn = 'Y' AND status_cd = 'RECRUIT01')       AS "recruitOpenCnt",
+               (SELECT COUNT(*) FROM hobby WHERE use_yn = 'Y')                                    AS "hobbyCnt",
+               (SELECT COUNT(*) FROM report WHERE use_yn = 'Y' AND status_type = 'PENDING')             AS "reportPendingCnt"
     </select>
 
 </mapper>

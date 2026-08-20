@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 모임 후기·평점(t_review). 작성자는 reg_id(서버 세팅), 대상은 targetId. */
+/** 모임 후기·평점(review). 작성자는 reg_id(서버 세팅), 대상은 targetId. */
 @Getter
 @Setter
 public class ReviewVO extends BaseVO {
@@ -17,8 +17,8 @@ public class ReviewVO extends BaseVO {
     private String content;    // 후기 내용(선택)
 
     // 조회 표시용
-    private String targetNm;      // 대상 닉네임
-    private String regNm;         // 작성자 닉네임
+    private String targetName;      // 대상 닉네임
+    private String regName;         // 작성자 닉네임
     private String regProfileFileId; // 작성자 프로필 사진
     private String recruitTitle;  // 모임명
     private String avgRating;     // 평균 별점(집계)

@@ -49,7 +49,7 @@ public class MenuController {
 
     @RequestMapping("/insertMenu.do")
     public ApiResponse<Void> insert(@RequestBody MenuVO searchVO) {
-        Validate.required(searchVO.getMenuNm(), "메뉴명");
+        Validate.required(searchVO.getMenuName(), "메뉴명");
         menuService.insert(searchVO);
         return ApiResponse.ok();
     }
@@ -61,7 +61,7 @@ public class MenuController {
         if ("Sort".equals(variant)) {
             menuService.swapSort(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
-            Validate.required(searchVO.getMenuNm(), "메뉴명");
+            Validate.required(searchVO.getMenuName(), "메뉴명");
             menuService.update(searchVO);
         }
         return ApiResponse.ok();

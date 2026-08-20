@@ -4,7 +4,7 @@ import { apiPost } from './http'
 export interface Block {
   rowId?: string
   blockedHandle?: string // 대상 공개 식별자
-  blockedNm?: string
+  blockedName?: string
   blockedFileId?: string
   regDt?: string
 }

@@ -38,7 +38,7 @@ public class RecruitService {
 
     /** mine_yn 판정용 현재 조회자 — 비로그인/시스템은 null. */
     private String viewerId() {
-        String me = SecurityUtil.getCurrentUserId();
+        String me = SecurityUtil.getCurrentMemberId();
         return (me == null || "system".equals(me)) ? null : me;
     }
 
@@ -50,7 +50,7 @@ public class RecruitService {
     /** 내가 연 모집(마이페이지) — 본인 reg_id 기준. */
     public List<RecruitVO> selectMyList() {
         RecruitVO vo = new RecruitVO();
-        vo.setRegId(SecurityUtil.getCurrentUserId());
+        vo.setRegId(SecurityUtil.getCurrentMemberId());
         return commonDAO.selectList("recruitDAO.selectListMine", vo);
     }
 
@@ -84,7 +84,7 @@ public class RecruitService {
      * 반환값(발송한 회원)은 취미 알림과 중복되지 않도록 호출자가 제외 목록으로 넘긴다.
      */
     private java.util.Set<String> notifyMyFollowers(RecruitVO vo) {
-        String host = SecurityUtil.getCurrentUserId();
+        String host = SecurityUtil.getCurrentMemberId();
         java.util.Set<String> sent = new java.util.LinkedHashSet<>();
         if (host == null) {
             return sent;
@@ -96,14 +96,14 @@ public class RecruitService {
         RecruitVO key = new RecruitVO();
         key.setRowId(vo.getRowId());
         RecruitVO saved = commonDAO.selectOne("recruitDAO.selectView", key);
-        String hostNm = saved != null && saved.getRegNm() != null ? saved.getRegNm() : "팔로우한 회원";
+        String hostName = saved != null && saved.getRegName() != null ? saved.getRegName() : "팔로우한 회원";
         String title = saved != null && saved.getTitle() != null ? saved.getTitle() : "새 모집";
         String link = "/gen/recruit/" + vo.getRowId();
         for (String uid : followers) {
             if (blockService.isBlockedBy(host, uid)) {
                 continue; // 주최자를 차단한 회원에게는 보내지 않는다
             }
-            notificationService.notify(uid, "NEWRECRUIT", hostNm + "님이 새 모집을 열었어요: " + title, link);
+            notificationService.notify(uid, "NEWRECRUIT", hostName + "님이 새 모집을 열었어요: " + title, link);
             sent.add(uid);
         }
         if (!sent.isEmpty()) {
@@ -113,7 +113,7 @@ public class RecruitService {
     }
 
     /**
-     * 그 취미를 담은 회원에게 '새 모집' 알림 — 관심 있는 사람만 받는다(t_user_hobby 기준).
+     * 그 취미를 담은 회원에게 '새 모집' 알림 — 관심 있는 사람만 받는다(member_hobby 기준).
      * 주최자를 차단한 회원은 제외한다. 알림 1건씩 독립 트랜잭션이라 실패가 모집 등록을 되돌리지 않는다.
      *
      * <p>담은 회원 수만큼 순차 발행하므로 인기 취미에서는 등록 응답이 길어질 수 있다.
@@ -125,7 +125,7 @@ public class RecruitService {
 
     /** @param already 이미 다른 사유로 알림을 보낸 회원(중복 발송 방지 — 예: 이전 회차 참여자) */
     private void notifyHobbyFollowers(RecruitVO vo, java.util.Set<String> already) {
-        String host = SecurityUtil.getCurrentUserId();
+        String host = SecurityUtil.getCurrentMemberId();
         if (vo.getHobbyId() == null || vo.getHobbyId().isBlank() || host == null) {
             return;
         }
@@ -139,7 +139,7 @@ public class RecruitService {
         RecruitVO key = new RecruitVO();
         key.setRowId(vo.getRowId());
         RecruitVO saved = commonDAO.selectOne("recruitDAO.selectView", key);
-        String hobbyNm = saved != null && saved.getHobbyNm() != null ? saved.getHobbyNm() : "관심 취미";
+        String hobbyName = saved != null && saved.getHobbyName() != null ? saved.getHobbyName() : "관심 취미";
         String title = saved != null && saved.getTitle() != null ? saved.getTitle() : "새 모집";
         String link = "/gen/recruit/" + vo.getRowId();
         for (String uid : followers) {
@@ -147,7 +147,7 @@ public class RecruitService {
                 continue; // 이미 받은 회원(이전 회차 참여자)·주최자를 차단한 회원에게는 보내지 않는다
             }
             notificationService.notify(uid, "NEWRECRUIT",
-                    "[" + hobbyNm + "] 새 모집이 열렸어요: " + title, link);
+                    "[" + hobbyName + "] 새 모집이 열렸어요: " + title, link);
         }
         log.info("[NewRecruit] hobby={} 대상 {}명에게 알림", vo.getHobbyId(), followers.size());
     }
@@ -188,7 +188,7 @@ public class RecruitService {
         next.setAreaCd(pick(vo.getAreaCd(), src.getAreaCd()));
         next.setRegion(pick(vo.getRegion(), src.getRegion()));
         // 정기 모임은 같은 곳에서 다시 모이는 게 보통이라 장소·좌표도 물려받는다(일정만 바뀜)
-        next.setPlaceNm(pick(vo.getPlaceNm(), src.getPlaceNm()));
+        next.setPlaceName(pick(vo.getPlaceName(), src.getPlaceName()));
         next.setAddr(pick(vo.getAddr(), src.getAddr()));
         next.setLat(pick(vo.getLat(), src.getLat()));
         next.setLng(pick(vo.getLng(), src.getLng()));
@@ -205,13 +205,13 @@ public class RecruitService {
      * 호출자가 제외 목록으로 넘긴다(같은 사람이 알림 2건을 받으면 스팸처럼 보인다).
      */
     private java.util.Set<String> notifyPrevMembers(String srcId, RecruitVO next) {
-        String host = SecurityUtil.getCurrentUserId();
+        String host = SecurityUtil.getCurrentMemberId();
         Map<String, Object> p = new java.util.HashMap<>();
         p.put("recruitId", srcId);
-        p.put("userId", host);
+        p.put("memberId", host);
         java.util.Set<String> sent = new java.util.LinkedHashSet<>();
         String link = "/gen/recruit/" + next.getRowId();
-        for (String uid : commonDAO.<String>selectList("recruitDAO.selectAcceptedUsers", p)) {
+        for (String uid : commonDAO.<String>selectList("recruitDAO.selectAcceptedMembers", p)) {
             if (blockService.isBlockedBy(host, uid)) {
                 continue;
             }
@@ -293,7 +293,7 @@ public class RecruitService {
 
     /** 내 신청 내역(로그인 본인). */
     public List<RecruitApplyVO> selectApplyListMine(RecruitApplyVO vo) {
-        vo.setUserId(currentUserId());
+        vo.setMemberId(currentMemberId());
         return commonDAO.selectList("recruitDAO.selectApplyListMine", vo);
     }
 
@@ -304,7 +304,7 @@ public class RecruitService {
      */
     @Transactional
     public void applyInsert(RecruitApplyVO vo) {
-        String me = currentUserId();
+        String me = currentMemberId();
         RecruitVO key = new RecruitVO();
         key.setRowId(vo.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
@@ -320,12 +320,12 @@ public class RecruitService {
         if (me.equals(recruit.getRegId())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "본인이 등록한 모집에는 신청할 수 없습니다.");
         }
-        Integer dup = commonDAO.selectOne("recruitDAO.selectApplyCountByUser", applyKey(vo.getRecruitId(), me));
+        Integer dup = commonDAO.selectOne("recruitDAO.selectApplyCountByMember", applyKey(vo.getRecruitId(), me));
         if (dup != null && dup > 0) {
             throw new BusinessException(ErrorCode.DUPLICATE, "이미 신청한 모집입니다.");
         }
-        vo.setUserId(me);
-        vo.setApplyStatus("APPLY01"); // 신청은 항상 대기로 생성 — 수락(APPLY02)은 주최자만(applyUpdate). 클라이언트 위조 차단.
+        vo.setMemberId(me);
+        vo.setApplyCd("APPLY01"); // 신청은 항상 대기로 생성 — 수락(APPLY02)은 주최자만(applyUpdate). 클라이언트 위조 차단.
         commonDAO.insert("recruitDAO.insertApply", vo);
         notificationService.notify(recruit.getRegId(), "APPLY",
                 "'" + recruit.getTitle() + "' 모집에 새 참여 신청이 도착했어요.",
@@ -343,7 +343,7 @@ public class RecruitService {
         RecruitVO key = new RecruitVO();
         key.setRowId(apply.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
-        boolean accept = "APPLY02".equals(vo.getApplyStatus());
+        boolean accept = "APPLY02".equals(vo.getApplyCd());
 
         if (accept) {
             int cap = parseCnt(recruit.getCapacity());
@@ -362,7 +362,7 @@ public class RecruitService {
             commonDAO.update("recruitDAO.updateApplyStatus", vo);
         }
         // 신청자에게 결과 알림
-        notificationService.notify(apply.getUserId(), accept ? "ACCEPT" : "REJECT",
+        notificationService.notify(apply.getMemberId(), accept ? "ACCEPT" : "REJECT",
                 "'" + recruit.getTitle() + "' 모집 참여가 " + (accept ? "수락되었어요! 🎉" : "아쉽게 거절되었어요."),
                 "/gen/recruit/" + apply.getRecruitId());
     }
@@ -378,7 +378,7 @@ public class RecruitService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
         }
         assertOwner(apply.getRecruitId()); // 주최자·관리자만
-        if (!"APPLY02".equals(apply.getApplyStatus())) {
+        if (!"APPLY02".equals(apply.getApplyCd())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "수락된 참여자만 참석 결과를 기록할 수 있습니다.");
         }
         String cd = vo.getAttendCd();
@@ -427,9 +427,9 @@ public class RecruitService {
     }
 
     /** 회원 참석 통계(참석/불참/노쇼) — 공개 프로필 신뢰지표. */
-    public java.util.Map<String, Object> selectAttendStats(String userId) {
+    public java.util.Map<String, Object> selectAttendStats(String memberId) {
         java.util.Map<String, Object> p = new java.util.HashMap<>();
-        p.put("userId", userId);
+        p.put("memberId", memberId);
         return commonDAO.selectOne("recruitDAO.selectAttendStats", p);
     }
 
@@ -451,7 +451,7 @@ public class RecruitService {
         if (apply == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
         }
-        SecurityUtil.assertOwnerOrAdmin(apply.getUserId());
+        SecurityUtil.assertOwnerOrAdmin(apply.getMemberId());
         commonDAO.delete("recruitDAO.deleteApply", vo);
     }
 
@@ -462,7 +462,7 @@ public class RecruitService {
      * 멤버 판정을 매 요청 조인으로 하므로 수락이 취소되면 다음 요청부터 바로 막힌다.
      */
     public List<RecruitChatVO> selectChatList(RecruitChatVO vo) {
-        String me = currentUserId();
+        String me = currentMemberId();
         assertChatMember(vo.getRecruitId(), me);
         Map<String, Object> p = new java.util.HashMap<>();
         p.put("recruitId", vo.getRecruitId());
@@ -473,11 +473,11 @@ public class RecruitService {
     /**
      * 대화 등록 — 멤버만. 저장 후 나를 제외한 멤버에게 SSE로 "새 글 있음"만 밀어준다
      * (본문은 목록 API로 다시 가져가므로 인가가 한 곳에 남는다).
-     * 알림(t_notification)은 남기지 않는다 — 대화는 오가는 빈도가 높아 알림함이 잠긴다.
+     * 알림(notification)은 남기지 않는다 — 대화는 오가는 빈도가 높아 알림함이 잠긴다.
      */
     @Transactional
     public void chatInsert(RecruitChatVO vo) {
-        String me = currentUserId();
+        String me = currentMemberId();
         assertChatMember(vo.getRecruitId(), me);
         String content = vo.getContent() == null ? "" : vo.getContent().trim();
         if (content.isEmpty()) {
@@ -491,7 +491,7 @@ public class RecruitService {
 
         Map<String, Object> p = new java.util.HashMap<>();
         p.put("recruitId", vo.getRecruitId());
-        p.put("userId", me);
+        p.put("memberId", me);
         List<String> members = commonDAO.selectList("recruitDAO.selectChatMembers", p);
         for (String uid : members) {
             realtimeService.push(uid, "recruitchat");
@@ -507,7 +507,7 @@ public class RecruitService {
      * 클라이언트가 이벤트 이름("recruitchat")으로 골라 쓴다.
      */
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeChat() {
-        return realtimeService.subscribe(currentUserId());
+        return realtimeService.subscribe(currentMemberId());
     }
 
     /** 대화 삭제(논리) — 작성자 본인 또는 관리자. */
@@ -521,13 +521,13 @@ public class RecruitService {
     }
 
     /** 내가 이 모집의 대화 참여 자격이 있는지(주최자·수락 참여자). 관리자도 자격이 없으면 못 본다(사적 대화). */
-    private void assertChatMember(String recruitId, String userId) {
+    private void assertChatMember(String recruitId, String memberId) {
         if (recruitId == null || recruitId.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "모집을 선택해 주세요.");
         }
         Map<String, Object> p = new java.util.HashMap<>();
         p.put("recruitId", recruitId);
-        p.put("userId", userId);
+        p.put("memberId", memberId);
         Integer cnt = commonDAO.selectOne("recruitDAO.selectChatMemberCnt", p);
         if (cnt == null || cnt == 0) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "참여가 확정된 회원만 대화할 수 있습니다.");
@@ -546,18 +546,18 @@ public class RecruitService {
         SecurityUtil.assertOwnerOrAdmin(recruit.getRegId());
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }
         return me;
     }
 
-    private RecruitApplyVO applyKey(String recruitId, String userId) {
+    private RecruitApplyVO applyKey(String recruitId, String memberId) {
         RecruitApplyVO v = new RecruitApplyVO();
         v.setRecruitId(recruitId);
-        v.setUserId(userId);
+        v.setMemberId(memberId);
         return v;
     }
 
@@ -583,13 +583,13 @@ public class RecruitService {
         List<Map<String, Object>> targets = commonDAO.selectList("recruitDAO.selectRemindTargets", param);
         int sent = 0;
         for (Map<String, Object> t : targets) {
-            String userId = str(t.get("userId"));
+            String memberId = str(t.get("memberId"));
             String recruitId = str(t.get("recruitId"));
             String title = str(t.get("title"));
-            if (userId == null || recruitId == null) {
+            if (memberId == null || recruitId == null) {
                 continue;
             }
-            notificationService.notify(userId, "REMIND",
+            notificationService.notify(memberId, "REMIND",
                     "'" + title + "' 모임이 내일이에요. (" + str(t.get("meetDt")) + ")",
                     "/gen/recruit/" + recruitId);
             sent++;

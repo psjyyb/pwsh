@@ -3,92 +3,92 @@
 <mapper namespace="feedDAO">
 
     <!--
-      내 피드 — (1) 담은 취미(t_user_hobby)에 연결된 게시판의 새 글·모집 + (2) 팔로우한 회원(t_user_follow)의 새 글·모집.
+      내 피드 — (1) 담은 취미(member_hobby)에 연결된 게시판의 새 글·모집 + (2) 팔로우한 회원(member_follow)의 새 글·모집.
       전용 테이블 없음(집계 전용). viewerId는 서비스가 로그인 사용자로 강제 주입한다.
       UNION ALL이라 두 SELECT의 컬럼 수·타입이 같아야 해서 해당 없는 필드는 NULL을 명시 캐스팅한다.
 
-      ★ 글 쪽은 t_hobby와의 INNER JOIN을 유지한다 — 취미에 연결된 게시판만 피드에 오른다는 뜻이고,
+      ★ 글 쪽은 hobby와의 INNER JOIN을 유지한다 — 취미에 연결된 게시판만 피드에 오른다는 뜻이고,
         동시에 "팔로우했다고 해서 열람 권한 없는 게시판(1:1문의·갤러리 등)의 글이 새어나오지 않는다"는 보증이다.
     -->
     <sql id="feedBase">
-        SELECT 'BBS' AS feed_type,
-               b.bbs_id::TEXT AS row_id,
+        SELECT 'POST' AS feed_type,
+               b.post_id::TEXT AS row_id,
                b.title,
                h.hobby_id,
-               h.hobby_nm,
-               b.bbsinfo_id,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = b.reg_id) AS reg_nm,
-               (SELECT u.handle   FROM t_user u WHERE u.user_id = b.reg_id) AS reg_handle,
+               h.name AS hobby_name,
+               b.board_id,
+               (SELECT u.nickname FROM member u WHERE u.member_id = b.reg_id) AS reg_name,
+               (SELECT u.handle   FROM member u WHERE u.member_id = b.reg_id) AS reg_handle,
                (CASE WHEN b.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
-               (SELECT COUNT(*) FROM t_comment c WHERE c.bbs_id = b.bbs_id AND c.use_yn = 'Y')::INTEGER AS comment_cnt,
+               (SELECT COUNT(*) FROM comment c WHERE c.post_id = b.post_id AND c.use_yn = 'Y')::INTEGER AS comment_cnt,
                COALESCE(b.good_cnt, 0) AS good_cnt,
                NULL::VARCHAR AS meet_dt,
-               NULL::VARCHAR AS area_nm,
+               NULL::VARCHAR AS area_name,
                NULL::VARCHAR AS region,
                NULL::VARCHAR AS status_cd,
-               NULL::VARCHAR AS status_nm,
+               NULL::VARCHAR AS status_name,
                NULL::INTEGER AS capacity,
                NULL::INTEGER AS accepted_cnt,
-               (CASE WHEN EXISTS (SELECT 1 FROM t_user_hobby uh
-                                   WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
+               (CASE WHEN EXISTS (SELECT 1 FROM member_hobby uh
+                                   WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.member_id = #{viewerId})
                      THEN 'HOBBY' ELSE 'FOLLOW' END) AS feed_src,
                b.reg_dt AS sort_dt
-        FROM t_bbs b
-        JOIN t_hobby h ON h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y'
+        FROM post b
+        JOIN hobby h ON h.board_id = b.board_id AND h.use_yn = 'Y'
         WHERE b.use_yn = 'Y'
-          AND b.p_bbs_id = 0        <!-- 답글은 피드에 노출하지 않음(원글 기준) -->
+          AND b.p_post_id = 0        <!-- 답글은 피드에 노출하지 않음(원글 기준) -->
           AND b.secret_yn = 'N'     <!-- 비밀글 제외 -->
           AND ( <!-- 담은 취미의 글 또는 내가 팔로우한 회원의 글 -->
-              EXISTS (SELECT 1 FROM t_user_hobby uh
-                       WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
-              OR EXISTS (SELECT 1 FROM t_user_follow uf
-                          WHERE uf.user_id = #{viewerId} AND uf.followee_id = b.reg_id)
+              EXISTS (SELECT 1 FROM member_hobby uh
+                       WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.member_id = #{viewerId})
+              OR EXISTS (SELECT 1 FROM member_follow uf
+                          WHERE uf.member_id = #{viewerId} AND uf.followee_id = b.reg_id)
           )
           AND NOT EXISTS ( <!-- 내가 차단한 회원의 글은 제외(목록 정책과 동일) -->
-              SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = b.reg_id
+              SELECT 1 FROM member_block ub WHERE ub.member_id = #{viewerId} AND ub.blocked_id = b.reg_id
           )
         UNION ALL
         SELECT 'RECRUIT' AS feed_type,
                r.recruit_id::TEXT AS row_id,
                r.title,
                h.hobby_id,
-               h.hobby_nm,
-               NULL::INTEGER AS bbsinfo_id,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
-               (SELECT u.handle   FROM t_user u WHERE u.user_id = r.reg_id) AS reg_handle,
+               h.name AS hobby_name,
+               NULL::INTEGER AS board_id,
+               (SELECT u.nickname FROM member u WHERE u.member_id = r.reg_id) AS reg_name,
+               (SELECT u.handle   FROM member u WHERE u.member_id = r.reg_id) AS reg_handle,
                (CASE WHEN r.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
                NULL::INTEGER AS comment_cnt,
                NULL::INTEGER AS good_cnt,
                r.meet_dt,
-               (SELECT ac.code_nm FROM t_code ac WHERE ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00') AS area_nm,
+               (SELECT ac.name FROM code ac WHERE ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00') AS area_name,
                r.region,
                r.status_cd,
-               (SELECT sc.code_nm FROM t_code sc WHERE sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00') AS status_nm,
+               (SELECT sc.name FROM code sc WHERE sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00') AS status_name,
                r.capacity,
-               (SELECT COUNT(*) FROM t_recruit_apply a
-                 WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02')::INTEGER AS accepted_cnt,
-               (CASE WHEN EXISTS (SELECT 1 FROM t_user_hobby uh
-                                   WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
+               (SELECT COUNT(*) FROM recruit_apply a
+                 WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_cd = 'APPLY02')::INTEGER AS accepted_cnt,
+               (CASE WHEN EXISTS (SELECT 1 FROM member_hobby uh
+                                   WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.member_id = #{viewerId})
                      THEN 'HOBBY' ELSE 'FOLLOW' END) AS feed_src,
                r.reg_dt AS sort_dt
-        FROM t_recruit r
-        JOIN t_hobby h ON h.hobby_id = r.hobby_id AND h.use_yn = 'Y'
+        FROM recruit r
+        JOIN hobby h ON h.hobby_id = r.hobby_id AND h.use_yn = 'Y'
         WHERE r.use_yn = 'Y'
           AND ( <!-- 담은 취미의 모집 또는 내가 팔로우한 회원의 모집 -->
-              EXISTS (SELECT 1 FROM t_user_hobby uh
-                       WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.user_id = #{viewerId})
-              OR EXISTS (SELECT 1 FROM t_user_follow uf
-                          WHERE uf.user_id = #{viewerId} AND uf.followee_id = r.reg_id)
+              EXISTS (SELECT 1 FROM member_hobby uh
+                       WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y' AND uh.member_id = #{viewerId})
+              OR EXISTS (SELECT 1 FROM member_follow uf
+                          WHERE uf.member_id = #{viewerId} AND uf.followee_id = r.reg_id)
           )
           AND NOT EXISTS (
-              SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = r.reg_id
+              SELECT 1 FROM member_block ub WHERE ub.member_id = #{viewerId} AND ub.blocked_id = r.reg_id
           )
     </sql>
 
     <select id="selectList" parameterType="feedVO" resultType="feedVO">
-        SELECT f.feed_type, f.row_id, f.title, f.hobby_id, f.hobby_nm, f.bbsinfo_id,
-               f.reg_nm, f.reg_handle, f.mine_yn, f.comment_cnt, f.good_cnt,
-               f.meet_dt, f.area_nm, f.region, f.status_cd, f.status_nm, f.capacity, f.accepted_cnt,
+        SELECT f.feed_type, f.row_id, f.title, f.hobby_id, f.hobby_name, f.board_id,
+               f.reg_name, f.reg_handle, f.mine_yn, f.comment_cnt, f.good_cnt,
+               f.meet_dt, f.area_name, f.region, f.status_cd, f.status_name, f.capacity, f.accepted_cnt,
                f.feed_src,
                TO_CHAR(f.sort_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM ( <include refid="feedBase"/> ) f
@@ -104,7 +104,7 @@
 
     <!-- 담은 취미 수(0이면 피드가 비는 이유를 프론트가 안내할 수 있게) -->
     <select id="selectMyHobbyCnt" parameterType="feedVO" resultType="int">
-        SELECT COUNT(*) FROM t_user_hobby WHERE use_yn = 'Y' AND user_id = #{viewerId}
+        SELECT COUNT(*) FROM member_hobby WHERE use_yn = 'Y' AND member_id = #{viewerId}
     </select>
 
 </mapper>

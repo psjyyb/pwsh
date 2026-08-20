@@ -1,62 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 북마크(스크랩). 모든 조회/변경은 로그인 본인(user_id) 기준. -->
+<!-- 북마크(스크랩). 모든 조회/변경은 로그인 본인(member_id) 기준. -->
 <mapper namespace="bookmarkDAO">
 
     <!-- 대상 존재 확인(고아 북마크 방지) -->
     <select id="countTarget" parameterType="bookmarkVO" resultType="int">
         SELECT CASE #{targetType}
-                 WHEN 'BBS'     THEN (SELECT COUNT(*) FROM t_bbs     WHERE bbs_id = #{targetId}::integer AND use_yn = 'Y')
-                 WHEN 'RECRUIT' THEN (SELECT COUNT(*) FROM t_recruit WHERE recruit_id = #{targetId}::integer AND use_yn = 'Y')
+                 WHEN 'POST'     THEN (SELECT COUNT(*) FROM post     WHERE post_id = #{targetId}::integer AND use_yn = 'Y')
+                 WHEN 'RECRUIT' THEN (SELECT COUNT(*) FROM recruit WHERE recruit_id = #{targetId}::integer AND use_yn = 'Y')
                  ELSE 0
                END
     </select>
 
     <select id="selectActiveCnt" parameterType="bookmarkVO" resultType="int">
-        SELECT COUNT(*) FROM t_bookmark
-        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+        SELECT COUNT(*) FROM bookmark
+        WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </select>
 
     <insert id="insert" parameterType="bookmarkVO">
-        INSERT INTO t_bookmark (user_id, target_type, target_id, reg_dt, reg_ip)
-        VALUES (#{userId}, #{targetType}, #{targetId}::integer, NOW(), #{regIp})
-        ON CONFLICT (user_id, target_type, target_id) DO NOTHING
+        INSERT INTO bookmark (member_id, target_type, target_id, reg_dt, reg_ip)
+        VALUES (#{memberId}, #{targetType}, #{targetId}::integer, NOW(), #{regIp})
+        ON CONFLICT (member_id, target_type, target_id) DO NOTHING
     </insert>
 
     <delete id="delete" parameterType="bookmarkVO">
-        DELETE FROM t_bookmark
-        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+        DELETE FROM bookmark
+        WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </delete>
 
     <!-- 내 북마크 목록(게시글) — 삭제된 대상은 제외 -->
-    <select id="selectMyBbsList" parameterType="bookmarkVO" resultType="bookmarkVO">
+    <select id="selectMyPostList" parameterType="bookmarkVO" resultType="bookmarkVO">
         SELECT bm.bookmark_id::TEXT AS row_id, bm.target_type, bm.target_id,
-               b.title, b.bbsinfo_id, bi.bbsinfo_nm AS sub_nm,
+               b.title, b.board_id, bi.name AS sub_name,
                TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_bookmark bm
-        JOIN t_bbs b ON b.bbs_id = bm.target_id AND b.use_yn = 'Y'
-        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = b.bbsinfo_id
-        WHERE bm.user_id = #{userId} AND bm.target_type = 'BBS'
+        FROM bookmark bm
+        JOIN post b ON b.post_id = bm.target_id AND b.use_yn = 'Y'
+        LEFT JOIN board bi ON bi.board_id = b.board_id
+        WHERE bm.member_id = #{memberId} AND bm.target_type = 'POST'
         ORDER BY bm.bookmark_id DESC
     </select>
 
     <!-- 내 북마크 목록(모집) -->
     <select id="selectMyRecruitList" parameterType="bookmarkVO" resultType="bookmarkVO">
         SELECT bm.bookmark_id::TEXT AS row_id, bm.target_type, bm.target_id,
-               r.title, ho.hobby_nm AS sub_nm, sc.code_nm AS status_nm,
+               r.title, ho.name AS sub_name, sc.name AS status_name,
                TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_bookmark bm
-        JOIN t_recruit r ON r.recruit_id = bm.target_id AND r.use_yn = 'Y'
-        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
-        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
-        WHERE bm.user_id = #{userId} AND bm.target_type = 'RECRUIT'
+        FROM bookmark bm
+        JOIN recruit r ON r.recruit_id = bm.target_id AND r.use_yn = 'Y'
+        LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        WHERE bm.member_id = #{memberId} AND bm.target_type = 'RECRUIT'
         ORDER BY bm.bookmark_id DESC
     </select>
 
     <!-- 특정 대상들에 대한 내 북마크 여부(목록 화면 하트 표시용) -->
     <select id="selectMyIdsByType" parameterType="bookmarkVO" resultType="string">
-        SELECT target_id::TEXT FROM t_bookmark
-        WHERE user_id = #{userId} AND target_type = #{targetType}
+        SELECT target_id::TEXT FROM bookmark
+        WHERE member_id = #{memberId} AND target_type = #{targetType}
     </select>
 
 </mapper>

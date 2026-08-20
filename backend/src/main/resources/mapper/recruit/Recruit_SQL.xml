@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="recruitDAO">
 
-    <!-- ===================== 모집 (t_recruit) ===================== -->
+    <!-- ===================== 모집 (recruit) ===================== -->
     <sql id="listFilter">
         WHERE r.use_yn = 'Y'
         <if test="hobbyId != null and hobbyId != ''">AND r.hobby_id = #{hobbyId}::integer</if>
@@ -11,49 +11,49 @@
         <if test="region != null and region != ''">AND r.region LIKE '%' || #{region} || '%'</if>
         <if test="filterKeyword != null and filterKeyword != ''">AND r.title LIKE '%' || #{filterKeyword} || '%'</if>
         <!-- 내가 차단한 회원이 연 모집은 내 목록에서 제외 -->
-        AND NOT EXISTS (SELECT 1 FROM t_user_block ub WHERE ub.user_id = #{viewerId} AND ub.blocked_id = r.reg_id)
+        AND NOT EXISTS (SELECT 1 FROM member_block ub WHERE ub.member_id = #{viewerId} AND ub.blocked_id = r.reg_id)
     </sql>
 
     <select id="selectList" parameterType="recruitVO" resultType="recruitVO">
         <!-- 공개 목록: 주최자 로그인 ID(reg_id) 미노출. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
         SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, r.view_cnt,
-               r.place_nm, <!-- 목록 카드에 만날 장소 표시(좌표는 상세에서만 쓴다) -->
-               ho.hobby_nm,
-               sc.code_nm AS status_nm,
-               ac.code_nm AS area_nm,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
-               (SELECT u.handle FROM t_user u WHERE u.user_id = r.reg_id) AS reg_handle,
+               r.place_name, <!-- 목록 카드에 만날 장소 표시(좌표는 상세에서만 쓴다) -->
+               ho.name AS hobby_name,
+               sc.name AS status_name,
+               ac.name AS area_name,
+               (SELECT u.nickname FROM member u WHERE u.member_id = r.reg_id) AS reg_name,
+               (SELECT u.handle FROM member u WHERE u.member_id = r.reg_id) AS reg_handle,
                (CASE WHEN #{viewerId}::text IS NOT NULL AND r.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
-               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = r.reg_id) AS reg_profile_file_id,
-               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
-               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
+               (SELECT u.profile_file_id FROM member u WHERE u.member_id = r.reg_id) AS reg_profile_file_id,
+               (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
+               (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_cd = 'APPLY02') AS accepted_cnt,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_recruit r
-        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
-        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
-        LEFT JOIN t_code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
+        FROM recruit r
+        LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        LEFT JOIN code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
         <include refid="listFilter"/>
         ORDER BY r.recruit_id DESC
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
     <select id="selectListTotalCount" parameterType="recruitVO" resultType="int">
-        SELECT COUNT(*) FROM t_recruit r
+        SELECT COUNT(*) FROM recruit r
         <include refid="listFilter"/>
     </select>
 
     <!-- 내가 연 모집(마이페이지): 본인 reg_id, 전체 상태 -->
     <select id="selectListMine" parameterType="recruitVO" resultType="recruitVO">
         SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.capacity, r.area_cd, r.region, r.meet_dt,
-               r.status_cd, ho.hobby_nm, sc.code_nm AS status_nm, ac.code_nm AS area_nm,
-               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
-               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
+               r.status_cd, ho.name AS hobby_name, sc.name AS status_name, ac.name AS area_name,
+               (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
+               (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_cd = 'APPLY02') AS accepted_cnt,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_recruit r
-        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
-        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
-        LEFT JOIN t_code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
+        FROM recruit r
+        LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        LEFT JOIN code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
         WHERE r.use_yn = 'Y' AND r.reg_id = #{regId}
         ORDER BY r.recruit_id DESC
     </select>
@@ -61,44 +61,44 @@
     <select id="selectView" parameterType="recruitVO" resultType="recruitVO">
         SELECT r.recruit_id::TEXT AS row_id, r.hobby_id, r.title, r.content, r.capacity, r.area_cd, r.region, r.meet_dt,
                r.status_cd, r.view_cnt,
-               r.place_nm, r.addr, r.lat::TEXT AS lat, r.lng::TEXT AS lng, <!-- VO가 String 통일이라 좌표는 TEXT로 -->
+               r.place_name, r.addr, r.lat::TEXT AS lat, r.lng::TEXT AS lng, <!-- VO가 String 통일이라 좌표는 TEXT로 -->
 
                r.reg_id, <!-- 서버 인가용(주최자 판정). 공개 응답 직전 RecruitService에서 제거 -->
-               ho.hobby_nm,
-               sc.code_nm AS status_nm,
-               ac.code_nm AS area_nm,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = r.reg_id) AS reg_nm,
-               (SELECT u.handle FROM t_user u WHERE u.user_id = r.reg_id) AS reg_handle,
+               ho.name AS hobby_name,
+               sc.name AS status_name,
+               ac.name AS area_name,
+               (SELECT u.nickname FROM member u WHERE u.member_id = r.reg_id) AS reg_name,
+               (SELECT u.handle FROM member u WHERE u.member_id = r.reg_id) AS reg_handle,
                (CASE WHEN #{viewerId}::text IS NOT NULL AND r.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
-               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = r.reg_id) AS reg_profile_file_id,
-               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
-               (SELECT COUNT(*) FROM t_recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_status = 'APPLY02') AS accepted_cnt,
+               (SELECT u.profile_file_id FROM member u WHERE u.member_id = r.reg_id) AS reg_profile_file_id,
+               (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
+               (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_cd = 'APPLY02') AS accepted_cnt,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
-        FROM t_recruit r
-        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
-        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
-        LEFT JOIN t_code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
+        FROM recruit r
+        LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+        LEFT JOIN code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
         WHERE r.recruit_id = #{rowId}::integer AND r.use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="recruitVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="recruit_id">
-        INSERT INTO t_recruit (hobby_id, title, content, capacity, area_cd, region, place_nm, addr, lat, lng,
+        INSERT INTO recruit (hobby_id, title, content, capacity, area_cd, region, place_name, addr, lat, lng,
             meet_dt, status_cd, view_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{hobbyId}::integer, #{title}, #{content},
             NULLIF(#{capacity}, '')::integer, NULLIF(#{areaCd}, ''), NULLIF(#{region}, ''),
-            NULLIF(#{placeNm}, ''), NULLIF(#{addr}, ''),
+            NULLIF(#{placeName}, ''), NULLIF(#{addr}, ''),
             NULLIF(#{lat}, '')::numeric, NULLIF(#{lng}, '')::numeric, NULLIF(#{meetDt}, ''),
             COALESCE(NULLIF(#{statusCd}, ''), 'RECRUIT01'), 0, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="recruitVO">
-        UPDATE t_recruit SET
+        UPDATE recruit SET
             title = #{title}, content = #{content},
             capacity = NULLIF(#{capacity}, '')::integer,
             area_cd = NULLIF(#{areaCd}, ''), region = NULLIF(#{region}, ''),
-            place_nm = NULLIF(#{placeNm}, ''), addr = NULLIF(#{addr}, ''),
+            place_name = NULLIF(#{placeName}, ''), addr = NULLIF(#{addr}, ''),
             lat = NULLIF(#{lat}, '')::numeric, lng = NULLIF(#{lng}, '')::numeric,
             meet_dt = NULLIF(#{meetDt}, ''),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
@@ -106,16 +106,16 @@
     </update>
 
     <update id="updateStatus" parameterType="recruitVO">
-        UPDATE t_recruit SET status_cd = #{statusCd}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE recruit SET status_cd = #{statusCd}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE recruit_id = #{rowId}::integer
     </update>
 
     <update id="updateViewCnt" parameterType="recruitVO">
-        UPDATE t_recruit SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE recruit_id = #{rowId}::integer
+        UPDATE recruit SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE recruit_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="recruitVO">
-        UPDATE t_recruit SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE recruit SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE recruit_id = #{rowId}::integer
     </update>
 
@@ -125,79 +125,79 @@
       차단 관계는 서비스에서 한 번 더 걸러낸다(주최자를 차단한 회원에게는 보내지 않음).
     -->
     <select id="selectHobbyFollowers" parameterType="map" resultType="string">
-        SELECT uh.user_id
-        FROM t_user_hobby uh
-        JOIN t_user u ON u.user_id = uh.user_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+        SELECT uh.member_id
+        FROM member_hobby uh
+        JOIN member u ON u.member_id = uh.member_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
         WHERE uh.use_yn = 'Y'
           AND uh.hobby_id = #{hobbyId}::integer
-          AND uh.user_id &lt;&gt; #{hostId}
+          AND uh.member_id &lt;&gt; #{hostId}
     </select>
 
     <!-- 이전 회차의 확정 참여자(다음 회차 안내 대상). 탈퇴·정지 회원과 나는 제외. -->
-    <select id="selectAcceptedUsers" parameterType="map" resultType="string">
-        SELECT a.user_id
-        FROM t_recruit_apply a
-        JOIN t_user u ON u.user_id = a.user_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+    <select id="selectAcceptedMembers" parameterType="map" resultType="string">
+        SELECT a.member_id
+        FROM recruit_apply a
+        JOIN member u ON u.member_id = a.member_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
         WHERE a.use_yn = 'Y'
           AND a.recruit_id = #{recruitId}::integer
-          AND a.apply_status = 'APPLY02'
-          AND a.user_id &lt;&gt; #{userId}
+          AND a.apply_cd = 'APPLY02'
+          AND a.member_id &lt;&gt; #{memberId}
     </select>
 
-    <!-- ===================== 모임 단체 대화 (t_recruit_chat) =====================
+    <!-- ===================== 모임 단체 대화 (recruit_chat) =====================
       참여 자격은 매번 조인으로 판정한다(주최자 또는 수락된 참여자).
       멤버 테이블을 따로 두지 않으므로 수락이 취소되면 권한도 즉시 사라진다.
     -->
     <select id="selectChatMemberCnt" parameterType="map" resultType="int">
-        SELECT COUNT(*) FROM t_recruit r
+        SELECT COUNT(*) FROM recruit r
         WHERE r.recruit_id = #{recruitId}::integer AND r.use_yn = 'Y'
-          AND (r.reg_id = #{userId}
-               OR EXISTS (SELECT 1 FROM t_recruit_apply a
+          AND (r.reg_id = #{memberId}
+               OR EXISTS (SELECT 1 FROM recruit_apply a
                            WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y'
-                             AND a.user_id = #{userId} AND a.apply_status = 'APPLY02'))
+                             AND a.member_id = #{memberId} AND a.apply_cd = 'APPLY02'))
     </select>
 
     <select id="selectChatList" parameterType="map" resultType="recruitChatVO">
         SELECT c.chat_id::TEXT AS row_id, c.recruit_id, c.content,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = c.reg_id) AS reg_nm,
-               (SELECT u.handle   FROM t_user u WHERE u.user_id = c.reg_id) AS reg_handle,
-               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = c.reg_id) AS reg_profile_file_id,
+               (SELECT u.nickname FROM member u WHERE u.member_id = c.reg_id) AS reg_name,
+               (SELECT u.handle   FROM member u WHERE u.member_id = c.reg_id) AS reg_handle,
+               (SELECT u.profile_file_id FROM member u WHERE u.member_id = c.reg_id) AS reg_profile_file_id,
                (CASE WHEN c.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
-               (CASE WHEN c.reg_id = (SELECT r.reg_id FROM t_recruit r WHERE r.recruit_id = c.recruit_id)
+               (CASE WHEN c.reg_id = (SELECT r.reg_id FROM recruit r WHERE r.recruit_id = c.recruit_id)
                      THEN 'Y' ELSE 'N' END) AS host_yn,
                TO_CHAR(c.reg_dt, 'MM-DD HH24:MI') AS reg_dt
-        FROM t_recruit_chat c
+        FROM recruit_chat c
         WHERE c.use_yn = 'Y' AND c.recruit_id = #{recruitId}::integer
         ORDER BY c.chat_id
         LIMIT 300
     </select>
 
     <insert id="insertChat" parameterType="recruitChatVO">
-        INSERT INTO t_recruit_chat (recruit_id, content, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        INSERT INTO recruit_chat (recruit_id, content, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{recruitId}::integer, #{content}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <select id="selectChatView" parameterType="recruitChatVO" resultType="recruitChatVO">
         SELECT chat_id::TEXT AS row_id, recruit_id, content, reg_id
-        FROM t_recruit_chat WHERE chat_id = #{rowId}::integer AND use_yn = 'Y'
+        FROM recruit_chat WHERE chat_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <update id="deleteChat" parameterType="recruitChatVO">
-        UPDATE t_recruit_chat SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE recruit_chat SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE chat_id = #{rowId}::integer
     </update>
 
     <!-- 대화 참여자(작성 알림 대상) — 주최자 + 수락 참여자 중 나를 제외 -->
     <select id="selectChatMembers" parameterType="map" resultType="string">
-        SELECT r.reg_id AS user_id FROM t_recruit r
-         WHERE r.recruit_id = #{recruitId}::integer AND r.use_yn = 'Y' AND r.reg_id &lt;&gt; #{userId}
+        SELECT r.reg_id AS member_id FROM recruit r
+         WHERE r.recruit_id = #{recruitId}::integer AND r.use_yn = 'Y' AND r.reg_id &lt;&gt; #{memberId}
         UNION
-        SELECT a.user_id FROM t_recruit_apply a
+        SELECT a.member_id FROM recruit_apply a
          WHERE a.recruit_id = #{recruitId}::integer AND a.use_yn = 'Y'
-           AND a.apply_status = 'APPLY02' AND a.user_id &lt;&gt; #{userId}
+           AND a.apply_cd = 'APPLY02' AND a.member_id &lt;&gt; #{memberId}
     </select>
 
-    <!-- ===================== 참여 신청 (t_recruit_apply) ===================== -->
+    <!-- ===================== 참여 신청 (recruit_apply) ===================== -->
     <!-- 특정 모집 신청자 목록(주최자용) -->
     <!--
       모임 리마인더 대상 — 지정일(#{targetDt})에 모임이 있는 건의 주최자 + 수락된 참여자.
@@ -209,68 +209,68 @@
         SELECT r.recruit_id::TEXT AS "recruitId",
                r.title            AS "title",
                r.meet_dt          AS "meetDt",
-               t.user_id          AS "userId"
-        FROM t_recruit r
+               t.member_id          AS "memberId"
+        FROM recruit r
         JOIN (
-            SELECT recruit_id, reg_id AS user_id FROM t_recruit WHERE use_yn = 'Y'
+            SELECT recruit_id, reg_id AS member_id FROM recruit WHERE use_yn = 'Y'
             UNION
-            SELECT recruit_id, user_id FROM t_recruit_apply WHERE use_yn = 'Y' AND apply_status = 'APPLY02'
+            SELECT recruit_id, member_id FROM recruit_apply WHERE use_yn = 'Y' AND apply_cd = 'APPLY02'
         ) t ON t.recruit_id = r.recruit_id
         WHERE r.use_yn = 'Y'
           AND r.meet_dt = #{targetDt}
           AND NOT EXISTS (
-              SELECT 1 FROM t_notification n
-               WHERE n.user_id = t.user_id
-                 AND n.noti_type = 'REMIND'
+              SELECT 1 FROM notification n
+               WHERE n.member_id = t.member_id
+                 AND n.type = 'REMIND'
                  AND n.link_url = '/gen/recruit/' || r.recruit_id
                  AND n.reg_dt::date = CURRENT_DATE
           )
-        ORDER BY r.recruit_id, t.user_id
+        ORDER BY r.recruit_id, t.member_id
     </select>
 
     <select id="selectApplyList" parameterType="recruitApplyVO" resultType="recruitApplyVO">
-        SELECT a.apply_id::TEXT AS row_id, a.recruit_id, a.user_id, a.apply_status, a.apply_memo, a.reg_id,
+        SELECT a.apply_id::TEXT AS row_id, a.recruit_id, a.member_id, a.apply_cd, a.apply_memo, a.reg_id,
                a.attend_cd,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = a.user_id) AS nickname,
-               (SELECT u.handle FROM t_user u WHERE u.user_id = a.user_id) AS user_handle,
-               sc.code_nm AS apply_status_nm,
-               atc.code_nm AS attend_nm,
+               (SELECT u.nickname FROM member u WHERE u.member_id = a.member_id) AS nickname,
+               (SELECT u.handle FROM member u WHERE u.member_id = a.member_id) AS member_handle,
+               sc.name AS apply_status_name,
+               atc.name AS attend_name,
                <!-- 대기 순번: 대기(APPLY01)끼리 신청순. 수락/거절 건은 NULL -->
-               (CASE WHEN a.apply_status = 'APPLY01'
-                     THEN (SELECT COUNT(*) FROM t_recruit_apply w
+               (CASE WHEN a.apply_cd = 'APPLY01'
+                     THEN (SELECT COUNT(*) FROM recruit_apply w
                             WHERE w.use_yn = 'Y' AND w.recruit_id = a.recruit_id
-                              AND w.apply_status = 'APPLY01' AND w.apply_id &lt;= a.apply_id)
+                              AND w.apply_cd = 'APPLY01' AND w.apply_id &lt;= a.apply_id)
                      END) AS wait_no,
                TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
-        FROM t_recruit_apply a
-        LEFT JOIN t_code sc ON sc.code_id = a.apply_status AND sc.p_code_id = 'APPLY00'
-        LEFT JOIN t_code atc ON atc.code_id = a.attend_cd AND atc.p_code_id = 'ATTEND00'
+        FROM recruit_apply a
+        LEFT JOIN code sc ON sc.code_id = a.apply_cd AND sc.p_code_id = 'APPLY00'
+        LEFT JOIN code atc ON atc.code_id = a.attend_cd AND atc.p_code_id = 'ATTEND00'
         WHERE a.use_yn = 'Y' AND a.recruit_id = #{recruitId}::integer
         ORDER BY a.apply_id
     </select>
 
     <!-- 내 신청 내역 (+ 모임 일정·지역: '내 모임 일정'에서 다가오는 모임을 모아보기 위함) -->
     <select id="selectApplyListMine" parameterType="recruitApplyVO" resultType="recruitApplyVO">
-        SELECT a.apply_id::TEXT AS row_id, a.recruit_id, a.apply_status, a.apply_memo,
+        SELECT a.apply_id::TEXT AS row_id, a.recruit_id, a.apply_cd, a.apply_memo,
                r.title AS recruit_title, r.meet_dt, r.region, r.status_cd AS recruit_status_cd,
-               sc.code_nm AS apply_status_nm,
+               sc.name AS apply_status_name,
                <!-- 내 대기 순번(대기 상태일 때만) — '앞에 몇 명'인지 신청자가 볼 수 있게 -->
-               (CASE WHEN a.apply_status = 'APPLY01'
-                     THEN (SELECT COUNT(*) FROM t_recruit_apply w
+               (CASE WHEN a.apply_cd = 'APPLY01'
+                     THEN (SELECT COUNT(*) FROM recruit_apply w
                             WHERE w.use_yn = 'Y' AND w.recruit_id = a.recruit_id
-                              AND w.apply_status = 'APPLY01' AND w.apply_id &lt;= a.apply_id)
+                              AND w.apply_cd = 'APPLY01' AND w.apply_id &lt;= a.apply_id)
                      END) AS wait_no,
                TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
-        FROM t_recruit_apply a
-        JOIN t_recruit r ON r.recruit_id = a.recruit_id
-        LEFT JOIN t_code sc ON sc.code_id = a.apply_status AND sc.p_code_id = 'APPLY00'
-        WHERE a.use_yn = 'Y' AND a.user_id = #{userId}
+        FROM recruit_apply a
+        JOIN recruit r ON r.recruit_id = a.recruit_id
+        LEFT JOIN code sc ON sc.code_id = a.apply_cd AND sc.p_code_id = 'APPLY00'
+        WHERE a.use_yn = 'Y' AND a.member_id = #{memberId}
         ORDER BY a.apply_id DESC
     </select>
 
     <!-- 참석 결과 기록/수정(주최자·관리자). NULL 지정 시 미기록으로 되돌림 -->
     <update id="updateApplyAttend" parameterType="recruitApplyVO">
-        UPDATE t_recruit_apply
+        UPDATE recruit_apply
            SET attend_cd = NULLIF(#{attendCd}, ''),
                upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
          WHERE apply_id = #{rowId}::integer
@@ -284,43 +284,43 @@
         SELECT COUNT(*) FILTER (WHERE attend_cd = 'ATTEND01')::TEXT AS "attendedCnt",
                COUNT(*) FILTER (WHERE attend_cd = 'ATTEND02')::TEXT AS "absentCnt",
                COUNT(*) FILTER (WHERE attend_cd = 'ATTEND03')::TEXT AS "noshowCnt"
-        FROM t_recruit_apply
-        WHERE use_yn = 'Y' AND user_id = #{userId} AND attend_cd IS NOT NULL
+        FROM recruit_apply
+        WHERE use_yn = 'Y' AND member_id = #{memberId} AND attend_cd IS NOT NULL
     </select>
 
     <!-- 신청 단건(인가용: 신청자·소속 모집 확인) -->
     <select id="selectApplyView" parameterType="recruitApplyVO" resultType="recruitApplyVO">
-        SELECT apply_id::TEXT AS row_id, recruit_id, user_id, apply_status
-        FROM t_recruit_apply WHERE apply_id = #{rowId}::integer AND use_yn = 'Y'
+        SELECT apply_id::TEXT AS row_id, recruit_id, member_id, apply_cd
+        FROM recruit_apply WHERE apply_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <!-- 활성 중복신청 여부 -->
-    <select id="selectApplyCountByUser" parameterType="recruitApplyVO" resultType="int">
-        SELECT COUNT(*) FROM t_recruit_apply
-        WHERE use_yn = 'Y' AND recruit_id = #{recruitId}::integer AND user_id = #{userId}
+    <select id="selectApplyCountByMember" parameterType="recruitApplyVO" resultType="int">
+        SELECT COUNT(*) FROM recruit_apply
+        WHERE use_yn = 'Y' AND recruit_id = #{recruitId}::integer AND member_id = #{memberId}
     </select>
 
     <insert id="insertApply" parameterType="recruitApplyVO">
-        INSERT INTO t_recruit_apply (recruit_id, user_id, apply_status, apply_memo, use_yn,
+        INSERT INTO recruit_apply (recruit_id, member_id, apply_cd, apply_memo, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{recruitId}::integer, #{userId},
-            COALESCE(NULLIF(#{applyStatus}, ''), 'APPLY01'), NULLIF(#{applyMemo}, ''), 'Y',
+        VALUES (#{recruitId}::integer, #{memberId},
+            COALESCE(NULLIF(#{applyCd}, ''), 'APPLY01'), NULLIF(#{applyMemo}, ''), 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="updateApplyStatus" parameterType="recruitApplyVO">
-        UPDATE t_recruit_apply SET apply_status = #{applyStatus}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE recruit_apply SET apply_cd = #{applyCd}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE apply_id = #{rowId}::integer
     </update>
 
     <update id="deleteApply" parameterType="recruitApplyVO">
-        UPDATE t_recruit_apply SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE recruit_apply SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE apply_id = #{rowId}::integer
     </update>
 
     <!-- 모집 삭제 시 딸린 신청 일괄 비활성 -->
     <update id="deleteApplyByRecruit" parameterType="recruitApplyVO">
-        UPDATE t_recruit_apply SET use_yn = 'N', upd_dt = NOW()
+        UPDATE recruit_apply SET use_yn = 'N', upd_dt = NOW()
         WHERE recruit_id = #{recruitId}::integer AND use_yn = 'Y'
     </update>
 

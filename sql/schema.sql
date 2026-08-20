@@ -13,32 +13,28 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================ 사용자 ============================
-CREATE TABLE t_user (
-    user_id                    VARCHAR(30)  NOT NULL,
-    user_pw                    TEXT         NOT NULL,
-    mem_cd                     VARCHAR(100) NOT NULL,
-    user_nm                    VARCHAR(255),
+CREATE TABLE member (
+    member_id                    VARCHAR(30)  NOT NULL,
+    password                    TEXT         NOT NULL,
+    type_cd                     VARCHAR(100) NOT NULL,
+    name                    VARCHAR(255),
     nickname                   VARCHAR(30),
     -- 공개 식별자(handle): 사용자 화면·공개 API에서 회원을 지목할 때 쓰는 불투명 키.
-    -- 로그인 ID(user_id)를 응답·URL에 노출하지 않기 위한 것(계정 열거·크리덴셜 스터핑 표적화 방지).
+    -- 로그인 ID(member_id)를 응답·URL에 노출하지 않기 위한 것(계정 열거·크리덴셜 스터핑 표적화 방지).
     -- DB 기본값으로 자동 발급 → 모든 insert 경로(가입/관리자생성/초기화)가 별도 처리 없이 값을 갖는다.
     handle                     VARCHAR(20)  NOT NULL DEFAULT SUBSTR(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 12),
     profile_file_id            INTEGER,
     phone                      VARCHAR(255),
     email                      VARCHAR(255),
-    gen_cd                     VARCHAR(20),
+    gender_cd                     VARCHAR(20),
     birth                      VARCHAR(255),
     last_login_dt              TIMESTAMP,
     status_cd                  VARCHAR(20),
-    pw_expire_dt               TIMESTAMP,
+    password_expire_dt               TIMESTAMP,
     last_upd_dt                TIMESTAMP,
     fail_cnt                   INTEGER      DEFAULT 0,
     token_ver                  INTEGER      NOT NULL DEFAULT 0,
-    is_account_non_expired     BOOLEAN      NOT NULL DEFAULT true,
-    is_account_non_locked      BOOLEAN      NOT NULL DEFAULT true,
-    is_credentials_non_expired BOOLEAN      NOT NULL DEFAULT true,
-    is_enabled                 BOOLEAN      NOT NULL DEFAULT true,
-    is_account_non_locked_ti   TIMESTAMP,
+    lock_until_dt   TIMESTAMP,
     last_login_ip              VARCHAR(45),
     use_yn                     VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id                     VARCHAR(30)  NOT NULL,
@@ -47,46 +43,42 @@ CREATE TABLE t_user (
     upd_dt                     TIMESTAMP    NOT NULL,
     reg_ip                     VARCHAR(45)  NOT NULL,
     upd_ip                     VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_user PRIMARY KEY (user_id)
+    CONSTRAINT pk_member PRIMARY KEY (member_id)
 );
-COMMENT ON TABLE  t_user IS '사용자';
-COMMENT ON COLUMN t_user.user_id IS '사용자 ID(로그인 계정)';
-COMMENT ON COLUMN t_user.user_pw IS '비밀번호(해시)';
-COMMENT ON COLUMN t_user.mem_cd IS '회원유형 코드(t_code)';
-COMMENT ON COLUMN t_user.user_nm IS '이름(pgcrypto AES 암호화, HEX). 셀프가입은 선택(닉네임 사용)';
-COMMENT ON COLUMN t_user.nickname IS '닉네임(커뮤니티 표시명, 평문). 셀프가입 필수, 게시글/모집 작성자 표기에 사용';
-COMMENT ON COLUMN t_user.profile_file_id IS '프로필 사진(t_file.file_id 직접 참조). r_file는 map_key가 정수라 문자열 PK(user_id)엔 부적합 → 예외적 직접 참조. 공개 서빙 허용, GC 제외';
-COMMENT ON COLUMN t_user.phone IS '연락처(pgcrypto AES 암호화, HEX)';
-COMMENT ON COLUMN t_user.email IS '이메일(pgcrypto AES 암호화, HEX)';
-COMMENT ON COLUMN t_user.gen_cd IS '성별 코드(평문)';
-COMMENT ON COLUMN t_user.birth IS '생년월일 YYYY-MM-DD(pgcrypto AES 암호화, HEX)';
-COMMENT ON COLUMN t_user.last_login_dt IS '마지막 로그인 일시';
-COMMENT ON COLUMN t_user.status_cd IS '계정상태 코드(t_code, 관리자 상태변경)';
-COMMENT ON COLUMN t_user.pw_expire_dt IS '비밀번호 만료일시';
-COMMENT ON COLUMN t_user.last_upd_dt IS '비밀번호 최종변경 일시';
-COMMENT ON COLUMN t_user.fail_cnt IS '로그인 실패 횟수';
-COMMENT ON COLUMN t_user.token_ver IS '토큰 버전(로그인 시 +1). JWT의 ver 클레임과 불일치하면 무효 → 단일세션(last-wins)·로그아웃 즉시 무효화';
-COMMENT ON COLUMN t_user.is_account_non_expired IS '계정만료 아님(Spring Security)';
-COMMENT ON COLUMN t_user.is_account_non_locked IS '계정잠금 아님(Security)';
-COMMENT ON COLUMN t_user.is_credentials_non_expired IS '비번만료 아님(Security)';
-COMMENT ON COLUMN t_user.is_enabled IS '활성화 여부(Security)';
-COMMENT ON COLUMN t_user.is_account_non_locked_ti IS '계정잠금 시각';
-COMMENT ON COLUMN t_user.last_login_ip IS '마지막 로그인 IP';
-COMMENT ON COLUMN t_user.use_yn IS '사용여부(Y/N, 탈퇴 시 N)';
+COMMENT ON TABLE  member IS '사용자';
+COMMENT ON COLUMN member.member_id IS '사용자 ID(로그인 계정)';
+COMMENT ON COLUMN member.password IS '비밀번호(해시)';
+COMMENT ON COLUMN member.type_cd IS '회원유형 코드(code)';
+COMMENT ON COLUMN member.name IS '이름(pgcrypto AES 암호화, HEX). 셀프가입은 선택(닉네임 사용)';
+COMMENT ON COLUMN member.nickname IS '닉네임(커뮤니티 표시명, 평문). 셀프가입 필수, 게시글/모집 작성자 표기에 사용';
+COMMENT ON COLUMN member.profile_file_id IS '프로필 사진(file.file_id 직접 참조). file_ref는 map_key가 정수라 문자열 PK(member_id)엔 부적합 → 예외적 직접 참조. 공개 서빙 허용, GC 제외';
+COMMENT ON COLUMN member.phone IS '연락처(pgcrypto AES 암호화, HEX)';
+COMMENT ON COLUMN member.email IS '이메일(pgcrypto AES 암호화, HEX)';
+COMMENT ON COLUMN member.gender_cd IS '성별 코드(평문)';
+COMMENT ON COLUMN member.birth IS '생년월일 YYYY-MM-DD(pgcrypto AES 암호화, HEX)';
+COMMENT ON COLUMN member.last_login_dt IS '마지막 로그인 일시';
+COMMENT ON COLUMN member.status_cd IS '계정상태 코드(code, 관리자 상태변경)';
+COMMENT ON COLUMN member.password_expire_dt IS '비밀번호 만료일시';
+COMMENT ON COLUMN member.last_upd_dt IS '비밀번호 최종변경 일시';
+COMMENT ON COLUMN member.fail_cnt IS '로그인 실패 횟수';
+COMMENT ON COLUMN member.token_ver IS '토큰 버전(로그인 시 +1). JWT의 ver 클레임과 불일치하면 무효 → 단일세션(last-wins)·로그아웃 즉시 무효화';
+COMMENT ON COLUMN member.lock_until_dt IS '계정잠금 시각';
+COMMENT ON COLUMN member.last_login_ip IS '마지막 로그인 IP';
+COMMENT ON COLUMN member.use_yn IS '사용여부(Y/N, 탈퇴 시 N)';
 -- 닉네임 중복 방지(값이 있는 활성 계정만 — 관리자 생성 계정은 닉네임 없이도 가능)
-CREATE UNIQUE INDEX IF NOT EXISTS ux_t_user_nickname ON t_user (nickname) WHERE nickname IS NOT NULL AND use_yn = 'Y';
-CREATE UNIQUE INDEX IF NOT EXISTS ux_t_user_handle ON t_user (handle); -- 공개 식별자 유일성(조회 키로 사용)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_member_nickname ON member (nickname) WHERE nickname IS NOT NULL AND use_yn = 'Y';
+CREATE UNIQUE INDEX IF NOT EXISTS ux_member_handle ON member (handle); -- 공개 식별자 유일성(조회 키로 사용)
 
 -- ============================ 메뉴 ============================
--- (t_prog 제거: 메뉴는 conn_ty 유형에 따라 link_url 직접 입력 또는 conn_id로 게시판/페이지 연결)
-CREATE TABLE t_menu (
+-- (t_prog 제거: 메뉴는 conn_cd 유형에 따라 link_url 직접 입력 또는 conn_id로 게시판/페이지 연결)
+CREATE TABLE menu (
     menu_id   INTEGER      GENERATED BY DEFAULT AS IDENTITY,
     p_menu_id INTEGER      NOT NULL,
     area      VARCHAR(10)  NOT NULL DEFAULT 'ADM',
-    menu_nm   VARCHAR(255) NOT NULL,
-    menu_desc VARCHAR(255),
+    name   VARCHAR(255) NOT NULL,
+    description VARCHAR(255),
     sort_no      INTEGER      NOT NULL,
-    conn_ty   VARCHAR(15)  NOT NULL,
+    conn_cd   VARCHAR(15)  NOT NULL,
     conn_id   INTEGER      NOT NULL DEFAULT 0,
     link_url  VARCHAR(255),
     target_yn VARCHAR(1)   DEFAULT 'N',
@@ -98,29 +90,29 @@ CREATE TABLE t_menu (
     upd_dt    TIMESTAMP    NOT NULL,
     reg_ip    VARCHAR(45)  NOT NULL,
     upd_ip    VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_menu PRIMARY KEY (menu_id)
+    CONSTRAINT pk_menu PRIMARY KEY (menu_id)
     -- sort_no은 정렬키(삭제 시 뒤 순서 당김). 논리삭제 행이 sort_no을 점유하지 않도록 UNIQUE 제약 미사용
 );
-COMMENT ON TABLE  t_menu IS '메뉴(계층형)';
-COMMENT ON COLUMN t_menu.menu_id IS '메뉴 ID';
-COMMENT ON COLUMN t_menu.p_menu_id IS '부모 메뉴 ID(최상위=0, menu_id 0은 미사용 예약)';
-COMMENT ON COLUMN t_menu.area IS '메뉴 영역(ADM=관리자, GEN=사용자)';
-COMMENT ON COLUMN t_menu.menu_nm IS '메뉴명';
-COMMENT ON COLUMN t_menu.menu_desc IS '메뉴 설명';
-COMMENT ON COLUMN t_menu.sort_no IS '정렬순서';
-COMMENT ON COLUMN t_menu.conn_ty IS '연결유형(t_code MENU00: MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹)';
-COMMENT ON COLUMN t_menu.conn_id IS '연결대상 ID(MENU02=게시판 bbsinfo_id, MENU03=페이지 page_id)';
-COMMENT ON COLUMN t_menu.link_url IS '연결 URL/라우트(conn_ty=MENU01일 때, 예: /adm/code)';
-COMMENT ON COLUMN t_menu.icon IS '메뉴 아이콘 키(프론트 아이콘 레지스트리 매핑, 관리자 사이드바 표시용)';
-COMMENT ON COLUMN t_menu.target_yn IS '새창 열기 여부(Y/N)';
-COMMENT ON COLUMN t_menu.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  menu IS '메뉴(계층형)';
+COMMENT ON COLUMN menu.menu_id IS '메뉴 ID';
+COMMENT ON COLUMN menu.p_menu_id IS '부모 메뉴 ID(최상위=0, menu_id 0은 미사용 예약)';
+COMMENT ON COLUMN menu.area IS '메뉴 영역(ADM=관리자, GEN=사용자)';
+COMMENT ON COLUMN menu.name IS '메뉴명';
+COMMENT ON COLUMN menu.description IS '메뉴 설명';
+COMMENT ON COLUMN menu.sort_no IS '정렬순서';
+COMMENT ON COLUMN menu.conn_cd IS '연결유형(code MENU00: MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹)';
+COMMENT ON COLUMN menu.conn_id IS '연결대상 ID(MENU02=게시판 board_id, MENU03=페이지 page_id)';
+COMMENT ON COLUMN menu.link_url IS '연결 URL/라우트(conn_cd=MENU01일 때, 예: /adm/code)';
+COMMENT ON COLUMN menu.icon IS '메뉴 아이콘 키(프론트 아이콘 레지스트리 매핑, 관리자 사이드바 표시용)';
+COMMENT ON COLUMN menu.target_yn IS '새창 열기 여부(Y/N)';
+COMMENT ON COLUMN menu.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 권한 ============================
-CREATE TABLE t_auth (
+CREATE TABLE auth (
     auth_id   INTEGER      GENERATED BY DEFAULT AS IDENTITY,
     menu_id   INTEGER      NOT NULL,
     conn_id   VARCHAR(255) NOT NULL,
-    auth_gbn  VARCHAR(4)   NOT NULL,
+    type  VARCHAR(4)   NOT NULL,
     menu_yn   VARCHAR(1)   NOT NULL DEFAULT 'N',
     search_yn VARCHAR(1),
     mod_yn    VARCHAR(1),
@@ -131,24 +123,24 @@ CREATE TABLE t_auth (
     upd_dt    TIMESTAMP    NOT NULL,
     reg_ip    VARCHAR(45)  NOT NULL,
     upd_ip    VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_auth PRIMARY KEY (auth_id),
-    CONSTRAINT uq_t_auth UNIQUE (menu_id, conn_id, auth_gbn)
+    CONSTRAINT pk_auth PRIMARY KEY (auth_id),
+    CONSTRAINT uq_auth UNIQUE (menu_id, conn_id, type)
 );
-COMMENT ON TABLE  t_auth IS '권한(메뉴별)';
-COMMENT ON COLUMN t_auth.auth_id IS '권한 ID';
-COMMENT ON COLUMN t_auth.menu_id IS '대상 메뉴 ID(t_menu)';
-COMMENT ON COLUMN t_auth.conn_id IS '권한주체 ID(auth_gbn에 따라 그룹ID/회원유형/사용자ID, 다형적)';
-COMMENT ON COLUMN t_auth.auth_gbn IS '권한구분(GRP=그룹, MEM=회원유형/개별)';
-COMMENT ON COLUMN t_auth.menu_yn IS '메뉴 표시 권한(Y/N)';
-COMMENT ON COLUMN t_auth.search_yn IS '조회 권한(Y/N)';
-COMMENT ON COLUMN t_auth.mod_yn IS '수정 권한(Y/N)';
-COMMENT ON COLUMN t_auth.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  auth IS '권한(메뉴별)';
+COMMENT ON COLUMN auth.auth_id IS '권한 ID';
+COMMENT ON COLUMN auth.menu_id IS '대상 메뉴 ID(menu)';
+COMMENT ON COLUMN auth.conn_id IS '권한주체 ID(type에 따라 그룹ID/회원유형/사용자ID, 다형적)';
+COMMENT ON COLUMN auth.type IS '권한구분(GRP=그룹, MEM=회원유형/개별)';
+COMMENT ON COLUMN auth.menu_yn IS '메뉴 표시 권한(Y/N)';
+COMMENT ON COLUMN auth.search_yn IS '조회 권한(Y/N)';
+COMMENT ON COLUMN auth.mod_yn IS '수정 권한(Y/N)';
+COMMENT ON COLUMN auth.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 권한그룹 ============================
-CREATE TABLE t_auth_grp (
-    authgrp_id   VARCHAR(255) NOT NULL,
-    authgrp_nm   VARCHAR(255) NOT NULL,
-    authgrp_desc VARCHAR(255),
+CREATE TABLE auth_group (
+    auth_group_id   VARCHAR(255) NOT NULL,
+    name   VARCHAR(255) NOT NULL,
+    description VARCHAR(255),
     use_yn       VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id       VARCHAR(30)  NOT NULL,
     upd_id       VARCHAR(30)  NOT NULL,
@@ -156,18 +148,18 @@ CREATE TABLE t_auth_grp (
     upd_dt       TIMESTAMP    NOT NULL,
     reg_ip       VARCHAR(45)  NOT NULL,
     upd_ip       VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_auth_grp PRIMARY KEY (authgrp_id)
+    CONSTRAINT pk_auth_grp PRIMARY KEY (auth_group_id)
 );
-COMMENT ON TABLE  t_auth_grp IS '권한그룹';
-COMMENT ON COLUMN t_auth_grp.authgrp_id IS '권한그룹 ID';
-COMMENT ON COLUMN t_auth_grp.authgrp_nm IS '권한그룹명';
-COMMENT ON COLUMN t_auth_grp.authgrp_desc IS '설명';
-COMMENT ON COLUMN t_auth_grp.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  auth_group IS '권한그룹';
+COMMENT ON COLUMN auth_group.auth_group_id IS '권한그룹 ID';
+COMMENT ON COLUMN auth_group.name IS '권한그룹명';
+COMMENT ON COLUMN auth_group.description IS '설명';
+COMMENT ON COLUMN auth_group.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 권한그룹-사용자 매핑 ============================
-CREATE TABLE t_auth_user (
-    user_id    VARCHAR(30)  NOT NULL,
-    authgrp_id VARCHAR(255) NOT NULL,
+CREATE TABLE auth_member (
+    member_id    VARCHAR(30)  NOT NULL,
+    auth_group_id VARCHAR(255) NOT NULL,
     use_yn     VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id     VARCHAR(30)  NOT NULL,
     upd_id     VARCHAR(30)  NOT NULL,
@@ -175,19 +167,19 @@ CREATE TABLE t_auth_user (
     upd_dt     TIMESTAMP    NOT NULL,
     reg_ip     VARCHAR(45)  NOT NULL,
     upd_ip     VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_auth_user PRIMARY KEY (user_id, authgrp_id)
+    CONSTRAINT pk_auth_member PRIMARY KEY (member_id, auth_group_id)
 );
-COMMENT ON TABLE  t_auth_user IS '권한그룹-사용자 매핑';
-COMMENT ON COLUMN t_auth_user.user_id IS '사용자 ID(t_user)';
-COMMENT ON COLUMN t_auth_user.authgrp_id IS '권한그룹 ID(t_auth_grp)';
-COMMENT ON COLUMN t_auth_user.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  auth_member IS '권한그룹-사용자 매핑';
+COMMENT ON COLUMN auth_member.member_id IS '사용자 ID(member)';
+COMMENT ON COLUMN auth_member.auth_group_id IS '권한그룹 ID(auth_group)';
+COMMENT ON COLUMN auth_member.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 공통코드 ============================
-CREATE TABLE t_code (
+CREATE TABLE code (
     code_id   VARCHAR(20)  NOT NULL,
     p_code_id VARCHAR(20)  NOT NULL,
-    code_nm   VARCHAR(255) NOT NULL,
-    code_desc VARCHAR(255),
+    name   VARCHAR(255) NOT NULL,
+    description VARCHAR(255),
     sort_no      INTEGER      NOT NULL,
     use_yn    VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id    VARCHAR(30)  NOT NULL,
@@ -196,65 +188,65 @@ CREATE TABLE t_code (
     upd_dt    TIMESTAMP    NOT NULL,
     reg_ip    VARCHAR(45)  NOT NULL,
     upd_ip    VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_code PRIMARY KEY (code_id)
+    CONSTRAINT pk_code PRIMARY KEY (code_id)
 );
-COMMENT ON TABLE  t_code IS '공통코드(계층형)';
-COMMENT ON COLUMN t_code.code_id IS '코드 ID';
-COMMENT ON COLUMN t_code.p_code_id IS '부모 코드 ID';
-COMMENT ON COLUMN t_code.code_nm IS '코드명';
-COMMENT ON COLUMN t_code.code_desc IS '코드 설명';
-COMMENT ON COLUMN t_code.sort_no IS '정렬순서';
-COMMENT ON COLUMN t_code.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  code IS '공통코드(계층형)';
+COMMENT ON COLUMN code.code_id IS '코드 ID';
+COMMENT ON COLUMN code.p_code_id IS '부모 코드 ID';
+COMMENT ON COLUMN code.name IS '코드명';
+COMMENT ON COLUMN code.description IS '코드 설명';
+COMMENT ON COLUMN code.sort_no IS '정렬순서';
+COMMENT ON COLUMN code.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 환경설정(단일 행) ============================
-CREATE TABLE t_config (
+CREATE TABLE config (
     config_id          INTEGER      PRIMARY KEY DEFAULT 1 CHECK (config_id = 1), -- 단일 행 보장(2행 삽입 차단)
     fail_cnt_limit     INTEGER      DEFAULT 5,
-    fail_cnt_denied_ti INTEGER      DEFAULT 5,
-    pw_expire_cnt      INTEGER,
-    session_expire_cnt INTEGER      DEFAULT 30,
-    del_log_cnt        INTEGER,
+    fail_lock_mins INTEGER      DEFAULT 5,
+    password_expire_days      INTEGER,
+    session_expire_mins INTEGER      DEFAULT 30,
+    del_log_days        INTEGER,
     acc_ip_yn          VARCHAR(1)   DEFAULT 'Y',
     title              VARCHAR(255),
     menu_version       INTEGER      DEFAULT 1
 );
-COMMENT ON TABLE  t_config IS '환경설정(단일 행)';
-COMMENT ON COLUMN t_config.fail_cnt_limit IS '로그인 실패 제한 횟수';
-COMMENT ON COLUMN t_config.fail_cnt_denied_ti IS '실패 시 잠금 시간(분)';
-COMMENT ON COLUMN t_config.pw_expire_cnt IS '비밀번호 만료 일수';
-COMMENT ON COLUMN t_config.session_expire_cnt IS '세션 만료(분)';
-COMMENT ON COLUMN t_config.del_log_cnt IS '로그 보관 수';
-COMMENT ON COLUMN t_config.acc_ip_yn IS '접속 IP 제한 여부(Y/N)';
-COMMENT ON COLUMN t_config.title IS '사이트 타이틀';
-COMMENT ON COLUMN t_config.menu_version IS '메뉴 캐시 버전';
+COMMENT ON TABLE  config IS '환경설정(단일 행)';
+COMMENT ON COLUMN config.fail_cnt_limit IS '로그인 실패 제한 횟수';
+COMMENT ON COLUMN config.fail_lock_mins IS '실패 시 잠금 시간(분)';
+COMMENT ON COLUMN config.password_expire_days IS '비밀번호 만료 일수';
+COMMENT ON COLUMN config.session_expire_mins IS '세션 만료(분)';
+COMMENT ON COLUMN config.del_log_days IS '로그 보관 수';
+COMMENT ON COLUMN config.acc_ip_yn IS '접속 IP 제한 여부(Y/N)';
+COMMENT ON COLUMN config.title IS '사이트 타이틀';
+COMMENT ON COLUMN config.menu_version IS '메뉴 캐시 버전';
 
 -- ============================ 이벤트(행위) 로그 ============================
 -- 로그인/등록/수정/삭제 행위를 자동 기록(EventLogAspect + 로그인 핸들러). append-only.
-CREATE TABLE t_event_log (
+CREATE TABLE event_log (
     event_log_id INTEGER     GENERATED BY DEFAULT AS IDENTITY,
-    event_type   VARCHAR(20),
-    user_id      VARCHAR(30),
+    event_cd   VARCHAR(20),
+    member_id      VARCHAR(30),
     target_table VARCHAR(50),
     target_id    VARCHAR(50),
     device_type  VARCHAR(20),
     user_agent   TEXT,
     reg_dt       TIMESTAMP,
     reg_ip       VARCHAR(45),
-    CONSTRAINT pk_t_event_log PRIMARY KEY (event_log_id)
+    CONSTRAINT pk_event_log PRIMARY KEY (event_log_id)
 );
-COMMENT ON TABLE  t_event_log IS '이벤트(행위) 로그 - 로그인/등록/수정/삭제';
-COMMENT ON COLUMN t_event_log.event_log_id IS '이벤트 ID';
-COMMENT ON COLUMN t_event_log.event_type IS '행위 유형(t_code EVENT00: LOGIN/INSERT/UPDATE/DELETE)';
-COMMENT ON COLUMN t_event_log.user_id IS '수행자 ID(t_user)';
-COMMENT ON COLUMN t_event_log.target_table IS '대상 테이블(예: t_user). 로그인은 NULL';
-COMMENT ON COLUMN t_event_log.target_id IS '대상 행 PK. 로그인은 NULL';
-COMMENT ON COLUMN t_event_log.device_type IS '기기 유형(desktop/mobile/tablet)';
-COMMENT ON COLUMN t_event_log.user_agent IS '브라우저 User-Agent 원문';
-COMMENT ON COLUMN t_event_log.reg_dt IS '발생 시각';
-COMMENT ON COLUMN t_event_log.reg_ip IS '발생 IP';
+COMMENT ON TABLE  event_log IS '이벤트(행위) 로그 - 로그인/등록/수정/삭제';
+COMMENT ON COLUMN event_log.event_log_id IS '이벤트 ID';
+COMMENT ON COLUMN event_log.event_cd IS '행위 유형(code EVENT00: LOGIN/INSERT/UPDATE/DELETE)';
+COMMENT ON COLUMN event_log.member_id IS '수행자 ID(member)';
+COMMENT ON COLUMN event_log.target_table IS '대상 테이블(예: member). 로그인은 NULL';
+COMMENT ON COLUMN event_log.target_id IS '대상 행 PK. 로그인은 NULL';
+COMMENT ON COLUMN event_log.device_type IS '기기 유형(desktop/mobile/tablet)';
+COMMENT ON COLUMN event_log.user_agent IS '브라우저 User-Agent 원문';
+COMMENT ON COLUMN event_log.reg_dt IS '발생 시각';
+COMMENT ON COLUMN event_log.reg_ip IS '발생 IP';
 
 -- ============================ 페이지(단일 콘텐츠) ============================
-CREATE TABLE t_page (
+CREATE TABLE page (
     page_id INTEGER      GENERATED BY DEFAULT AS IDENTITY,
     title   VARCHAR(255) NOT NULL,
     context TEXT         NOT NULL,
@@ -265,27 +257,27 @@ CREATE TABLE t_page (
     upd_dt  TIMESTAMP    NOT NULL,
     reg_ip  VARCHAR(45)  NOT NULL,
     upd_ip  VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_page PRIMARY KEY (page_id)
+    CONSTRAINT pk_page PRIMARY KEY (page_id)
 );
-COMMENT ON TABLE  t_page IS '페이지(단일 콘텐츠)';
-COMMENT ON COLUMN t_page.page_id IS '페이지 ID';
-COMMENT ON COLUMN t_page.title IS '제목';
-COMMENT ON COLUMN t_page.context IS '내용(HTML)';
-COMMENT ON COLUMN t_page.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  page IS '페이지(단일 콘텐츠)';
+COMMENT ON COLUMN page.page_id IS '페이지 ID';
+COMMENT ON COLUMN page.title IS '제목';
+COMMENT ON COLUMN page.context IS '내용(HTML)';
+COMMENT ON COLUMN page.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 팝업 ============================
-CREATE TABLE t_popup (
-    pop_id     INTEGER     GENERATED BY DEFAULT AS IDENTITY,
-    pop_nm     VARCHAR(50),
+CREATE TABLE popup (
+    popup_id     INTEGER     GENERATED BY DEFAULT AS IDENTITY,
+    name     VARCHAR(50),
     start_dt   VARCHAR(10),
     end_dt     VARCHAR(10),
-    link       TEXT,
-    txt        TEXT,
+    link_url   TEXT,
+    content    TEXT,
     sort_no       INTEGER,
-    pop_width  VARCHAR(20),
-    pop_height VARCHAR(20),
-    pop_top    VARCHAR(20),
-    pop_left   VARCHAR(20),
+    width  VARCHAR(20),
+    height VARCHAR(20),
+    pos_top    VARCHAR(20),
+    pos_left   VARCHAR(20),
     use_yn     VARCHAR(1)  NOT NULL DEFAULT 'Y',
     reg_id     VARCHAR(30) NOT NULL,
     upd_id     VARCHAR(30) NOT NULL,
@@ -293,24 +285,24 @@ CREATE TABLE t_popup (
     upd_dt     TIMESTAMP   NOT NULL,
     reg_ip     VARCHAR(45) NOT NULL,
     upd_ip     VARCHAR(45) NOT NULL,
-    CONSTRAINT pk_t_popup PRIMARY KEY (pop_id)
+    CONSTRAINT pk_popup PRIMARY KEY (popup_id)
 );
-COMMENT ON TABLE  t_popup IS '팝업(이미지는 r_file file_loc=POPUP 로 연결)';
-COMMENT ON COLUMN t_popup.pop_id IS '팝업 ID';
-COMMENT ON COLUMN t_popup.pop_nm IS '팝업명';
-COMMENT ON COLUMN t_popup.start_dt IS '노출 시작일(YYYY-MM-DD)';
-COMMENT ON COLUMN t_popup.end_dt IS '노출 종료일(YYYY-MM-DD)';
-COMMENT ON COLUMN t_popup.link IS '연결 링크';
-COMMENT ON COLUMN t_popup.txt IS '내용';
-COMMENT ON COLUMN t_popup.sort_no IS '정렬순서';
-COMMENT ON COLUMN t_popup.pop_width IS '팝업 너비';
-COMMENT ON COLUMN t_popup.pop_height IS '팝업 높이';
-COMMENT ON COLUMN t_popup.pop_top IS '팝업 위치 top';
-COMMENT ON COLUMN t_popup.pop_left IS '팝업 위치 left';
-COMMENT ON COLUMN t_popup.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  popup IS '팝업(이미지는 file_ref file_type=POPUP 로 연결)';
+COMMENT ON COLUMN popup.popup_id IS '팝업 ID';
+COMMENT ON COLUMN popup.name IS '팝업명';
+COMMENT ON COLUMN popup.start_dt IS '노출 시작일(YYYY-MM-DD)';
+COMMENT ON COLUMN popup.end_dt IS '노출 종료일(YYYY-MM-DD)';
+COMMENT ON COLUMN popup.link_url IS '연결 링크';
+COMMENT ON COLUMN popup.content IS '내용';
+COMMENT ON COLUMN popup.sort_no IS '정렬순서';
+COMMENT ON COLUMN popup.width IS '팝업 너비';
+COMMENT ON COLUMN popup.height IS '팝업 높이';
+COMMENT ON COLUMN popup.pos_top IS '팝업 위치 top';
+COMMENT ON COLUMN popup.pos_left IS '팝업 위치 left';
+COMMENT ON COLUMN popup.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 약관/정책 ============================
-CREATE TABLE t_policy (
+CREATE TABLE policy (
     policy_id INTEGER      GENERATED BY DEFAULT AS IDENTITY,
     title     VARCHAR(255),
     content   TEXT,
@@ -324,26 +316,26 @@ CREATE TABLE t_policy (
     upd_dt    TIMESTAMP    NOT NULL,
     reg_ip    VARCHAR(45)  NOT NULL,
     upd_ip    VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_policy PRIMARY KEY (policy_id)
+    CONSTRAINT pk_policy PRIMARY KEY (policy_id)
 );
-COMMENT ON TABLE  t_policy IS '약관/정책';
-COMMENT ON COLUMN t_policy.policy_id IS '약관 ID';
-COMMENT ON COLUMN t_policy.title IS '제목';
-COMMENT ON COLUMN t_policy.content IS '내용';
-COMMENT ON COLUMN t_policy.type_cd IS '약관유형 코드(t_code)';
-COMMENT ON COLUMN t_policy.req_yn IS '필수동의 여부(Y/N)';
-COMMENT ON COLUMN t_policy.sort_no IS '정렬순서';
-COMMENT ON COLUMN t_policy.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  policy IS '약관/정책';
+COMMENT ON COLUMN policy.policy_id IS '약관 ID';
+COMMENT ON COLUMN policy.title IS '제목';
+COMMENT ON COLUMN policy.content IS '내용';
+COMMENT ON COLUMN policy.type_cd IS '약관유형 코드(code)';
+COMMENT ON COLUMN policy.req_yn IS '필수동의 여부(Y/N)';
+COMMENT ON COLUMN policy.sort_no IS '정렬순서';
+COMMENT ON COLUMN policy.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 파일 ============================
-CREATE TABLE t_file (
+CREATE TABLE file (
     file_id     INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    file_path   VARCHAR(255) NOT NULL,
-    file_str_nm VARCHAR(255) NOT NULL,
-    file_org_nm VARCHAR(255),
-    file_size   VARCHAR(20),
-    file_ext    VARCHAR(20),
-    file_desc   VARCHAR(255),
+    path   VARCHAR(255) NOT NULL,
+    stored_name VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255),
+    size   VARCHAR(20),
+    ext    VARCHAR(20),
+    description   VARCHAR(255),
     use_yn      VARCHAR(1)   DEFAULT 'Y',
     reg_id      VARCHAR(30)  NOT NULL,
     upd_id      VARCHAR(30)  NOT NULL,
@@ -351,42 +343,42 @@ CREATE TABLE t_file (
     upd_dt      TIMESTAMP    NOT NULL,
     reg_ip      VARCHAR(45)  NOT NULL,
     upd_ip      VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_file PRIMARY KEY (file_id)
+    CONSTRAINT pk_file PRIMARY KEY (file_id)
 );
-COMMENT ON TABLE  t_file IS '파일(메타)';
-COMMENT ON COLUMN t_file.file_id IS '파일 ID';
-COMMENT ON COLUMN t_file.file_path IS '저장 경로';
-COMMENT ON COLUMN t_file.file_str_nm IS '저장 파일명';
-COMMENT ON COLUMN t_file.file_org_nm IS '원본 파일명';
-COMMENT ON COLUMN t_file.file_size IS '파일 크기';
-COMMENT ON COLUMN t_file.file_ext IS '확장자';
-COMMENT ON COLUMN t_file.file_desc IS '설명';
-COMMENT ON COLUMN t_file.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  file IS '파일(메타)';
+COMMENT ON COLUMN file.file_id IS '파일 ID';
+COMMENT ON COLUMN file.path IS '저장 경로';
+COMMENT ON COLUMN file.stored_name IS '저장 파일명';
+COMMENT ON COLUMN file.original_name IS '원본 파일명';
+COMMENT ON COLUMN file.size IS '파일 크기';
+COMMENT ON COLUMN file.ext IS '확장자';
+COMMENT ON COLUMN file.description IS '설명';
+COMMENT ON COLUMN file.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 파일 관계매핑 ============================
-CREATE TABLE r_file (
+CREATE TABLE file_ref (
     map_key  INTEGER      NOT NULL,
     file_id  INTEGER      NOT NULL,
-    file_loc VARCHAR(255) NOT NULL,
+    file_type VARCHAR(255) NOT NULL,
     sort_no     INTEGER      NOT NULL,
-    CONSTRAINT pk_r_file PRIMARY KEY (map_key, file_id)
+    CONSTRAINT pk_file_ref PRIMARY KEY (map_key, file_id)
 );
-COMMENT ON TABLE  r_file IS '파일 관계매핑(엔티티 ↔ t_file, N:M). 모든 파일참조의 단일 소스';
-COMMENT ON COLUMN r_file.map_key IS '연결 대상 PK(file_loc에 따라 bbs_id/pop_id 등, 다형적)';
-COMMENT ON COLUMN r_file.file_id IS '파일 ID(t_file)';
-COMMENT ON COLUMN r_file.file_loc IS '용도 구분(BBS/BBS_IMG/BBS_EDITOR/POPUP/LOGO 등)';
-COMMENT ON COLUMN r_file.sort_no IS '정렬순서';
+COMMENT ON TABLE  file_ref IS '파일 관계매핑(엔티티 ↔ file, N:M). 모든 파일참조의 단일 소스';
+COMMENT ON COLUMN file_ref.map_key IS '연결 대상 PK(file_type에 따라 post_id/popup_id 등, 다형적)';
+COMMENT ON COLUMN file_ref.file_id IS '파일 ID(file)';
+COMMENT ON COLUMN file_ref.file_type IS '용도 구분(POST/POST_IMG/POST_EDITOR/POPUP/LOGO 등)';
+COMMENT ON COLUMN file_ref.sort_no IS '정렬순서';
 
 -- ============================ 게시판 정의 ============================
-CREATE TABLE t_bbsinfo (
-    bbsinfo_id   INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    bbsinfo_nm   VARCHAR(255) NOT NULL,
-    bbsinfo_cd   VARCHAR(15)  NOT NULL,
-    bbsinfo_desc VARCHAR(255),
+CREATE TABLE board (
+    board_id   INTEGER      GENERATED BY DEFAULT AS IDENTITY,
+    name   VARCHAR(255) NOT NULL,
+    type_cd   VARCHAR(15)  NOT NULL,
+    description VARCHAR(255),
     list_cnt     INTEGER      NOT NULL,
     file_yn      VARCHAR(1)   NOT NULL DEFAULT 'N',
-    file_cnt     INTEGER      NOT NULL DEFAULT 5,
-    file_size    INTEGER      NOT NULL DEFAULT 10,
+    file_cnt_limit     INTEGER      NOT NULL DEFAULT 5,
+    file_size_limit_mb INTEGER      NOT NULL DEFAULT 10,
     notice_yn    VARCHAR(1)   NOT NULL DEFAULT 'N',
     new_cnt      INTEGER      NOT NULL DEFAULT 0,
     use_yn       VARCHAR(1)   NOT NULL DEFAULT 'Y',
@@ -396,39 +388,38 @@ CREATE TABLE t_bbsinfo (
     upd_dt       TIMESTAMP    NOT NULL,
     reg_ip       VARCHAR(45)  NOT NULL,
     upd_ip       VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_bbsinfo PRIMARY KEY (bbsinfo_id)
+    CONSTRAINT pk_board PRIMARY KEY (board_id)
 );
-COMMENT ON TABLE  t_bbsinfo IS '게시판 정의';
-COMMENT ON COLUMN t_bbsinfo.bbsinfo_id IS '게시판 ID';
-COMMENT ON COLUMN t_bbsinfo.bbsinfo_nm IS '게시판명';
-COMMENT ON COLUMN t_bbsinfo.bbsinfo_cd IS '게시판 코드';
-COMMENT ON COLUMN t_bbsinfo.bbsinfo_desc IS '설명';
-COMMENT ON COLUMN t_bbsinfo.list_cnt IS '목록당 게시글 수';
-COMMENT ON COLUMN t_bbsinfo.file_yn IS '첨부파일 사용여부(Y/N)';
-COMMENT ON COLUMN t_bbsinfo.file_cnt IS '첨부 개수 제한(기본 5)';
-COMMENT ON COLUMN t_bbsinfo.file_size IS '첨부 용량 제한 MB(기본 10)';
-COMMENT ON COLUMN t_bbsinfo.notice_yn IS '공지 사용여부(Y/N)';
-COMMENT ON COLUMN t_bbsinfo.new_cnt IS 'NEW 표시 기준 일수';
-COMMENT ON COLUMN t_bbsinfo.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  board IS '게시판 정의';
+COMMENT ON COLUMN board.board_id IS '게시판 ID';
+COMMENT ON COLUMN board.name IS '게시판명';
+COMMENT ON COLUMN board.type_cd IS '게시판 코드';
+COMMENT ON COLUMN board.description IS '설명';
+COMMENT ON COLUMN board.list_cnt IS '목록당 게시글 수';
+COMMENT ON COLUMN board.file_yn IS '첨부파일 사용여부(Y/N)';
+COMMENT ON COLUMN board.file_cnt_limit IS '첨부 개수 제한(기본 5)';
+COMMENT ON COLUMN board.file_size_limit_mb IS '첨부 용량 제한 MB(기본 10)';
+COMMENT ON COLUMN board.notice_yn IS '공지 사용여부(Y/N)';
+COMMENT ON COLUMN board.new_cnt IS 'NEW 표시 기준 일수';
+COMMENT ON COLUMN board.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 게시글 ============================
-CREATE TABLE t_bbs (
-    bbs_id          INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    bbsinfo_id      INTEGER      NOT NULL,
+CREATE TABLE post (
+    post_id          INTEGER      GENERATED BY DEFAULT AS IDENTITY,
+    board_id      INTEGER      NOT NULL,
     title           VARCHAR(255) NOT NULL,
     context         TEXT,
-    p_bbs_id        INTEGER      NOT NULL DEFAULT 0,
-    bbs_depth       INTEGER      NOT NULL,
-    bbs_sort_no        INTEGER      NOT NULL,
+    p_post_id        INTEGER      NOT NULL DEFAULT 0,
+    depth       INTEGER      NOT NULL,
+    sort_no        INTEGER      NOT NULL,
     secret_yn       VARCHAR(1)   NOT NULL DEFAULT 'N',
-    bbs_pw          VARCHAR(255),
+    password          VARCHAR(255),
     good_cnt        INTEGER,
     bad_cnt         INTEGER,
     view_cnt        INTEGER,
     notice_yn       VARCHAR(1)   NOT NULL DEFAULT 'N',
     notice_start_dt VARCHAR(10),
     notice_end_dt   VARCHAR(10),
-    bbs_dt          VARCHAR(10),
     use_yn          VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id          VARCHAR(30)  NOT NULL,
     upd_id          VARCHAR(30)  NOT NULL,
@@ -436,31 +427,30 @@ CREATE TABLE t_bbs (
     upd_dt          TIMESTAMP    NOT NULL,
     reg_ip          VARCHAR(45)  NOT NULL,
     upd_ip          VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_bbs PRIMARY KEY (bbs_id)
+    CONSTRAINT pk_post PRIMARY KEY (post_id)
 );
-COMMENT ON TABLE  t_bbs IS '게시글';
-COMMENT ON COLUMN t_bbs.bbs_id IS '게시글 ID';
-COMMENT ON COLUMN t_bbs.bbsinfo_id IS '게시판 ID(t_bbsinfo)';
-COMMENT ON COLUMN t_bbs.title IS '제목';
-COMMENT ON COLUMN t_bbs.context IS '내용';
-COMMENT ON COLUMN t_bbs.p_bbs_id IS '부모 게시글 ID(답글, 최상위 0)';
-COMMENT ON COLUMN t_bbs.bbs_depth IS '답글 깊이';
-COMMENT ON COLUMN t_bbs.bbs_sort_no IS '답글 정렬순서';
-COMMENT ON COLUMN t_bbs.secret_yn IS '비밀글 여부(Y/N)';
-COMMENT ON COLUMN t_bbs.bbs_pw IS '비밀글 비밀번호';
-COMMENT ON COLUMN t_bbs.good_cnt IS '추천 수';
-COMMENT ON COLUMN t_bbs.bad_cnt IS '비추천 수';
-COMMENT ON COLUMN t_bbs.view_cnt IS '조회 수';
-COMMENT ON COLUMN t_bbs.notice_yn IS '공지 여부(Y/N, 최상단 노출)';
-COMMENT ON COLUMN t_bbs.notice_start_dt IS '공지 시작일(YYYY-MM-DD)';
-COMMENT ON COLUMN t_bbs.notice_end_dt IS '공지 종료일(YYYY-MM-DD)';
-COMMENT ON COLUMN t_bbs.bbs_dt IS '게시일(YYYY-MM-DD)';
-COMMENT ON COLUMN t_bbs.use_yn IS '사용여부(Y/N)';
+COMMENT ON TABLE  post IS '게시글';
+COMMENT ON COLUMN post.post_id IS '게시글 ID';
+COMMENT ON COLUMN post.board_id IS '게시판 ID(board)';
+COMMENT ON COLUMN post.title IS '제목';
+COMMENT ON COLUMN post.context IS '내용';
+COMMENT ON COLUMN post.p_post_id IS '부모 게시글 ID(답글, 최상위 0)';
+COMMENT ON COLUMN post.depth IS '답글 깊이';
+COMMENT ON COLUMN post.sort_no IS '답글 정렬순서';
+COMMENT ON COLUMN post.secret_yn IS '비밀글 여부(Y/N)';
+COMMENT ON COLUMN post.password IS '비밀글 비밀번호';
+COMMENT ON COLUMN post.good_cnt IS '추천 수';
+COMMENT ON COLUMN post.bad_cnt IS '비추천 수';
+COMMENT ON COLUMN post.view_cnt IS '조회 수';
+COMMENT ON COLUMN post.notice_yn IS '공지 여부(Y/N, 최상단 노출)';
+COMMENT ON COLUMN post.notice_start_dt IS '공지 시작일(YYYY-MM-DD)';
+COMMENT ON COLUMN post.notice_end_dt IS '공지 종료일(YYYY-MM-DD)';
+COMMENT ON COLUMN post.use_yn IS '사용여부(Y/N)';
 
 -- ============================ 댓글 ============================
-CREATE TABLE t_comment (
+CREATE TABLE comment (
     comment_id INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    bbs_id       INTEGER      NOT NULL,
+    post_id       INTEGER      NOT NULL,
     p_comment_id INTEGER      NOT NULL DEFAULT 0,   -- 부모 댓글(0=최상위, 값=대댓글)
     context      TEXT         NOT NULL,
     good_cnt     INTEGER,
@@ -472,31 +462,31 @@ CREATE TABLE t_comment (
     upd_dt       TIMESTAMP    NOT NULL,
     reg_ip       VARCHAR(45)  NOT NULL,
     upd_ip       VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_comment PRIMARY KEY (comment_id)
+    CONSTRAINT pk_comment PRIMARY KEY (comment_id)
 );
-COMMENT ON TABLE  t_comment IS '댓글';
-COMMENT ON COLUMN t_comment.comment_id IS '댓글 ID';
-COMMENT ON COLUMN t_comment.bbs_id IS '게시글 ID(t_bbs)';
-COMMENT ON COLUMN t_comment.context IS '댓글 내용';
-COMMENT ON COLUMN t_comment.good_cnt IS '추천 수';
-COMMENT ON COLUMN t_comment.bad_cnt IS '비추천 수';
-COMMENT ON COLUMN t_comment.use_yn IS '사용여부(Y/N, 삭제 시 N)';
+COMMENT ON TABLE  comment IS '댓글';
+COMMENT ON COLUMN comment.comment_id IS '댓글 ID';
+COMMENT ON COLUMN comment.post_id IS '게시글 ID(post)';
+COMMENT ON COLUMN comment.context IS '댓글 내용';
+COMMENT ON COLUMN comment.good_cnt IS '추천 수';
+COMMENT ON COLUMN comment.bad_cnt IS '비추천 수';
+COMMENT ON COLUMN comment.use_yn IS '사용여부(Y/N, 삭제 시 N)';
 
 -- ============================ 모집 (취미 함께할 사람 구하기) ============================
-CREATE TABLE t_recruit (
+CREATE TABLE recruit (
     recruit_id INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    hobby_id   INTEGER      NOT NULL,   -- 취미(카테고리) = t_hobby.hobby_id
+    hobby_id   INTEGER      NOT NULL,   -- 취미(카테고리) = hobby.hobby_id
     title      VARCHAR(200) NOT NULL,   -- 모임명
     content    TEXT,                    -- 모집 설명
     capacity   INTEGER,                 -- 모집 인원(명)
-    area_cd    VARCHAR(20),             -- 지역(시/도) 표준 코드(t_code AREA00) — 목록 필터 기준
+    area_cd    VARCHAR(20),             -- 지역(시/도) 표준 코드(code AREA00) — 목록 필터 기준
     region     VARCHAR(100),            -- 상세 지역(자유입력: 구/동/장소). 표시용
-    place_nm   VARCHAR(100),            -- 만날 장소명(지도에서 선택. 예: 강남역 11번 출구)
+    place_name   VARCHAR(100),            -- 만날 장소명(지도에서 선택. 예: 강남역 11번 출구)
     addr       VARCHAR(200),            -- 장소 주소(지도에서 선택한 도로명/지번)
     lat        NUMERIC(10,7),           -- 위도(지도 마커). 장소 미지정이면 NULL
     lng        NUMERIC(10,7),           -- 경도(지도 마커)
     meet_dt    VARCHAR(20),             -- 모임 일정(YYYY-MM-DD)
-    status_cd  VARCHAR(20)  NOT NULL DEFAULT 'RECRUIT01', -- 모집상태(t_code RECRUIT00: 01 모집중/02 마감)
+    status_cd  VARCHAR(20)  NOT NULL DEFAULT 'RECRUIT01', -- 모집상태(code RECRUIT00: 01 모집중/02 마감)
     view_cnt   INTEGER      DEFAULT 0,
     use_yn     VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id     VARCHAR(30)  NOT NULL,   -- 주최자
@@ -505,30 +495,30 @@ CREATE TABLE t_recruit (
     upd_dt     TIMESTAMP    NOT NULL,
     reg_ip     VARCHAR(45)  NOT NULL,
     upd_ip     VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_recruit PRIMARY KEY (recruit_id)
+    CONSTRAINT pk_recruit PRIMARY KEY (recruit_id)
 );
-COMMENT ON TABLE  t_recruit IS '모집(취미 모임원 모집)';
-COMMENT ON COLUMN t_recruit.recruit_id IS '모집 ID';
-COMMENT ON COLUMN t_recruit.hobby_id IS '취미(카테고리) = t_hobby.hobby_id';
-COMMENT ON COLUMN t_recruit.title IS '모임명';
-COMMENT ON COLUMN t_recruit.content IS '모집 설명';
-COMMENT ON COLUMN t_recruit.capacity IS '모집 인원(명)';
-COMMENT ON COLUMN t_recruit.area_cd IS '지역 시/도 표준코드(t_code AREA00) — 필터 기준';
-COMMENT ON COLUMN t_recruit.region IS '상세 지역(자유입력: 구/동/장소)';
-COMMENT ON COLUMN t_recruit.place_nm IS '만날 장소명(지도 선택)';
-COMMENT ON COLUMN t_recruit.addr IS '장소 주소(지도 선택)';
-COMMENT ON COLUMN t_recruit.lat IS '위도(지도 마커) — 미지정 NULL';
-COMMENT ON COLUMN t_recruit.lng IS '경도(지도 마커) — 미지정 NULL';
-COMMENT ON COLUMN t_recruit.meet_dt IS '모임 일정(YYYY-MM-DD)';
-COMMENT ON COLUMN t_recruit.status_cd IS '모집상태(t_code RECRUIT00: 01 모집중/02 마감)';
-COMMENT ON COLUMN t_recruit.reg_id IS '주최자(등록자)';
+COMMENT ON TABLE  recruit IS '모집(취미 모임원 모집)';
+COMMENT ON COLUMN recruit.recruit_id IS '모집 ID';
+COMMENT ON COLUMN recruit.hobby_id IS '취미(카테고리) = hobby.hobby_id';
+COMMENT ON COLUMN recruit.title IS '모임명';
+COMMENT ON COLUMN recruit.content IS '모집 설명';
+COMMENT ON COLUMN recruit.capacity IS '모집 인원(명)';
+COMMENT ON COLUMN recruit.area_cd IS '지역 시/도 표준코드(code AREA00) — 필터 기준';
+COMMENT ON COLUMN recruit.region IS '상세 지역(자유입력: 구/동/장소)';
+COMMENT ON COLUMN recruit.place_name IS '만날 장소명(지도 선택)';
+COMMENT ON COLUMN recruit.addr IS '장소 주소(지도 선택)';
+COMMENT ON COLUMN recruit.lat IS '위도(지도 마커) — 미지정 NULL';
+COMMENT ON COLUMN recruit.lng IS '경도(지도 마커) — 미지정 NULL';
+COMMENT ON COLUMN recruit.meet_dt IS '모임 일정(YYYY-MM-DD)';
+COMMENT ON COLUMN recruit.status_cd IS '모집상태(code RECRUIT00: 01 모집중/02 마감)';
+COMMENT ON COLUMN recruit.reg_id IS '주최자(등록자)';
 
-CREATE TABLE t_recruit_apply (
+CREATE TABLE recruit_apply (
     apply_id     INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    recruit_id   INTEGER      NOT NULL,   -- 대상 모집(t_recruit)
-    user_id      VARCHAR(30)  NOT NULL,   -- 신청자(= reg_id, 조회 편의로 별도 보관)
-    apply_status VARCHAR(20)  NOT NULL DEFAULT 'APPLY01', -- 신청상태(t_code APPLY00: 01 대기/02 수락/03 거절)
-    attend_cd    VARCHAR(20),             -- 참석 결과(t_code ATTEND00: 01 참석/02 불참(통보)/03 노쇼). NULL=미기록
+    recruit_id   INTEGER      NOT NULL,   -- 대상 모집(recruit)
+    member_id      VARCHAR(30)  NOT NULL,   -- 신청자(= reg_id, 조회 편의로 별도 보관)
+    apply_cd VARCHAR(20)  NOT NULL DEFAULT 'APPLY01', -- 신청상태(code APPLY00: 01 대기/02 수락/03 거절)
+    attend_cd    VARCHAR(20),             -- 참석 결과(code ATTEND00: 01 참석/02 불참(통보)/03 노쇼). NULL=미기록
     apply_memo   VARCHAR(500),            -- 신청 메모(주최자에게 한마디)
     use_yn       VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id       VARCHAR(30)  NOT NULL,
@@ -537,21 +527,21 @@ CREATE TABLE t_recruit_apply (
     upd_dt       TIMESTAMP    NOT NULL,
     reg_ip       VARCHAR(45)  NOT NULL,
     upd_ip       VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_recruit_apply PRIMARY KEY (apply_id)
+    CONSTRAINT pk_recruit_apply PRIMARY KEY (apply_id)
 );
-COMMENT ON TABLE  t_recruit_apply IS '모집 참여 신청';
-COMMENT ON COLUMN t_recruit_apply.apply_id IS '신청 ID';
-COMMENT ON COLUMN t_recruit_apply.recruit_id IS '대상 모집 ID(t_recruit)';
-COMMENT ON COLUMN t_recruit_apply.user_id IS '신청자 ID';
-COMMENT ON COLUMN t_recruit_apply.apply_status IS '신청상태(t_code APPLY00: 01 대기/02 수락/03 거절)';
-COMMENT ON COLUMN t_recruit_apply.apply_memo IS '신청 메모';
+COMMENT ON TABLE  recruit_apply IS '모집 참여 신청';
+COMMENT ON COLUMN recruit_apply.apply_id IS '신청 ID';
+COMMENT ON COLUMN recruit_apply.recruit_id IS '대상 모집 ID(recruit)';
+COMMENT ON COLUMN recruit_apply.member_id IS '신청자 ID';
+COMMENT ON COLUMN recruit_apply.apply_cd IS '신청상태(code APPLY00: 01 대기/02 수락/03 거절)';
+COMMENT ON COLUMN recruit_apply.apply_memo IS '신청 메모';
 
 -- ============================ 모임 단체 대화 (확정자 전용) ============================
--- 주최자 + 수락(APPLY02)된 참여자만 읽고 쓴다. 참여 자격은 t_recruit/t_recruit_apply를
+-- 주최자 + 수락(APPLY02)된 참여자만 읽고 쓴다. 참여 자격은 recruit/recruit_apply를
 -- 조인해 매번 판정하므로 멤버 테이블을 따로 두지 않는다(수락 취소 시 자동으로 권한이 사라진다).
-CREATE TABLE t_recruit_chat (
+CREATE TABLE recruit_chat (
     chat_id    INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    recruit_id INTEGER      NOT NULL,   -- 대상 모집(t_recruit)
+    recruit_id INTEGER      NOT NULL,   -- 대상 모집(recruit)
     content    VARCHAR(1000) NOT NULL,  -- 메시지 본문
     use_yn     VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id     VARCHAR(30)  NOT NULL,   -- 작성자
@@ -560,24 +550,24 @@ CREATE TABLE t_recruit_chat (
     upd_dt     TIMESTAMP    NOT NULL,
     reg_ip     VARCHAR(45)  NOT NULL,
     upd_ip     VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_recruit_chat PRIMARY KEY (chat_id)
+    CONSTRAINT pk_recruit_chat PRIMARY KEY (chat_id)
 );
-COMMENT ON TABLE  t_recruit_chat IS '모임 단체 대화(주최자+수락 참여자 전용)';
-COMMENT ON COLUMN t_recruit_chat.recruit_id IS '대상 모집 ID(t_recruit)';
-COMMENT ON COLUMN t_recruit_chat.content IS '메시지 본문';
-CREATE INDEX IF NOT EXISTS ix_t_recruit_chat ON t_recruit_chat (recruit_id, chat_id);
+COMMENT ON TABLE  recruit_chat IS '모임 단체 대화(주최자+수락 참여자 전용)';
+COMMENT ON COLUMN recruit_chat.recruit_id IS '대상 모집 ID(recruit)';
+COMMENT ON COLUMN recruit_chat.content IS '메시지 본문';
+CREATE INDEX IF NOT EXISTS ix_recruit_chat ON recruit_chat (recruit_id, chat_id);
 
 -- ============================ 취미 (카탈로그: 입문 정보 + 게시판/모집 연결) ============================
-CREATE TABLE t_hobby (
+CREATE TABLE hobby (
     hobby_id      INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    hobby_nm      VARCHAR(50)  NOT NULL,   -- 취미명(등산/보드게임/낚시…)
+    name      VARCHAR(50)  NOT NULL,   -- 취미명(등산/보드게임/낚시…)
     summary       VARCHAR(200),            -- 한줄 소개
     intro         TEXT,                    -- 취미 소개(HTML) — 입문자용
     guide         TEXT,                    -- 입문 가이드/시작법(HTML)
-    difficulty_cd VARCHAR(20),             -- 난이도(t_code HOBBYLV00: 01 입문/02 초급/03 중급/04 고급)
+    difficulty_cd VARCHAR(20),             -- 난이도(code HOBBYLV00: 01 입문/02 초급/03 중급/04 고급)
     equipment     VARCHAR(500),            -- 필요 장비
-    est_cost      VARCHAR(200),            -- 대략 비용
-    bbsinfo_id    INTEGER,                 -- 연결 게시판(소통) = t_bbsinfo.bbsinfo_id
+    estimated_cost      VARCHAR(200),            -- 대략 비용
+    board_id    INTEGER,                 -- 연결 게시판(소통) = board.board_id
     sort_no     INTEGER      DEFAULT 0,  -- 노출 순서
     use_yn        VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id        VARCHAR(30)  NOT NULL,
@@ -586,27 +576,27 @@ CREATE TABLE t_hobby (
     upd_dt        TIMESTAMP    NOT NULL,
     reg_ip        VARCHAR(45)  NOT NULL,
     upd_ip        VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_hobby PRIMARY KEY (hobby_id)
+    CONSTRAINT pk_hobby PRIMARY KEY (hobby_id)
 );
-COMMENT ON TABLE  t_hobby IS '취미(카탈로그) — 입문 소개/가이드 + 게시판·모집 연결';
-COMMENT ON COLUMN t_hobby.hobby_id IS '취미 ID';
-COMMENT ON COLUMN t_hobby.hobby_nm IS '취미명';
-COMMENT ON COLUMN t_hobby.summary IS '한줄 소개';
-COMMENT ON COLUMN t_hobby.intro IS '취미 소개 본문(HTML)';
-COMMENT ON COLUMN t_hobby.guide IS '입문 가이드/시작법(HTML)';
-COMMENT ON COLUMN t_hobby.difficulty_cd IS '난이도(t_code HOBBYLV00)';
-COMMENT ON COLUMN t_hobby.equipment IS '필요 장비';
-COMMENT ON COLUMN t_hobby.est_cost IS '대략 비용';
-COMMENT ON COLUMN t_hobby.bbsinfo_id IS '연결 게시판(t_bbsinfo)';
-COMMENT ON COLUMN t_hobby.sort_no IS '노출 순서';
--- 썸네일/대표이미지는 r_file 매핑(map_key=hobby_id, file_loc='HOBBY')로 연결
+COMMENT ON TABLE  hobby IS '취미(카탈로그) — 입문 소개/가이드 + 게시판·모집 연결';
+COMMENT ON COLUMN hobby.hobby_id IS '취미 ID';
+COMMENT ON COLUMN hobby.name IS '취미명';
+COMMENT ON COLUMN hobby.summary IS '한줄 소개';
+COMMENT ON COLUMN hobby.intro IS '취미 소개 본문(HTML)';
+COMMENT ON COLUMN hobby.guide IS '입문 가이드/시작법(HTML)';
+COMMENT ON COLUMN hobby.difficulty_cd IS '난이도(code HOBBYLV00)';
+COMMENT ON COLUMN hobby.equipment IS '필요 장비';
+COMMENT ON COLUMN hobby.estimated_cost IS '대략 비용';
+COMMENT ON COLUMN hobby.board_id IS '연결 게시판(board)';
+COMMENT ON COLUMN hobby.sort_no IS '노출 순서';
+-- 썸네일/대표이미지는 file_ref 매핑(map_key=hobby_id, file_type='HOBBY')로 연결
 
 -- ============================ 회원별 취미 레벨 ============================
-CREATE TABLE t_user_hobby (
-    uh_id     INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    user_id   VARCHAR(30)  NOT NULL,   -- 회원
-    hobby_id  INTEGER      NOT NULL,   -- 취미(t_hobby)
-    level_cd  VARCHAR(20),             -- 레벨(t_code HOBBYLV00). NULL=관심만 담기, 값=하는 중 레벨
+CREATE TABLE member_hobby (
+    member_hobby_id     INTEGER      GENERATED BY DEFAULT AS IDENTITY,
+    member_id   VARCHAR(30)  NOT NULL,   -- 회원
+    hobby_id  INTEGER      NOT NULL,   -- 취미(hobby)
+    level_cd  VARCHAR(20),             -- 레벨(code HOBBYLV00). NULL=관심만 담기, 값=하는 중 레벨
     use_yn    VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id    VARCHAR(30)  NOT NULL,
     upd_id    VARCHAR(30)  NOT NULL,
@@ -614,18 +604,18 @@ CREATE TABLE t_user_hobby (
     upd_dt    TIMESTAMP    NOT NULL,
     reg_ip    VARCHAR(45)  NOT NULL,
     upd_ip    VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_user_hobby PRIMARY KEY (uh_id)
+    CONSTRAINT pk_member_hobby PRIMARY KEY (member_hobby_id)
 );
-COMMENT ON TABLE  t_user_hobby IS '회원별 취미 레벨';
-COMMENT ON COLUMN t_user_hobby.user_id IS '회원 ID';
-COMMENT ON COLUMN t_user_hobby.hobby_id IS '취미 ID(t_hobby)';
-COMMENT ON COLUMN t_user_hobby.level_cd IS '레벨(t_code HOBBYLV00)';
+COMMENT ON TABLE  member_hobby IS '회원별 취미 레벨';
+COMMENT ON COLUMN member_hobby.member_id IS '회원 ID';
+COMMENT ON COLUMN member_hobby.hobby_id IS '취미 ID(hobby)';
+COMMENT ON COLUMN member_hobby.level_cd IS '레벨(code HOBBYLV00)';
 
 -- ============================ 알림 (인앱 알림) ============================
-CREATE TABLE t_notification (
-    noti_id    INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    user_id    VARCHAR(30)  NOT NULL,   -- 수신자
-    noti_type  VARCHAR(20)  NOT NULL,   -- APPLY(신청)/ACCEPT(수락)/REJECT(거절)/COMMENT(댓글)/MESSAGE(쪽지)/REVIEW(후기)/REMIND(모임 하루 전)/NEWRECRUIT(담은 취미·팔로우한 회원 새 모집)/MENTION(@닉네임 언급)
+CREATE TABLE notification (
+    notification_id    INTEGER      GENERATED BY DEFAULT AS IDENTITY,
+    member_id    VARCHAR(30)  NOT NULL,   -- 수신자
+    type  VARCHAR(20)  NOT NULL,   -- APPLY(신청)/ACCEPT(수락)/REJECT(거절)/COMMENT(댓글)/MESSAGE(쪽지)/REVIEW(후기)/REMIND(모임 하루 전)/NEWRECRUIT(담은 취미·팔로우한 회원 새 모집)/MENTION(@닉네임 언급)
     content    VARCHAR(300) NOT NULL,   -- 표시 문구
     link_url   VARCHAR(255),            -- 클릭 시 이동 경로(/gen/recruit/{id} 등)
     read_yn    VARCHAR(1)   NOT NULL DEFAULT 'N',
@@ -636,38 +626,38 @@ CREATE TABLE t_notification (
     upd_dt     TIMESTAMP    NOT NULL DEFAULT NOW(),
     reg_ip     VARCHAR(45)  NOT NULL,
     upd_ip     VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_notification PRIMARY KEY (noti_id)
+    CONSTRAINT pk_notification PRIMARY KEY (notification_id)
 );
-COMMENT ON TABLE  t_notification IS '인앱 알림(수신자별). 신청/수락/거절/댓글 등 이벤트를 당사자에게 적재';
-COMMENT ON COLUMN t_notification.user_id IS '수신자 회원 ID';
-COMMENT ON COLUMN t_notification.noti_type IS '유형 APPLY/ACCEPT/REJECT/COMMENT/MENTION/MESSAGE/REVIEW/REMIND/NEWRECRUIT';
-COMMENT ON COLUMN t_notification.link_url IS '클릭 시 이동 경로';
+COMMENT ON TABLE  notification IS '인앱 알림(수신자별). 신청/수락/거절/댓글 등 이벤트를 당사자에게 적재';
+COMMENT ON COLUMN notification.member_id IS '수신자 회원 ID';
+COMMENT ON COLUMN notification.type IS '유형 APPLY/ACCEPT/REJECT/COMMENT/MENTION/MESSAGE/REVIEW/REMIND/NEWRECRUIT';
+COMMENT ON COLUMN notification.link_url IS '클릭 시 이동 경로';
 
 -- ============================ 좋아요(콘텐츠 추천) ============================
--- 게시글/댓글 좋아요. 1인 1표(유니크). good_cnt는 t_bbs/t_comment에 트랜잭션 동기화(표시용).
-CREATE TABLE t_content_like (
+-- 게시글/댓글 좋아요. 1인 1표(유니크). good_cnt는 post/comment에 트랜잭션 동기화(표시용).
+CREATE TABLE content_like (
     like_id      INTEGER     GENERATED BY DEFAULT AS IDENTITY,
-    user_id      VARCHAR(30) NOT NULL,
-    target_type  VARCHAR(10) NOT NULL,   -- BBS(게시글) / COMMENT(댓글)
+    member_id      VARCHAR(30) NOT NULL,
+    target_type  VARCHAR(10) NOT NULL,   -- POST(게시글) / COMMENT(댓글)
     target_id    INTEGER     NOT NULL,
     reg_id       VARCHAR(30) NOT NULL,
     reg_dt       TIMESTAMP   NOT NULL DEFAULT NOW(),
     reg_ip       VARCHAR(45) NOT NULL,
-    CONSTRAINT pk_t_content_like PRIMARY KEY (like_id),
-    CONSTRAINT ux_t_content_like UNIQUE (user_id, target_type, target_id)  -- 1인 1표
+    CONSTRAINT pk_content_like PRIMARY KEY (like_id),
+    CONSTRAINT ux_content_like UNIQUE (member_id, target_type, target_id)  -- 1인 1표
 );
-COMMENT ON TABLE  t_content_like IS '게시글/댓글 좋아요(1인 1표). 취소 시 행 삭제';
-COMMENT ON COLUMN t_content_like.target_type IS '대상 유형 BBS/COMMENT';
+COMMENT ON TABLE  content_like IS '게시글/댓글 좋아요(1인 1표). 취소 시 행 삭제';
+COMMENT ON COLUMN content_like.target_type IS '대상 유형 POST/COMMENT';
 
 -- ============================ 신고 (콘텐츠 신고) ============================
 -- 게시글/댓글/모집 신고. 1인 1신고(유니크). 관리자가 상태 처리(PENDING→RESOLVED/DISMISSED).
-CREATE TABLE t_report (
+CREATE TABLE report (
     report_id    INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    target_type  VARCHAR(10)  NOT NULL,   -- BBS(게시글)/COMMENT(댓글)/RECRUIT(모집)
+    target_type  VARCHAR(10)  NOT NULL,   -- POST(게시글)/COMMENT(댓글)/RECRUIT(모집)
     target_id    INTEGER      NOT NULL,
-    reason_cd    VARCHAR(20),             -- 신고 사유 분류(t_code REPORT00). 구버전 데이터는 NULL
+    reason_cd    VARCHAR(20),             -- 신고 사유 분류(code REPORT00). 구버전 데이터는 NULL
     reason       VARCHAR(500) NOT NULL,   -- 신고 사유(상세)
-    status       VARCHAR(12)  NOT NULL DEFAULT 'PENDING',  -- PENDING/RESOLVED/DISMISSED
+    status_type  VARCHAR(12)  NOT NULL DEFAULT 'PENDING',  -- PENDING/RESOLVED/DISMISSED (코드표 없는 내부 상수라 _cd 아님)
     use_yn       VARCHAR(1)   NOT NULL DEFAULT 'Y',
     reg_id       VARCHAR(30)  NOT NULL,   -- 신고자
     upd_id       VARCHAR(30)  NOT NULL,
@@ -675,29 +665,29 @@ CREATE TABLE t_report (
     upd_dt       TIMESTAMP    NOT NULL DEFAULT NOW(),
     reg_ip       VARCHAR(45)  NOT NULL,
     upd_ip       VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_report PRIMARY KEY (report_id),
-    CONSTRAINT ux_t_report UNIQUE (reg_id, target_type, target_id)  -- 같은 대상 중복신고 방지
+    CONSTRAINT pk_report PRIMARY KEY (report_id),
+    CONSTRAINT ux_report UNIQUE (reg_id, target_type, target_id)  -- 같은 대상 중복신고 방지
 );
-COMMENT ON TABLE  t_report IS '콘텐츠 신고(게시글/댓글/모집). 관리자 처리 상태 관리';
-COMMENT ON COLUMN t_report.target_type IS '대상 유형 BBS/COMMENT/RECRUIT';
-COMMENT ON COLUMN t_report.status IS '처리상태 PENDING/RESOLVED/DISMISSED';
+COMMENT ON TABLE  report IS '콘텐츠 신고(게시글/댓글/모집). 관리자 처리 상태 관리';
+COMMENT ON COLUMN report.target_type IS '대상 유형 POST/COMMENT/RECRUIT';
+COMMENT ON COLUMN report.status_type IS '처리상태 PENDING/RESOLVED/DISMISSED(코드표 없는 내부 상수)';
 
 -- 이메일 인증코드(가입 이메일 인증 / 비밀번호 재설정). 6자리 코드·짧은 유효기간, 검증 후 삭제(소비).
-CREATE TABLE t_email_verification (
+CREATE TABLE email_verification (
     verify_id  INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    target     VARCHAR(100) NOT NULL,   -- 식별키: SIGNUP=이메일, RESET=user_id
+    target     VARCHAR(100) NOT NULL,   -- 식별키: SIGNUP=이메일, RESET=member_id
     purpose    VARCHAR(10)  NOT NULL,   -- SIGNUP(가입) / RESET(비번재설정)
     code        VARCHAR(6)   NOT NULL,   -- 6자리 숫자 코드
     attempt_cnt INTEGER      NOT NULL DEFAULT 0, -- 검증 실패 누적(무차별 대입 차단)
     expire_dt   TIMESTAMP    NOT NULL,   -- 만료 시각(발급 + N분)
     reg_dt      TIMESTAMP    NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_t_email_verification PRIMARY KEY (verify_id)
+    CONSTRAINT pk_email_verification PRIMARY KEY (verify_id)
 );
-COMMENT ON TABLE  t_email_verification IS '이메일 인증코드(가입/비번재설정). 검증 성공 시 삭제';
-COMMENT ON COLUMN t_email_verification.target IS '식별키 SIGNUP=이메일, RESET=user_id';
+COMMENT ON TABLE  email_verification IS '이메일 인증코드(가입/비번재설정). 검증 성공 시 삭제';
+COMMENT ON COLUMN email_verification.target IS '식별키 SIGNUP=이메일, RESET=member_id';
 
 -- 쪽지(1:1 메시지). 대화는 (sender,receiver) 쌍의 메시지 모음. 삭제는 각자 화면 기준(del_sender/del_receiver).
-CREATE TABLE t_message (
+CREATE TABLE message (
     message_id   INTEGER       GENERATED BY DEFAULT AS IDENTITY,
     sender_id    VARCHAR(30)   NOT NULL,   -- 보낸 회원
     receiver_id  VARCHAR(30)   NOT NULL,   -- 받는 회원
@@ -707,14 +697,14 @@ CREATE TABLE t_message (
     del_receiver VARCHAR(1)    NOT NULL DEFAULT 'N',  -- 수신자가 자기 화면에서 삭제
     reg_dt       TIMESTAMP     NOT NULL DEFAULT NOW(),
     reg_ip       VARCHAR(45)   NOT NULL,
-    CONSTRAINT pk_t_message PRIMARY KEY (message_id)
+    CONSTRAINT pk_message PRIMARY KEY (message_id)
 );
-COMMENT ON TABLE t_message IS '쪽지(1:1 메시지). 대화=sender/receiver 쌍, 삭제는 각자 화면 기준';
+COMMENT ON TABLE message IS '쪽지(1:1 메시지). 대화=sender/receiver 쌍, 삭제는 각자 화면 기준';
 
 -- 모임 후기·평점. 같은 모집의 '함께한 사람'(주최자 + 수락된 참여자)끼리 서로 1회 작성.
-CREATE TABLE t_review (
+CREATE TABLE review (
     review_id   INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    recruit_id  INTEGER      NOT NULL,   -- 대상 모임(t_recruit)
+    recruit_id  INTEGER      NOT NULL,   -- 대상 모임(recruit)
     target_id   VARCHAR(30)  NOT NULL,   -- 후기를 받는 회원
     rating      INTEGER      NOT NULL,   -- 별점 1~5
     content     VARCHAR(500),            -- 후기 내용(선택)
@@ -725,96 +715,96 @@ CREATE TABLE t_review (
     upd_dt      TIMESTAMP    NOT NULL DEFAULT NOW(),
     reg_ip      VARCHAR(45)  NOT NULL,
     upd_ip      VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_review PRIMARY KEY (review_id),
-    CONSTRAINT ck_t_review_rating CHECK (rating BETWEEN 1 AND 5),
-    CONSTRAINT ux_t_review UNIQUE (recruit_id, reg_id, target_id)  -- 같은 모임·같은 대상 1회
+    CONSTRAINT pk_review PRIMARY KEY (review_id),
+    CONSTRAINT ck_review_rating CHECK (rating BETWEEN 1 AND 5),
+    CONSTRAINT ux_review UNIQUE (recruit_id, reg_id, target_id)  -- 같은 모임·같은 대상 1회
 );
-COMMENT ON TABLE  t_review IS '모임 후기·평점(같은 모집 참여자 간 상호 평가)';
-COMMENT ON COLUMN t_review.target_id IS '후기를 받는 회원(t_user)';
+COMMENT ON TABLE  review IS '모임 후기·평점(같은 모집 참여자 간 상호 평가)';
+COMMENT ON COLUMN review.target_id IS '후기를 받는 회원(member)';
 
 -- 북마크(스크랩) — 관심 게시글/모집 저장. 취소 시 행 삭제(하드).
-CREATE TABLE t_bookmark (
+CREATE TABLE bookmark (
     bookmark_id INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    user_id     VARCHAR(30)  NOT NULL,
-    target_type VARCHAR(10)  NOT NULL,   -- BBS(게시글)/RECRUIT(모집)
+    member_id     VARCHAR(30)  NOT NULL,
+    target_type VARCHAR(10)  NOT NULL,   -- POST(게시글)/RECRUIT(모집)
     target_id   INTEGER      NOT NULL,
     reg_dt      TIMESTAMP    NOT NULL DEFAULT NOW(),
     reg_ip      VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_bookmark PRIMARY KEY (bookmark_id),
-    CONSTRAINT ux_t_bookmark UNIQUE (user_id, target_type, target_id)
+    CONSTRAINT pk_bookmark PRIMARY KEY (bookmark_id),
+    CONSTRAINT ux_bookmark UNIQUE (member_id, target_type, target_id)
 );
-COMMENT ON TABLE  t_bookmark IS '북마크(스크랩). 게시글/모집 저장, 취소 시 행 삭제';
-COMMENT ON COLUMN t_bookmark.target_type IS '대상 유형 BBS/RECRUIT';
+COMMENT ON TABLE  bookmark IS '북마크(스크랩). 게시글/모집 저장, 취소 시 행 삭제';
+COMMENT ON COLUMN bookmark.target_type IS '대상 유형 POST/RECRUIT';
 
 -- 알림 설정(회원별 수신 on/off). 행이 없으면 전부 수신(기본 ON).
-CREATE TABLE t_noti_setting (
-    user_id      VARCHAR(30) NOT NULL,
-    noti_apply   VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 모집 신청/수락/거절
-    noti_comment VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 댓글·답글
-    noti_message VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 쪽지
-    noti_review  VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 후기
+CREATE TABLE notification_setting (
+    member_id      VARCHAR(30) NOT NULL,
+    apply_yn   VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 모집 신청/수락/거절
+    comment_yn VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 댓글·답글
+    message_yn VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 쪽지
+    review_yn  VARCHAR(1)  NOT NULL DEFAULT 'Y',  -- 후기
     upd_dt       TIMESTAMP   NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_t_noti_setting PRIMARY KEY (user_id)
+    CONSTRAINT pk_notification_setting PRIMARY KEY (member_id)
 );
-COMMENT ON TABLE t_noti_setting IS '회원별 알림 수신 설정. 행 없으면 전부 수신(기본 ON)';
+COMMENT ON TABLE notification_setting IS '회원별 알림 수신 설정. 행 없으면 전부 수신(기본 ON)';
 
 -- 회원 차단. 차단하면 상대의 쪽지를 받지 않고, 상대 글/댓글이 내 화면에서 가려진다(단방향).
-CREATE TABLE t_user_block (
+CREATE TABLE member_block (
     block_id    INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    user_id     VARCHAR(30)  NOT NULL,   -- 차단한 회원(주체)
+    member_id     VARCHAR(30)  NOT NULL,   -- 차단한 회원(주체)
     blocked_id  VARCHAR(30)  NOT NULL,   -- 차단당한 회원(대상)
     reg_dt      TIMESTAMP    NOT NULL DEFAULT NOW(),
     reg_ip      VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_user_block PRIMARY KEY (block_id),
-    CONSTRAINT ux_t_user_block UNIQUE (user_id, blocked_id),
-    CONSTRAINT ck_t_user_block_self CHECK (user_id <> blocked_id)
+    CONSTRAINT pk_member_block PRIMARY KEY (block_id),
+    CONSTRAINT ux_member_block UNIQUE (member_id, blocked_id),
+    CONSTRAINT ck_member_block_self CHECK (member_id <> blocked_id)
 );
-COMMENT ON TABLE  t_user_block IS '회원 차단(단방향). 차단 시 쪽지 수신 거부 + 상대 콘텐츠 숨김';
-COMMENT ON COLUMN t_user_block.blocked_id IS '차단당한 회원';
+COMMENT ON TABLE  member_block IS '회원 차단(단방향). 차단 시 쪽지 수신 거부 + 상대 콘텐츠 숨김';
+COMMENT ON COLUMN member_block.blocked_id IS '차단당한 회원';
 
 -- ============================ 회원 팔로우 ============================
 -- 단방향(내가 팔로우해도 상대는 나를 팔로우한 것이 아님). 맞팔은 두 행으로 표현된다.
-CREATE TABLE t_user_follow (
+CREATE TABLE member_follow (
     follow_id   INTEGER      GENERATED BY DEFAULT AS IDENTITY,
-    user_id     VARCHAR(30)  NOT NULL,   -- 팔로우한 회원(주체)
+    member_id     VARCHAR(30)  NOT NULL,   -- 팔로우한 회원(주체)
     followee_id VARCHAR(30)  NOT NULL,   -- 팔로우당한 회원(대상)
     reg_dt      TIMESTAMP    NOT NULL DEFAULT NOW(),
     reg_ip      VARCHAR(45)  NOT NULL,
-    CONSTRAINT pk_t_user_follow PRIMARY KEY (follow_id),
-    CONSTRAINT ux_t_user_follow UNIQUE (user_id, followee_id),
-    CONSTRAINT ck_t_user_follow_self CHECK (user_id <> followee_id)
+    CONSTRAINT pk_member_follow PRIMARY KEY (follow_id),
+    CONSTRAINT ux_member_follow UNIQUE (member_id, followee_id),
+    CONSTRAINT ck_member_follow_self CHECK (member_id <> followee_id)
 );
-COMMENT ON TABLE  t_user_follow IS '회원 팔로우(단방향). 팔로우한 회원의 새 모집을 알림·피드로 받는다';
-COMMENT ON COLUMN t_user_follow.followee_id IS '팔로우당한 회원';
+COMMENT ON TABLE  member_follow IS '회원 팔로우(단방향). 팔로우한 회원의 새 모집을 알림·피드로 받는다';
+COMMENT ON COLUMN member_follow.followee_id IS '팔로우당한 회원';
 
 -- ============================ 인덱스 (자주 조회되는 컬럼) ============================
-CREATE INDEX IF NOT EXISTS ix_t_report_status ON t_report (status, report_id DESC); -- 관리자 신고 목록(상태별 최신)
-CREATE INDEX IF NOT EXISTS ix_t_content_like_target ON t_content_like (target_type, target_id); -- 대상별 좋아요 집계/조회
-CREATE INDEX IF NOT EXISTS ix_t_notification_user ON t_notification (user_id, read_yn, noti_id DESC); -- 수신자별 최신/미읽음
-CREATE INDEX IF NOT EXISTS ix_t_email_verification ON t_email_verification (target, purpose, verify_id DESC); -- 대상+용도별 최신 코드
-CREATE INDEX IF NOT EXISTS ix_t_message_conv ON t_message (sender_id, receiver_id, message_id DESC); -- 대화 스레드
-CREATE INDEX IF NOT EXISTS ix_t_message_unread ON t_message (receiver_id, read_yn);                  -- 수신자 안읽음 집계
-CREATE INDEX IF NOT EXISTS ix_t_review_target ON t_review (target_id, review_id DESC);               -- 회원이 받은 후기/평균
-CREATE INDEX IF NOT EXISTS ix_t_review_recruit ON t_review (recruit_id);                             -- 모임별 후기
-CREATE INDEX IF NOT EXISTS ix_t_bookmark_user ON t_bookmark (user_id, target_type, bookmark_id DESC); -- 내 북마크 목록
-CREATE INDEX IF NOT EXISTS ix_t_user_block ON t_user_block (user_id, blocked_id);                     -- 내 차단 목록·차단 여부
-CREATE INDEX IF NOT EXISTS ix_t_user_follow ON t_user_follow (user_id, followee_id);                  -- 내 팔로잉 목록·팔로우 여부
-CREATE INDEX IF NOT EXISTS ix_t_user_follow_rev ON t_user_follow (followee_id);                       -- 나를 팔로우한 사람(알림 대상)
+CREATE INDEX IF NOT EXISTS ix_report_status ON report (status_type, report_id DESC); -- 관리자 신고 목록(상태별 최신)
+CREATE INDEX IF NOT EXISTS ix_content_like_target ON content_like (target_type, target_id); -- 대상별 좋아요 집계/조회
+CREATE INDEX IF NOT EXISTS ix_notification_member ON notification (member_id, read_yn, notification_id DESC); -- 수신자별 최신/미읽음
+CREATE INDEX IF NOT EXISTS ix_email_verification ON email_verification (target, purpose, verify_id DESC); -- 대상+용도별 최신 코드
+CREATE INDEX IF NOT EXISTS ix_message_conv ON message (sender_id, receiver_id, message_id DESC); -- 대화 스레드
+CREATE INDEX IF NOT EXISTS ix_message_unread ON message (receiver_id, read_yn);                  -- 수신자 안읽음 집계
+CREATE INDEX IF NOT EXISTS ix_review_target ON review (target_id, review_id DESC);               -- 회원이 받은 후기/평균
+CREATE INDEX IF NOT EXISTS ix_review_recruit ON review (recruit_id);                             -- 모임별 후기
+CREATE INDEX IF NOT EXISTS ix_bookmark_member ON bookmark (member_id, target_type, bookmark_id DESC); -- 내 북마크 목록
+CREATE INDEX IF NOT EXISTS ix_member_block ON member_block (member_id, blocked_id);                     -- 내 차단 목록·차단 여부
+CREATE INDEX IF NOT EXISTS ix_member_follow ON member_follow (member_id, followee_id);                  -- 내 팔로잉 목록·팔로우 여부
+CREATE INDEX IF NOT EXISTS ix_member_follow_rev ON member_follow (followee_id);                       -- 나를 팔로우한 사람(알림 대상)
 -- 물리FK는 미사용하되, 조회 성능을 위한 인덱스는 둔다. IF NOT EXISTS로 재실행/마이그레이션 겸용.
-CREATE INDEX IF NOT EXISTS ix_t_bbs_bbsinfo ON t_bbs (bbsinfo_id);   -- 게시판별 목록
-CREATE INDEX IF NOT EXISTS ix_t_bbs_parent  ON t_bbs (p_bbs_id);     -- 답글 스레드(재귀 CTE)
-CREATE INDEX IF NOT EXISTS ix_t_comment_bbs ON t_comment (bbs_id);   -- 게시글 댓글
-CREATE INDEX IF NOT EXISTS ix_t_menu_area   ON t_menu (area, p_menu_id, sort_no); -- 메뉴 트리 필터·정렬
-CREATE INDEX IF NOT EXISTS ix_t_menu_link   ON t_menu (link_url);    -- API 권한 강제(link_url 매핑)
-CREATE INDEX IF NOT EXISTS ix_t_auth_conn   ON t_auth (conn_id);     -- 그룹(GUEST/MEMBER 등)별 권한 조회
-CREATE INDEX IF NOT EXISTS ix_r_file_map    ON r_file (map_key, file_loc); -- 엔티티-파일 매핑 조회
-CREATE INDEX IF NOT EXISTS ix_t_code_parent ON t_code (p_code_id);   -- 코드 그룹별 조회(콤보 등)
-CREATE INDEX IF NOT EXISTS ix_t_recruit_hobby ON t_recruit (hobby_id);            -- 취미(카테고리)별 모집 목록
-CREATE INDEX IF NOT EXISTS ix_t_recruit_area ON t_recruit (area_cd, status_cd);    -- 지역(시도)+상태 필터
-CREATE INDEX IF NOT EXISTS ix_t_hobby_sort ON t_hobby (use_yn, sort_no);        -- 취미 카탈로그 정렬 노출
-CREATE INDEX IF NOT EXISTS ix_t_user_hobby_user ON t_user_hobby (user_id);        -- 회원별 취미 레벨 조회
+CREATE INDEX IF NOT EXISTS ix_post_board ON post (board_id);   -- 게시판별 목록
+CREATE INDEX IF NOT EXISTS ix_post_parent  ON post (p_post_id);     -- 답글 스레드(재귀 CTE)
+CREATE INDEX IF NOT EXISTS ix_comment_post ON comment (post_id);   -- 게시글 댓글
+CREATE INDEX IF NOT EXISTS ix_menu_area   ON menu (area, p_menu_id, sort_no); -- 메뉴 트리 필터·정렬
+CREATE INDEX IF NOT EXISTS ix_menu_link   ON menu (link_url);    -- API 권한 강제(link_url 매핑)
+CREATE INDEX IF NOT EXISTS ix_auth_conn   ON auth (conn_id);     -- 그룹(GUEST/MEMBER 등)별 권한 조회
+CREATE INDEX IF NOT EXISTS ix_file_ref_map    ON file_ref (map_key, file_type); -- 엔티티-파일 매핑 조회
+CREATE INDEX IF NOT EXISTS ix_code_parent ON code (p_code_id);   -- 코드 그룹별 조회(콤보 등)
+CREATE INDEX IF NOT EXISTS ix_recruit_hobby ON recruit (hobby_id);            -- 취미(카테고리)별 모집 목록
+CREATE INDEX IF NOT EXISTS ix_recruit_area ON recruit (area_cd, status_cd);    -- 지역(시도)+상태 필터
+CREATE INDEX IF NOT EXISTS ix_hobby_sort ON hobby (use_yn, sort_no);        -- 취미 카탈로그 정렬 노출
+CREATE INDEX IF NOT EXISTS ix_member_hobby_member ON member_hobby (member_id);        -- 회원별 취미 레벨 조회
 -- 한 회원이 한 취미에 활성 레벨 1건
-CREATE UNIQUE INDEX IF NOT EXISTS ux_t_user_hobby ON t_user_hobby (user_id, hobby_id) WHERE use_yn = 'Y';
-CREATE INDEX IF NOT EXISTS ix_t_recruit_apply_recruit ON t_recruit_apply (recruit_id); -- 모집별 신청자 목록
+CREATE UNIQUE INDEX IF NOT EXISTS ux_member_hobby ON member_hobby (member_id, hobby_id) WHERE use_yn = 'Y';
+CREATE INDEX IF NOT EXISTS ix_recruit_apply_recruit ON recruit_apply (recruit_id); -- 모집별 신청자 목록
 -- 한 사용자는 한 모집에 활성 신청 1건(취소 후 재신청 허용)
-CREATE UNIQUE INDEX IF NOT EXISTS ux_t_recruit_apply ON t_recruit_apply (recruit_id, user_id) WHERE use_yn = 'Y';
+CREATE UNIQUE INDEX IF NOT EXISTS ux_recruit_apply ON recruit_apply (recruit_id, member_id) WHERE use_yn = 'Y';

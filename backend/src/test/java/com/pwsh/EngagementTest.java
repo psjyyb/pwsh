@@ -21,17 +21,17 @@ import org.junit.jupiter.api.Test;
  */
 class EngagementTest extends IntegrationTest {
 
-    /** 취미(전용 게시판 자동 생성) + 그 게시판에 글 하나 만들고 [bbsinfoId, bbsId] 반환. */
-    private String[] hobbyWithPost(String hobbyNm, String title, String admin) throws Exception {
+    /** 취미(전용 게시판 자동 생성) + 그 게시판에 글 하나 만들고 [boardId, postId] 반환. */
+    private String[] hobbyWithPost(String hobbyName, String title, String admin) throws Exception {
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"" + hobbyNm + "\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"" + hobbyName + "\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
-        String bbsinfoId = jdbc.queryForObject(
-                "SELECT bbsinfo_id::text FROM t_hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
-        String bbsId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
-                "{\"bbsinfoId\":\"" + bbsinfoId + "\",\"title\":\"" + title + "\",\"context\":\"본문\"}",
+        String boardId = jdbc.queryForObject(
+                "SELECT board_id::text FROM hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
+        String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"" + title + "\",\"context\":\"본문\"}",
                 admin).body(), "$.data");
-        return new String[] { hobbyId, bbsinfoId, bbsId };
+        return new String[] { hobbyId, boardId, postId };
     }
 
     @Test
@@ -42,20 +42,20 @@ class EngagementTest extends IntegrationTest {
         String me = accessToken("bmuser", "Test1234!@");
 
         String[] ids = hobbyWithPost("북마크취미", "북마크할 글", admin);
-        String bbsId = ids[2];
+        String postId = ids[2];
         String rid = JsonPath.read(post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + ids[0] + "\",\"title\":\"북마크할 모집\",\"meetDt\":\""
                         + LocalDate.now().plusDays(4) + "\"}", admin).body(), "$.data");
 
         // 첫 토글 = 북마크됨
         assertEquals("Y", JsonPath.read(post("/api/adm/bookmark/updateBookmarkToggle.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"" + bbsId + "\"}", me).body(), "$.data.markedYn"));
+                "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", me).body(), "$.data.markedYn"));
         assertEquals("Y", JsonPath.read(post("/api/adm/bookmark/updateBookmarkToggle.do",
                 "{\"targetType\":\"RECRUIT\",\"targetId\":\"" + rid + "\"}", me).body(), "$.data.markedYn"));
 
         // 유형별 목록에 제목이 실려 온다(마이페이지가 이 값으로 링크를 그린다)
-        String bbsList = post("/api/adm/bookmark/selectBookmarkList.do", "{\"targetType\":\"BBS\"}", me).body();
-        assertTrue(bbsList.contains("북마크할 글"), "내 BBS 북마크 목록");
+        String postList = post("/api/adm/bookmark/selectBookmarkList.do", "{\"targetType\":\"POST\"}", me).body();
+        assertTrue(postList.contains("북마크할 글"), "내 POST 북마크 목록");
         List<Object> ids2 = JsonPath.read(
                 post("/api/adm/bookmark/selectBookmarkListIds.do", "{\"targetType\":\"RECRUIT\"}", me).body(),
                 "$.data");
@@ -63,8 +63,8 @@ class EngagementTest extends IntegrationTest {
 
         // 같은 대상을 다시 토글하면 해제
         assertEquals("N", JsonPath.read(post("/api/adm/bookmark/updateBookmarkToggle.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"" + bbsId + "\"}", me).body(), "$.data.markedYn"));
-        assertTrue(!post("/api/adm/bookmark/selectBookmarkList.do", "{\"targetType\":\"BBS\"}", me)
+                "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", me).body(), "$.data.markedYn"));
+        assertTrue(!post("/api/adm/bookmark/selectBookmarkList.do", "{\"targetType\":\"POST\"}", me)
                 .body().contains("북마크할 글"), "해제하면 목록에서 빠진다");
 
         // 남의 북마크는 내 목록에 없다
@@ -75,7 +75,7 @@ class EngagementTest extends IntegrationTest {
 
         // 비로그인은 토글 불가
         assertNotEquals(200, post("/api/adm/bookmark/updateBookmarkToggle.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"" + bbsId + "\"}", null).statusCode());
+                "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", null).statusCode());
     }
 
     @Test
@@ -84,27 +84,27 @@ class EngagementTest extends IntegrationTest {
         String admin = accessToken("admin", "admin1234!");
         assertEquals(200, signup("lkuser", "좋아요회원", "lkuser@test.local").statusCode());
         String me = accessToken("lkuser", "Test1234!@");
-        String bbsId = hobbyWithPost("좋아요취미", "좋아요 글", admin)[2];
+        String postId = hobbyWithPost("좋아요취미", "좋아요 글", admin)[2];
 
         String on = post("/api/adm/like/toggleLike.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"" + bbsId + "\"}", me).body();
+                "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", me).body();
         assertEquals("Y", JsonPath.read(on, "$.data.likedYn"));
         assertEquals("1", String.valueOf(JsonPath.<Object>read(on, "$.data.goodCnt")));
-        assertEquals(1, jdbc.queryForObject("SELECT good_cnt FROM t_bbs WHERE bbs_id = ?::integer",
-                Integer.class, bbsId), "글의 좋아요 수도 함께 반영된다");
+        assertEquals(1, jdbc.queryForObject("SELECT good_cnt FROM post WHERE post_id = ?::integer",
+                Integer.class, postId), "글의 좋아요 수도 함께 반영된다");
 
         String off = post("/api/adm/like/toggleLike.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"" + bbsId + "\"}", me).body();
+                "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", me).body();
         assertEquals("N", JsonPath.read(off, "$.data.likedYn"));
         assertEquals("0", String.valueOf(JsonPath.<Object>read(off, "$.data.goodCnt")));
 
         // 없는 글 / 지원하지 않는 유형 / 비로그인
         assertNotEquals(200, post("/api/adm/like/toggleLike.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"99999999\"}", me).statusCode());
+                "{\"targetType\":\"POST\",\"targetId\":\"99999999\"}", me).statusCode());
         assertEquals(400, post("/api/adm/like/toggleLike.do",
-                "{\"targetType\":\"RECRUIT\",\"targetId\":\"" + bbsId + "\"}", me).statusCode());
+                "{\"targetType\":\"RECRUIT\",\"targetId\":\"" + postId + "\"}", me).statusCode());
         assertNotEquals(200, post("/api/adm/like/toggleLike.do",
-                "{\"targetType\":\"BBS\",\"targetId\":\"" + bbsId + "\"}", null).statusCode());
+                "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", null).statusCode());
     }
 
     @Test
@@ -119,15 +119,15 @@ class EngagementTest extends IntegrationTest {
 
         // 게스트가 못 보는 게시판(취미 미연결 + GUEST 메뉴권한 없음)에 같은 키워드로 글 하나
         String closedBoard = jdbc.queryForObject(
-                "SELECT bi.bbsinfo_id::text FROM t_bbsinfo bi WHERE bi.use_yn = 'Y'"
-                        + " AND NOT EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = bi.bbsinfo_id)"
-                        + " AND NOT EXISTS (SELECT 1 FROM t_menu m JOIN t_auth a ON a.menu_id = m.menu_id"
+                "SELECT bi.board_id::text FROM board bi WHERE bi.use_yn = 'Y'"
+                        + " AND NOT EXISTS (SELECT 1 FROM hobby h WHERE h.board_id = bi.board_id)"
+                        + " AND NOT EXISTS (SELECT 1 FROM menu m JOIN auth a ON a.menu_id = m.menu_id"
                         + "                  AND a.conn_id = 'GUEST' AND a.menu_yn = 'Y'"
-                        + "                 WHERE m.conn_ty = 'MENU02' AND m.conn_id::text = bi.bbsinfo_id::text)"
-                        + " ORDER BY bi.bbsinfo_id LIMIT 1", String.class);
+                        + "                 WHERE m.conn_cd = 'MENU02' AND m.conn_id::text = bi.board_id::text)"
+                        + " ORDER BY bi.board_id LIMIT 1", String.class);
         assertNotNull(closedBoard, "게스트 비공개 게시판이 시드에 있어야 한다");
-        String secretId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
-                "{\"bbsinfoId\":\"" + closedBoard + "\",\"title\":\"비공개글 " + uniq + "\",\"context\":\"본문\"}",
+        String secretId = JsonPath.read(post("/api/adm/post/insertPost.do",
+                "{\"boardId\":\"" + closedBoard + "\",\"title\":\"비공개글 " + uniq + "\",\"context\":\"본문\"}",
                 admin).body(), "$.data");
 
         String guest = post("/api/adm/search/selectSearchAll.do", "{\"filterKeyword\":\"" + uniq + "\"}", null).body();
@@ -142,7 +142,7 @@ class EngagementTest extends IntegrationTest {
         String wild = post("/api/adm/search/selectSearchAll.do", "{\"filterKeyword\":\"%\"}", null).body();
         assertTrue(!wild.contains("공개글 " + uniq), "% 는 리터럴로 취급된다");
 
-        post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + secretId + "\"}", admin);
+        post("/api/adm/post/deletePost.do", "{\"rowId\":\"" + secretId + "\"}", admin);
     }
 
     @Test
@@ -155,7 +155,7 @@ class EngagementTest extends IntegrationTest {
         List<Object> daily = JsonPath.read(body, "$.data.daily");
         assertTrue(days > 0, "추이 기간");
         assertEquals(days, daily.size(), "추이는 기간만큼의 날짜 칸을 채워 준다(빈 날도 0으로)");
-        assertNotNull(JsonPath.read(body, "$.data.totals.userCnt"));
+        assertNotNull(JsonPath.read(body, "$.data.totals.memberCnt"));
         assertNotNull(JsonPath.read(body, "$.data.totals.reportPendingCnt"));
 
         String signupBody = signup("stuser", "통계회원", "stuser@test.local").body();

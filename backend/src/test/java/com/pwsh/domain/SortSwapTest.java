@@ -22,9 +22,9 @@ class SortSwapTest extends IntegrationTest {
 
         // 같은 부모 아래 코드 2개 생성(sortNo는 서비스가 자동 부여)
         assertThat(post("/api/adm/code/insertCode.do",
-                "{\"rowId\":\"ZZORD01\",\"pCodeId\":\"0\",\"codeNm\":\"순서A\"}", admin).statusCode()).isEqualTo(200);
+                "{\"rowId\":\"ZZORD01\",\"pCodeId\":\"0\",\"codeName\":\"순서A\"}", admin).statusCode()).isEqualTo(200);
         assertThat(post("/api/adm/code/insertCode.do",
-                "{\"rowId\":\"ZZORD02\",\"pCodeId\":\"0\",\"codeNm\":\"순서B\"}", admin).statusCode()).isEqualTo(200);
+                "{\"rowId\":\"ZZORD02\",\"pCodeId\":\"0\",\"codeName\":\"순서B\"}", admin).statusCode()).isEqualTo(200);
 
         int a0 = sortOf("ZZORD01");
         int b0 = sortOf("ZZORD02");
@@ -47,7 +47,7 @@ class SortSwapTest extends IntegrationTest {
     }
 
     private int sortOf(String codeId) {
-        Integer v = jdbc.queryForObject("SELECT sort_no FROM t_code WHERE code_id = ?", Integer.class, codeId);
+        Integer v = jdbc.queryForObject("SELECT sort_no FROM code WHERE code_id = ?", Integer.class, codeId);
         return v == null ? -1 : v;
     }
 }

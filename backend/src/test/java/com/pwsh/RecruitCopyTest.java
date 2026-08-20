@@ -22,7 +22,7 @@ class RecruitCopyTest extends IntegrationTest {
     void copy_creates_next_round_and_notifies_prev_members() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"정기취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"정기취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
 
         assertEquals(200, signup("cphost", "정기주최", "cphost@test.local").statusCode());
@@ -33,7 +33,7 @@ class RecruitCopyTest extends IntegrationTest {
         String other = accessToken("cpother", "Test1234!@");
 
         // 멤버는 그 취미를 담아 둔다 — 이전 회차 알림과 취미 팔로워 알림이 겹치는 상황을 만든다
-        assertEquals(200, post("/api/adm/userHobby/insertUserHobby.do",
+        assertEquals(200, post("/api/adm/memberHobby/insertMemberHobby.do",
                 "{\"hobbyId\":\"" + hobbyId + "\"}", mem).statusCode());
 
         String d1 = LocalDate.now().plusDays(3).toString();
@@ -46,10 +46,10 @@ class RecruitCopyTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + rid + "\"}", mem).statusCode());
         String applyId = jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'cpmem'",
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = 'cpmem'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
         // 1회차 대화도 남겨 둔다(복제되지 않아야 한다)
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
                 "{\"recruitId\":\"" + rid + "\",\"content\":\"1회차 잘 다녀왔습니다\"}", host).statusCode());
@@ -67,7 +67,7 @@ class RecruitCopyTest extends IntegrationTest {
                 "{\"rowId\":\"" + rid + "\",\"meetDt\":\"" + LocalDate.now().minusDays(1) + "\"}", host).statusCode(),
                 "지난 날짜 차단");
 
-        int notiBefore = notiCnt("cpmem");
+        int notiBefore = notificationCnt("cpmem");
 
         // 복제(일정만 변경) — 새 모집 ID 반환
         String nid = JsonPath.read(post("/api/adm/recruit/insertRecruitCopy.do",
@@ -88,13 +88,13 @@ class RecruitCopyTest extends IntegrationTest {
 
         // 대화는 복제되지 않는다(새 회차는 빈 대화방)
         assertEquals(0, jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_recruit_chat WHERE recruit_id = ?::integer", Integer.class, nid),
+                "SELECT COUNT(*) FROM recruit_chat WHERE recruit_id = ?::integer", Integer.class, nid),
                 "대화는 복제되지 않는다");
 
         // 이전 회차 참여자에게 알림 1건(취미 팔로워 알림과 중복 발송되지 않는다)
-        assertEquals(notiBefore + 1, notiCnt("cpmem"), "이전 회차 참여자 알림 1건");
+        assertEquals(notiBefore + 1, notificationCnt("cpmem"), "이전 회차 참여자 알림 1건");
         String link = jdbc.queryForObject(
-                "SELECT link_url FROM t_notification WHERE user_id = 'cpmem' ORDER BY noti_id DESC LIMIT 1",
+                "SELECT link_url FROM notification WHERE member_id = 'cpmem' ORDER BY notification_id DESC LIMIT 1",
                 String.class);
         assertEquals("/gen/recruit/" + nid, link, "알림은 새 회차로 연결");
 
@@ -107,13 +107,13 @@ class RecruitCopyTest extends IntegrationTest {
         assertEquals(d1, JsonPath.read(srcBody, "$.data.meetDt"), "원본 일정 유지");
         assertEquals("1", String.valueOf(JsonPath.<Object>read(srcBody, "$.data.acceptedCnt")), "원본 참여자 유지");
         assertEquals(1, jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_recruit_chat WHERE recruit_id = ?::integer AND use_yn = 'Y'",
+                "SELECT COUNT(*) FROM recruit_chat WHERE recruit_id = ?::integer AND use_yn = 'Y'",
                 Integer.class, rid), "원본 대화 유지");
     }
 
-    private int notiCnt(String userId) {
+    private int notificationCnt(String memberId) {
         Integer n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_notification WHERE user_id = ? AND use_yn = 'Y'", Integer.class, userId);
+                "SELECT COUNT(*) FROM notification WHERE member_id = ? AND use_yn = 'Y'", Integer.class, memberId);
         return n == null ? 0 : n;
     }
 }

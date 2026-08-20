@@ -12,7 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * 모임 단체 대화(t_recruit_chat) 권한·동작 검증.
+ * 모임 단체 대화(recruit_chat) 권한·동작 검증.
  * - 주최자와 수락된 참여자만 읽고 쓸 수 있는지(대기·거절·비참여·관리자는 차단)
  * - 수락이 취소되면 즉시 권한이 사라지는지(멤버 테이블 없이 조인으로 판정)
  * - 응답에 로그인 ID가 없고 mineYn/hostYn이 서버 계산으로 내려오는지
@@ -24,7 +24,7 @@ class RecruitChatTest extends IntegrationTest {
     void only_confirmed_members_can_read_and_write() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"대화취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"대화취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
 
         assertEquals(200, signup("rchost", "대화주최", "rchost@test.local").statusCode());
@@ -48,7 +48,7 @@ class RecruitChatTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid + "\"}", wait).statusCode());
         String okApply = applyId(rid, "rcok");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + okApply + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + okApply + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
 
         // 주최자·확정 멤버는 작성 가능
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
@@ -81,7 +81,7 @@ class RecruitChatTest extends IntegrationTest {
         assertEquals("Y", JsonPath.read(body, "$.data[1].mineYn"), "내 말은 mineYn=Y");
         assertTrue(JsonPath.<List<Object>>read(body, "$.data[?(@.regId)]").isEmpty(),
                 "응답에 로그인 ID가 없다(handle만)");
-        assertEquals("확정멤버", JsonPath.read(body, "$.data[1].regNm"));
+        assertEquals("확정멤버", JsonPath.read(body, "$.data[1].regName"));
 
         // 삭제는 작성자 본인만
         String myChat = JsonPath.read(body, "$.data[1].rowId");
@@ -106,9 +106,9 @@ class RecruitChatTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid + "\"}", host).statusCode(), "주최자는 계속 접근 가능");
     }
 
-    private String applyId(String recruitId, String userId) {
+    private String applyId(String recruitId, String memberId) {
         return jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = ? AND use_yn = 'Y'",
-                String.class, recruitId, userId);
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = ? AND use_yn = 'Y'",
+                String.class, recruitId, memberId);
     }
 }

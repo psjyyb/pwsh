@@ -17,10 +17,10 @@ export const tokenStore = {
   },
 }
 
-/** JWT payload 클레임 (subject=userId, memCd=회원유형) */
+/** JWT payload 클레임 (subject=memberId, typeCd=회원유형) */
 export interface JwtClaims {
   sub?: string
-  memCd?: string
+  typeCd?: string
   exp?: number
 }
 
@@ -46,5 +46,5 @@ export function getClaims(): JwtClaims | null {
 
 /** 관리자(회원유형 MEM02) 여부 — /adm 영역 접근 기준 */
 export function isAdmin(): boolean {
-  return getClaims()?.memCd === 'MEM02'
+  return getClaims()?.typeCd === 'MEM02'
 }

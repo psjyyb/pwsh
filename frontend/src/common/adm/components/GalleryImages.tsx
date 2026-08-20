@@ -6,8 +6,8 @@ import { fileApi } from '../../../api/file'
 /** 갤러리 사진 항목 (fileId + 캡션). 순서 = 표시 순서(첫 항목이 대표) */
 export interface GalleryItem {
   fileId: string
-  fileOrgNm?: string
-  fileDesc?: string
+  originalName?: string
+  description?: string
 }
 
 interface Props {
@@ -20,7 +20,7 @@ interface Props {
 
 /**
  * 갤러리 전용 다중 이미지 업로더 — 사진마다 설명(캡션) 입력 + 순서변경(▲▼) + 삭제.
- * 저장은 상위에서 fileApi.saveMapping(mapKey, 'BBS_IMG', fileIds, fileDescs)로 연결.
+ * 저장은 상위에서 fileApi.saveMapping(mapKey, 'POST_IMG', fileIds, fileDescs)로 연결.
  */
 export default function GalleryImages({ onChange, initialItems = [], maxSizeMb }: Props) {
   const [items, setItems] = useState<GalleryItem[]>(initialItems)
@@ -47,7 +47,7 @@ export default function GalleryImages({ onChange, initialItems = [], maxSizeMb }
       try {
         const metas = await fileApi.upload([opt.file as File])
         const m = metas[0]
-        if (m?.fileId) sync([...itemsRef.current, { fileId: m.fileId, fileOrgNm: m.fileOrgNm, fileDesc: '' }])
+        if (m?.fileId) sync([...itemsRef.current, { fileId: m.fileId, originalName: m.originalName, description: '' }])
         opt.onSuccess?.({})
       } catch (e) {
         opt.onError?.(e as Error)
@@ -57,7 +57,7 @@ export default function GalleryImages({ onChange, initialItems = [], maxSizeMb }
   }
 
   const setDesc = (fileId: string, desc: string) =>
-    sync(itemsRef.current.map((it) => (it.fileId === fileId ? { ...it, fileDesc: desc } : it)))
+    sync(itemsRef.current.map((it) => (it.fileId === fileId ? { ...it, description: desc } : it)))
   const remove = (fileId: string) => sync(itemsRef.current.filter((it) => it.fileId !== fileId))
   const move = (idx: number, dir: -1 | 1) => {
     const next = [...itemsRef.current]
@@ -87,7 +87,7 @@ export default function GalleryImages({ onChange, initialItems = [], maxSizeMb }
               style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 4, border: '1px solid #eee', flex: '0 0 auto' }}
             />
             <Input
-              value={it.fileDesc}
+              value={it.description}
               onChange={(e) => setDesc(it.fileId, e.target.value)}
               placeholder="사진 설명(캡션)"
               style={{ flex: 1 }}

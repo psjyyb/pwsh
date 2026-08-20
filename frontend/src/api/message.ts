@@ -4,7 +4,7 @@ import { apiPost } from './http'
 export interface Conversation {
   rowId?: string       // = 상대 handle
   otherHandle?: string // 상대 공개 식별자(대화 키)
-  otherNm?: string
+  otherName?: string
   otherFileId?: string
   lastContent?: string
   lastDt?: string

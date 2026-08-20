@@ -5,8 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 이메일 인증코드(t_email_verification). 가입 이메일 인증·비밀번호 재설정 공용.
- * target = 식별키(SIGNUP=이메일, RESET=user_id), purpose = SIGNUP/RESET.
+ * 이메일 인증코드(email_verification). 가입 이메일 인증·비밀번호 재설정 공용.
+ * target = 식별키(SIGNUP=이메일, RESET=member_id), purpose = SIGNUP/RESET.
  */
 @Getter
 @Setter

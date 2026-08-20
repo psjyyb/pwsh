@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Empty, Input, List, Popconfirm, Spin, message as toast } from 'antd'
-import UserAvatar from '../../common/gen/components/UserAvatar'
+import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import { messageApi } from '../../api/message'
 import type { Conversation, Message } from '../../api/message'
 import { recruitApi } from '../recruit/recruit.api'
@@ -115,7 +115,7 @@ export default function MessagePage() {
       .then((r) => {
         const head = `[모집 문의] ${r.title ?? ''}`
         const when = r.meetDt ? `\n일정: ${r.meetDt}` : ''
-        const where = [r.areaNm, r.region].filter(Boolean).join(' ')
+        const where = [r.areaName, r.region].filter(Boolean).join(' ')
         // 경로를 함께 넣어 대화에서 바로 눌러 이동할 수 있게 한다(아래 linkify가 링크로 렌더)
         const link = `\n/gen/recruit/${id}`
         setText((prev) => (prev ? prev : `${head}${when}${where ? `\n지역: ${where}` : ''}${link}\n\n`))
@@ -156,7 +156,7 @@ export default function MessagePage() {
   }
 
   const current = convs.find((c) => c.otherHandle === withId)
-  const otherNm = current?.otherNm || withId
+  const otherName = current?.otherName || withId
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -180,8 +180,8 @@ export default function MessagePage() {
                 ]}
               >
                 <List.Item.Meta
-                  avatar={<Badge count={Number(c.unreadCnt) || 0} size="small"><UserAvatar fileId={c.otherFileId} name={c.otherNm} size={34} showName={false} /></Badge>}
-                  title={<span style={{ fontWeight: Number(c.unreadCnt) > 0 ? 700 : 500 }}>{c.otherNm || '-'}</span>}
+                  avatar={<Badge count={Number(c.unreadCnt) || 0} size="small"><MemberAvatar fileId={c.otherFileId} name={c.otherName} size={34} showName={false} /></Badge>}
+                  title={<span style={{ fontWeight: Number(c.unreadCnt) > 0 ? 700 : 500 }}>{c.otherName || '-'}</span>}
                   description={
                     <span style={{ fontSize: 12, color: '#888' }}>
                       {c.lastMine === 'Y' ? '나: ' : ''}{(c.lastContent ?? '').slice(0, 24)} · {c.lastDt}
@@ -198,7 +198,7 @@ export default function MessagePage() {
       <Card
         size="small"
         style={{ flex: '2 1 420px', minWidth: 300 }}
-        title={withId ? <span style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/user/${withId}`)}>{otherNm} <span style={{ fontSize: 12, color: '#999' }}>프로필</span></span> : '대화'}
+        title={withId ? <span style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/member/${withId}`)}>{otherName} <span style={{ fontSize: 12, color: '#999' }}>프로필</span></span> : '대화'}
       >
         {!withId ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="왼쪽에서 대화를 선택하세요." />

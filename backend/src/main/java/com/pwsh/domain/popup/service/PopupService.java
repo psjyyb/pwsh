@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 팝업 업무 로직. 컨트롤러는 매핑만, 로직·트랜잭션은 여기(단일 @Service).
- * 팝업 이미지는 r_file(file_loc=POPUP)로 동기화, 삭제 시 파일 use_yn='N' 전파.
+ * 팝업 이미지는 file_ref(file_type=POPUP)로 동기화, 삭제 시 파일 use_yn='N' 전파.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,7 +37,7 @@ public class PopupService {
 
     @Transactional
     public void insert(PopupVO vo) {
-        commonDAO.insert("popupDAO.insert", vo); // useGeneratedKeys → rowId=pop_id
+        commonDAO.insert("popupDAO.insert", vo); // useGeneratedKeys → rowId=popup_id
         syncPopupImage(vo.getRowId(), vo.getFileId());
     }
 
@@ -47,11 +47,11 @@ public class PopupService {
         syncPopupImage(vo.getRowId(), vo.getFileId());
     }
 
-    /** 팝업 이미지(단일)를 r_file(POPUP)로 동기화 — 기존 매핑 제거 후 이미지 있으면 등록. */
-    private void syncPopupImage(String popId, String fileId) {
+    /** 팝업 이미지(단일)를 file_ref(POPUP)로 동기화 — 기존 매핑 제거 후 이미지 있으면 등록. */
+    private void syncPopupImage(String popupId, String fileId) {
         FileVO m = new FileVO();
-        m.setMapKey(popId);
-        m.setFileLoc("POPUP");
+        m.setMapKey(popupId);
+        m.setFileType("POPUP");
         commonDAO.delete("fileDAO.deleteRfileByMap", m);
         if (fileId != null && !fileId.isBlank()) {
             m.setFileId(fileId);

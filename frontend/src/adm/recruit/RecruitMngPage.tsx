@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Card, Descriptions, Empty, Popconfirm, Select, Space, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useList } from '../../common/hooks/useList'
 import SearchBar from '../../common/adm/components/SearchBar'
 import SplitLayout from '../../common/adm/components/SplitLayout'
+import { hobbyApi } from '../hobby/hobby.api'
 import { RECRUIT_LIST_URL, recruitApi, applyApi } from '../../gen/recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../../gen/recruit/recruit.api'
 
@@ -20,10 +21,19 @@ const cap = (r: Recruit) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` /
  * 백엔드는 모집 도메인의 소유자 인가가 assertOwnerOrAdmin이라 관리자가 모든 모집·신청에 조치 가능(추가 API 불필요).
  */
 export default function RecruitMngPage() {
-  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Recruit>(RECRUIT_LIST_URL, { statusCd: '' })
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Recruit>(RECRUIT_LIST_URL, { hobbyId: '', statusCd: '' })
   const [sel, setSel] = useState<Recruit | null>(null)
   const [applies, setApplies] = useState<RecruitApply[]>([])
   const [applyLoading, setApplyLoading] = useState(false)
+  const [hobbies, setHobbies] = useState<{ value: string; label: string }[]>([])
+
+  // 취미별 검색용 드롭다운. 취미는 관리자가 추가하므로 목록을 서버에서 받아 채운다.
+  useEffect(() => {
+    hobbyApi
+      .listAll()
+      .then((list) => setHobbies(list.map((h) => ({ value: h.rowId!, label: h.hobbyName ?? '' }))))
+      .catch(() => setHobbies([]))
+  }, [])
 
   const loadApplies = async (recruitId: string) => {
     setApplyLoading(true)
@@ -61,8 +71,8 @@ export default function RecruitMngPage() {
     catch (e) { message.error(e instanceof Error ? e.message : '삭제 실패') }
   }
 
-  const changeApply = async (rowId: string, applyStatus: string) => {
-    try { await applyApi.changeStatus(rowId, applyStatus); message.success(applyStatus === 'APPLY02' ? '수락했습니다.' : '거절했습니다.'); refresh() }
+  const changeApply = async (rowId: string, applyCd: string) => {
+    try { await applyApi.changeStatus(rowId, applyCd); message.success(applyCd === 'APPLY02' ? '수락했습니다.' : '거절했습니다.'); refresh() }
     catch (e) { message.error(e instanceof Error ? e.message : '처리 실패') }
   }
 
@@ -72,24 +82,24 @@ export default function RecruitMngPage() {
   }
 
   const columns: TableColumnsType<Recruit> = [
-    { title: '취미', width: 90, render: (_, r) => r.hobbyNm ?? '-' },
+    { title: '취미', width: 90, render: (_, r) => r.hobbyName ?? '-' },
     { title: '제목', ellipsis: true, render: (_, r) => r.title },
-    { title: '주최자', width: 110, render: (_, r) => r.regNm || r.regId },
+    { title: '주최자', width: 110, render: (_, r) => r.regName || r.regId },
     { title: '인원', width: 110, align: 'center', render: (_, r) => cap(r) },
-    { title: '상태', width: 80, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusNm) },
+    { title: '상태', width: 80, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusName) },
   ]
 
   const applyColumns: TableColumnsType<RecruitApply> = [
-    { title: '신청자', render: (_, r) => r.nickname || r.userId },
-    { title: '상태', width: 70, align: 'center', render: (_, r) => applyTag(r.applyStatus, r.applyStatusNm) },
+    { title: '신청자', render: (_, r) => r.nickname || r.memberId },
+    { title: '상태', width: 70, align: 'center', render: (_, r) => applyTag(r.applyCd, r.applyName) },
     { title: '메모', ellipsis: true, render: (_, r) => r.applyMemo || '-' },
     { title: '신청일', width: 100, render: (_, r) => r.regDt },
     {
       title: '처리', width: 170, align: 'center',
       render: (_, r) => (
         <Space size={4}>
-          {r.applyStatus !== 'APPLY02' && <Button size="small" type="link" onClick={() => changeApply(r.rowId!, 'APPLY02')}>수락</Button>}
-          {r.applyStatus !== 'APPLY03' && <Button size="small" type="link" onClick={() => changeApply(r.rowId!, 'APPLY03')}>거절</Button>}
+          {r.applyCd !== 'APPLY02' && <Button size="small" type="link" onClick={() => changeApply(r.rowId!, 'APPLY02')}>수락</Button>}
+          {r.applyCd !== 'APPLY03' && <Button size="small" type="link" onClick={() => changeApply(r.rowId!, 'APPLY03')}>거절</Button>}
           <Popconfirm title="이 신청을 제거하시겠습니까?" onConfirm={() => removeApply(r.rowId!)} okText="제거" okButtonProps={{ danger: true }} cancelText="취소">
             <Button size="small" type="link" danger>제거</Button>
           </Popconfirm>
@@ -101,6 +111,11 @@ export default function RecruitMngPage() {
   const list = (
     <Card title="모집 목록">
       <Space style={{ marginBottom: 8 }} wrap>
+        <Select
+          defaultValue="" style={{ width: 150 }} showSearch optionFilterProp="label"
+          onChange={(v) => search({ hobbyId: v })}
+          options={[{ value: '', label: '전체 취미' }, ...hobbies]}
+        />
         <Select
           defaultValue="" style={{ width: 130 }} onChange={(v) => search({ statusCd: v })}
           options={[{ value: '', label: '전체 상태' }, { value: 'RECRUIT01', label: '모집중' }, { value: 'RECRUIT02', label: '마감' }]}
@@ -136,12 +151,12 @@ export default function RecruitMngPage() {
         <>
           <Descriptions size="small" column={1} bordered labelStyle={{ width: 90 }}>
             <Descriptions.Item label="제목">{sel.title}</Descriptions.Item>
-            <Descriptions.Item label="취미">{sel.hobbyNm ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="주최자">{sel.regNm || sel.regId}</Descriptions.Item>
-            <Descriptions.Item label="지역">{[sel.areaNm, sel.region].filter(Boolean).join(' ') || '-'}</Descriptions.Item>
+            <Descriptions.Item label="취미">{sel.hobbyName ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="주최자">{sel.regName || sel.regId}</Descriptions.Item>
+            <Descriptions.Item label="지역">{[sel.areaName, sel.region].filter(Boolean).join(' ') || '-'}</Descriptions.Item>
             <Descriptions.Item label="일정">{sel.meetDt || '-'}</Descriptions.Item>
             <Descriptions.Item label="인원">{cap(sel)}</Descriptions.Item>
-            <Descriptions.Item label="상태">{statusTag(sel.statusCd, sel.statusNm)}</Descriptions.Item>
+            <Descriptions.Item label="상태">{statusTag(sel.statusCd, sel.statusName)}</Descriptions.Item>
             <Descriptions.Item label="내용"><div style={{ whiteSpace: 'pre-wrap' }}>{sel.content || '-'}</div></Descriptions.Item>
           </Descriptions>
           <div style={{ margin: '14px 0 6px', fontWeight: 600 }}>신청자 ({applies.length})</div>

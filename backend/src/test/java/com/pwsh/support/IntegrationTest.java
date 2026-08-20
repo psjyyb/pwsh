@@ -57,37 +57,37 @@ public abstract class IntegrationTest {
     }
 
     /** 로그인 요청(성공/실패 모두 반환 — 상태코드 검증용). */
-    protected HttpResponse<String> login(String userId, String userPw) throws Exception {
+    protected HttpResponse<String> login(String memberId, String password) throws Exception {
         return post("/api/auth/login",
-                "{\"userId\":\"" + userId + "\",\"userPw\":\"" + userPw + "\"}", null);
+                "{\"memberId\":\"" + memberId + "\",\"password\":\"" + password + "\"}", null);
     }
 
     /** 로그인 후 access 토큰 추출(성공 전제). */
-    protected String accessToken(String userId, String userPw) throws Exception {
-        return JsonPath.read(login(userId, userPw).body(), "$.data.accessToken");
+    protected String accessToken(String memberId, String password) throws Exception {
+        return JsonPath.read(login(memberId, password).body(), "$.data.accessToken");
     }
 
     /**
      * 셀프 회원가입(이메일 인증 포함). 실제 메일 발송 없이 검증 경로를 그대로 태우기 위해
-     * t_email_verification에 유효 코드를 직접 심고(테스트 전제 데이터) /api/auth/signup을 호출한다.
+     * email_verification에 유효 코드를 직접 심고(테스트 전제 데이터) /api/auth/signup을 호출한다.
      * (SMTP 발송은 EmailVerifyService.issue 경로이며, 여기서는 검증(verify) 경로를 테스트한다)
      */
-    protected HttpResponse<String> signup(String userId, String nickname, String email) throws Exception {
+    protected HttpResponse<String> signup(String memberId, String nickname, String email) throws Exception {
         String code = "123456";
-        jdbc.update("DELETE FROM t_email_verification WHERE target = ? AND purpose = 'SIGNUP'", email);
-        jdbc.update("INSERT INTO t_email_verification (target, purpose, code, expire_dt) VALUES (?, 'SIGNUP', ?, NOW() + INTERVAL '10 minutes')",
+        jdbc.update("DELETE FROM email_verification WHERE target = ? AND purpose = 'SIGNUP'", email);
+        jdbc.update("INSERT INTO email_verification (target, purpose, code, expire_dt) VALUES (?, 'SIGNUP', ?, NOW() + INTERVAL '10 minutes')",
                 email, code);
         return post("/api/auth/signup",
-                "{\"userId\":\"" + userId + "\",\"userPw\":\"Test1234!@\",\"pwConfirm\":\"Test1234!@\","
+                "{\"memberId\":\"" + memberId + "\",\"password\":\"Test1234!@\",\"pwConfirm\":\"Test1234!@\","
                         + "\"nickname\":\"" + nickname + "\",\"email\":\"" + email + "\",\"code\":\"" + code + "\"}",
                 null);
     }
 
     /** 테스트용 회원(MEM01) 생성. 비번은 정책 충족값(Test1234!@). 관리자 토큰 필요. */
-    protected HttpResponse<String> createMember(String adminToken, String userId) throws Exception {
-        return post("/api/adm/user/insertUser.do",
-                "{\"userId\":\"" + userId + "\",\"userNm\":\"테스트\",\"memCd\":\"MEM01\","
-                        + "\"statusCd\":\"STATUS01\",\"userPw\":\"Test1234!@\"}",
+    protected HttpResponse<String> createMember(String adminToken, String memberId) throws Exception {
+        return post("/api/adm/member/insertMember.do",
+                "{\"memberId\":\"" + memberId + "\",\"memberName\":\"테스트\",\"typeCd\":\"MEM01\","
+                        + "\"statusCd\":\"STATUS01\",\"password\":\"Test1234!@\"}",
                 adminToken);
     }
 }

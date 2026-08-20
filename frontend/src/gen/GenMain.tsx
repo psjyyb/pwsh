@@ -7,10 +7,10 @@ import { apiPost } from '../api/http'
 import type { ListResult } from '../api/http'
 import { popupApi } from '../adm/popup/popup.api'
 import type { Popup } from '../adm/popup/popup.api'
-import { hobbyApi, userHobbyApi } from '../adm/hobby/hobby.api'
+import { hobbyApi, memberHobbyApi } from '../adm/hobby/hobby.api'
 import { tokenStore } from '../auth/token'
-import { BBS_LIST_URL } from '../adm/bbs/bbs.api'
-import type { Bbs } from '../adm/bbs/bbs.api'
+import { POST_LIST_URL } from '../adm/post/post.api'
+import type { Post } from '../adm/post/post.api'
 import { recruitApi } from './recruit/recruit.api'
 import type { Recruit } from './recruit/recruit.api'
 import { gen, hobbyColor } from './theme'
@@ -18,17 +18,17 @@ import { gen, hobbyColor } from './theme'
 const TEAL = gen.primary
 const STATUS_OPEN = 'RECRUIT01'
 
-interface Category { hobbyId: string; bbsinfoId?: string; name: string; count: number; thumbId?: string; difficultyCd?: string; difficultyNm?: string; summary?: string; memberCnt?: number }
-interface RecentPost extends Bbs { catName?: string }
+interface Category { hobbyId: string; boardId?: string; name: string; count: number; thumbId?: string; difficultyCd?: string; difficultyName?: string; summary?: string; memberCnt?: number }
+interface RecentPost extends Post { catName?: string }
 
 /** '오늘 하루 보지 않기' 쿠키(익일 자정 만료) */
-function hideToday(popId: string) {
+function hideToday(popupId: string) {
   const t = new Date()
   t.setHours(24, 0, 0, 0)
-  document.cookie = `popup_hide_${popId}=Y; expires=${t.toUTCString()}; path=/`
+  document.cookie = `popup_hide_${popupId}=Y; expires=${t.toUTCString()}; path=/`
 }
-function isHidden(popId?: string) {
-  return !!popId && document.cookie.split('; ').includes(`popup_hide_${popId}=Y`)
+function isHidden(popupId?: string) {
+  return !!popupId && document.cookie.split('; ').includes(`popup_hide_${popupId}=Y`)
 }
 
 /** 개별 팝업 레이어 — top/left/width/height(px)로 위치·크기, 이미지/링크/내용, 닫기·오늘하루안보기 */
@@ -44,19 +44,19 @@ function PopupLayer({ popup, onClose }: { popup: Popup; onClose: () => void }) {
     return () => { alive = false; if (url) URL.revokeObjectURL(url) }
   }, [popup.fileId])
 
-  const w = popup.popWidth || '500'
-  const h = popup.popHeight || '400'
-  const top = popup.popTop || '100'
-  const left = popup.popLeft || '100'
+  const w = popup.width || '500'
+  const h = popup.height || '400'
+  const top = popup.posTop || '100'
+  const left = popup.posLeft || '100'
 
-  const href = popup.link
-    ? /^(https?:)?\/\//i.test(popup.link) || popup.link.startsWith('/')
-      ? popup.link
-      : `https://${popup.link}`
+  const href = popup.linkUrl
+    ? /^(https?:)?\/\//i.test(popup.linkUrl) || popup.linkUrl.startsWith('/')
+      ? popup.linkUrl
+      : `https://${popup.linkUrl}`
     : undefined
 
   const image = img ? (
-    <img src={img} alt={popup.popNm ?? ''} style={{ display: 'block', width: '100%', height: `${h}px`, objectFit: 'contain' }} />
+    <img src={img} alt={popup.popupName ?? ''} style={{ display: 'block', width: '100%', height: `${h}px`, objectFit: 'contain' }} />
   ) : (
     <div style={{ height: `${h}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb' }}>이미지 없음</div>
   )
@@ -69,7 +69,7 @@ function PopupLayer({ popup, onClose }: { popup: Popup; onClose: () => void }) {
       }}
     >
       {href ? <a href={href} target="_blank" rel="noreferrer">{image}</a> : image}
-      {popup.txt && <div style={{ padding: 8, fontSize: 13 }}>{popup.txt}</div>}
+      {popup.content && <div style={{ padding: 8, fontSize: 13 }}>{popup.content}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderTop: '1px solid #eee', background: '#f7f7f7', fontSize: 13 }}>
         <a onClick={() => { hideToday(popup.rowId!); onClose() }} style={{ cursor: 'pointer' }}>오늘 하루 보지 않기</a>
         <a onClick={onClose} style={{ cursor: 'pointer' }}>닫기</a>
@@ -106,7 +106,7 @@ function SectionHead({ eyebrow, title, right }: { eyebrow: string; title: string
 
 /**
  * 사용자 메인 — 취미 커뮤니티 랜딩(취미 도감 · 지금 모집 중 · 이번 주 베스트 · 최근 이야기).
- * 취미 도감은 t_hobby에서 도출(무코드 확장). 등록 팝업도 레이어로 노출.
+ * 취미 도감은 hobby에서 도출(무코드 확장). 등록 팝업도 레이어로 노출.
  */
 export default function GenMain() {
   const navigate = useNavigate()
@@ -114,35 +114,35 @@ export default function GenMain() {
   const [categories, setCategories] = useState<Category[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [posts, setPosts] = useState<RecentPost[]>([])
-  const [best, setBest] = useState<Bbs[]>([]) // 이번 주 베스트(참여도 상위)
+  const [best, setBest] = useState<Post[]>([]) // 이번 주 베스트(참여도 상위)
   const loggedIn = !!tokenStore.get()
   const [myIds, setMyIds] = useState<Set<string>>(new Set()) // 내가 담은 취미 id
 
   useEffect(() => {
     popupApi.mainList().then((list) => setPopups(list.filter((p) => !isHidden(p.rowId)))).catch(() => {})
-    if (loggedIn) userHobbyApi.list().then((l) => setMyIds(new Set(l.map((u) => u.hobbyId!).filter(Boolean)))).catch(() => {})
+    if (loggedIn) memberHobbyApi.list().then((l) => setMyIds(new Set(l.map((u) => u.hobbyId!).filter(Boolean)))).catch(() => {})
     recruitApi.list({ statusCd: STATUS_OPEN, pageNo: 1, pageSize: 4 })
       .then((r) => setRecruits(r.list)).catch(() => {})
-    apiPost<Bbs[]>('/adm/bbs/selectBbsListWeeklyBest.do', {}).then(setBest).catch(() => {})
+    apiPost<Post[]>('/adm/post/selectPostListWeeklyBest.do', {}).then(setBest).catch(() => {})
 
     hobbyApi.listAll().then(async (hobbies) => {
       const cats: Category[] = hobbies.map((h) => ({
-        hobbyId: h.rowId!, bbsinfoId: h.bbsinfoId, name: h.hobbyNm ?? '', count: Number(h.postCnt ?? 0),
-        thumbId: h.thumbId, difficultyCd: h.difficultyCd, difficultyNm: h.difficultyNm,
+        hobbyId: h.rowId!, boardId: h.boardId, name: h.hobbyName ?? '', count: Number(h.postCnt ?? 0),
+        thumbId: h.thumbId, difficultyCd: h.difficultyCd, difficultyName: h.difficultyName,
         summary: h.summary, memberCnt: Number(h.memberCnt ?? 0),
       }))
       setCategories(cats)
 
       // 취미별 연결 게시판의 최신 글 병렬 수집 → 최근 이야기
       const results = await Promise.all(
-        cats.filter((c) => c.bbsinfoId).map((c) =>
-          apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId: c.bbsinfoId, pageNo: 1, pageSize: 4 })
+        cats.filter((c) => c.boardId).map((c) =>
+          apiPost<ListResult<Post>>(POST_LIST_URL, { boardId: c.boardId, pageNo: 1, pageSize: 4 })
             .then((res) => ({ cat: c, res }))
-            .catch(() => ({ cat: c, res: { list: [], totalCount: 0 } as ListResult<Bbs> })),
+            .catch(() => ({ cat: c, res: { list: [], totalCount: 0 } as ListResult<Post> })),
         ),
       )
       const merged: RecentPost[] = results
-        .flatMap(({ cat, res }) => res.list.filter((b) => Number(b.bbsDepth ?? 0) === 0).map((b) => ({ ...b, catName: cat.name })))
+        .flatMap(({ cat, res }) => res.list.filter((b) => Number(b.depth ?? 0) === 0).map((b) => ({ ...b, catName: cat.name })))
         .sort((a, b) => (b.regDt ?? '').localeCompare(a.regDt ?? '') || Number(b.rowId) - Number(a.rowId))
         .slice(0, 6)
       setPosts(merged)
@@ -154,8 +154,8 @@ export default function GenMain() {
   const toggleMy = async (hobbyId: string) => {
     const has = myIds.has(hobbyId)
     try {
-      if (has) await userHobbyApi.remove(hobbyId)
-      else await userHobbyApi.save(hobbyId)
+      if (has) await memberHobbyApi.remove(hobbyId)
+      else await memberHobbyApi.save(hobbyId)
       setMyIds((prev) => { const n = new Set(prev); if (has) n.delete(hobbyId); else n.add(hobbyId); return n })
       message.success(has ? '담기를 취소했습니다.' : '내 취미에 담았습니다.')
     } catch (e) {
@@ -230,7 +230,7 @@ export default function GenMain() {
                     <div className="gen-tile-name">{c.name}</div>
                     {c.summary && <div className="gen-tile-sum" style={{ marginTop: 6 }}>{c.summary}</div>}
                     <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                      {c.difficultyNm && <span className="gen-tile-chip">{c.difficultyNm}</span>}
+                      {c.difficultyName && <span className="gen-tile-chip">{c.difficultyName}</span>}
                       <span className="gen-tile-meta">멤버 {c.memberCnt ?? 0}</span>
                       <span className="gen-tile-meta" style={{ opacity: 0.5 }}>·</span>
                       <span className="gen-tile-meta">글 {c.count}</span>
@@ -258,12 +258,12 @@ export default function GenMain() {
               <Col key={r.rowId} xs={24} sm={12}>
                 <Card hoverable onClick={() => navigate(`/gen/recruit/${r.rowId}`)} styles={{ body: { padding: 16 } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span className="gen-tile-chip">{r.hobbyNm}</span>
-                    {statusTag(r.statusCd, r.statusNm)}
+                    <span className="gen-tile-chip">{r.hobbyName}</span>
+                    {statusTag(r.statusCd, r.statusName)}
                   </div>
                   <div style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.015em', marginBottom: 10 }}>{r.title}</div>
                   <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-                    <Meta label="지역" value={[r.areaNm, r.region].filter(Boolean).join(' ') || '-'} />
+                    <Meta label="지역" value={[r.areaName, r.region].filter(Boolean).join(' ') || '-'} />
                     <Meta label="일정" value={r.meetDt || '미정'} />
                     <Meta label="참여" value={`${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`} />
                   </div>
@@ -281,7 +281,7 @@ export default function GenMain() {
           <Card styles={{ body: { padding: 0 } }}>
             {best.map((p, i) => (
               <div key={p.rowId} className="gen-row"
-                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}
+                onClick={() => navigate(`/gen/board/${p.boardId}?post=${p.rowId}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
                   borderTop: i === 0 ? 'none' : `1px solid ${gen.line}`,
@@ -291,7 +291,7 @@ export default function GenMain() {
                   flexShrink: 0, width: 20, textAlign: 'right', fontSize: i === 0 ? 16 : 14,
                   fontWeight: i === 0 ? 800 : 600, color: i === 0 ? gen.primary : gen.inkFaint,
                 }}>{i + 1}</span>
-                <span className="gen-tile-chip" style={{ flexShrink: 0 }}>{p.bbsinfoNm}</span>
+                <span className="gen-tile-chip" style={{ flexShrink: 0 }}>{p.boardName}</span>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{p.title}</span>
                 <span className="gen-nums" style={{ fontSize: 12, color: gen.inkFaint, flexShrink: 0 }}>
                   좋아요 {Number(p.goodCnt) || 0} · 댓글 {Number(p.commentCnt) || 0}
@@ -311,7 +311,7 @@ export default function GenMain() {
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
               <div key={p.rowId} className="gen-row"
-                onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}
+                onClick={() => navigate(`/gen/board/${p.boardId}?post=${p.rowId}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
                   borderTop: i === 0 ? 'none' : `1px solid ${gen.line}`,
@@ -321,7 +321,7 @@ export default function GenMain() {
                 {Number(p.commentCnt) > 0 && (
                   <span className="gen-nums" style={{ color: TEAL, flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{p.commentCnt}</span>
                 )}
-                <span className="gen-nums" style={{ fontSize: 12, color: gen.inkFaint, flexShrink: 0 }}>{p.regNm || '-'} · {p.regDt}</span>
+                <span className="gen-nums" style={{ fontSize: 12, color: gen.inkFaint, flexShrink: 0 }}>{p.regName || '-'} · {p.regDt}</span>
               </div>
             ))}
           </Card>

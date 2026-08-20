@@ -4,120 +4,120 @@
 
     <!-- 파일 메타 등록 (file_id 생성값 반환) -->
     <insert id="insert" parameterType="fileVO" useGeneratedKeys="true" keyProperty="fileId">
-        INSERT INTO t_file (file_path, file_str_nm, file_org_nm, file_size, file_ext, file_desc, use_yn,
+        INSERT INTO file (path, stored_name, original_name, size, ext, description, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{filePath}, #{fileStrNm}, #{fileOrgNm}, #{fileSize}, #{fileExt}, #{fileDesc}, 'Y',
+        VALUES (#{path}, #{storedName}, #{originalName}, #{size}, #{ext}, #{description}, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <select id="selectList" parameterType="fileVO" resultType="fileVO">
-        SELECT file_id, file_org_nm, file_ext, file_size, file_desc, reg_id,
+        SELECT file_id, original_name, ext, size, description, reg_id,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, use_yn
-        FROM t_file
+        FROM file
         WHERE use_yn = 'Y'
         <if test="filterKeyword != null and filterKeyword != ''">
-            AND file_org_nm LIKE '%' || #{filterKeyword} || '%'
+            AND original_name LIKE '%' || #{filterKeyword} || '%'
         </if>
         ORDER BY file_id DESC
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
     <select id="selectListTotalCount" parameterType="fileVO" resultType="int">
-        SELECT COUNT(*) FROM t_file WHERE use_yn = 'Y'
-        <if test="filterKeyword != null and filterKeyword != ''">AND file_org_nm LIKE '%' || #{filterKeyword} || '%'</if>
+        SELECT COUNT(*) FROM file WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">AND original_name LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="fileVO" resultType="fileVO">
-        SELECT file_id, file_path, file_str_nm, file_org_nm, file_size, file_ext, file_desc, use_yn
-        FROM t_file WHERE file_id = #{fileId}::integer AND use_yn = 'Y'
+        SELECT file_id, path, stored_name, original_name, size, ext, description, use_yn
+        FROM file WHERE file_id = #{fileId}::integer AND use_yn = 'Y'
     </select>
 
     <update id="delete" parameterType="fileVO">
-        UPDATE t_file SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE file SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE file_id = #{fileId}::integer
     </update>
 
-    <!-- 물리삭제와 함께 t_file 행을 완전 제거(고아 정리용) -->
+    <!-- 물리삭제와 함께 file 행을 완전 제거(고아 정리용) -->
     <delete id="deleteHard" parameterType="fileVO">
-        DELETE FROM t_file WHERE file_id = #{fileId}::integer
+        DELETE FROM file WHERE file_id = #{fileId}::integer
     </delete>
 
-    <!-- 특정 파일의 모든 r_file 매핑 제거(고아 하드삭제 시 함께) -->
+    <!-- 특정 파일의 모든 file_ref 매핑 제거(고아 하드삭제 시 함께) -->
     <delete id="deleteRfileByFileId" parameterType="fileVO">
-        DELETE FROM r_file WHERE file_id = #{fileId}::integer
+        DELETE FROM file_ref WHERE file_id = #{fileId}::integer
     </delete>
 
-    <!-- [삭제 전파] 엔티티 soft-delete 시 그 엔티티가 참조하는 파일들을 t_file.use_yn='N'으로.
-         map_key + 해당 엔티티의 file_loc 목록으로 특정(map_key 다형성 방지). upd_dt=삭제시점 → GC 유예 기준. -->
+    <!-- [삭제 전파] 엔티티 soft-delete 시 그 엔티티가 참조하는 파일들을 file.use_yn='N'으로.
+         map_key + 해당 엔티티의 file_type 목록으로 특정(map_key 다형성 방지). upd_dt=삭제시점 → GC 유예 기준. -->
     <update id="deactivateFilesByOwner" parameterType="map">
-        UPDATE t_file SET use_yn = 'N', upd_dt = NOW()
+        UPDATE file SET use_yn = 'N', upd_dt = NOW()
         WHERE use_yn = 'Y' AND file_id IN (
-            SELECT file_id FROM r_file
+            SELECT file_id FROM file_ref
             WHERE map_key = #{mapKey}::integer
-              AND file_loc IN
+              AND file_type IN
               <foreach item="loc" collection="locs" open="(" separator="," close=")">#{loc}</foreach>
         )
     </update>
 
     <!-- [GC] 고아 파일 조회.
          C: 삭제된 엔티티의 파일(use_yn='N') + upd_dt 보존기간 초과
-         A: 버려진 업로드(use_yn='Y' + r_file 매핑 전무) + reg_dt 유예 초과 -->
+         A: 버려진 업로드(use_yn='Y' + file_ref 매핑 전무) + reg_dt 유예 초과 -->
     <select id="selectOrphans" parameterType="map" resultType="fileVO">
-        SELECT file_id, file_path, file_str_nm, use_yn FROM t_file f
+        SELECT file_id, path, stored_name, use_yn FROM file f
         WHERE
             (f.use_yn = 'N' AND f.upd_dt &lt; NOW() - make_interval(days => #{retentionDays}))
          OR (f.use_yn = 'Y' AND f.reg_dt &lt; NOW() - make_interval(hours => #{abandonHours})
-             AND NOT EXISTS (SELECT 1 FROM r_file r WHERE r.file_id = f.file_id)
-             AND NOT EXISTS (SELECT 1 FROM t_user u WHERE u.profile_file_id = f.file_id))
+             AND NOT EXISTS (SELECT 1 FROM file_ref r WHERE r.file_id = f.file_id)
+             AND NOT EXISTS (SELECT 1 FROM member u WHERE u.profile_file_id = f.file_id))
     </select>
 
-    <!-- 이 파일을 프로필 사진으로 쓰는 회원 수(공개 서빙 판정용). r_file 매핑이 아니라 t_user 직접 참조 -->
+    <!-- 이 파일을 프로필 사진으로 쓰는 회원 수(공개 서빙 판정용). file_ref 매핑이 아니라 member 직접 참조 -->
     <select id="countProfileRefs" parameterType="fileVO" resultType="int">
-        SELECT COUNT(*) FROM t_user WHERE use_yn = 'Y' AND profile_file_id = #{fileId}::integer
+        SELECT COUNT(*) FROM member WHERE use_yn = 'Y' AND profile_file_id = #{fileId}::integer
     </select>
 
     <!-- 이 파일이 해당 사용자가 업로드한 파일인지(프로필 지정 IDOR 차단용) -->
-    <select id="countOwnedFileByUser" parameterType="map" resultType="int">
-        SELECT COUNT(*) FROM t_file
-        WHERE use_yn = 'Y' AND file_id = #{fileId}::integer AND reg_id = #{userId}
+    <select id="countOwnedFileByMember" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM file
+        WHERE use_yn = 'Y' AND file_id = #{fileId}::integer AND reg_id = #{memberId}
     </select>
 
-    <!-- 이 파일을 아직 참조하는 r_file 매핑 수. 모든 파일참조는 r_file로 통일되므로 이것만 보면 됨. 0이면 물리삭제 안전 -->
+    <!-- 이 파일을 아직 참조하는 file_ref 매핑 수. 모든 파일참조는 file_ref로 통일되므로 이것만 보면 됨. 0이면 물리삭제 안전 -->
     <select id="countActiveRefs" parameterType="fileVO" resultType="int">
-        SELECT COUNT(*) FROM r_file WHERE file_id = #{fileId}::integer
+        SELECT COUNT(*) FROM file_ref WHERE file_id = #{fileId}::integer
     </select>
 
-    <!-- ===== r_file (엔티티 ↔ 파일 매핑) ===== -->
+    <!-- ===== file_ref (엔티티 ↔ 파일 매핑) ===== -->
     <select id="selectFilesByMap" parameterType="fileVO" resultType="fileVO">
-        SELECT f.file_id, f.file_org_nm, f.file_ext, f.file_size, f.file_desc, r.file_loc, r.sort_no
-        FROM r_file r
-        JOIN t_file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
-        WHERE r.map_key = #{mapKey}::integer AND r.file_loc = #{fileLoc}
+        SELECT f.file_id, f.original_name, f.ext, f.size, f.description, r.file_type, r.sort_no
+        FROM file_ref r
+        JOIN file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
+        WHERE r.map_key = #{mapKey}::integer AND r.file_type = #{fileType}
         ORDER BY r.sort_no, f.file_id
     </select>
 
     <!-- 파일이 연결된 매핑들(loc·대상 PK) — 공개 이미지/다운로드 접근검사용 -->
     <select id="selectRefsByFileId" parameterType="fileVO" resultType="fileVO">
-        SELECT file_loc, map_key::TEXT AS map_key FROM r_file WHERE file_id = #{fileId}::integer
+        SELECT file_type, map_key::TEXT AS map_key FROM file_ref WHERE file_id = #{fileId}::integer
     </select>
 
-    <!-- 매핑 대상 게시글(map_key=bbs_id)의 작성자 — 매핑 저장 소유검증용 -->
+    <!-- 매핑 대상 게시글(map_key=post_id)의 작성자 — 매핑 저장 소유검증용 -->
     <select id="selectPostRegId" parameterType="fileVO" resultType="string">
-        SELECT reg_id FROM t_bbs WHERE bbs_id = #{mapKey}::integer AND use_yn = 'Y'
+        SELECT reg_id FROM post WHERE post_id = #{mapKey}::integer AND use_yn = 'Y'
     </select>
 
     <!-- 파일 설명(캡션) 갱신 — 갤러리 사진설명 등 -->
     <update id="updateFileDesc" parameterType="fileVO">
-        UPDATE t_file SET file_desc = #{fileDesc} WHERE file_id = #{fileId}::integer
+        UPDATE file SET description = #{description} WHERE file_id = #{fileId}::integer
     </update>
 
     <delete id="deleteRfileByMap" parameterType="fileVO">
-        DELETE FROM r_file WHERE map_key = #{mapKey}::integer AND file_loc = #{fileLoc}
+        DELETE FROM file_ref WHERE map_key = #{mapKey}::integer AND file_type = #{fileType}
     </delete>
 
     <insert id="insertRfile" parameterType="fileVO">
-        INSERT INTO r_file (map_key, file_id, file_loc, sort_no)
-        VALUES (#{mapKey}::integer, #{fileId}::integer, #{fileLoc}, COALESCE(NULLIF(#{sortNo}, '')::integer, 0))
+        INSERT INTO file_ref (map_key, file_id, file_type, sort_no)
+        VALUES (#{mapKey}::integer, #{fileId}::integer, #{fileType}, COALESCE(NULLIF(#{sortNo}, '')::integer, 0))
     </insert>
 
 </mapper>

@@ -20,7 +20,7 @@ class MenuRbacTest extends IntegrationTest {
     private List<String> menuNames(String token) throws Exception {
         HttpResponse<String> r = post(TREE, "{\"area\":\"GEN\"}", token);
         assertThat(r.statusCode()).isEqualTo(200);
-        return JsonPath.read(r.body(), "$..menuNm");
+        return JsonPath.read(r.body(), "$..menuName");
     }
 
     @Test

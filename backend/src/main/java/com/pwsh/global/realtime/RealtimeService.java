@@ -28,21 +28,21 @@ public class RealtimeService {
     /** SSE 연결 수명(ms). 브라우저·프록시가 끊어도 클라이언트가 재연결한다. */
     private static final long TIMEOUT_MS = 10 * 60 * 1000L;
 
-    /** userId → 그 사용자의 열린 연결들(탭 여러 개 가능) */
+    /** memberId → 그 사용자의 열린 연결들(탭 여러 개 가능) */
     private final Map<String, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
     /** 연결 등록. 완료·타임아웃·오류 시 스스로 정리한다. */
-    public SseEmitter subscribe(String userId) {
+    public SseEmitter subscribe(String memberId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
-        emitters.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(emitter);
-        emitter.onCompletion(() -> remove(userId, emitter));
-        emitter.onTimeout(() -> remove(userId, emitter));
-        emitter.onError(e -> remove(userId, emitter));
+        emitters.computeIfAbsent(memberId, k -> new CopyOnWriteArraySet<>()).add(emitter);
+        emitter.onCompletion(() -> remove(memberId, emitter));
+        emitter.onTimeout(() -> remove(memberId, emitter));
+        emitter.onError(e -> remove(memberId, emitter));
         try {
             // 연결 직후 1건 — 클라이언트가 '연결됨'을 확인하고 폴링을 멈출 수 있게
             emitter.send(SseEmitter.event().name("ready").data("ok"));
         } catch (IOException e) {
-            remove(userId, emitter);
+            remove(memberId, emitter);
         }
         return emitter;
     }
@@ -51,11 +51,11 @@ public class RealtimeService {
      * 특정 사용자에게 이벤트 전송(본문 없음, 종류만).
      * 전송 실패한 연결은 끊어진 것으로 보고 제거한다. 실패가 호출자(쪽지 저장 등)를 막지 않는다.
      */
-    public void push(String userId, String event) {
-        if (userId == null || userId.isBlank()) {
+    public void push(String memberId, String event) {
+        if (memberId == null || memberId.isBlank()) {
             return;
         }
-        Set<SseEmitter> set = emitters.get(userId);
+        Set<SseEmitter> set = emitters.get(memberId);
         if (set == null || set.isEmpty()) {
             return; // 접속 중이 아니면 보낼 곳이 없다(다음 접속 시 조회로 확인)
         }
@@ -63,7 +63,7 @@ public class RealtimeService {
             try {
                 em.send(SseEmitter.event().name(event).data("1"));
             } catch (Exception e) {
-                remove(userId, em);
+                remove(memberId, em);
             }
         }
     }
@@ -71,23 +71,23 @@ public class RealtimeService {
     /** 연결 유지용 핑 — 유휴 연결을 프록시가 끊는 것을 막는다(주석 이벤트로 트래픽 최소화). */
     @Scheduled(fixedDelay = 25_000L)
     public void heartbeat() {
-        emitters.forEach((userId, set) -> {
+        emitters.forEach((memberId, set) -> {
             for (SseEmitter em : set) {
                 try {
                     em.send(SseEmitter.event().comment("ping"));
                 } catch (Exception e) {
-                    remove(userId, em);
+                    remove(memberId, em);
                 }
             }
         });
     }
 
-    private void remove(String userId, SseEmitter emitter) {
-        Set<SseEmitter> set = emitters.get(userId);
+    private void remove(String memberId, SseEmitter emitter) {
+        Set<SseEmitter> set = emitters.get(memberId);
         if (set != null) {
             set.remove(emitter);
             if (set.isEmpty()) {
-                emitters.remove(userId);
+                emitters.remove(memberId);
             }
         }
     }

@@ -9,7 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** 메뉴 아이콘(t_menu.icon) — 등록 시 저장되고 트리 조회에 반영된다. */
+/** 메뉴 아이콘(menu.icon) — 등록 시 저장되고 트리 조회에 반영된다. */
 class MenuIconTest extends IntegrationTest {
 
     @Test
@@ -17,7 +17,7 @@ class MenuIconTest extends IntegrationTest {
     void menuIconPersistsAndReturnsInTree() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         assertThat(post("/api/adm/menu/insertMenu.do",
-                "{\"menuNm\":\"아이콘테스트\",\"area\":\"ADM\",\"connTy\":\"MENU01\",\"linkUrl\":\"/adm/xicontest\",\"icon\":\"star\"}",
+                "{\"menuName\":\"아이콘테스트\",\"area\":\"ADM\",\"connCd\":\"MENU01\",\"linkUrl\":\"/adm/xicontest\",\"icon\":\"star\"}",
                 admin).statusCode()).isEqualTo(200);
 
         HttpResponse<String> tree = post("/api/adm/menu/selectMenuListManageTree.do", "{\"area\":\"ADM\"}", admin);
@@ -26,7 +26,7 @@ class MenuIconTest extends IntegrationTest {
         assertThat(icons).contains("star");
 
         // 정리: 등록한 테스트 메뉴 삭제
-        List<String> ids = JsonPath.read(tree.body(), "$.data[?(@.menuNm=='아이콘테스트')].rowId");
+        List<String> ids = JsonPath.read(tree.body(), "$.data[?(@.menuName=='아이콘테스트')].rowId");
         for (String id : ids) {
             post("/api/adm/menu/deleteMenu.do", "{\"rowId\":\"" + id + "\"}", admin);
         }

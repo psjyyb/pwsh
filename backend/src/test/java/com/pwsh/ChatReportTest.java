@@ -24,7 +24,7 @@ class ChatReportTest extends IntegrationTest {
     void chat_report_and_resolve() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"신고대화취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"신고대화취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
 
         assertEquals(200, signup("crhost", "신고대화주최", "crhost@test.local").statusCode());
@@ -39,10 +39,10 @@ class ChatReportTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + rid + "\"}", mem).statusCode());
         String applyId = jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'crmem'",
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = 'crmem'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
 
         // 주최자가 두 마디 남긴다 — 그중 하나만 신고 대상
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
@@ -50,7 +50,7 @@ class ChatReportTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
                 "{\"recruitId\":\"" + rid + "\",\"content\":\"평범한 말\"}", host).statusCode());
         String badChat = jdbc.queryForObject(
-                "SELECT chat_id::text FROM t_recruit_chat WHERE recruit_id = ?::integer AND content = '문제되는 말'",
+                "SELECT chat_id::text FROM recruit_chat WHERE recruit_id = ?::integer AND content = '문제되는 말'",
                 String.class, rid);
 
         // 멤버가 신고
@@ -68,7 +68,7 @@ class ChatReportTest extends IntegrationTest {
 
         // 관리자 목록: 대화 내용 미리보기 + 모집 링크
         String listBody = post("/api/adm/report/selectReportList.do",
-                "{\"pageNo\":1,\"pageSize\":50,\"status\":\"PENDING\"}", admin).body();
+                "{\"pageNo\":1,\"pageSize\":50,\"statusType\":\"PENDING\"}", admin).body();
         List<Object> titles = JsonPath.read(listBody,
                 "$.data.list[?(@.targetType=='CHAT' && @.targetId=='" + badChat + "')].targetTitle");
         List<Object> links = JsonPath.read(listBody,
@@ -83,20 +83,20 @@ class ChatReportTest extends IntegrationTest {
                 "$.data.list[?(@.targetType=='CHAT' && @.targetId=='" + badChat + "')].rowId");
         String reportId = String.valueOf(reportIds.get(0));
         assertEquals(200, post("/api/adm/report/updateReportStatus.do",
-                "{\"rowId\":\"" + reportId + "\",\"status\":\"RESOLVED\"}", admin).statusCode());
+                "{\"rowId\":\"" + reportId + "\",\"statusType\":\"RESOLVED\"}", admin).statusCode());
         assertEquals("N", chatUseYn(badChat), "신고된 말은 숨김");
         assertEquals(1, jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_recruit_chat WHERE recruit_id = ?::integer AND use_yn = 'Y'",
+                "SELECT COUNT(*) FROM recruit_chat WHERE recruit_id = ?::integer AND use_yn = 'Y'",
                 Integer.class, rid), "나머지 대화는 그대로");
 
         // 되돌리기(PENDING) → 복원
         assertEquals(200, post("/api/adm/report/updateReportStatus.do",
-                "{\"rowId\":\"" + reportId + "\",\"status\":\"PENDING\"}", admin).statusCode());
+                "{\"rowId\":\"" + reportId + "\",\"statusType\":\"PENDING\"}", admin).statusCode());
         assertEquals("Y", chatUseYn(badChat), "되돌리면 복원");
     }
 
     private String chatUseYn(String chatId) {
-        return jdbc.queryForObject("SELECT use_yn FROM t_recruit_chat WHERE chat_id = ?::integer",
+        return jdbc.queryForObject("SELECT use_yn FROM recruit_chat WHERE chat_id = ?::integer",
                 String.class, chatId);
     }
 }

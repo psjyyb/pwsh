@@ -3,10 +3,10 @@ import { apiPost } from '../../api/http'
 /** 환경설정 VO (단일 행) */
 export interface Config {
   failCntLimit?: string
-  failCntDeniedTi?: string
-  pwExpireCnt?: string
-  sessionExpireCnt?: string
-  delLogCnt?: string
+  failLockMins?: string
+  passwordExpireDays?: string
+  sessionExpireMins?: string
+  delLogDays?: string
   accIpYn?: string
   title?: string
   menuVersion?: string

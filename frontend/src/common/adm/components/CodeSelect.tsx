@@ -11,7 +11,7 @@ interface Props extends Omit<SelectProps, 'options'> {
 
 /**
  * 공통코드 기반 Select. Form.Item 안에 넣으면 value/onChange 자동 연동.
- *   <Form.Item name="memCd"><CodeSelect pCodeId="MEM00" /></Form.Item>
+ *   <Form.Item name="typeCd"><CodeSelect pCodeId="MEM00" /></Form.Item>
  */
 export default function CodeSelect({ pCodeId, allowAll, placeholder = '선택', ...rest }: Props) {
   const options = useCodes(pCodeId)

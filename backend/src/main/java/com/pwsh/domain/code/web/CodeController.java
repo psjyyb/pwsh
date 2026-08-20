@@ -61,7 +61,7 @@ public class CodeController {
     public ApiResponse<Void> insert(@RequestBody CodeVO searchVO) {
         Validate.required(searchVO.getRowId(), "코드ID");
         Validate.required(searchVO.getPCodeId(), "상위코드");
-        Validate.required(searchVO.getCodeNm(), "코드명");
+        Validate.required(searchVO.getCodeName(), "코드명");
         codeService.insert(searchVO);
         return ApiResponse.ok();
     }
@@ -73,7 +73,7 @@ public class CodeController {
         if ("Sort".equals(variant)) {
             codeService.swapSort(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
-            Validate.required(searchVO.getCodeNm(), "코드명");
+            Validate.required(searchVO.getCodeName(), "코드명");
             codeService.update(searchVO);
         }
         return ApiResponse.ok();

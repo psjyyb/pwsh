@@ -23,7 +23,7 @@ class RecruitWaitlistTest extends IntegrationTest {
     void capacity_autoclose_and_waitlist_flow() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"대기취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"대기취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
 
         assertEquals(200, signup("wlhost", "대기주최", "wlhost@test.local").statusCode());
@@ -46,7 +46,7 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid + "\"}", t1).statusCode());
         String a1 = applyId(rid, "wl1");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + a1 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + a1 + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
         assertEquals("RECRUIT02", status(rid), "정원 충족 시 자동 마감");
 
         // 정원으로 닫힌 모집 → 대기 신청 허용
@@ -61,24 +61,24 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid + "\"}", host).body();
         assertEquals("1", waitNoOf(listBody, "wl2"));
         assertEquals("2", waitNoOf(listBody, "wl3"));
-        List<Object> accepted = JsonPath.read(listBody, "$.data[?(@.userId=='wl1')].waitNo");
+        List<Object> accepted = JsonPath.read(listBody, "$.data[?(@.memberId=='wl1')].waitNo");
         assertEquals(0, accepted.size(), "수락 건은 대기 순번이 없다");
 
         // 정원 초과 수락은 차단(자리가 없을 때)
         String a2 = applyId(rid, "wl2");
         assertNotEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + a2 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode(),
+                "{\"rowId\":\"" + a2 + "\",\"applyCd\":\"APPLY02\"}", host).statusCode(),
                 "정원이 찬 상태에선 수락 불가");
 
         // 자리가 나면(수락자 취소) 대기자를 수락할 수 있다 — 자동 승격은 하지 않는다
         assertEquals(200, post("/api/adm/recruitApply/deleteRecruitApply.do",
                 "{\"rowId\":\"" + a1 + "\"}", t1).statusCode());
         assertEquals("RECRUIT02", status(rid), "자리가 나도 자동 재개하지 않는다(주최자 판단)");
-        assertEquals("APPLY01", applyStatus(a2), "자동 승격되지 않는다");
+        assertEquals("APPLY01", applyCd(a2), "자동 승격되지 않는다");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + a2 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode(),
+                "{\"rowId\":\"" + a2 + "\",\"applyCd\":\"APPLY02\"}", host).statusCode(),
                 "주최자가 대기자를 수락");
-        assertEquals("APPLY02", applyStatus(a2));
+        assertEquals("APPLY02", applyCd(a2));
 
         // wl2 수락 후 남은 대기자(wl3)의 순번은 1로 재계산
         String listBody2 = post("/api/adm/recruitApply/selectRecruitApplyList.do",
@@ -103,7 +103,7 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid3 + "\"}", t1).statusCode());
         String a3 = applyId(rid3, "wl1");
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + a3 + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + a3 + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
         assertEquals("RECRUIT01", status(rid3), "정원 미설정은 자동 마감 없음");
 
         // 이미 지난 모임에는 신청할 수 없다
@@ -115,25 +115,25 @@ class RecruitWaitlistTest extends IntegrationTest {
                 "{\"recruitId\":\"" + rid4 + "\"}", t2).statusCode(), "지난 모임 신청 차단");
     }
 
-    private String applyId(String recruitId, String userId) {
+    private String applyId(String recruitId, String memberId) {
         return jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = ? AND use_yn = 'Y'",
-                String.class, recruitId, userId);
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = ? AND use_yn = 'Y'",
+                String.class, recruitId, memberId);
     }
 
-    private String applyStatus(String applyId) {
-        return jdbc.queryForObject("SELECT apply_status FROM t_recruit_apply WHERE apply_id = ?::integer",
+    private String applyCd(String applyId) {
+        return jdbc.queryForObject("SELECT apply_cd FROM recruit_apply WHERE apply_id = ?::integer",
                 String.class, applyId);
     }
 
     private String status(String recruitId) {
-        return jdbc.queryForObject("SELECT status_cd FROM t_recruit WHERE recruit_id = ?::integer",
+        return jdbc.queryForObject("SELECT status_cd FROM recruit WHERE recruit_id = ?::integer",
                 String.class, recruitId);
     }
 
     /** 신청자 목록 JSON에서 특정 회원의 대기 순번 추출. */
-    private String waitNoOf(String body, String userId) {
-        List<Object> v = JsonPath.read(body, "$.data[?(@.userId=='" + userId + "')].waitNo");
+    private String waitNoOf(String body, String memberId) {
+        List<Object> v = JsonPath.read(body, "$.data[?(@.memberId=='" + memberId + "')].waitNo");
         return v.isEmpty() ? null : String.valueOf(v.get(0));
     }
 }

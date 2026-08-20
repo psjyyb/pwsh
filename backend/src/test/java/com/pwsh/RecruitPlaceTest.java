@@ -25,19 +25,19 @@ class RecruitPlaceTest extends IntegrationTest {
     void place_is_saved_and_returned() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"장소취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"장소취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
 
         String future = LocalDate.now().plusDays(5).toString();
         String rid = JsonPath.read(post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"장소 지정 모집\",\"meetDt\":\"" + future + "\","
-                        + "\"areaCd\":\"AREA01\",\"placeNm\":\"강남역 11번 출구\","
+                        + "\"areaCd\":\"AREA01\",\"placeName\":\"강남역 11번 출구\","
                         + "\"addr\":\"서울 강남구 강남대로 396\",\"lat\":\"" + LAT + "\",\"lng\":\"" + LNG + "\"}",
                 admin).body(), "$.data");
         assertNotNull(rid);
 
         String view = post("/api/adm/recruit/selectRecruitView.do", "{\"rowId\":\"" + rid + "\"}", null).body();
-        assertEquals("강남역 11번 출구", JsonPath.read(view, "$.data.placeNm"));
+        assertEquals("강남역 11번 출구", JsonPath.read(view, "$.data.placeName"));
         assertEquals("서울 강남구 강남대로 396", JsonPath.read(view, "$.data.addr"));
         // 좌표는 NUMERIC이라 DB가 정규화한다 — 문자열 동등비교 대신 값으로 확인
         assertEquals(Double.parseDouble(LAT), Double.parseDouble(JsonPath.read(view, "$.data.lat")), 0.0000001);
@@ -50,14 +50,14 @@ class RecruitPlaceTest extends IntegrationTest {
 
         // 장소를 지우면(빈 값) NULL로 되돌아간다 — 온라인·장소 미정 모임
         assertEquals(200, post("/api/adm/recruit/updateRecruit.do",
-                "{\"rowId\":\"" + rid + "\",\"title\":\"장소 지정 모집\",\"placeNm\":\"\",\"addr\":\"\","
+                "{\"rowId\":\"" + rid + "\",\"title\":\"장소 지정 모집\",\"placeName\":\"\",\"addr\":\"\","
                         + "\"lat\":\"\",\"lng\":\"\"}", admin).statusCode());
         // 널 필드는 응답 JSON에서 빠지므로(직렬화 설정) 본문 미포함 + DB NULL 두 가지로 확인한다
         String cleared = post("/api/adm/recruit/selectRecruitView.do", "{\"rowId\":\"" + rid + "\"}", null).body();
-        assertTrue(!cleared.contains("placeNm"), "해제 후에는 장소명이 응답에 없다");
-        assertNull(jdbc.queryForObject("SELECT place_nm FROM t_recruit WHERE recruit_id = ?::integer",
+        assertTrue(!cleared.contains("placeName"), "해제 후에는 장소명이 응답에 없다");
+        assertNull(jdbc.queryForObject("SELECT place_name FROM recruit WHERE recruit_id = ?::integer",
                 String.class, rid));
-        assertNull(jdbc.queryForObject("SELECT lat::text FROM t_recruit WHERE recruit_id = ?::integer",
+        assertNull(jdbc.queryForObject("SELECT lat::text FROM recruit WHERE recruit_id = ?::integer",
                 String.class, rid));
     }
 
@@ -65,11 +65,11 @@ class RecruitPlaceTest extends IntegrationTest {
     void copy_carries_place_to_next_round() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"장소복제취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"장소복제취미\",\"summary\":\"s\"}", admin).body(), "$.data");
 
         String rid = JsonPath.read(post("/api/adm/recruit/insertRecruit.do",
                 "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"정기 모임\",\"meetDt\":\""
-                        + LocalDate.now().plusDays(3) + "\",\"placeNm\":\"강남역 11번 출구\","
+                        + LocalDate.now().plusDays(3) + "\",\"placeName\":\"강남역 11번 출구\","
                         + "\"addr\":\"서울 강남구 강남대로 396\",\"lat\":\"" + LAT + "\",\"lng\":\"" + LNG + "\"}",
                 admin).body(), "$.data");
 
@@ -78,7 +78,7 @@ class RecruitPlaceTest extends IntegrationTest {
                 "{\"rowId\":\"" + rid + "\",\"meetDt\":\"" + LocalDate.now().plusDays(10) + "\"}",
                 admin).body(), "$.data");
         String next = post("/api/adm/recruit/selectRecruitView.do", "{\"rowId\":\"" + nextId + "\"}", null).body();
-        assertEquals("강남역 11번 출구", JsonPath.read(next, "$.data.placeNm"));
+        assertEquals("강남역 11번 출구", JsonPath.read(next, "$.data.placeName"));
         assertEquals(Double.parseDouble(LAT), Double.parseDouble(JsonPath.read(next, "$.data.lat")), 0.0000001);
     }
 
@@ -86,7 +86,7 @@ class RecruitPlaceTest extends IntegrationTest {
     void bad_coordinates_are_rejected_with_400() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"좌표검증취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"좌표검증취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String base = "{\"hobbyId\":\"" + hobbyId + "\",\"title\":\"좌표검증\",";
 
         // 숫자가 아닌 좌표 — 매퍼의 ::numeric 캐스트가 500으로 터지지 않아야 한다

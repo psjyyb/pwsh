@@ -50,10 +50,10 @@ export function loadKakaoMap(): Promise<void> {
 }
 
 /** 카카오맵 웹으로 열기(길찾기) — SDK·키 없이 동작하는 외부 링크. */
-export function kakaoMapLink(placeNm?: string, lat?: string, lng?: string, addr?: string): string {
+export function kakaoMapLink(placeName?: string, lat?: string, lng?: string, addr?: string): string {
   if (lat && lng) {
     // 좌표가 있으면 그 지점을 정확히 띄운다. 장소명은 라벨로만 쓰인다.
-    return `https://map.kakao.com/link/map/${encodeURIComponent(placeNm || '모임 장소')},${lat},${lng}`
+    return `https://map.kakao.com/link/map/${encodeURIComponent(placeName || '모임 장소')},${lat},${lng}`
   }
-  return `https://map.kakao.com/?q=${encodeURIComponent(addr || placeNm || '')}`
+  return `https://map.kakao.com/?q=${encodeURIComponent(addr || placeName || '')}`
 }

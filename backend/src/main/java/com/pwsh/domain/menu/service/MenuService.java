@@ -35,11 +35,11 @@ public class MenuService {
 
     /** 사이드바 트리 — 로그인 사용자 권한으로 필터('admin'은 전체, 미로그인은 GUEST 그룹). */
     public List<MenuVO> selectMenuTree(MenuVO vo) {
-        String userId = SecurityUtil.getCurrentUserId();
-        // SecurityUtil은 미로그인 시 'system'을 반환 → 이 경우 userId=null로 넘겨 매퍼가 GUEST 그룹 권한으로 필터.
-        boolean anonymous = userId == null || "system".equals(userId);
-        vo.setUserId(anonymous ? null : userId);
-        vo.setSuperYn("admin".equals(userId) ? "Y" : "N");
+        String memberId = SecurityUtil.getCurrentMemberId();
+        // SecurityUtil은 미로그인 시 'system'을 반환 → 이 경우 memberId=null로 넘겨 매퍼가 GUEST 그룹 권한으로 필터.
+        boolean anonymous = memberId == null || "system".equals(memberId);
+        vo.setMemberId(anonymous ? null : memberId);
+        vo.setSuperYn("admin".equals(memberId) ? "Y" : "N");
         return commonDAO.selectList("menuDAO.selectMenuTree", vo);
     }
 

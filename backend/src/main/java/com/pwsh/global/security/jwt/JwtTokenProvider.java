@@ -31,27 +31,27 @@ public class JwtTokenProvider {
         this.refreshTokenValidityMs = refreshTokenValidityMs;
     }
 
-    /** Access Token 생성 (subject=userId, claim memCd=회원유형, typ=access, ver=토큰버전) */
-    public String createAccessToken(String userId, String memCd, String tokenVer) {
-        return build(userId, memCd, "access", tokenVer, accessTokenValidityMs);
+    /** Access Token 생성 (subject=memberId, claim typeCd=회원유형, typ=access, ver=토큰버전) */
+    public String createAccessToken(String memberId, String typeCd, String tokenVer) {
+        return build(memberId, typeCd, "access", tokenVer, accessTokenValidityMs);
     }
 
-    /** Refresh Token 생성 (subject=userId, typ=refresh, ver=토큰버전) */
-    public String createRefreshToken(String userId, String tokenVer) {
-        return build(userId, null, "refresh", tokenVer, refreshTokenValidityMs);
+    /** Refresh Token 생성 (subject=memberId, typ=refresh, ver=토큰버전) */
+    public String createRefreshToken(String memberId, String tokenVer) {
+        return build(memberId, null, "refresh", tokenVer, refreshTokenValidityMs);
     }
 
-    private String build(String subject, String memCd, String typ, String tokenVer, long validityMs) {
+    private String build(String subject, String typeCd, String typ, String tokenVer, long validityMs) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + validityMs);
         var builder = Jwts.builder()
                 .subject(subject)
                 .claim("typ", typ) // access/refresh 구분 — refresh를 access로 오용 방지
-                .claim("ver", tokenVer) // 토큰 버전 — t_user.token_ver와 대조(단일세션·로그아웃 무효화)
+                .claim("ver", tokenVer) // 토큰 버전 — member.token_ver와 대조(단일세션·로그아웃 무효화)
                 .issuedAt(now)
                 .expiration(expiry);
-        if (memCd != null) {
-            builder.claim("memCd", memCd);
+        if (typeCd != null) {
+            builder.claim("typeCd", typeCd);
         }
         return builder.signWith(key).compact();
     }
@@ -66,14 +66,14 @@ public class JwtTokenProvider {
         return parse(token).get("ver", String.class);
     }
 
-    /** 토큰에서 userId(subject) 추출 */
-    public String getUserId(String token) {
+    /** 토큰에서 memberId(subject) 추출 */
+    public String getMemberId(String token) {
         return parse(token).getSubject();
     }
 
-    /** 토큰에서 memCd 클레임 추출 */
-    public String getMemCd(String token) {
-        return parse(token).get("memCd", String.class);
+    /** 토큰에서 typeCd 클레임 추출 */
+    public String getTypeCd(String token) {
+        return parse(token).get("typeCd", String.class);
     }
 
     /** 유효성 검증 (서명·만료) */

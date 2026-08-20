@@ -12,8 +12,8 @@ import { hobbyApi } from '../../adm/hobby/hobby.api'
 import { recruitApi, applyApi } from './recruit.api'
 import RecruitChatPanel from './RecruitChatPanel'
 import type { Recruit, RecruitApply } from './recruit.api'
-import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
-import UserAvatar from '../../common/gen/components/UserAvatar'
+import { hasViewedRecently, markViewed } from '../../common/util/postView'
+import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import ReportAction from '../../common/gen/components/ReportAction'
 import PlaceMap from '../../common/gen/components/PlaceMap'
 import PlacePicker from '../../common/gen/components/PlacePicker'
@@ -72,10 +72,10 @@ export default function RecruitPage() {
   const admin = isAdmin()
   const catName = (id?: string) => categories.find((c) => c.hobbyId === id)?.name
 
-  // 취미 카테고리 = t_hobby 카탈로그
+  // 취미 카테고리 = hobby 카탈로그
   useEffect(() => {
     hobbyApi.listAll()
-      .then((list) => setCategories(list.map((h) => ({ hobbyId: h.rowId!, name: h.hobbyNm ?? '' }))))
+      .then((list) => setCategories(list.map((h) => ({ hobbyId: h.rowId!, name: h.hobbyName ?? '' }))))
       .catch(() => {})
   }, [])
 
@@ -145,7 +145,7 @@ export default function RecruitPage() {
         hobbyId: r.hobbyId, title: r.title, capacity: r.capacity ? Number(r.capacity) : undefined,
         areaCd: r.areaCd, region: r.region, meetDt: r.meetDt, content: r.content,
         // 장소는 4개 컬럼을 한 덩어리로 다룬다(좌표만 남거나 이름만 남는 상태를 만들지 않는다)
-        place: r.placeNm ? { placeNm: r.placeNm, addr: r.addr, lat: r.lat, lng: r.lng } : undefined,
+        place: r.placeName ? { placeName: r.placeName, addr: r.addr, lat: r.lat, lng: r.lng } : undefined,
       })
     } else {
       setEditKey(null)
@@ -161,7 +161,7 @@ export default function RecruitPage() {
       capacity: v.capacity != null ? String(v.capacity) : '',
       areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt ?? '', content: v.content ?? '',
       // 장소를 지우면 빈 문자열로 보내 서버가 NULL로 되돌린다
-      placeNm: v.place?.placeNm ?? '', addr: v.place?.addr ?? '',
+      placeName: v.place?.placeName ?? '', addr: v.place?.addr ?? '',
       lat: v.place?.lat ?? '', lng: v.place?.lng ?? '',
     }
     try {
@@ -208,8 +208,8 @@ export default function RecruitPage() {
       date: recruit.meetDt,
       // 캘린더 앱이 길찾기에 쓰는 값이라 정확한 주소가 있으면 그걸 우선한다
       location: recruit.addr
-        ? [recruit.placeNm, recruit.addr].filter(Boolean).join(' ')
-        : [recruit.areaNm, recruit.region].filter(Boolean).join(' '),
+        ? [recruit.placeName, recruit.addr].filter(Boolean).join(' ')
+        : [recruit.areaName, recruit.region].filter(Boolean).join(' '),
       description: recruit.content ?? '',
       url: `${window.location.origin}/gen/recruit/${recruit.rowId}`,
     }], `${safeFileName(recruit.title ?? 'meeting')}.ics`)
@@ -236,8 +236,8 @@ export default function RecruitPage() {
       title: recruit.title,
       capacity: recruit.capacity ? Number(recruit.capacity) : undefined,
       areaCd: recruit.areaCd, region: recruit.region, meetDt: undefined,
-      place: recruit.placeNm
-        ? { placeNm: recruit.placeNm, addr: recruit.addr, lat: recruit.lat, lng: recruit.lng }
+      place: recruit.placeName
+        ? { placeName: recruit.placeName, addr: recruit.addr, lat: recruit.lat, lng: recruit.lng }
         : undefined,
     })
     setCopyOpen(true)
@@ -251,7 +251,7 @@ export default function RecruitPage() {
       const newId = await recruitApi.copy(recruit.rowId!, {
         title: v.title, capacity: v.capacity != null ? String(v.capacity) : '',
         areaCd: v.areaCd ?? '', region: v.region ?? '', meetDt: v.meetDt,
-        placeNm: v.place?.placeNm ?? '', addr: v.place?.addr ?? '',
+        placeName: v.place?.placeName ?? '', addr: v.place?.addr ?? '',
         lat: v.place?.lat ?? '', lng: v.place?.lng ?? '',
       })
       setCopyOpen(false)
@@ -310,10 +310,10 @@ export default function RecruitPage() {
     }
   }
 
-  const decideApply = async (rowId: string, applyStatus: string) => {
+  const decideApply = async (rowId: string, applyCd: string) => {
     try {
-      await applyApi.changeStatus(rowId, applyStatus)
-      message.success(applyStatus === 'APPLY02' ? '수락했습니다.' : '거절했습니다.')
+      await applyApi.changeStatus(rowId, applyCd)
+      message.success(applyCd === 'APPLY02' ? '수락했습니다.' : '거절했습니다.')
       if (recruit) setApplies(await applyApi.listByRecruit(recruit.rowId!))
     } catch (e) {
       message.error(e instanceof Error ? e.message : '처리 실패')
@@ -323,17 +323,17 @@ export default function RecruitPage() {
   // ===== 목록 =====
   if (mode === 'list') {
     const columns: TableColumnsType<Recruit> = [
-      { title: '취미', width: 110, render: (_, r) => r.hobbyNm ?? catName(r.hobbyId) ?? '-' },
+      { title: '취미', width: 110, render: (_, r) => r.hobbyName ?? catName(r.hobbyId) ?? '-' },
       { title: '모임명', render: (_, r) => r.title },
       // 지도로 고른 장소가 있으면 그게 가장 구체적인 정보다
-      { title: '지역', width: 160, render: (_, r) => r.placeNm || [r.areaNm, r.region].filter(Boolean).join(' ') || '-' },
+      { title: '지역', width: 160, render: (_, r) => r.placeName || [r.areaName, r.region].filter(Boolean).join(' ') || '-' },
       { title: '일정', dataIndex: 'meetDt', width: 120, render: (v) => v || '-' },
       {
         title: '인원', width: 90, align: 'center',
         render: (_, r) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`,
       },
-      { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusNm) },
-      { title: '주최자', width: 150, render: (_, r) => <UserAvatar fileId={r.regProfileFileId} name={r.regNm || '-'} handle={r.regHandle} size={24} /> },
+      { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusCd, r.statusName) },
+      { title: '주최자', width: 150, render: (_, r) => <MemberAvatar fileId={r.regProfileFileId} name={r.regName || '-'} handle={r.regHandle} size={24} /> },
     ]
     return (
       <Card
@@ -370,15 +370,15 @@ export default function RecruitPage() {
                 <Card key={r.rowId} size="small" hoverable onClick={() => openView(r.rowId!)} styles={{ body: { padding: 12 } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                     <span style={{ fontWeight: 600 }}>{r.title}</span>
-                    {statusTag(r.statusCd, r.statusNm)}
+                    {statusTag(r.statusCd, r.statusName)}
                   </div>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <span>{r.hobbyNm ?? catName(r.hobbyId) ?? '-'}</span>
-                    <span>{r.placeNm || [r.areaNm, r.region].filter(Boolean).join(' ') || '-'}</span>
+                    <span>{r.hobbyName ?? catName(r.hobbyId) ?? '-'}</span>
+                    <span>{r.placeName || [r.areaName, r.region].filter(Boolean).join(' ') || '-'}</span>
                     <span>{r.meetDt || '-'}</span>
                     <span>인원 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
                   </div>
-                  <div style={{ marginTop: 6 }}><UserAvatar fileId={r.regProfileFileId} name={r.regNm || '-'} handle={r.regHandle} size={20} /></div>
+                  <div style={{ marginTop: 6 }}><MemberAvatar fileId={r.regProfileFileId} name={r.regName || '-'} handle={r.regHandle} size={20} /></div>
                 </Card>
               ))}
             </Space>
@@ -415,7 +415,7 @@ export default function RecruitPage() {
     // 정원에 여유가 생겼는데 아직 마감 상태 — 주최자에게 재개를 안내(자동 재개는 하지 않는다)
     const hasRoomButClosed = !open && !capacityFull && !pastMeet && Number(recruit.capacity) > 0
     // 단체 대화 자격: 주최자 본인(mineYn) 또는 수락된 참여자. admin은 owner지만 멤버는 아니다(사적 대화).
-    const chatMember = recruit.mineYn === 'Y' || myApply?.applyStatus === 'APPLY02'
+    const chatMember = recruit.mineYn === 'Y' || myApply?.applyCd === 'APPLY02'
     return (
       <Card
         title={recruit.title}
@@ -454,9 +454,9 @@ export default function RecruitPage() {
         }
       >
         <Descriptions bordered column={2} size="small">
-          <Descriptions.Item label="취미">{recruit.hobbyNm ?? catName(recruit.hobbyId) ?? '-'}</Descriptions.Item>
-          <Descriptions.Item label="상태">{statusTag(recruit.statusCd, recruit.statusNm)}</Descriptions.Item>
-          <Descriptions.Item label="지역">{[recruit.areaNm, recruit.region].filter(Boolean).join(' ') || '-'}</Descriptions.Item>
+          <Descriptions.Item label="취미">{recruit.hobbyName ?? catName(recruit.hobbyId) ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="상태">{statusTag(recruit.statusCd, recruit.statusName)}</Descriptions.Item>
+          <Descriptions.Item label="지역">{[recruit.areaName, recruit.region].filter(Boolean).join(' ') || '-'}</Descriptions.Item>
           <Descriptions.Item label="일정">{recruit.meetDt || '-'}</Descriptions.Item>
           <Descriptions.Item label="모집 인원">{Number(recruit.capacity) > 0 ? `${recruit.capacity}명` : '제한 없음 (0명)'}</Descriptions.Item>
           <Descriptions.Item label="신청 현황">
@@ -466,12 +466,12 @@ export default function RecruitPage() {
               {waitlistOpen && <Tag color="orange">대기 접수중</Tag>}
             </Space>
           </Descriptions.Item>
-          <Descriptions.Item label="주최자"><UserAvatar fileId={recruit.regProfileFileId} name={recruit.regNm || '-'} handle={recruit.regHandle} /></Descriptions.Item>
+          <Descriptions.Item label="주최자"><MemberAvatar fileId={recruit.regProfileFileId} name={recruit.regName || '-'} handle={recruit.regHandle} /></Descriptions.Item>
           <Descriptions.Item label="등록일">{recruit.regDt}</Descriptions.Item>
           {/* 만날 장소 — 좌표가 있으면 마커 지도까지. 장소 미정 모집은 이 칸을 아예 그리지 않는다 */}
-          {(recruit.placeNm || recruit.addr) && (
+          {(recruit.placeName || recruit.addr) && (
             <Descriptions.Item label="만날 장소" span={2}>
-              <PlaceMap placeNm={recruit.placeNm} addr={recruit.addr} lat={recruit.lat} lng={recruit.lng} />
+              <PlaceMap placeName={recruit.placeName} addr={recruit.addr} lat={recruit.lat} lng={recruit.lng} />
             </Descriptions.Item>
           )}
         </Descriptions>
@@ -488,14 +488,14 @@ export default function RecruitPage() {
               <span style={{ color: '#888' }}>로그인 후 참여 신청할 수 있습니다.</span>
             ) : myApply ? (
               <Space wrap>
-                <span>내 신청 상태: {applyTag(myApply.applyStatus, myApply.applyStatusNm)}</span>
-                {myApply.applyStatus === 'APPLY01' && myApply.waitNo && capacityFull && (
+                <span>내 신청 상태: {applyTag(myApply.applyCd, myApply.applyName)}</span>
+                {myApply.applyCd === 'APPLY01' && myApply.waitNo && capacityFull && (
                   <Tag color="orange">대기 {myApply.waitNo}번</Tag>
                 )}
-                {myApply.applyStatus === 'APPLY03' && open && (
+                {myApply.applyCd === 'APPLY03' && open && (
                   <Button size="small" type="primary" onClick={reApply}>다시 신청</Button>
                 )}
-                {myApply.applyStatus !== 'APPLY02' && (
+                {myApply.applyCd !== 'APPLY02' && (
                   <Popconfirm title="신청을 취소하시겠습니까?" onConfirm={cancelApply} okText="취소" cancelText="닫기">
                     <Button size="small">신청 취소</Button>
                   </Popconfirm>
@@ -542,13 +542,13 @@ export default function RecruitPage() {
               dataSource={applies}
               locale={{ emptyText: '신청자가 없습니다.' }}
               columns={[
-                { title: '닉네임', render: (_, a) => <UserAvatar name={a.nickname || '-'} handle={a.userHandle} size={22} /> },
+                { title: '닉네임', render: (_, a) => <MemberAvatar name={a.nickname || '-'} handle={a.memberHandle} size={22} /> },
                 {
                   title: '상태', width: 110,
                   render: (_, a) => (
                     <Space size={4} wrap>
-                      {applyTag(a.applyStatus, a.applyStatusNm)}
-                      {a.applyStatus === 'APPLY01' && a.waitNo && capacityFull && (
+                      {applyTag(a.applyCd, a.applyName)}
+                      {a.applyCd === 'APPLY01' && a.waitNo && capacityFull && (
                         <Tag color="orange">대기 {a.waitNo}</Tag>
                       )}
                     </Space>
@@ -560,7 +560,7 @@ export default function RecruitPage() {
                   // 참석 기록: 모임이 끝난 뒤(마감·일정 경과) 수락된 참여자에게만. 서버도 동일 조건을 강제한다.
                   title: '참석', width: 190,
                   render: (_, a) => {
-                    if (a.applyStatus !== 'APPLY02') return <span style={{ color: '#ccc' }}>-</span>
+                    if (a.applyCd !== 'APPLY02') return <span style={{ color: '#ccc' }}>-</span>
                     if (!finished) return <span style={{ fontSize: 12, color: '#bbb' }}>모임 후 기록</span>
                     return (
                       <Select
@@ -579,7 +579,7 @@ export default function RecruitPage() {
                 {
                   title: '처리', width: 140,
                   render: (_, a) =>
-                    a.applyStatus === 'APPLY01' ? (
+                    a.applyCd === 'APPLY01' ? (
                       <Space>
                         <Button size="small" type="primary" onClick={() => decideApply(a.rowId!, 'APPLY02')}>수락</Button>
                         <Button size="small" danger onClick={() => decideApply(a.rowId!, 'APPLY03')}>거절</Button>

@@ -20,7 +20,7 @@ class ReviewEligibilityTest extends IntegrationTest {
     void only_participants_of_a_finished_meetup_can_review_each_other() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"후기취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"후기취미\",\"summary\":\"s\"}", admin).body(), "$.data");
 
         assertEquals(200, signup("rvhost", "후기주최", "rvhost@test.local").statusCode());
         assertEquals(200, signup("rvjoin", "후기참여", "rvjoin@test.local").statusCode());
@@ -44,10 +44,10 @@ class ReviewEligibilityTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + rid + "\"}", wait).statusCode());
         String joinApply = jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'rvjoin'",
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = 'rvjoin'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + joinApply + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + joinApply + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
 
         // 1) 모임이 끝나기 전에는 쓸 수 없다
         assertNotEquals(200, post("/api/adm/review/insertReview.do",
@@ -96,7 +96,7 @@ class ReviewEligibilityTest extends IntegrationTest {
 
         // 남의 후기를 지울 수 없다
         String revId = jdbc.queryForObject(
-                "SELECT review_id::text FROM t_review WHERE recruit_id = ?::integer AND reg_id = 'rvjoin'",
+                "SELECT review_id::text FROM review WHERE recruit_id = ?::integer AND reg_id = 'rvjoin'",
                 String.class, rid);
         assertEquals(403, post("/api/adm/review/deleteReview.do", "{\"rowId\":\"" + revId + "\"}", out).statusCode());
         assertEquals(200, post("/api/adm/review/deleteReview.do", "{\"rowId\":\"" + revId + "\"}", join).statusCode());

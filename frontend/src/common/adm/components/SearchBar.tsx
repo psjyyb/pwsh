@@ -8,7 +8,7 @@ import CodeSelect from './CodeSelect'
  *   <SearchBar
  *     fields={[
  *       { type: 'text', name: 'filterKeyword', placeholder: '아이디/이름' },
- *       { type: 'code', name: 'memCd', pCodeId: 'MEM00', placeholder: '회원유형' },
+ *       { type: 'code', name: 'typeCd', pCodeId: 'MEM00', placeholder: '회원유형' },
  *       { type: 'select', name: 'useYn', options: [{value:'Y',label:'사용'},{value:'N',label:'미사용'}] },
  *     ]}
  *     onSearch={(values) => search(values)}

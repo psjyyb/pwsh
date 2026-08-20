@@ -6,13 +6,13 @@ import SearchBar from '../../common/adm/components/SearchBar'
 import SplitLayout from '../../common/adm/components/SplitLayout'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import PagePickerModal from '../../common/adm/components/PagePickerModal'
-import BbsinfoPickerModal from '../../common/adm/components/BbsinfoPickerModal'
+import BoardPickerModal from '../../common/adm/components/BoardPickerModal'
 import MenuGlyph, { MENU_ICON_KEYS } from '../../common/adm/components/MenuGlyph'
 import { runWithMessage } from '../../common/util/action'
 import { menuApi } from './menu.api'
 import type { Menu } from './menu.api'
 import { pageApi } from '../page/page.api'
-import { bbsinfoApi } from '../bbsinfo/bbsinfo.api'
+import { boardApi } from '../board/board.api'
 
 /** 플랫 메뉴 → p_menu_id 기준 계층 트리(최상위=-1) */
 function buildTree(list: Menu[]): Menu[] {
@@ -34,7 +34,7 @@ function filterTree(nodes: Menu[], kw: string): Menu[] {
   const res: Menu[] = []
   for (const n of nodes) {
     const kids = n.children ? filterTree(n.children, kw) : []
-    if ((n.menuNm ?? '').includes(kw) || kids.length) res.push(kids.length ? { ...n, children: kids } : { ...n, children: undefined })
+    if ((n.menuName ?? '').includes(kw) || kids.length) res.push(kids.length ? { ...n, children: kids } : { ...n, children: undefined })
   }
   return res
 }
@@ -77,9 +77,9 @@ export default function MenuListPage() {
 
   const { form, mode, selectedKey, openNew, openRow, save, remove, reset } = useSplitForm<Menu>(menuApi, reload)
   const isEdit = mode === 'edit'
-  const connTy = Form.useWatch('connTy', form)
+  const connCd = Form.useWatch('connCd', form)
   const [pagePickerOpen, setPagePickerOpen] = useState(false)
-  const [bbsPickerOpen, setBbsPickerOpen] = useState(false)
+  const [postPickerOpen, setPostPickerOpen] = useState(false)
   const [connTitle, setConnTitle] = useState('') // 연결 대상(페이지/게시판) 표시용 이름
 
   const move = (row: Menu, dir: 'UP' | 'DOWN') =>
@@ -103,20 +103,20 @@ export default function MenuListPage() {
   /** 행 선택(수정) — 연결유형이 페이지/게시판이면 연결 대상 이름도 로드 */
   const openRowMenu = async (rowId: string) => {
     await openRow(rowId)
-    const cty = form.getFieldValue('connTy')
+    const cty = form.getFieldValue('connCd')
     const cid = form.getFieldValue('connId')
     setConnTitle('')
     if (!cid) return
     try {
       if (cty === 'MENU03') setConnTitle((await pageApi.view(String(cid))).title ?? '')
-      else if (cty === 'MENU02') setConnTitle((await bbsinfoApi.view(String(cid))).bbsinfoNm ?? '')
+      else if (cty === 'MENU02') setConnTitle((await boardApi.view(String(cid))).boardName ?? '')
     } catch {
       setConnTitle('')
     }
   }
 
   const columns: TableColumnsType<Menu> = [
-    { title: '메뉴명', dataIndex: 'menuNm' },
+    { title: '메뉴명', dataIndex: 'menuName' },
     { title: '메뉴ID', dataIndex: 'rowId', width: 80 },
     {
       title: '순서',
@@ -177,36 +177,36 @@ export default function MenuListPage() {
       {mode === 'none' ? (
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
-        <Form form={form} layout="vertical" initialValues={{ area, pMenuId: '0', connTy: 'MENU04', targetYn: 'N' }}>
+        <Form form={form} layout="vertical" initialValues={{ area, pMenuId: '0', connCd: 'MENU04', targetYn: 'N' }}>
           <Form.Item name="area" label="영역(현재 탭 기준)">
             <Select disabled options={[{ value: 'ADM', label: '관리자' }, { value: 'GEN', label: '사용자' }]} />
           </Form.Item>
-          <Form.Item name="menuNm" label="메뉴명" rules={[{ required: true, message: '메뉴명을 입력하세요.' }]}>
+          <Form.Item name="menuName" label="메뉴명" rules={[{ required: true, message: '메뉴명을 입력하세요.' }]}>
             <Input />
           </Form.Item>
           <Form.Item name="pMenuId" label="상위 메뉴 ID (수정 불가 — 배치는 하위메뉴추가/신규로)" rules={[{ required: true, message: '상위 메뉴 ID(최상위 0)' }]}>
             <Input disabled={isEdit} />
           </Form.Item>
-          <Form.Item name="connTy" label="연결유형" rules={[{ required: true, message: '연결유형을 선택하세요.' }]}>
+          <Form.Item name="connCd" label="연결유형" rules={[{ required: true, message: '연결유형을 선택하세요.' }]}>
             <CodeSelect pCodeId="MENU00" placeholder="연결유형 선택" />
           </Form.Item>
-          {connTy === 'MENU01' && (
+          {connCd === 'MENU01' && (
             <Form.Item name="linkUrl" label="URL/라우트" rules={[{ required: true, message: '예: /adm/code' }]}>
               <Input placeholder="/adm/code" />
             </Form.Item>
           )}
-          {connTy === 'MENU02' && (
+          {connCd === 'MENU02' && (
             <Form.Item label="연결 게시판" required>
               <Space>
                 <Form.Item name="connId" noStyle rules={[{ required: true, message: '게시판을 선택하세요.' }]}>
                   <Input readOnly placeholder="게시판 선택 →" style={{ width: 130 }} />
                 </Form.Item>
                 {connTitle && <span style={{ color: '#555' }}>{connTitle}</span>}
-                <Button onClick={() => setBbsPickerOpen(true)}>게시판 선택</Button>
+                <Button onClick={() => setPostPickerOpen(true)}>게시판 선택</Button>
               </Space>
             </Form.Item>
           )}
-          {connTy === 'MENU03' && (
+          {connCd === 'MENU03' && (
             <Form.Item label="연결 페이지" required>
               <Space>
                 <Form.Item name="connId" noStyle rules={[{ required: true, message: '페이지를 선택하세요.' }]}>
@@ -238,7 +238,7 @@ export default function MenuListPage() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="menuDesc" label="설명">
+          <Form.Item name="description" label="설명">
             <Input />
           </Form.Item>
           <Form.Item name="targetYn" label="새창 여부(Y/N)">
@@ -260,12 +260,12 @@ export default function MenuListPage() {
           setConnTitle(p.title ?? '')
         }}
       />
-      <BbsinfoPickerModal
-        open={bbsPickerOpen}
-        onClose={() => setBbsPickerOpen(false)}
+      <BoardPickerModal
+        open={postPickerOpen}
+        onClose={() => setPostPickerOpen(false)}
         onSelect={(b) => {
           form.setFieldsValue({ connId: b.rowId })
-          setConnTitle(b.bbsinfoNm ?? '')
+          setConnTitle(b.boardName ?? '')
         }}
       />
     </Card>

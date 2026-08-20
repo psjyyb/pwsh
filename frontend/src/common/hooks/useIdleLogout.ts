@@ -8,7 +8,7 @@ import { logout as authLogout } from '../../api/auth'
  * - 로그아웃 warnMinutes분 전 경고 모달 + 남은 초 카운트다운.
  * - 경고 전 활동 시 마감시각(deadline) 리셋. 경고가 뜬 뒤에는 passive 활동으로 리셋하지 않고
  *   [계속 이용](extend) 또는 카운트다운 종료 시 로그아웃.
- * - minutes<=0 이면 비활성. 값은 t_config.session_expire_cnt에서 공급.
+ * - minutes<=0 이면 비활성. 값은 config.session_expire_mins에서 공급.
  *
  * 단일 interval + deadline(절대 시각) 방식 — 다중 타이머 고아 문제 없이 견고.
  * 반환: { warningOpen, remainingSec, extend(연장), logoutNow(즉시 로그아웃) }

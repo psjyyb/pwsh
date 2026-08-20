@@ -8,6 +8,6 @@ export interface LikeResult {
 
 export const likeApi = {
   /** 게시글/댓글 좋아요 토글 */
-  toggle: (targetType: 'BBS' | 'COMMENT', targetId: string) =>
+  toggle: (targetType: 'POST' | 'COMMENT', targetId: string) =>
     apiPost<LikeResult>('/adm/like/toggleLike.do', { targetType, targetId }),
 }

@@ -24,8 +24,8 @@ public class FollowService {
     /** 팔로우 토글(대상은 handle) → 결과 상태(followedYn). */
     @Transactional
     public FollowVO toggle(String followeeHandle) {
-        String me = currentUserId();
-        String followeeId = handleResolver.toUserId(followeeHandle); // 공개 식별자 → 내부 ID(미존재 시 404)
+        String me = currentMemberId();
+        String followeeId = handleResolver.toMemberId(followeeHandle); // 공개 식별자 → 내부 ID(미존재 시 404)
         if (me.equals(followeeId)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "자기 자신은 팔로우할 수 없습니다.");
         }
@@ -47,28 +47,28 @@ public class FollowService {
     /** 내가 팔로우한 회원 목록. */
     public List<FollowVO> selectFollowingList() {
         FollowVO vo = new FollowVO();
-        vo.setUserId(currentUserId());
+        vo.setMemberId(currentMemberId());
         return commonDAO.selectList("followDAO.selectFollowingList", vo);
     }
 
     /** 나를 팔로우한 회원 목록. */
     public List<FollowVO> selectFollowerList() {
         FollowVO vo = new FollowVO();
-        vo.setUserId(currentUserId());
+        vo.setMemberId(currentMemberId());
         return commonDAO.selectList("followDAO.selectFollowerList", vo);
     }
 
     /** 내가 특정 회원(handle)을 팔로우했는지 — 프로필 버튼 상태. */
     public boolean isFollowing(String followeeHandle) {
         Integer cnt = commonDAO.selectOne("followDAO.selectActiveCnt",
-                key(currentUserId(), handleResolver.toUserId(followeeHandle)));
+                key(currentMemberId(), handleResolver.toMemberId(followeeHandle)));
         return cnt != null && cnt > 0;
     }
 
     /** 특정 회원(handle)의 팔로워/팔로잉 수 — 공개 프로필에 표시(비로그인도 조회 가능). */
     public FollowVO selectCounts(String followeeHandle) {
         FollowVO key = new FollowVO();
-        key.setFolloweeId(handleResolver.toUserId(followeeHandle));
+        key.setFolloweeId(handleResolver.toMemberId(followeeHandle));
         return commonDAO.selectOne("followDAO.selectCounts", key);
     }
 
@@ -76,22 +76,22 @@ public class FollowService {
      * 나를 팔로우한 회원 ID 목록 — 새 모집 알림 대상(RecruitService에서 호출).
      * 예외 없이 목록만 돌려준다(호출부가 차단 여부·중복을 걸러 쓴다).
      */
-    public List<String> selectFollowerIds(String userId) {
-        if (userId == null || userId.isBlank()) {
+    public List<String> selectFollowerIds(String memberId) {
+        if (memberId == null || memberId.isBlank()) {
             return List.of();
         }
-        return commonDAO.selectList("followDAO.selectFollowerIds", Map.of("userId", userId));
+        return commonDAO.selectList("followDAO.selectFollowerIds", Map.of("memberId", memberId));
     }
 
-    private FollowVO key(String userId, String followeeId) {
+    private FollowVO key(String memberId, String followeeId) {
         FollowVO v = new FollowVO();
-        v.setUserId(userId);
+        v.setMemberId(memberId);
         v.setFolloweeId(followeeId);
         return v;
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }

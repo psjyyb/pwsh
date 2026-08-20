@@ -24,13 +24,13 @@ class AdminReadPathsTest extends IntegrationTest {
     void adminReadPaths() throws Exception {
         assertOk("/api/adm/code/selectCodeList.do");
         assertOk("/api/adm/menu/selectMenuList.do");
-        assertOk("/api/adm/user/selectUserList.do");
+        assertOk("/api/adm/member/selectMemberList.do");
         assertOk("/api/adm/popup/selectPopupList.do");
         assertOk("/api/adm/policy/selectPolicyList.do");
         assertOk("/api/adm/page/selectPageList.do");
         assertOk("/api/adm/config/selectConfigView.do");
-        assertOk("/api/adm/authgrp/selectAuthgrpList.do");
-        assertOk("/api/adm/bbsinfo/selectBbsinfoList.do");
+        assertOk("/api/adm/authgroup/selectAuthGroupList.do");
+        assertOk("/api/adm/board/selectBoardList.do");
         assertOk("/api/adm/eventlog/selectEventlogList.do");
     }
 

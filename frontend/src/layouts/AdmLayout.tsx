@@ -17,16 +17,16 @@ import defaultLogo from '../assets/logo.svg'
 type MenuItem = Required<MenuProps>['items'][number]
 
 /**
- * ADM 메뉴 목적지 경로. 게시판(MENU02)→/adm/bbs/{connId}(게시글 관리화면), URL(MENU01)→link_url.
- * GenLayout과 동일하게 conn_ty로 목적지를 만든다(게시판은 피커로 연결, URL 수기입력 불필요).
+ * ADM 메뉴 목적지 경로. 게시판(MENU02)→/adm/post/{connId}(게시글 관리화면), URL(MENU01)→link_url.
+ * GenLayout과 동일하게 conn_cd로 목적지를 만든다(게시판은 피커로 연결, URL 수기입력 불필요).
  */
 function menuDest(m: MenuVO): string | null {
-  if (m.connTy === 'MENU02') return m.connId ? `/adm/bbs/${m.connId}` : null
-  if (m.connTy === 'MENU01') return m.linkUrl || null
+  if (m.connCd === 'MENU02') return m.connId ? `/adm/post/${m.connId}` : null
+  if (m.connCd === 'MENU01') return m.linkUrl || null
   return null // MENU03(페이지)·MENU04(그룹) 등은 ADM에서 직접 경로 없음
 }
 
-/** 플랫 메뉴 목록(t_menu)을 AntD 계층 메뉴로 변환. 자식 있으면 SubMenu, 아니면 링크(key=목적지 경로).
+/** 플랫 메뉴 목록(menu)을 AntD 계층 메뉴로 변환. 자식 있으면 SubMenu, 아니면 링크(key=목적지 경로).
  *  아이콘: 메뉴에 icon 지정 시 그 아이콘, 미지정이면 최상위만 기본(grid) 표시. 글자와 간격(6px) 확보. */
 function buildItems(list: MenuVO[]): MenuItem[] {
   const byParent = new Map<string, MenuVO[]>()
@@ -45,15 +45,15 @@ function buildItems(list: MenuVO[]): MenuItem[] {
         ) : undefined
       const children = byParent.get(m.rowId!)
       if (children && children.length) {
-        return { key: `g${m.rowId}`, label: m.menuNm, icon, children: build(m.rowId!, depth + 1) }
+        return { key: `g${m.rowId}`, label: m.menuName, icon, children: build(m.rowId!, depth + 1) }
       }
-      return { key: menuDest(m) || `m${m.rowId}`, label: m.menuNm, icon }
+      return { key: menuDest(m) || `m${m.rowId}`, label: m.menuName, icon }
     })
   return build('0', 0)
 }
 
 /**
- * 관리자 공통 레이아웃 — 좌측 동적 메뉴(t_menu) + 상단 탭.
+ * 관리자 공통 레이아웃 — 좌측 동적 메뉴(menu) + 상단 탭.
  * 메뉴 클릭 시 탭으로 열리고, 탭 전환 시 화면 상태 유지(AntD Tabs keep-alive).
  */
 export default function AdmLayout() {
@@ -64,7 +64,7 @@ export default function AdmLayout() {
   const isMobile = !screens.lg // lg 미만이면 사이드바 대신 서랍
 
   const [items, setItems] = useState<MenuItem[]>([])
-  const [menuNames, setMenuNames] = useState<Record<string, string>>({}) // link_url → menu_nm (탭 제목 단일 소스)
+  const [menuNames, setMenuNames] = useState<Record<string, string>>({}) // link_url → menu_name (탭 제목 단일 소스)
   const [openKeys, setOpenKeys] = useState<string[]>([])
   const [openPaths, setOpenPaths] = useState<string[]>([DEFAULT_PATH])
   const [pwModalOpen, setPwModalOpen] = useState(false)
@@ -74,7 +74,7 @@ export default function AdmLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
 
-  // 유휴 자동 로그아웃(t_config.session_expire_cnt 분, 미설정 시 30분) + 1분 전 경고
+  // 유휴 자동 로그아웃(config.session_expire_mins 분, 미설정 시 30분) + 1분 전 경고
   const { warningOpen, remainingSec, extend, logoutNow } = useIdleLogout(idleMinutes)
 
   // 좌측 메뉴 트리 로드 + 유휴시간 로드
@@ -83,10 +83,10 @@ export default function AdmLayout() {
       .tree('ADM')
       .then((list) => {
         setItems(buildItems(list))
-        // 탭 제목용 목적지경로→menu_nm 매핑 (메뉴명 수정/추가가 탭에 자동 반영)
+        // 탭 제목용 목적지경로→menu_name 매핑 (메뉴명 수정/추가가 탭에 자동 반영)
         setMenuNames(
           Object.fromEntries(
-            list.map((m) => [menuDest(m), m.menuNm] as const).filter((e): e is [string, string] => !!e[0]),
+            list.map((m) => [menuDest(m), m.menuName] as const).filter((e): e is [string, string] => !!e[0]),
           ),
         )
       })
@@ -96,7 +96,7 @@ export default function AdmLayout() {
     configApi
       .view()
       .then((c) => {
-        setIdleMinutes(Number(c.sessionExpireCnt) || 30)
+        setIdleMinutes(Number(c.sessionExpireMins) || 30)
         if (c.title) setSiteTitle(c.title)
         setLogoFileId(c.logoFileId ?? undefined)
       })
@@ -146,7 +146,9 @@ export default function AdmLayout() {
     const Screen = resolveScreen(p) // link_url → 컴포넌트(파일 규칙 자동 매핑)
     return {
       key: p,
-      label: menuNames[p] ?? p, // 탭 제목은 t_menu(menu_nm) 기준
+      // 탭 제목은 menu(menu_name) 기준. 메뉴 없는 경로(게시판 설정→글 관리로 직접 진입하는
+      // 취미 게시판 등)는 경로가 그대로 노출되지 않도록 화면명으로 대체한다.
+      label: menuNames[p] ?? (p.startsWith('/adm/post/') ? '게시글 관리' : p),
       closable: p !== DEFAULT_PATH, // 대시보드는 닫기 불가
       children: Screen ? <Screen /> : null,
     }

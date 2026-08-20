@@ -23,19 +23,19 @@ class SingleSessionTest extends IntegrationTest {
 
     @Test
     @DisplayName("관리자가 강제 로그아웃하면 대상 사용자의 토큰이 즉시 무효")
-    void adminForceLogoutRevokesUserToken() throws Exception {
-        String userToken = accessToken("user", "user1234!");
+    void adminForceLogoutRevokesMemberToken() throws Exception {
+        String memberToken = accessToken("user", "user1234!");
         String admin = accessToken("admin", "admin1234!");
-        assertThat(post("/api/adm/user/updateUserForceLogout.do", "{\"userId\":\"user\"}", admin).statusCode())
+        assertThat(post("/api/adm/member/updateMemberForceLogout.do", "{\"memberId\":\"user\"}", admin).statusCode())
                 .isEqualTo(200);
-        assertThat(post(PW_EXTEND, "{}", userToken).statusCode()).isEqualTo(401);
+        assertThat(post(PW_EXTEND, "{}", memberToken).statusCode()).isEqualTo(401);
     }
 
     @Test
     @DisplayName("비관리자는 강제 로그아웃 엔드포인트에 접근 불가(403)")
     void nonAdminCannotForceLogout() throws Exception {
-        String userToken = accessToken("user", "user1234!");
-        assertThat(post("/api/adm/user/updateUserForceLogout.do", "{\"userId\":\"admin\"}", userToken).statusCode())
+        String memberToken = accessToken("user", "user1234!");
+        assertThat(post("/api/adm/member/updateMemberForceLogout.do", "{\"memberId\":\"admin\"}", memberToken).statusCode())
                 .isEqualTo(403);
     }
 

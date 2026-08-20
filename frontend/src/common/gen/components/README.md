@@ -9,5 +9,5 @@
 
 영역 스타일 차이는 컴포넌트 복제 대신 `gen/theme.ts`(ConfigProvider 테마)로 처리한다.
 
-> 현재: `UserAvatar`(닉네임·프로필 사진 + 프로필 링크), `ReportAction`(신고 버튼).
+> 현재: `MemberAvatar`(닉네임·프로필 사진 + 프로필 링크), `ReportAction`(신고 버튼).
 > (참고: 문서 제목은 `common/hooks/useDocumentTitle` 훅이 `[페이지명 | 사이트명]`으로 자동 설정 — 사이트명은 환경설정 값.)

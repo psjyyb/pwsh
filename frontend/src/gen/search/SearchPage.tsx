@@ -65,8 +65,8 @@ export default function SearchPage() {
             <Card title={`취미 (${data!.hobbies.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.hobbies.map((h) => (
                 <div key={h.rowId} style={rowStyle} onClick={() => navigate(`/gen/hobby/${h.rowId}`)}>
-                  <span style={{ fontWeight: 600 }}>{h.hobbyNm}</span>
-                  {h.difficultyNm && <Tag color="purple" style={{ marginLeft: 8 }}>{h.difficultyNm}</Tag>}
+                  <span style={{ fontWeight: 600 }}>{h.hobbyName}</span>
+                  {h.difficultyName && <Tag color="purple" style={{ marginLeft: 8 }}>{h.difficultyName}</Tag>}
                   {h.summary && <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{h.summary}</div>}
                 </div>
               ))}
@@ -76,7 +76,7 @@ export default function SearchPage() {
             <Card title={`모집 (${data!.recruits.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.recruits.map((r) => (
                 <div key={r.rowId} style={rowStyle} onClick={() => navigate(`/gen/recruit/${r.rowId}`)}>
-                  <Tag color="cyan">{r.hobbyNm}</Tag>
+                  <Tag color="cyan">{r.hobbyName}</Tag>
                   <span style={{ fontWeight: 600 }}>{r.title}</span>
                   <span style={{ marginLeft: 8, fontSize: 12, color: '#999' }}>
                     {r.region || ''} {r.statusCd === 'RECRUIT01' ? '· 모집중' : '· 마감'}
@@ -88,10 +88,10 @@ export default function SearchPage() {
           {data!.posts.length > 0 && (
             <Card title={`게시글 (${data!.posts.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.posts.map((p) => (
-                <div key={p.rowId} style={rowStyle} onClick={() => navigate(`/gen/board/${p.bbsinfoId}?post=${p.rowId}`)}>
-                  <Tag>{p.bbsinfoNm}</Tag>
+                <div key={p.rowId} style={rowStyle} onClick={() => navigate(`/gen/board/${p.boardId}?post=${p.rowId}`)}>
+                  <Tag>{p.boardName}</Tag>
                   <span style={{ fontWeight: 600 }}>{p.title}</span>
-                  <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa' }}>{p.regNm} · {p.regDt}</span>
+                  <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa' }}>{p.regName} · {p.regDt}</span>
                   {/* 제목이 아니라 본문에서 걸린 글 — 어디서 걸렸는지 보여준다 */}
                   {p.searchSnippet && (
                     <div style={{ fontSize: 13, color: gen.inkSoft, marginTop: 4, lineHeight: 1.5 }}>

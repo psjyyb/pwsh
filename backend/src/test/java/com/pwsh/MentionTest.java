@@ -22,52 +22,52 @@ class MentionTest extends IntegrationTest {
     void comment_mention_notifies_target_without_duplicate() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"멘션취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"멘션취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String boardId = jdbc.queryForObject(
-                "SELECT bbsinfo_id::text FROM t_hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
+                "SELECT board_id::text FROM hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
 
         assertEquals(200, signup("mnwriter", "글쓴이", "mnwriter@test.local").statusCode());
         assertEquals(200, signup("mnreader", "언급대상", "mnreader@test.local").statusCode());
         String writer = accessToken("mnwriter", "Test1234!@");
         String reader = accessToken("mnreader", "Test1234!@");
 
-        String bbsId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"멘션 테스트 글\",\"context\":\"본문\"}",
+        String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"멘션 테스트 글\",\"context\":\"본문\"}",
                 writer).body(), "$.data");
 
-        int before = notiCnt("mnreader");
+        int before = notificationCnt("mnreader");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"bbsId\":\"" + bbsId + "\",\"context\":\"@언급대상 이거 같이 가실래요?\"}", reader).statusCode());
-        assertEquals(before + 0, notiCnt("mnreader"), "본인을 언급하면 알림 없음");
+                "{\"postId\":\"" + postId + "\",\"context\":\"@언급대상 이거 같이 가실래요?\"}", reader).statusCode());
+        assertEquals(before + 0, notificationCnt("mnreader"), "본인을 언급하면 알림 없음");
 
         // 글쓴이가 언급대상을 부르면 → MENTION 알림 1건
-        int r0 = notiCnt("mnreader");
+        int r0 = notificationCnt("mnreader");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"bbsId\":\"" + bbsId + "\",\"context\":\"@언급대상 님 의견 궁금해요\"}", writer).statusCode());
-        assertEquals(r0 + 1, notiCnt("mnreader"), "언급된 회원에게 알림 1건");
+                "{\"postId\":\"" + postId + "\",\"context\":\"@언급대상 님 의견 궁금해요\"}", writer).statusCode());
+        assertEquals(r0 + 1, notificationCnt("mnreader"), "언급된 회원에게 알림 1건");
         assertEquals("MENTION", lastNotiType("mnreader"));
 
         // 언급대상이 글쓴이를 언급 → 글쓴이는 '댓글 알림'과 '멘션 알림'을 중복으로 받지 않는다
-        int w0 = notiCnt("mnwriter");
+        int w0 = notificationCnt("mnwriter");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"bbsId\":\"" + bbsId + "\",\"context\":\"@글쓴이 확인 부탁드려요\"}", reader).statusCode());
-        assertEquals(w0 + 1, notiCnt("mnwriter"), "멘션+댓글이 겹쳐도 1건만");
+                "{\"postId\":\"" + postId + "\",\"context\":\"@글쓴이 확인 부탁드려요\"}", reader).statusCode());
+        assertEquals(w0 + 1, notificationCnt("mnwriter"), "멘션+댓글이 겹쳐도 1건만");
         assertEquals("MENTION", lastNotiType("mnwriter"));
 
         // 없는 닉네임은 무시(오류 없이 등록만 된다)
-        int w1 = notiCnt("mnwriter");
+        int w1 = notificationCnt("mnwriter");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"bbsId\":\"" + bbsId + "\",\"context\":\"@존재하지않는닉네임 안녕\"}", reader).statusCode());
-        assertEquals(w1 + 1, notiCnt("mnwriter"), "없는 닉네임은 무시되고 글쓴이 댓글 알림만");
+                "{\"postId\":\"" + postId + "\",\"context\":\"@존재하지않는닉네임 안녕\"}", reader).statusCode());
+        assertEquals(w1 + 1, notificationCnt("mnwriter"), "없는 닉네임은 무시되고 글쓴이 댓글 알림만");
 
-        post("/api/adm/bbs/deleteBbs.do", "{\"rowId\":\"" + bbsId + "\"}", writer);
+        post("/api/adm/post/deletePost.do", "{\"rowId\":\"" + postId + "\"}", writer);
     }
 
     @Test
     void chat_mention_only_reaches_members() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"멘션대화취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"멘션대화취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
 
         assertEquals(200, signup("mchost", "대화주최자", "mchost@test.local").statusCode());
@@ -83,31 +83,31 @@ class MentionTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + rid + "\"}", mem).statusCode());
         String applyId = jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'mcmem'",
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = 'mcmem'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", host).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyCd\":\"APPLY02\"}", host).statusCode());
 
-        int memBefore = notiCnt("mcmem");
-        int outBefore = notiCnt("mcout");
+        int memBefore = notificationCnt("mcmem");
+        int outBefore = notificationCnt("mcout");
         assertEquals(200, post("/api/adm/recruitChat/insertRecruitChat.do",
                 "{\"recruitId\":\"" + rid + "\",\"content\":\"@대화멤버 @바깥사람 토요일 괜찮으세요?\"}",
                 host).statusCode());
 
-        assertEquals(memBefore + 1, notiCnt("mcmem"), "대화 멤버는 멘션 알림을 받는다");
-        assertEquals(outBefore, notiCnt("mcout"), "멤버가 아닌 회원은 멘션해도 알림이 가지 않는다");
+        assertEquals(memBefore + 1, notificationCnt("mcmem"), "대화 멤버는 멘션 알림을 받는다");
+        assertEquals(outBefore, notificationCnt("mcout"), "멤버가 아닌 회원은 멘션해도 알림이 가지 않는다");
         assertTrue(true);
     }
 
-    private int notiCnt(String userId) {
+    private int notificationCnt(String memberId) {
         Integer n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_notification WHERE user_id = ? AND use_yn = 'Y'", Integer.class, userId);
+                "SELECT COUNT(*) FROM notification WHERE member_id = ? AND use_yn = 'Y'", Integer.class, memberId);
         return n == null ? 0 : n;
     }
 
-    private String lastNotiType(String userId) {
+    private String lastNotiType(String memberId) {
         return jdbc.queryForObject(
-                "SELECT noti_type FROM t_notification WHERE user_id = ? ORDER BY noti_id DESC LIMIT 1",
-                String.class, userId);
+                "SELECT type FROM notification WHERE member_id = ? ORDER BY notification_id DESC LIMIT 1",
+                String.class, memberId);
     }
 }

@@ -20,9 +20,9 @@ export default function LoginPage() {
     }).catch(() => {})
   }, [])
 
-  const onFinish = async (values: { userId: string; userPw: string }) => {
+  const onFinish = async (values: { memberId: string; password: string }) => {
     try {
-      const token = await login(values.userId, values.userPw)
+      const token = await login(values.memberId, values.password)
       tokenStore.set(token.accessToken, token.refreshToken)
       // 비밀번호 만료 알림용 플래그 저장(레이아웃 진입 시 1회 표시 후 소거)
       if (token.pwExpired) {
@@ -54,10 +54,10 @@ export default function LoginPage() {
         </div>
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
-          <Form.Item name="userId" label="아이디" rules={[{ required: true, message: '아이디를 입력하세요.' }]}>
+          <Form.Item name="memberId" label="아이디" rules={[{ required: true, message: '아이디를 입력하세요.' }]}>
             <Input autoFocus placeholder="아이디" />
           </Form.Item>
-          <Form.Item name="userPw" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력하세요.' }]}>
+          <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력하세요.' }]}>
             <Input.Password placeholder="비밀번호" />
           </Form.Item>
           <Button type="primary" htmlType="submit" block>

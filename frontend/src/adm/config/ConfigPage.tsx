@@ -6,7 +6,7 @@ import { fileApi } from '../../api/file'
 import { configApi } from './config.api'
 import type { Config } from './config.api'
 
-const LOGO_MAP_KEY = '1' // t_config 단일행(config_id=1)에 로고 매핑
+const LOGO_MAP_KEY = '1' // config 단일행(config_id=1)에 로고 매핑
 
 /** 환경설정 (단일 행 — 조회 후 수정) */
 export default function ConfigPage() {
@@ -53,16 +53,16 @@ export default function ConfigPage() {
         <Form.Item name="failCntLimit" label="로그인 실패 제한 횟수">
           <NumberInput />
         </Form.Item>
-        <Form.Item name="failCntDeniedTi" label="실패 시 잠금 시간(분)">
+        <Form.Item name="failLockMins" label="실패 시 잠금 시간(분)">
           <NumberInput />
         </Form.Item>
-        <Form.Item name="pwExpireCnt" label="비밀번호 만료 일수">
+        <Form.Item name="passwordExpireDays" label="비밀번호 만료 일수">
           <NumberInput />
         </Form.Item>
-        <Form.Item name="sessionExpireCnt" label="세션 만료(분)">
+        <Form.Item name="sessionExpireMins" label="세션 만료(분)">
           <NumberInput />
         </Form.Item>
-        <Form.Item name="delLogCnt" label="로그 보관 수">
+        <Form.Item name="delLogDays" label="로그 보관 수">
           <NumberInput />
         </Form.Item>
         <Button type="primary" htmlType="submit" loading={loading}>

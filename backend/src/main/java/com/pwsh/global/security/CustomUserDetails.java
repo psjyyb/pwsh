@@ -1,6 +1,6 @@
 package com.pwsh.global.security;
 
-import com.pwsh.domain.user.service.UserVO;
+import com.pwsh.domain.member.service.MemberVO;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
@@ -8,26 +8,26 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /**
- * Spring Security UserDetails 구현. UserVO를 감싼다.
- * 권한은 회원유형(mem_cd) 기반 ROLE_{memCd}. 활성화는 use_yn='Y'.
+ * Spring Security UserDetails 구현. MemberVO를 감싼다.
+ * 권한은 회원유형(type_cd) 기반 ROLE_{typeCd}. 활성화는 use_yn='Y'.
  */
 public class CustomUserDetails implements UserDetails {
 
-    private final UserVO user;
+    private final MemberVO user;
 
-    public CustomUserDetails(UserVO user) {
+    public CustomUserDetails(MemberVO user) {
         this.user = user;
     }
 
-    public String getUserId() {
-        return user.getUserId();
+    public String getMemberId() {
+        return user.getMemberId();
     }
 
-    public String getMemCd() {
-        return user.getMemCd();
+    public String getTypeCd() {
+        return user.getTypeCd();
     }
 
-    /** 현재 토큰 버전(t_user.token_ver). JWT ver 클레임과 대조. */
+    /** 현재 토큰 버전(member.token_ver). JWT ver 클레임과 대조. */
     public String getTokenVer() {
         return user.getTokenVer();
     }
@@ -44,17 +44,17 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getMemCd()));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getTypeCd()));
     }
 
     @Override
     public String getPassword() {
-        return user.getUserPw();
+        return user.getPassword();
     }
 
     @Override
     public String getUsername() {
-        return user.getUserId();
+        return user.getMemberId();
     }
 
     @Override

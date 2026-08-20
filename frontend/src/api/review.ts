@@ -7,7 +7,7 @@ export interface Review {
   rating?: string
   content?: string
   regDt?: string
-  regNm?: string
+  regName?: string
   regHandle?: string // 작성자 공개 식별자(프로필 링크용)
   regProfileFileId?: string
   recruitTitle?: string
@@ -21,7 +21,7 @@ export interface ReviewTarget {
   recruitId?: string
   recruitTitle?: string
   targetHandle?: string // 후기 대상 공개 식별자
-  targetNm?: string
+  targetName?: string
   writtenYn?: string
 }
 

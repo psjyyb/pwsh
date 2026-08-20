@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Empty, Spin, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { tokenStore } from '../../auth/token'
-import { hobbyApi, userHobbyApi } from '../../adm/hobby/hobby.api'
+import { hobbyApi, memberHobbyApi } from '../../adm/hobby/hobby.api'
 import type { Hobby } from '../../adm/hobby/hobby.api'
 import { gen, hobbyColor } from '../theme'
 
@@ -44,7 +44,7 @@ export default function OnboardingPage() {
     setSaving(true)
     try {
       // 하나씩 등록(담기 API가 단건). 일부 실패해도 나머지는 담기도록 개별 처리한다.
-      const results = await Promise.allSettled([...picked].map((id) => userHobbyApi.save(id)))
+      const results = await Promise.allSettled([...picked].map((id) => memberHobbyApi.save(id)))
       const ok = results.filter((r) => r.status === 'fulfilled').length
       if (ok === 0) throw new Error('취미 담기에 실패했습니다.')
       message.success(`취미 ${ok}개를 담았어요. 이제 새 글과 모집이 피드에 모입니다.`)
@@ -91,7 +91,7 @@ export default function OnboardingPage() {
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
                 }}
               >
-                <div style={{ fontWeight: 800, fontSize: 16 }}>{on ? '✓ ' : ''}{h.hobbyNm}</div>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>{on ? '✓ ' : ''}{h.hobbyName}</div>
                 {h.summary && (
                   <div style={{ fontSize: 12, marginTop: 6, opacity: on ? 0.9 : 0.6, lineHeight: 1.4 }}>
                     {h.summary}

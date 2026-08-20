@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 좋아요(단일 @Service). 1인 1표 토글 — 누르면 추가(+1), 다시 누르면 취소(-1).
- * user_id는 서버가 강제(위변조 차단). good_cnt는 대상 테이블(t_bbs/t_comment)에 트랜잭션 동기화.
+ * member_id는 서버가 강제(위변조 차단). good_cnt는 대상 테이블(post/comment)에 트랜잭션 동기화.
  */
 @Service
 @RequiredArgsConstructor
@@ -20,21 +20,21 @@ public class LikeService {
 
     @Transactional
     public LikeVO toggle(String targetType, String targetId) {
-        if (!"BBS".equals(targetType) && !"COMMENT".equals(targetType)) {
+        if (!"POST".equals(targetType) && !"COMMENT".equals(targetType)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상 유형입니다.");
         }
         // 숫자 검증: 매퍼의 ::integer 캐스트가 500(DB 오류)으로 터지지 않도록 400으로 선차단
         if (targetId == null || !targetId.matches("\\d+")) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상입니다.");
         }
-        boolean bbs = "BBS".equals(targetType);
+        boolean post = "POST".equals(targetType);
         // 대상 존재 확인 — 없는 콘텐츠에 좋아요 고아행이 생기지 않도록
-        Integer exists = commonDAO.selectOne(bbs ? "likeDAO.countBbs" : "likeDAO.countComment", targetIdParam(targetId));
+        Integer exists = commonDAO.selectOne(post ? "likeDAO.countPost" : "likeDAO.countComment", targetIdParam(targetId));
         if (exists == null || exists == 0) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대상을 찾을 수 없습니다.");
         }
         LikeVO key = new LikeVO();
-        key.setUserId(currentUserId());
+        key.setMemberId(currentMemberId());
         key.setTargetType(targetType);
         key.setTargetId(targetId);
 
@@ -44,17 +44,17 @@ public class LikeService {
         if (active != null && active > 0) { // 이미 눌렀음 → 취소
             int removed = commonDAO.delete("likeDAO.delete", key);
             if (removed > 0) {
-                commonDAO.update(bbs ? "likeDAO.decBbsGood" : "likeDAO.decCommentGood", key);
+                commonDAO.update(post ? "likeDAO.decPostGood" : "likeDAO.decCommentGood", key);
             }
             nowLiked = false;
         } else { // 좋아요 추가 (ON CONFLICT DO NOTHING → 동시요청 중복은 0행, 500 대신 멱등 처리)
             int added = commonDAO.insert("likeDAO.insert", key);
             if (added > 0) {
-                commonDAO.update(bbs ? "likeDAO.incBbsGood" : "likeDAO.incCommentGood", key);
+                commonDAO.update(post ? "likeDAO.incPostGood" : "likeDAO.incCommentGood", key);
             }
             nowLiked = true;
         }
-        Integer good = commonDAO.selectOne(bbs ? "likeDAO.selectBbsGood" : "likeDAO.selectCommentGood", key);
+        Integer good = commonDAO.selectOne(post ? "likeDAO.selectPostGood" : "likeDAO.selectCommentGood", key);
 
         LikeVO r = new LikeVO();
         r.setLikedYn(nowLiked ? "Y" : "N");
@@ -69,8 +69,8 @@ public class LikeService {
         return v;
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }

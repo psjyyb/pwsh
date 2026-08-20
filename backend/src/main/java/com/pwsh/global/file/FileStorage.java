@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 로컬 파일 저장소. 업로드 파일을 file.upload-dir 아래 날짜 서브폴더(yyyy/MM)에 UUID명으로 저장.
- * DB(t_file)에는 루트 제외 상대경로(file_path=서브폴더)와 저장파일명(file_str_nm)만 기록 → 이식성 확보.
+ * DB(file)에는 루트 제외 상대경로(path=서브폴더)와 저장파일명(stored_name)만 기록 → 이식성 확보.
  */
 @Component
 public class FileStorage {

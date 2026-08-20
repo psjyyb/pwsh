@@ -37,7 +37,7 @@ public class EmailVerifyService {
     private String mailFrom;
 
     /**
-     * 코드 발급 + 메일 발송. target=식별키(가입:이메일, 재설정:user_id), toEmail=수신 이메일.
+     * 코드 발급 + 메일 발송. target=식별키(가입:이메일, 재설정:member_id), toEmail=수신 이메일.
      * 기존 코드는 삭제 후 재발급(항상 최신 1건만 유효).
      */
     @Transactional

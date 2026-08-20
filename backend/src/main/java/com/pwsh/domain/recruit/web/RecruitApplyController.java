@@ -50,7 +50,7 @@ public class RecruitApplyController {
             recruitService.applyAttend(searchVO);
             return ApiResponse.ok();
         }
-        Validate.required(searchVO.getApplyStatus(), "신청상태");
+        Validate.required(searchVO.getApplyCd(), "신청상태");
         recruitService.applyUpdate(searchVO);
         return ApiResponse.ok();
     }

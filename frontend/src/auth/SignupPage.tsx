@@ -49,13 +49,13 @@ export default function SignupPage() {
   }, [])
 
   const onFinish = async (values: {
-    userId: string; userPw: string; pwConfirm: string; nickname: string; email: string; code: string
+    memberId: string; password: string; pwConfirm: string; nickname: string; email: string; code: string
   }) => {
     setSubmitting(true)
     try {
       await signup({
-        userId: values.userId,
-        userPw: values.userPw,
+        memberId: values.memberId,
+        password: values.password,
         pwConfirm: values.pwConfirm,
         nickname: values.nickname,
         email: values.email,
@@ -63,7 +63,7 @@ export default function SignupPage() {
       })
       // 가입 성공 → 바로 로그인 처리(재로그인 불필요) 후 관심 취미 고르기로.
       // 취미를 하나도 안 담으면 피드가 비고 새 모집 알림도 안 오므로, 첫 화면에서 고르게 한다(건너뛸 수 있음).
-      const token = await login(values.userId, values.userPw)
+      const token = await login(values.memberId, values.password)
       tokenStore.set(token.accessToken, token.refreshToken)
       message.success('환영합니다! 회원가입이 완료되었습니다.')
       navigate('/gen/onboarding', { replace: true })
@@ -94,7 +94,7 @@ export default function SignupPage() {
 
         <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
           <Form.Item
-            name="userId"
+            name="memberId"
             label="아이디"
             rules={[{ required: true, message: '아이디를 입력하세요.' }]}
           >
@@ -109,7 +109,7 @@ export default function SignupPage() {
             <Input placeholder="닉네임" maxLength={30} />
           </Form.Item>
           <Form.Item
-            name="userPw"
+            name="password"
             label="비밀번호"
             rules={[
               { required: true, message: '비밀번호를 입력하세요.' },
@@ -122,12 +122,12 @@ export default function SignupPage() {
           <Form.Item
             name="pwConfirm"
             label="비밀번호 확인"
-            dependencies={['userPw']}
+            dependencies={['password']}
             rules={[
               { required: true, message: '비밀번호를 한 번 더 입력하세요.' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  if (!value || getFieldValue('userPw') === value) return Promise.resolve()
+                  if (!value || getFieldValue('password') === value) return Promise.resolve()
                   return Promise.reject(new Error('비밀번호가 일치하지 않습니다.'))
                 },
               }),

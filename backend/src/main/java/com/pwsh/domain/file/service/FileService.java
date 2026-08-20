@@ -24,7 +24,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 파일 도메인 단일 서비스 — 업로드/조회/삭제 + 엔티티 매핑(r_file) + 고아 파일 정리(GC).
+ * 파일 도메인 단일 서비스 — 업로드/조회/삭제 + 엔티티 매핑(file_ref) + 고아 파일 정리(GC).
  * (기존 FileGcService를 여기로 흡수해 도메인당 하나의 Service로 통일.) 저장은 FileStorage(로컬).
  */
 @Service
@@ -48,7 +48,7 @@ public class FileService {
 
     // ===== 업로드 =====
 
-    /** 업로드(다중) → 저장 + t_file 등록, 생성된 파일 메타 반환 */
+    /** 업로드(다중) → 저장 + file 등록, 생성된 파일 메타 반환 */
     public List<FileVO> upload(MultipartFile[] files) {
         List<FileVO> result = new ArrayList<>();
         for (MultipartFile f : files) {
@@ -60,7 +60,7 @@ public class FileService {
         return result;
     }
 
-    /** 에디터 본문 이미지 업로드 → 저장 + t_file 등록(이미지 확장자만 허용) */
+    /** 에디터 본문 이미지 업로드 → 저장 + file 등록(이미지 확장자만 허용) */
     public FileVO imageUpload(MultipartFile file) {
         String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
         String lower = ext == null ? "" : ext.toLowerCase();
@@ -73,11 +73,11 @@ public class FileService {
     private FileVO store(MultipartFile f) {
         FileStorage.Stored s = fileStorage.store(f);
         FileVO vo = new FileVO();
-        vo.setFilePath(s.subDir()); // 루트 제외 상대경로(날짜 서브폴더)
-        vo.setFileStrNm(s.storedName());
-        vo.setFileOrgNm(s.originalName());
-        vo.setFileExt(s.ext());
-        vo.setFileSize(String.valueOf(s.size()));
+        vo.setPath(s.subDir()); // 루트 제외 상대경로(날짜 서브폴더)
+        vo.setStoredName(s.storedName());
+        vo.setOriginalName(s.originalName());
+        vo.setExt(s.ext());
+        vo.setSize(String.valueOf(s.size()));
         commonDAO.insert("fileDAO.insert", vo); // useGeneratedKeys → vo.fileId
         return vo;
     }
@@ -98,14 +98,14 @@ public class FileService {
 
     /** 저장 파일 리소스 로드(다운로드·공개 이미지 서빙용) */
     public Resource loadResource(FileVO meta) {
-        return fileStorage.load(meta.getFilePath(), meta.getFileStrNm());
+        return fileStorage.load(meta.getPath(), meta.getStoredName());
     }
 
     /**
      * 파일 접근 인가(공개 이미지 서빙·다운로드 공통). 파일이 연결된 콘텐츠 권한으로 판정 — 순차 id 열거(IDOR) 차단.
      * - 관리자: 통과
      * - POPUP 매핑: 공개(팝업은 메인에 전원 노출)
-     * - BBS* 매핑(첨부/갤러리/에디터): 그 게시글이 속한 게시판 접근권(GenAccessGuard.canAccessPost)
+     * - POST* 매핑(첨부/갤러리/에디터): 그 게시글이 속한 게시판 접근권(GenAccessGuard.canAccessPost)
      * - 매핑 없음(편집 중 갓 업로드): 로그인 사용자만 허용(익명 열거 차단)
      * 어디에도 접근권이 없으면 403.
      */
@@ -113,7 +113,7 @@ public class FileService {
         if (SecurityUtil.isAdmin()) {
             return;
         }
-        // 프로필 사진은 공개 서빙(r_file 매핑 없이 t_user.profile_file_id 직접 참조 — 게시글 작성자 아바타 등)
+        // 프로필 사진은 공개 서빙(file_ref 매핑 없이 member.profile_file_id 직접 참조 — 게시글 작성자 아바타 등)
         Integer profileRefs = commonDAO.selectOne("fileDAO.countProfileRefs", file);
         if (profileRefs != null && profileRefs > 0) {
             return;
@@ -126,11 +126,11 @@ public class FileService {
             return; // 미매핑 = 편집 중 미리보기(로그인 사용자)
         }
         for (FileVO r : refs) {
-            String loc = r.getFileLoc();
+            String loc = r.getFileType();
             if ("POPUP".equals(loc) || "LOGO".equals(loc) || (loc != null && loc.startsWith("HOBBY"))) {
                 return; // 공개 콘텐츠(팝업·로고·취미 대표이미지·취미 본문이미지는 비로그인에도 노출)
             }
-            if (loc != null && loc.startsWith("BBS") && genAccessGuard.canAccessPost(r.getMapKey())) {
+            if (loc != null && loc.startsWith("POST") && genAccessGuard.canAccessPost(r.getMapKey())) {
                 return;
             }
         }
@@ -142,7 +142,7 @@ public class FileService {
         commonDAO.delete("fileDAO.delete", vo);
     }
 
-    /** 엔티티(map_key+file_loc)에 연결된 파일 목록 */
+    /** 엔티티(map_key+file_type)에 연결된 파일 목록 */
     public List<FileVO> selectFilesByMap(FileVO vo) {
         return commonDAO.selectList("fileDAO.selectFilesByMap", vo);
     }
@@ -150,8 +150,8 @@ public class FileService {
     // ===== 엔티티-파일 매핑 저장(B 고아 즉시정리 포함) =====
 
     /**
-     * 매핑 재작성(기존 삭제 후 재등록). fileDescs 있으면 캡션(file_desc)도 갱신.
-     * 이번 저장에서 빠진 파일은 다른 활성 참조 없으면 물리+t_file 행까지 hard-delete(저장 시에만 → 취소 안전).
+     * 매핑 재작성(기존 삭제 후 재등록). descriptions 있으면 캡션(description)도 갱신.
+     * 이번 저장에서 빠진 파일은 다른 활성 참조 없으면 물리+file 행까지 hard-delete(저장 시에만 → 취소 안전).
      */
     @Transactional
     public void saveFileMapping(FileVO searchVO) {
@@ -160,13 +160,13 @@ public class FileService {
 
         commonDAO.delete("fileDAO.deleteRfileByMap", searchVO);
         String[] ids = searchVO.getFileIds();
-        String[] descs = searchVO.getFileDescs();
+        String[] descs = searchVO.getDescriptions();
         Set<String> newIds = new HashSet<>();
         if (ids != null) {
             for (int i = 0; i < ids.length; i++) {
                 FileVO r = new FileVO();
                 r.setMapKey(searchVO.getMapKey());
-                r.setFileLoc(searchVO.getFileLoc());
+                r.setFileType(searchVO.getFileType());
                 r.setFileId(ids[i]);
                 r.setSortNo(String.valueOf(i));
                 commonDAO.insert("fileDAO.insertRfile", r);
@@ -174,7 +174,7 @@ public class FileService {
                 if (descs != null && i < descs.length) {
                     FileVO d = new FileVO();
                     d.setFileId(ids[i]);
-                    d.setFileDesc(descs[i]);
+                    d.setDescription(descs[i]);
                     commonDAO.update("fileDAO.updateFileDesc", d);
                 }
             }
@@ -195,20 +195,20 @@ public class FileService {
             if (meta == null) {
                 continue;
             }
-            if (fileStorage.delete(meta.getFilePath(), meta.getFileStrNm())) {
+            if (fileStorage.delete(meta.getPath(), meta.getStoredName())) {
                 commonDAO.delete("fileDAO.deleteHard", p);
             }
         }
     }
 
-    /** 매핑 대상(map_key) 소유 검증: 게시판 콘텐츠(BBS*)는 그 글 작성자·관리자만, 그 외(팝업 등)는 관리자만. */
+    /** 매핑 대상(map_key) 소유 검증: 게시판 콘텐츠(POST*)는 그 글 작성자·관리자만, 그 외(팝업 등)는 관리자만. */
     private void assertMapKeyOwner(FileVO vo) {
         if (SecurityUtil.isAdmin()) {
             return;
         }
-        String loc = vo.getFileLoc();
-        if (loc != null && loc.startsWith("BBS")) {
-            String regId = commonDAO.selectOne("fileDAO.selectPostRegId", vo); // map_key = bbs_id
+        String loc = vo.getFileType();
+        if (loc != null && loc.startsWith("POST")) {
+            String regId = commonDAO.selectOne("fileDAO.selectPostRegId", vo); // map_key = post_id
             if (regId == null) {
                 throw new BusinessException(ErrorCode.ACCESS_DENIED);
             }
@@ -221,7 +221,7 @@ public class FileService {
     // ===== 고아 파일 정리(GC) =====
 
     /**
-     * 고아 파일 즉시 정리. DB(r_file·t_file) 먼저 제거(각 statement 커밋) → 그 다음 물리삭제(best-effort).
+     * 고아 파일 즉시 정리. DB(file_ref·file) 먼저 제거(각 statement 커밋) → 그 다음 물리삭제(best-effort).
      * 트랜잭션 롤백이 이미 지운 파일을 되돌릴 수 없으므로, DB를 진실원본으로 두고 물리삭제는 후행/실패허용. @return 물리삭제 건수
      */
     public int sweep() {
@@ -236,11 +236,11 @@ public class FileService {
         }
         int deleted = 0;
         for (FileVO f : orphans) { // 2) 물리삭제(커밋 후) — 실패해도 DB는 정리됨(디스크 고아만 남고 경고 로그)
-            if (fileStorage.delete(f.getFilePath(), f.getFileStrNm())) {
+            if (fileStorage.delete(f.getPath(), f.getStoredName())) {
                 deleted++;
             } else {
                 log.warn("[FileGC] 물리삭제 실패(디스크 고아 가능): id={}, {}/{}",
-                        f.getFileId(), f.getFilePath(), f.getFileStrNm());
+                        f.getFileId(), f.getPath(), f.getStoredName());
             }
         }
         log.info("[FileGC] 고아파일 정리: 대상 {}건, 물리삭제 {}건 (retention={}일, abandon={}시간)",

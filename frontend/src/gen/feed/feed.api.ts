@@ -2,27 +2,27 @@ import { apiPost } from '../../api/http'
 
 /** 피드 항목 — feedType으로 게시글/모집을 구분한다(해당 없는 필드는 비어 있음). */
 export interface FeedItem {
-  feedType?: 'BBS' | 'RECRUIT'
+  feedType?: 'POST' | 'RECRUIT'
   rowId?: string
   title?: string
   hobbyId?: string
-  hobbyNm?: string
-  regNm?: string
+  hobbyName?: string
+  regName?: string
   regHandle?: string
   mineYn?: string
   /** 피드에 오른 이유: HOBBY(담은 취미) / FOLLOW(팔로우한 회원) */
   feedSrc?: 'HOBBY' | 'FOLLOW'
   regDt?: string
-  // BBS
-  bbsinfoId?: string
+  // POST
+  boardId?: string
   commentCnt?: string
   goodCnt?: string
   // RECRUIT
   meetDt?: string
-  areaNm?: string
+  areaName?: string
   region?: string
   statusCd?: string
-  statusNm?: string
+  statusName?: string
   capacity?: string
   acceptedCnt?: string
 }
@@ -36,7 +36,7 @@ export interface FeedResult {
 }
 
 export const feedApi = {
-  /** 내 취미 피드(로그인 필요) — feedFilter ''=전체 / BBS / RECRUIT */
+  /** 내 취미 피드(로그인 필요) — feedFilter ''=전체 / POST / RECRUIT */
   list: (feedFilter = '', pageNo = 1, pageSize = 20) =>
     apiPost<FeedResult>('/adm/feed/selectFeedList.do', { feedFilter, pageNo, pageSize }),
 }

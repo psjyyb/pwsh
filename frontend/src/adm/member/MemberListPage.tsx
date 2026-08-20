@@ -1,0 +1,229 @@
+import { useState } from 'react'
+import { Button, Card, Checkbox, Form, Input, Popconfirm, Space, Table, Tag, message } from 'antd'
+import type { TableColumnsType } from 'antd'
+import { useList } from '../../common/hooks/useList'
+import { useSplitForm } from '../../common/hooks/useSplitForm'
+import SearchBar from '../../common/adm/components/SearchBar'
+import SplitLayout from '../../common/adm/components/SplitLayout'
+import CodeSelect from '../../common/adm/components/CodeSelect'
+import DateField from '../../common/adm/components/DateField'
+import PhoneInput from '../../common/adm/components/PhoneInput'
+import { fieldRules } from '../../common/util/validators'
+import { MEMBER_LIST_URL, memberApi } from './member.api'
+import type { Member } from './member.api'
+import AuthGroupAssignModal from './AuthGroupAssignModal'
+
+/** 사용자 관리 — 분할 마스터-디테일(평면) + 권한그룹 지정 모달. */
+export default function MemberListPage() {
+  const { rows, total, loading, page, pageSize, reload, search, changePage } = useList<Member>(MEMBER_LIST_URL)
+  const { form, mode, selectedKey, openNew, openRow, remove } = useSplitForm<Member>(memberApi, reload)
+  // 상세 조회로 폼에 실린 값(읽기 전용 지표)
+  const followerCnt = Form.useWatch('followerCnt', form)
+  const followingCnt = Form.useWatch('followingCnt', form)
+  const [authTarget, setAuthTarget] = useState<Member | null>(null)
+  const isEdit = mode === 'edit'
+  const changePw = Form.useWatch('changePw', form)
+
+  /** 저장 — 정보수정 후, 비밀번호 변경 체크 시에만 비번 별도 갱신 */
+  const saveMember = async () => {
+    const values = await form.validateFields()
+    try {
+      if (isEdit) {
+        await memberApi.update({ ...values, rowId: selectedKey! })
+        if (values.changePw && values.password) {
+          await memberApi.changePassword(selectedKey!, values.password)
+        }
+      } else {
+        await memberApi.insert(values)
+      }
+      message.success('저장되었습니다.')
+      reload()
+      // 비밀번호 변경 UI 초기화(체크 해제 + 입력값 제거). 나머지 필드는 저장된 값 유지
+      if (isEdit) {
+        form.setFieldsValue({ changePw: false, password: undefined, memberPwConfirm: undefined })
+      }
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '저장에 실패했습니다.')
+    }
+  }
+
+  /** 강제 로그아웃 — 대상 사용자의 발급 토큰을 서버에서 즉시 무효화(token_ver +1) */
+  const forceLogout = async () => {
+    try {
+      await memberApi.forceLogout(selectedKey!)
+      message.success('해당 사용자를 강제 로그아웃했습니다.')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '강제 로그아웃에 실패했습니다.')
+    }
+  }
+
+  /** 제재: 정지(STATUS03) / 해제(STATUS01). 정지 시 서버가 세션도 즉시 무효화한다. */
+  const changeStatus = async (statusCd: 'STATUS01' | 'STATUS03') => {
+    try {
+      await memberApi.changeStatus(selectedKey!, statusCd)
+      message.success(statusCd === 'STATUS03' ? '계정을 정지했습니다. (즉시 접근 차단)' : '정지를 해제했습니다.')
+      reload()
+      openRow(selectedKey!)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '제재 처리에 실패했습니다.')
+    }
+  }
+
+  const columns: TableColumnsType<Member> = [
+    { title: '아이디', dataIndex: 'memberId', width: 140 },
+    { title: '이름', dataIndex: 'memberName' },
+    { title: '회원유형', width: 100, render: (_, r) => r.memberTypeName ?? r.typeCd },
+    { title: '계정상태', width: 90, render: (_, r) => r.statusCdName ?? r.statusCd },
+    { title: '사용', dataIndex: 'useYn', width: 60 },
+  ]
+
+  const list = (
+    <Card title="목록">
+      <SearchBar
+        fields={[
+          { type: 'text', name: 'filterKeyword', placeholder: '아이디/이름' },
+          { type: 'code', name: 'typeCd', pCodeId: 'MEM00' },
+          { type: 'code', name: 'statusCd', pCodeId: 'STATUS00' },
+        ]}
+        onSearch={(v) => search(v)}
+      />
+      <Table<Member>
+        rowKey="rowId"
+        scroll={{ x: 'max-content' }}
+        size="small"
+        columns={columns}
+        dataSource={rows}
+        loading={loading}
+        rowClassName={(r) => (r.rowId === selectedKey ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => openRow(r.rowId!), style: { cursor: 'pointer' } })}
+        pagination={{ current: page, pageSize: pageSize, total, showSizeChanger: true, onChange: (p, ps) => changePage(p, ps) }}
+      />
+    </Card>
+  )
+
+  const detail = (
+    <Card
+      title="상세 / 등록 / 수정"
+      extra={
+        <Space>
+          <Button onClick={() => setAuthTarget({ memberId: selectedKey!, memberName: form.getFieldValue('memberName') })} disabled={!isEdit}>권한</Button>
+          <Popconfirm
+            title="강제 로그아웃"
+            description="이 사용자의 로그인 세션을 즉시 종료합니다."
+            onConfirm={forceLogout}
+            okText="로그아웃"
+            cancelText="취소"
+            disabled={!isEdit}
+          >
+            <Button disabled={!isEdit}>강제 로그아웃</Button>
+          </Popconfirm>
+          {/* 제재: 현재 상태에 따라 정지/해제 토글 (정지 시 서버가 세션도 즉시 무효화) */}
+          {form.getFieldValue('statusCd') === 'STATUS03' ? (
+            <Popconfirm
+              title="정지 해제" description="이 계정의 정지를 해제하고 로그인을 허용합니다."
+              onConfirm={() => changeStatus('STATUS01')} okText="해제" cancelText="취소" disabled={!isEdit}
+            >
+              <Button disabled={!isEdit}>정지 해제</Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="계정 정지" description="로그인을 차단하고 현재 세션도 즉시 종료합니다."
+              onConfirm={() => changeStatus('STATUS03')} okText="정지" okButtonProps={{ danger: true }} cancelText="취소" disabled={!isEdit}
+            >
+              <Button danger disabled={!isEdit}>계정 정지</Button>
+            </Popconfirm>
+          )}
+          <Button onClick={openNew}>신규</Button>
+          <Button type="primary" onClick={saveMember} disabled={mode === 'none'}>저장</Button>
+          <Popconfirm title="삭제하시겠습니까?" onConfirm={remove} okText="삭제" cancelText="취소" disabled={!isEdit}>
+            <Button danger disabled={!isEdit}>삭제</Button>
+          </Popconfirm>
+        </Space>
+      }
+    >
+      {mode === 'none' ? (
+        <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
+      ) : (
+        <Form form={form} layout="vertical" initialValues={{ typeCd: 'MEM01', statusCd: 'STATUS01' }}>
+          <Form.Item name="memberId" label="아이디" rules={[{ required: true, message: '아이디를 입력하세요.' }]}>
+            <Input disabled={isEdit} />
+          </Form.Item>
+
+          {/* 신규: 비밀번호 필수 / 수정: 체크 시에만 새 비밀번호 입력 */}
+          {!isEdit ? (
+            <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력하세요.' }]}>
+              <Input.Password autoComplete="new-password" />
+            </Form.Item>
+          ) : (
+            <>
+              <Form.Item name="changePw" valuePropName="checked">
+                <Checkbox>비밀번호 변경</Checkbox>
+              </Form.Item>
+              {changePw && (
+                <>
+                  <Form.Item name="password" label="새 비밀번호" rules={[{ required: true, message: '새 비밀번호를 입력하세요.' }]}>
+                    <Input.Password autoComplete="new-password" />
+                  </Form.Item>
+                  <Form.Item
+                    name="memberPwConfirm"
+                    label="비밀번호 확인"
+                    dependencies={['password']}
+                    rules={[
+                      { required: true, message: '비밀번호 확인을 입력하세요.' },
+                      ({ getFieldValue }) => ({
+                        validator: (_, v) =>
+                          !v || getFieldValue('password') === v
+                            ? Promise.resolve()
+                            : Promise.reject(new Error('비밀번호가 일치하지 않습니다.')),
+                      }),
+                    ]}
+                  >
+                    <Input.Password autoComplete="new-password" />
+                  </Form.Item>
+                </>
+              )}
+            </>
+          )}
+
+          <Form.Item name="memberName" label="이름" rules={[{ required: true, message: '이름을 입력하세요.' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="typeCd" label="회원유형">
+            <CodeSelect pCodeId="MEM00" placeholder="회원유형 선택" />
+          </Form.Item>
+          <Form.Item name="statusCd" label="계정상태">
+            <CodeSelect pCodeId="STATUS00" placeholder="계정상태 선택" />
+          </Form.Item>
+          <Form.Item name="genderCd" label="성별">
+            <CodeSelect pCodeId="GEN00" placeholder="성별 선택" allowClear />
+          </Form.Item>
+          <Form.Item name="birth" label="생년월일">
+            <DateField allowClear placeholder="생년월일 선택" />
+          </Form.Item>
+          <Form.Item name="phone" label="연락처" rules={fieldRules('phone')}>
+            <PhoneInput />
+          </Form.Item>
+          <Form.Item name="email" label="이메일" rules={fieldRules('email')}>
+            <Input />
+          </Form.Item>
+          {/* 커뮤니티 활동 지표 — 팔로워가 비정상적으로 많은 계정을 가려내는 참고치(읽기 전용) */}
+          {isEdit && (
+            <Form.Item label="팔로우">
+              <Space size={8}>
+                <Tag color="purple">팔로워 {followerCnt ?? 0}</Tag>
+                <Tag>팔로잉 {followingCnt ?? 0}</Tag>
+              </Space>
+            </Form.Item>
+          )}
+        </Form>
+      )}
+    </Card>
+  )
+
+  return (
+    <Card title="사용자 관리" styles={{ body: { padding: 12 } }}>
+      <SplitLayout list={list} detail={detail} />
+      <AuthGroupAssignModal open={authTarget !== null} Member={authTarget} onClose={() => setAuthTarget(null)} />
+    </Card>
+  )
+}

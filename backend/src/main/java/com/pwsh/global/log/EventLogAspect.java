@@ -9,9 +9,9 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 
 /**
- * 도메인 컨트롤러의 insert/update/delete가 정상 반환되면 t_event_log에 행위 로그를 남기는 AOP.
- * - event_type: INSERT/UPDATE/DELETE (로그인은 AuthController에서 LOGIN 직접 기록, 조회는 로깅 안 함)
- * - target_table: 컨트롤러명 → t_xxx, target_id: 요청 VO의 rowId(단건)/rowIds(다건)
+ * 도메인 컨트롤러의 insert/update/delete가 정상 반환되면 event_log에 행위 로그를 남기는 AOP.
+ * - event_cd: INSERT/UPDATE/DELETE (로그인은 AuthController에서 LOGIN 직접 기록, 조회는 로깅 안 함)
+ * - target_table: 컨트롤러명을 소문자로(= 테이블명), target_id: 요청 VO의 rowId(단건)/rowIds(다건)
  * - 사용자 행위 1건 = 로그 1건(내부 하우스키핑 update는 컨트롤러 진입점이 아니라 제외됨)
  * <p>
  * <b>포착 범위 주의</b>: 메서드명이 정확히 insert/update/delete인 것만 잡는다. {@code updateStatus}처럼
@@ -42,10 +42,10 @@ public class EventLogAspect {
         eventLogService.write("DELETE", targetTable(jp), targetId(jp));
     }
 
-    /** PolicyController → t_policy */
+    /** PolicyController → policy (테이블명에 접두어가 없으므로 컨트롤러명을 소문자로 그대로 쓴다) */
     private String targetTable(JoinPoint jp) {
         String cls = jp.getTarget().getClass().getSimpleName().replace("Controller", "");
-        return "t_" + cls.toLowerCase();
+        return cls.toLowerCase();
     }
 
     /** 요청 VO의 rowId(단건) 또는 rowIds(다건). 신규 등록처럼 없으면 null. */

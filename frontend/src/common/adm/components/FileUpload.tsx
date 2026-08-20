@@ -94,13 +94,13 @@ export default function FileUpload({ onChange, initialFiles = [], maxCount, maxS
           renderItem={(m) => (
             <List.Item
               actions={[
-                <a key="dl" onClick={() => fileApi.download(m.fileId!, m.fileOrgNm ?? 'file')}>다운로드</a>,
+                <a key="dl" onClick={() => fileApi.download(m.fileId!, m.originalName ?? 'file')}>다운로드</a>,
                 <a key="del" onClick={() => sync(itemsRef.current.filter((x) => x.fileId !== m.fileId))}>삭제</a>,
               ]}
             >
               <span>
-                {m.fileOrgNm}
-                {fmtSize(m.fileSize) && <span style={{ color: '#999', marginLeft: 8 }}>({fmtSize(m.fileSize)})</span>}
+                {m.originalName}
+                {fmtSize(m.size) && <span style={{ color: '#999', marginLeft: 8 }}>({fmtSize(m.size)})</span>}
               </span>
             </List.Item>
           )}

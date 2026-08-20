@@ -1,12 +1,12 @@
 import { apiPost } from './http'
 import type { Hobby } from '../adm/hobby/hobby.api'
 import type { Recruit } from '../gen/recruit/recruit.api'
-import type { Bbs } from '../adm/bbs/bbs.api'
+import type { Post } from '../adm/post/post.api'
 
 export interface SearchResult {
   hobbies: Hobby[]
   recruits: Recruit[]
-  posts: Bbs[]
+  posts: Post[]
 }
 
 export const searchApi = {

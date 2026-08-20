@@ -10,8 +10,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * 이벤트(행위) 로그 기록 서비스. 로그인/등록/수정/삭제 시 t_event_log에 남긴다.
- * - user_id: 로그인 사용자, device_type/user_agent: 요청 User-Agent 파싱
+ * 이벤트(행위) 로그 기록 서비스. 로그인/등록/수정/삭제 시 event_log에 남긴다.
+ * - member_id: 로그인 사용자, device_type/user_agent: 요청 User-Agent 파싱
  * - reg_ip: AuditInterceptor 자동, reg_dt: NOW() (매퍼)
  */
 @Service
@@ -34,10 +34,10 @@ public class EventLogService {
     }
 
     /** 행위 기록. targetTable/targetId는 로그인처럼 대상이 없으면 null. */
-    public void write(String eventType, String targetTable, String targetId) {
+    public void write(String eventCd, String targetTable, String targetId) {
         EventlogVO vo = new EventlogVO();
-        vo.setEventType(eventType);
-        vo.setUserId(SecurityUtil.getCurrentUserId());
+        vo.setEventCd(eventCd);
+        vo.setMemberId(SecurityUtil.getCurrentMemberId());
         vo.setTargetTable(targetTable);
         vo.setTargetId(targetId);
         String ua = currentUserAgent();

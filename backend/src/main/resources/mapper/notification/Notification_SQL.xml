@@ -4,63 +4,63 @@
 
     <!-- 내 알림 최근 30건 -->
     <select id="selectMyList" parameterType="notificationVO" resultType="notificationVO">
-        SELECT noti_id::TEXT AS row_id, noti_type, content, link_url, read_yn,
+        SELECT notification_id::TEXT AS row_id, type, content, link_url, read_yn,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
-        FROM t_notification
-        WHERE use_yn = 'Y' AND user_id = #{userId}
-        ORDER BY noti_id DESC
+        FROM notification
+        WHERE use_yn = 'Y' AND member_id = #{memberId}
+        ORDER BY notification_id DESC
         LIMIT 30
     </select>
 
     <!-- 내 미읽음 수(헤더 배지) -->
     <select id="selectUnreadCnt" parameterType="notificationVO" resultType="int">
-        SELECT COUNT(*) FROM t_notification
-        WHERE use_yn = 'Y' AND user_id = #{userId} AND read_yn = 'N'
+        SELECT COUNT(*) FROM notification
+        WHERE use_yn = 'Y' AND member_id = #{memberId} AND read_yn = 'N'
     </select>
 
     <insert id="insert" parameterType="notificationVO">
-        INSERT INTO t_notification (user_id, noti_type, content, link_url, read_yn, use_yn,
+        INSERT INTO notification (member_id, type, content, link_url, read_yn, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{userId}, #{notiType}, #{content}, #{linkUrl}, 'N', 'Y',
+        VALUES (#{memberId}, #{type}, #{content}, #{linkUrl}, 'N', 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <!-- 단건 읽음(본인 것만) -->
     <update id="markRead" parameterType="notificationVO">
-        UPDATE t_notification SET read_yn = 'Y', upd_dt = NOW()
-        WHERE noti_id = #{rowId}::integer AND user_id = #{userId}
+        UPDATE notification SET read_yn = 'Y', upd_dt = NOW()
+        WHERE notification_id = #{rowId}::integer AND member_id = #{memberId}
     </update>
 
     <!-- 전체 읽음(본인) -->
     <update id="markAllRead" parameterType="notificationVO">
-        UPDATE t_notification SET read_yn = 'Y', upd_dt = NOW()
-        WHERE user_id = #{userId} AND read_yn = 'N'
+        UPDATE notification SET read_yn = 'Y', upd_dt = NOW()
+        WHERE member_id = #{memberId} AND read_yn = 'N'
     </update>
 
-    <!-- ===== 알림 수신 설정(t_noti_setting). 행이 없으면 전부 수신(기본 ON) ===== -->
+    <!-- ===== 알림 수신 설정(notification_setting). 행이 없으면 전부 수신(기본 ON) ===== -->
     <select id="selectSetting" parameterType="notificationVO" resultType="notificationVO">
-        SELECT COALESCE(s.noti_apply,   'Y') AS noti_apply,
-               COALESCE(s.noti_comment, 'Y') AS noti_comment,
-               COALESCE(s.noti_message, 'Y') AS noti_message,
-               COALESCE(s.noti_review,  'Y') AS noti_review
+        SELECT COALESCE(s.apply_yn,   'Y') AS apply_yn,
+               COALESCE(s.comment_yn, 'Y') AS comment_yn,
+               COALESCE(s.message_yn, 'Y') AS message_yn,
+               COALESCE(s.review_yn,  'Y') AS review_yn
         FROM (SELECT 1) d
-        LEFT JOIN t_noti_setting s ON s.user_id = #{userId}
+        LEFT JOIN notification_setting s ON s.member_id = #{memberId}
     </select>
 
     <!-- 설정 저장(없으면 생성) -->
     <insert id="upsertSetting" parameterType="notificationVO">
-        INSERT INTO t_noti_setting (user_id, noti_apply, noti_comment, noti_message, noti_review, upd_dt)
-        VALUES (#{userId},
-                COALESCE(NULLIF(#{notiApply}, ''), 'Y'),
-                COALESCE(NULLIF(#{notiComment}, ''), 'Y'),
-                COALESCE(NULLIF(#{notiMessage}, ''), 'Y'),
-                COALESCE(NULLIF(#{notiReview}, ''), 'Y'),
+        INSERT INTO notification_setting (member_id, apply_yn, comment_yn, message_yn, review_yn, upd_dt)
+        VALUES (#{memberId},
+                COALESCE(NULLIF(#{applyYn}, ''), 'Y'),
+                COALESCE(NULLIF(#{commentYn}, ''), 'Y'),
+                COALESCE(NULLIF(#{messageYn}, ''), 'Y'),
+                COALESCE(NULLIF(#{reviewYn}, ''), 'Y'),
                 NOW())
-        ON CONFLICT (user_id) DO UPDATE SET
-            noti_apply   = EXCLUDED.noti_apply,
-            noti_comment = EXCLUDED.noti_comment,
-            noti_message = EXCLUDED.noti_message,
-            noti_review  = EXCLUDED.noti_review,
+        ON CONFLICT (member_id) DO UPDATE SET
+            apply_yn   = EXCLUDED.apply_yn,
+            comment_yn = EXCLUDED.comment_yn,
+            message_yn = EXCLUDED.message_yn,
+            review_yn  = EXCLUDED.review_yn,
             upd_dt       = NOW()
     </insert>
 
@@ -68,9 +68,9 @@
       멘션(@닉네임) 대상 조회 — 닉네임 '정확히 일치'만. 부분 일치로 엉뚱한 회원을 부르지 않게 한다.
       탈퇴·정지 회원은 제외. 없는 닉네임은 결과에 안 나오고 호출부가 그냥 무시한다.
     -->
-    <select id="selectUserIdsByNicknames" parameterType="map" resultType="notificationVO">
-        SELECT user_id, nickname
-        FROM t_user
+    <select id="selectMemberIdsByNicknames" parameterType="map" resultType="notificationVO">
+        SELECT member_id, nickname
+        FROM member
         WHERE use_yn = 'Y' AND status_cd = 'STATUS01' AND nickname IS NOT NULL
           AND nickname IN
           <foreach collection="nicknames" item="nm" open="(" separator="," close=")">#{nm}</foreach>

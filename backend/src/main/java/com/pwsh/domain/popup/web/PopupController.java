@@ -46,7 +46,7 @@ public class PopupController {
 
     @RequestMapping("/insertPopup.do")
     public ApiResponse<Void> insert(@RequestBody PopupVO searchVO) {
-        Validate.required(searchVO.getPopNm(), "팝업명");
+        Validate.required(searchVO.getPopupName(), "팝업명");
         popupService.insert(searchVO);
         return ApiResponse.ok();
     }
@@ -58,7 +58,7 @@ public class PopupController {
         if ("Sort".equals(variant)) {
             popupService.swapSort(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
-            Validate.required(searchVO.getPopNm(), "팝업명");
+            Validate.required(searchVO.getPopupName(), "팝업명");
             popupService.update(searchVO);
         }
         return ApiResponse.ok();

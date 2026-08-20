@@ -20,17 +20,17 @@ class AdminCrudTest extends IntegrationTest {
         String admin = accessToken("admin", "admin1234!");
 
         assertThat(post("/api/adm/code/insertCode.do",
-                "{\"rowId\":\"ZZTEST01\",\"pCodeId\":\"0\",\"codeNm\":\"테스트코드\"}", admin).statusCode())
+                "{\"rowId\":\"ZZTEST01\",\"pCodeId\":\"0\",\"codeName\":\"테스트코드\"}", admin).statusCode())
                 .isEqualTo(200);
 
         HttpResponse<String> view = post("/api/adm/code/selectCodeView.do", "{\"rowId\":\"ZZTEST01\"}", admin);
         assertThat(view.statusCode()).isEqualTo(200);
-        assertThat((String) JsonPath.read(view.body(), "$.data.codeNm")).isEqualTo("테스트코드");
+        assertThat((String) JsonPath.read(view.body(), "$.data.codeName")).isEqualTo("테스트코드");
 
         assertThat(post("/api/adm/code/updateCode.do",
-                "{\"rowId\":\"ZZTEST01\",\"codeNm\":\"테스트코드2\"}", admin).statusCode()).isEqualTo(200);
+                "{\"rowId\":\"ZZTEST01\",\"codeName\":\"테스트코드2\"}", admin).statusCode()).isEqualTo(200);
         HttpResponse<String> view2 = post("/api/adm/code/selectCodeView.do", "{\"rowId\":\"ZZTEST01\"}", admin);
-        assertThat((String) JsonPath.read(view2.body(), "$.data.codeNm")).isEqualTo("테스트코드2");
+        assertThat((String) JsonPath.read(view2.body(), "$.data.codeName")).isEqualTo("테스트코드2");
 
         assertThat(post("/api/adm/code/deleteCode.do", "{\"rowId\":\"ZZTEST01\"}", admin).statusCode())
                 .isEqualTo(200);
@@ -38,20 +38,20 @@ class AdminCrudTest extends IntegrationTest {
 
     @Test
     @DisplayName("권한그룹 CRUD 라운드트립")
-    void authgrpCrud() throws Exception {
+    void authGroupCrud() throws Exception {
         String admin = accessToken("admin", "admin1234!");
 
-        assertThat(post("/api/adm/authgrp/insertAuthgrp.do",
-                "{\"rowId\":\"ZZTESTG\",\"authgrpNm\":\"테스트그룹\"}", admin).statusCode()).isEqualTo(200);
+        assertThat(post("/api/adm/authgroup/insertAuthGroup.do",
+                "{\"rowId\":\"ZZTESTG\",\"authGroupName\":\"테스트그룹\"}", admin).statusCode()).isEqualTo(200);
 
-        HttpResponse<String> view = post("/api/adm/authgrp/selectAuthgrpView.do", "{\"rowId\":\"ZZTESTG\"}", admin);
+        HttpResponse<String> view = post("/api/adm/authgroup/selectAuthGroupView.do", "{\"rowId\":\"ZZTESTG\"}", admin);
         assertThat(view.statusCode()).isEqualTo(200);
-        assertThat((String) JsonPath.read(view.body(), "$.data.authgrpNm")).isEqualTo("테스트그룹");
+        assertThat((String) JsonPath.read(view.body(), "$.data.authGroupName")).isEqualTo("테스트그룹");
 
-        assertThat(post("/api/adm/authgrp/updateAuthgrp.do",
-                "{\"rowId\":\"ZZTESTG\",\"authgrpNm\":\"테스트그룹2\"}", admin).statusCode()).isEqualTo(200);
+        assertThat(post("/api/adm/authgroup/updateAuthGroup.do",
+                "{\"rowId\":\"ZZTESTG\",\"authGroupName\":\"테스트그룹2\"}", admin).statusCode()).isEqualTo(200);
 
-        assertThat(post("/api/adm/authgrp/deleteAuthgrp.do", "{\"rowId\":\"ZZTESTG\"}", admin).statusCode())
+        assertThat(post("/api/adm/authgroup/deleteAuthGroup.do", "{\"rowId\":\"ZZTESTG\"}", admin).statusCode())
                 .isEqualTo(200);
     }
 

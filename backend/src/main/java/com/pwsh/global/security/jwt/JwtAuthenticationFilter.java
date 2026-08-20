@@ -30,8 +30,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtTokenProvider.validate(token)
                 && "access".equals(jwtTokenProvider.getType(token))
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
-            String userId = jwtTokenProvider.getUserId(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+            String memberId = jwtTokenProvider.getMemberId(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(memberId);
             // 토큰 버전 대조: 불일치(다른 기기 새 로그인·로그아웃으로 token_ver 증가)면 인증 거부(→ 401).
             // 구버전 토큰(ver 없음)도 거부 → 재로그인 유도. 단일세션(last-wins)·로그아웃 즉시 무효화의 핵심.
             String tokenVer = jwtTokenProvider.getVer(token);

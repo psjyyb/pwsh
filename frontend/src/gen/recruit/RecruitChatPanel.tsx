@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Empty, Input, Popconfirm, Space, Tag, message } from 'antd'
-import UserAvatar from '../../common/gen/components/UserAvatar'
+import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import MentionText from '../../common/gen/components/MentionText'
 import ReportAction from '../../common/gen/components/ReportAction'
 import { useEventStream } from '../../common/gen/useEventStream'
@@ -112,13 +112,13 @@ export default function RecruitChatPanel({ recruitId }: { recruitId: string }) {
               const mine = c.mineYn === 'Y'
               return (
                 <div key={c.rowId} style={{ display: 'flex', flexDirection: mine ? 'row-reverse' : 'row', gap: 8 }}>
-                  <UserAvatar fileId={c.regProfileFileId} name={c.regNm} handle={c.regHandle} size={28} showName={false} />
+                  <MemberAvatar fileId={c.regProfileFileId} name={c.regName} handle={c.regHandle} size={28} showName={false} />
                   <div style={{ maxWidth: '78%' }}>
                     <div style={{
                       display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2,
                       flexDirection: mine ? 'row-reverse' : 'row',
                     }}>
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{c.regNm || '회원'}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{c.regName || '회원'}</span>
                       {c.hostYn === 'Y' && <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>주최자</Tag>}
                       <span style={{ fontSize: 11, color: gen.inkFaint }}>{c.regDt}</span>
                       {mine ? (

@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 회원 차단(단방향). 모든 조회/변경은 로그인 본인(user_id) 기준. -->
+<!-- 회원 차단(단방향). 모든 조회/변경은 로그인 본인(member_id) 기준. -->
 <mapper namespace="blockDAO">
 
     <select id="selectActiveCnt" parameterType="blockVO" resultType="int">
-        SELECT COUNT(*) FROM t_user_block WHERE user_id = #{userId} AND blocked_id = #{blockedId}
+        SELECT COUNT(*) FROM member_block WHERE member_id = #{memberId} AND blocked_id = #{blockedId}
     </select>
 
     <insert id="insert" parameterType="blockVO">
-        INSERT INTO t_user_block (user_id, blocked_id, reg_dt, reg_ip)
-        VALUES (#{userId}, #{blockedId}, NOW(), #{regIp})
-        ON CONFLICT (user_id, blocked_id) DO NOTHING
+        INSERT INTO member_block (member_id, blocked_id, reg_dt, reg_ip)
+        VALUES (#{memberId}, #{blockedId}, NOW(), #{regIp})
+        ON CONFLICT (member_id, blocked_id) DO NOTHING
     </insert>
 
     <delete id="delete" parameterType="blockVO">
-        DELETE FROM t_user_block WHERE user_id = #{userId} AND blocked_id = #{blockedId}
+        DELETE FROM member_block WHERE member_id = #{memberId} AND blocked_id = #{blockedId}
     </delete>
 
     <!-- 내가 차단한 회원 목록(닉네임·프로필 조인) -->
@@ -22,19 +22,19 @@
         <!-- 대상 로그인 ID 미노출 — 클라이언트는 handle로 지목 -->
         SELECT b.block_id::TEXT AS row_id,
                u.handle AS blocked_handle,
-               u.nickname AS blocked_nm, u.profile_file_id::TEXT AS blocked_file_id,
+               u.nickname AS blocked_name, u.profile_file_id::TEXT AS blocked_file_id,
                TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_user_block b
-        LEFT JOIN t_user u ON u.user_id = b.blocked_id
-        WHERE b.user_id = #{userId}
+        FROM member_block b
+        LEFT JOIN member u ON u.member_id = b.blocked_id
+        WHERE b.member_id = #{memberId}
         ORDER BY b.block_id DESC
     </select>
 
     <!-- 내가 차단한 회원 handle 목록(프론트 콘텐츠 숨김 판정용 — 로그인 ID 미노출) -->
     <select id="selectMyBlockedIds" parameterType="blockVO" resultType="string">
         SELECT u.handle
-        FROM t_user_block b JOIN t_user u ON u.user_id = b.blocked_id
-        WHERE b.user_id = #{userId}
+        FROM member_block b JOIN member u ON u.member_id = b.blocked_id
+        WHERE b.member_id = #{memberId}
     </select>
 
     <!--
@@ -42,7 +42,7 @@
       → 차단당한 사람은 상대에게 쪽지를 보낼 수 없다.
     -->
     <select id="selectBlockedByCnt" parameterType="blockVO" resultType="int">
-        SELECT COUNT(*) FROM t_user_block WHERE user_id = #{blockedId} AND blocked_id = #{userId}
+        SELECT COUNT(*) FROM member_block WHERE member_id = #{blockedId} AND blocked_id = #{memberId}
     </select>
 
 </mapper>

@@ -23,8 +23,8 @@ public class ReportService {
 
     /** 신고 등록 — 로그인 회원, 같은 대상 중복신고 차단. */
     public void insert(ReportVO vo) {
-        String me = currentUserId();
-        if (!"BBS".equals(vo.getTargetType()) && !"COMMENT".equals(vo.getTargetType())
+        String me = currentMemberId();
+        if (!"POST".equals(vo.getTargetType()) && !"COMMENT".equals(vo.getTargetType())
                 && !"RECRUIT".equals(vo.getTargetType()) && !"CHAT".equals(vo.getTargetType())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 신고 대상입니다.");
         }
@@ -64,7 +64,7 @@ public class ReportService {
     @Transactional
     public void updateStatus(ReportVO vo) {
         assertAdmin();
-        String status = vo.getStatus();
+        String status = vo.getStatusType();
         if (!"RESOLVED".equals(status) && !"DISMISSED".equals(status) && !"PENDING".equals(status)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 상태입니다.");
         }
@@ -76,8 +76,8 @@ public class ReportService {
                 t.setTargetId(report.getTargetId());
                 t.setUseYn("RESOLVED".equals(status) ? "N" : "Y");
                 String type = report.getTargetType();
-                if ("BBS".equals(type)) {
-                    commonDAO.update("reportDAO.setBbsUseYn", t);
+                if ("POST".equals(type)) {
+                    commonDAO.update("reportDAO.setPostUseYn", t);
                 } else if ("COMMENT".equals(type)) {
                     commonDAO.update("reportDAO.setCommentUseYn", t);
                 } else if ("RECRUIT".equals(type)) {
@@ -90,10 +90,10 @@ public class ReportService {
         commonDAO.update("reportDAO.updateStatus", vo);
         // 감사: 이 메서드는 컨트롤러 메서드명이 updateStatus라 EventLogAspect(insert/update/delete)가 잡지 못한다.
         // 관리자 조치는 추적이 필수라 여기서 유형별로 직접 기록한다.
-        eventLogService.write(auditType(status), "t_report", vo.getRowId());
+        eventLogService.write(auditType(status), "report", vo.getRowId());
     }
 
-    /** 신고 처리 상태 → 감사 이벤트 유형(t_code EVENT00). */
+    /** 신고 처리 상태 → 감사 이벤트 유형(code EVENT00). */
     private String auditType(String status) {
         if ("RESOLVED".equals(status)) {
             return "REPORT_RESOLVE";
@@ -107,8 +107,8 @@ public class ReportService {
         }
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }

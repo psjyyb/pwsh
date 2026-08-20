@@ -4,11 +4,11 @@ import type { TableColumnsType } from 'antd'
 import { apiPost } from '../../api/http'
 import type { ListResult } from '../../api/http'
 import { configApi } from '../config/config.api'
-import { USER_LIST_URL } from '../user/user.api'
-import { AUTHGRP_LIST_URL } from '../authgrp/authgrp.api'
+import { MEMBER_LIST_URL } from '../member/member.api'
+import { AUTH_GROUP_LIST_URL } from '../authgroup/authgroup.api'
 import { MENU_LIST_URL } from '../menu/menu.api'
 import { CODE_LIST_URL } from '../code/code.api'
-import { BBSINFO_LIST_URL } from '../bbsinfo/bbsinfo.api'
+import { BOARD_LIST_URL } from '../board/board.api'
 import { PAGE_LIST_URL } from '../page/page.api'
 import { POPUP_LIST_URL } from '../popup/popup.api'
 import { POLICY_LIST_URL } from '../policy/policy.api'
@@ -20,7 +20,7 @@ import type { TrendPoint } from './TrendChart'
 /** 통계 응답(집계 전용 stats 도메인) */
 interface StatsDaily { label: string; signups: number; posts: number; recruits: number }
 interface StatsTotals {
-  userCnt?: number; suspendedCnt?: number; postCnt?: number; commentCnt?: number
+  memberCnt?: number; suspendedCnt?: number; postCnt?: number; commentCnt?: number
   recruitCnt?: number; recruitOpenCnt?: number; hobbyCnt?: number; reportPendingCnt?: number
 }
 interface StatsResp { totals?: StatsTotals; daily?: StatsDaily[]; days?: number }
@@ -30,11 +30,11 @@ const TREND_COLORS = { signups: '#6C4EE3', posts: '#12B586', recruits: '#F59321'
 
 /** 대시보드 통계 카드: 각 도메인 목록 API의 totalCount로 건수 표시 (URL은 도메인 api의 단일 소스 상수 재사용) */
 const CARDS = [
-  { title: '사용자', url: USER_LIST_URL, color: '#1677ff' },
-  { title: '권한그룹', url: AUTHGRP_LIST_URL, color: '#722ed1' },
+  { title: '사용자', url: MEMBER_LIST_URL, color: '#1677ff' },
+  { title: '권한그룹', url: AUTH_GROUP_LIST_URL, color: '#722ed1' },
   { title: '메뉴', url: MENU_LIST_URL, color: '#13c2c2' },
   { title: '공통코드', url: CODE_LIST_URL, color: '#52c41a' },
-  { title: '게시판', url: BBSINFO_LIST_URL, color: '#fa8c16' },
+  { title: '게시판', url: BOARD_LIST_URL, color: '#fa8c16' },
   { title: '페이지', url: PAGE_LIST_URL, color: '#eb2f96' },
   { title: '팝업', url: POPUP_LIST_URL, color: '#faad14' },
   { title: '약관', url: POLICY_LIST_URL, color: '#2f54eb' },
@@ -70,9 +70,9 @@ export default function DashboardPage() {
     {
       title: '행위',
       width: 90,
-      render: (_, r) => <Tag color={evTagColor(r.eventType)}>{r.eventTypeNm ?? r.eventType}</Tag>,
+      render: (_, r) => <Tag color={evTagColor(r.eventCd)}>{r.eventName ?? r.eventCd}</Tag>,
     },
-    { title: '수행자', dataIndex: 'userId', width: 120 },
+    { title: '수행자', dataIndex: 'memberId', width: 120 },
     { title: '대상', render: (_, r) => (r.targetTable ? `${r.targetTable}${r.targetId ? ' #' + r.targetId : ''}` : '-') },
   ]
 
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       {stats?.totals && (
         <Card size="small" title="운영 현황" style={{ marginTop: 16 }}>
           <Space size={16} wrap>
-            <span>회원 <b>{stats.totals.userCnt ?? 0}</b></span>
+            <span>회원 <b>{stats.totals.memberCnt ?? 0}</b></span>
             <span>정지 <b style={{ color: (stats.totals.suspendedCnt ?? 0) > 0 ? '#cf1322' : undefined }}>{stats.totals.suspendedCnt ?? 0}</b></span>
             <span>미처리 신고 <b style={{ color: (stats.totals.reportPendingCnt ?? 0) > 0 ? '#cf1322' : undefined }}>{stats.totals.reportPendingCnt ?? 0}</b></span>
             <span>게시글 <b>{stats.totals.postCnt ?? 0}</b></span>

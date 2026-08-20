@@ -35,17 +35,17 @@ public class AuditInterceptor implements Interceptor {
 
         if (param instanceof BaseVO vo
                 && (type == SqlCommandType.INSERT || type == SqlCommandType.UPDATE)) {
-            String userId = SecurityUtil.getCurrentUserId();
+            String memberId = SecurityUtil.getCurrentMemberId();
             String ip = ClientIpHolder.get();
             if (type == SqlCommandType.INSERT) {
-                vo.setRegId(userId);
+                vo.setRegId(memberId);
                 if (ip != null) {
                     vo.setRegIp(ip);
                 } else if (vo.getRegIp() == null || vo.getRegIp().isBlank()) {
                     vo.setRegIp(LOCAL_IP);
                 }
             }
-            vo.setUpdId(userId);
+            vo.setUpdId(memberId);
             if (ip != null) {
                 vo.setUpdIp(ip);
             } else if (vo.getUpdIp() == null || vo.getUpdIp().isBlank()) {

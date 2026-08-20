@@ -4,7 +4,7 @@ import { apiPost } from './http'
 export interface Follow {
   rowId?: string
   followeeHandle?: string
-  followeeNm?: string
+  followeeName?: string
   followeeFileId?: string
   followedYn?: string
   followerCnt?: string

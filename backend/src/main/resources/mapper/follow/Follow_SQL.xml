@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 회원 팔로우(단방향). 주체(user_id)는 항상 서버가 세팅한 로그인 본인. -->
+<!-- 회원 팔로우(단방향). 주체(member_id)는 항상 서버가 세팅한 로그인 본인. -->
 <mapper namespace="followDAO">
 
     <select id="selectActiveCnt" parameterType="followVO" resultType="int">
-        SELECT COUNT(*) FROM t_user_follow WHERE user_id = #{userId} AND followee_id = #{followeeId}
+        SELECT COUNT(*) FROM member_follow WHERE member_id = #{memberId} AND followee_id = #{followeeId}
     </select>
 
     <insert id="insert" parameterType="followVO">
-        INSERT INTO t_user_follow (user_id, followee_id, reg_dt, reg_ip)
-        VALUES (#{userId}, #{followeeId}, NOW(), #{regIp})
-        ON CONFLICT (user_id, followee_id) DO NOTHING
+        INSERT INTO member_follow (member_id, followee_id, reg_dt, reg_ip)
+        VALUES (#{memberId}, #{followeeId}, NOW(), #{regIp})
+        ON CONFLICT (member_id, followee_id) DO NOTHING
     </insert>
 
     <delete id="delete" parameterType="followVO">
-        DELETE FROM t_user_follow WHERE user_id = #{userId} AND followee_id = #{followeeId}
+        DELETE FROM member_follow WHERE member_id = #{memberId} AND followee_id = #{followeeId}
     </delete>
 
     <!-- 내가 팔로우한 회원 목록(탈퇴·정지 회원 제외) -->
     <select id="selectFollowingList" parameterType="followVO" resultType="followVO">
         SELECT f.follow_id::TEXT AS row_id,
                u.handle AS followee_handle,
-               u.nickname AS followee_nm,
+               u.nickname AS followee_name,
                u.profile_file_id::TEXT AS followee_file_id,
                TO_CHAR(f.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_user_follow f
-        JOIN t_user u ON u.user_id = f.followee_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
-        WHERE f.user_id = #{userId}
+        FROM member_follow f
+        JOIN member u ON u.member_id = f.followee_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+        WHERE f.member_id = #{memberId}
         ORDER BY f.follow_id DESC
     </select>
 
@@ -34,27 +34,27 @@
     <select id="selectFollowerList" parameterType="followVO" resultType="followVO">
         SELECT f.follow_id::TEXT AS row_id,
                u.handle AS followee_handle,
-               u.nickname AS followee_nm,
+               u.nickname AS followee_name,
                u.profile_file_id::TEXT AS followee_file_id,
                TO_CHAR(f.reg_dt, 'YYYY-MM-DD') AS reg_dt
-        FROM t_user_follow f
-        JOIN t_user u ON u.user_id = f.user_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
-        WHERE f.followee_id = #{userId}
+        FROM member_follow f
+        JOIN member u ON u.member_id = f.member_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+        WHERE f.followee_id = #{memberId}
         ORDER BY f.follow_id DESC
     </select>
 
     <!-- 프로필 표시용 카운트(팔로워/팔로잉) -->
     <select id="selectCounts" parameterType="followVO" resultType="followVO">
-        SELECT (SELECT COUNT(*) FROM t_user_follow WHERE followee_id = #{followeeId})::TEXT AS follower_cnt,
-               (SELECT COUNT(*) FROM t_user_follow WHERE user_id = #{followeeId})::TEXT AS following_cnt
+        SELECT (SELECT COUNT(*) FROM member_follow WHERE followee_id = #{followeeId})::TEXT AS follower_cnt,
+               (SELECT COUNT(*) FROM member_follow WHERE member_id = #{followeeId})::TEXT AS following_cnt
     </select>
 
     <!-- 새 모집 알림 대상: 나를 팔로우한 회원(정지·탈퇴 제외) -->
     <select id="selectFollowerIds" parameterType="map" resultType="string">
-        SELECT f.user_id
-        FROM t_user_follow f
-        JOIN t_user u ON u.user_id = f.user_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
-        WHERE f.followee_id = #{userId}
+        SELECT f.member_id
+        FROM member_follow f
+        JOIN member u ON u.member_id = f.member_id AND u.use_yn = 'Y' AND u.status_cd = 'STATUS01'
+        WHERE f.followee_id = #{memberId}
     </select>
 
 </mapper>

@@ -6,10 +6,10 @@ import type { ListResult } from '../../api/http'
 import SafeHtml from '../../common/SafeHtml'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import { tokenStore } from '../../auth/token'
-import { hobbyApi, userHobbyApi } from '../../adm/hobby/hobby.api'
+import { hobbyApi, memberHobbyApi } from '../../adm/hobby/hobby.api'
 import type { Hobby } from '../../adm/hobby/hobby.api'
-import { BBS_LIST_URL } from '../../adm/bbs/bbs.api'
-import type { Bbs } from '../../adm/bbs/bbs.api'
+import { POST_LIST_URL } from '../../adm/post/post.api'
+import type { Post } from '../../adm/post/post.api'
 import { recruitApi } from '../recruit/recruit.api'
 import type { Recruit } from '../recruit/recruit.api'
 import { gen } from '../theme'
@@ -24,7 +24,7 @@ export default function GenHobby() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [hobby, setHobby] = useState<Hobby | null>(null)
-  const [posts, setPosts] = useState<Bbs[]>([])
+  const [posts, setPosts] = useState<Post[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [myLevel, setMyLevel] = useState<string | undefined>()
   const [registered, setRegistered] = useState(false)
@@ -36,15 +36,15 @@ export default function GenHobby() {
     setLoading(true)
     hobbyApi.view(id).then(async (h) => {
       setHobby(h)
-      if (h.bbsinfoId) {
-        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId: h.bbsinfoId, pageNo: 1, pageSize: 5 })
-          .catch(() => ({ list: [], totalCount: 0 } as ListResult<Bbs>))
-        setPosts(res.list.filter((b) => Number(b.bbsDepth ?? 0) === 0))
+      if (h.boardId) {
+        const res = await apiPost<ListResult<Post>>(POST_LIST_URL, { boardId: h.boardId, pageNo: 1, pageSize: 5 })
+          .catch(() => ({ list: [], totalCount: 0 } as ListResult<Post>))
+        setPosts(res.list.filter((b) => Number(b.depth ?? 0) === 0))
       }
       const r = await recruitApi.list({ hobbyId: id, pageNo: 1, pageSize: 5 }).catch(() => null)
       setRecruits(r?.list ?? [])
       if (loggedIn) {
-        const mine = await userHobbyApi.list().catch(() => [])
+        const mine = await memberHobbyApi.list().catch(() => [])
         const m = mine.find((u) => u.hobbyId === id)
         setRegistered(!!m)
         setMyLevel(m?.levelCd)
@@ -57,7 +57,7 @@ export default function GenHobby() {
   const saveLevel = async (v?: string) => {
     if (!id) return
     try {
-      await userHobbyApi.save(id, v) // v 없으면 담기는 유지하고 레벨만 해제
+      await memberHobbyApi.save(id, v) // v 없으면 담기는 유지하고 레벨만 해제
       setMyLevel(v)
       setRegistered(true)
       message.success(v ? '내 레벨을 저장했습니다.' : '레벨을 해제했습니다.')
@@ -70,12 +70,12 @@ export default function GenHobby() {
     if (!id) return
     try {
       if (registered) {
-        await userHobbyApi.remove(id)
+        await memberHobbyApi.remove(id)
         setRegistered(false)
         setMyLevel(undefined)
         message.success('담기를 취소했습니다.')
       } else {
-        await userHobbyApi.save(id) // 관심 담기(레벨 없이)
+        await memberHobbyApi.save(id) // 관심 담기(레벨 없이)
         setRegistered(true)
         message.success('내 취미에 담았습니다.')
       }
@@ -92,13 +92,13 @@ export default function GenHobby() {
       {/* 헤더(라이트) */}
       <div style={{ background: gen.heroTint, borderRadius: 24, padding: '28px 24px', display: 'flex', gap: 20, alignItems: 'center' }}>
         {hobby.thumbId
-          ? <img src={`/api/pub/image/${hobby.thumbId}`} alt={hobby.hobbyNm}
+          ? <img src={`/api/pub/image/${hobby.thumbId}`} alt={hobby.hobbyName}
               style={{ width: 92, height: 92, objectFit: 'cover', borderRadius: 18, flexShrink: 0 }} />
-          : <div style={{ width: 92, height: 92, borderRadius: 18, flexShrink: 0, background: '#fff', color: gen.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, fontWeight: 800 }}>{(hobby.hobbyNm ?? '').slice(0, 1)}</div>}
+          : <div style={{ width: 92, height: 92, borderRadius: 18, flexShrink: 0, background: '#fff', color: gen.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, fontWeight: 800 }}>{(hobby.hobbyName ?? '').slice(0, 1)}</div>}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 26, fontWeight: 800, color: gen.heroText }}>{hobby.hobbyNm}</span>
-            {hobby.difficultyNm && <Tag color="purple">{hobby.difficultyNm}</Tag>}
+            <span style={{ fontSize: 26, fontWeight: 800, color: gen.heroText }}>{hobby.hobbyName}</span>
+            {hobby.difficultyName && <Tag color="purple">{hobby.difficultyName}</Tag>}
           </div>
           {hobby.summary && <div style={{ fontSize: 15, color: '#7A72A8', marginTop: 6 }}>{hobby.summary}</div>}
           {loggedIn && (
@@ -113,8 +113,8 @@ export default function GenHobby() {
             </div>
           )}
           <Space style={{ marginTop: 14 }}>
-            {hobby.bbsinfoId && (
-              <Button type="primary" onClick={() => navigate(`/gen/board/${hobby.bbsinfoId}`)}
+            {hobby.boardId && (
+              <Button type="primary" onClick={() => navigate(`/gen/board/${hobby.boardId}`)}
                 style={{ borderRadius: 14, fontWeight: 700 }}>게시판 가기</Button>
             )}
             <Button onClick={() => navigate(`/gen/recruit?hobby=${id}`)} style={{ borderRadius: 14 }}>모집 보기</Button>
@@ -135,10 +135,10 @@ export default function GenHobby() {
         <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>입문 가이드</h3>
         <Card>
           {hobby.guide ? <SafeHtml html={hobby.guide} /> : <span style={{ color: '#999' }}>준비 중입니다.</span>}
-          {(hobby.equipment || hobby.estCost) && (
+          {(hobby.equipment || hobby.estimatedCost) && (
             <Descriptions bordered column={1} size="small" style={{ marginTop: 16 }}>
               {hobby.equipment && <Descriptions.Item label="필요 장비">{hobby.equipment}</Descriptions.Item>}
-              {hobby.estCost && <Descriptions.Item label="대략 비용">{hobby.estCost}</Descriptions.Item>}
+              {hobby.estimatedCost && <Descriptions.Item label="대략 비용">{hobby.estimatedCost}</Descriptions.Item>}
             </Descriptions>
           )}
         </Card>
@@ -170,18 +170,18 @@ export default function GenHobby() {
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
           <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>최근 글</h3>
-          {hobby.bbsinfoId && <a style={{ color: TEAL }} onClick={() => navigate(`/gen/board/${hobby.bbsinfoId}`)}>게시판 가기</a>}
+          {hobby.boardId && <a style={{ color: TEAL }} onClick={() => navigate(`/gen/board/${hobby.boardId}`)}>게시판 가기</a>}
         </div>
         {posts.length === 0 ? (
           <Empty description="등록된 글이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
-              <div key={p.rowId} onClick={() => navigate(`/gen/board/${hobby.bbsinfoId}?post=${p.rowId}`)}
+              <div key={p.rowId} onClick={() => navigate(`/gen/board/${hobby.boardId}?post=${p.rowId}`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1px solid #f0f0f0' }}>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                 {Number(p.commentCnt) > 0 && <span style={{ color: TEAL }}>[{p.commentCnt}]</span>}
-                <span style={{ fontSize: 12, color: '#aaa' }}>{p.regNm || '-'} · {p.regDt}</span>
+                <span style={{ fontSize: 12, color: '#aaa' }}>{p.regName || '-'} · {p.regDt}</span>
               </div>
             ))}
           </Card>

@@ -1,7 +1,7 @@
 package com.pwsh.global.config;
 
 import com.pwsh.common.CommonDAO;
-import com.pwsh.domain.user.service.UserVO;
+import com.pwsh.domain.member.service.MemberVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -27,26 +27,26 @@ public class DataInitializer implements CommandLineRunner {
         createIfAbsent("user", "user1234!", "MEM01", "일반사용자", "회원1");
     }
 
-    private void createIfAbsent(String userId, String rawPw, String memCd, String userNm, String nickname) {
-        UserVO check = new UserVO();
-        check.setUserId(userId);
-        Integer count = commonDAO.selectOne("userDAO.selectCount", check);
+    private void createIfAbsent(String memberId, String rawPw, String typeCd, String memberName, String nickname) {
+        MemberVO check = new MemberVO();
+        check.setMemberId(memberId);
+        Integer count = commonDAO.selectOne("memberDAO.selectCount", check);
         if (count != null && count > 0) {
             return;
         }
-        UserVO user = new UserVO();
-        user.setUserId(userId);
-        user.setUserPw(passwordEncoder.encode(rawPw));
-        user.setMemCd(memCd);
-        user.setUserNm(userNm);
+        MemberVO user = new MemberVO();
+        user.setMemberId(memberId);
+        user.setPassword(passwordEncoder.encode(rawPw));
+        user.setTypeCd(typeCd);
+        user.setMemberName(memberName);
         user.setNickname(nickname);
         user.setStatusCd("STATUS01");
         user.setRegId("system");
         user.setUpdId("system");
         user.setRegIp("127.0.0.1");
         user.setUpdIp("127.0.0.1");
-        commonDAO.insert("userDAO.insert", user);
+        commonDAO.insert("memberDAO.insert", user);
         // 보안: raw 비밀번호는 로그에 남기지 않는다(로그 유출 시 계정 탈취). 기본 비번은 최초 로그인 후 변경 전제.
-        log.info("[DataInitializer] 기본 계정 생성: {} (기본 비밀번호는 최초 로그인 후 변경 필요)", userId);
+        log.info("[DataInitializer] 기본 계정 생성: {} (기본 비밀번호는 최초 로그인 후 변경 필요)", memberId);
     }
 }

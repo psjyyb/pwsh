@@ -1,7 +1,7 @@
 package com.pwsh.domain.hobby.service;
 
 import com.pwsh.common.CommonDAO;
-import com.pwsh.domain.bbsinfo.service.BbsinfoVO;
+import com.pwsh.domain.board.service.BoardVO;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -36,19 +36,19 @@ public class HobbyService {
      */
     @Transactional
     public void insert(HobbyVO vo) {
-        if (vo.getBbsinfoId() == null || vo.getBbsinfoId().isBlank()) {
-            BbsinfoVO board = new BbsinfoVO();
-            board.setBbsinfoNm(vo.getHobbyNm());
-            board.setBbsinfoCd("BBSINFO001"); // 일반형(글+댓글+답글+첨부)
-            board.setBbsinfoDesc(vo.getHobbyNm() + " 게시판");
+        if (vo.getBoardId() == null || vo.getBoardId().isBlank()) {
+            BoardVO board = new BoardVO();
+            board.setBoardName(vo.getHobbyName());
+            board.setTypeCd("BOARD01"); // 일반형(글+댓글+답글+첨부)
+            board.setDescription(vo.getHobbyName() + " 게시판");
             board.setListCnt("10");
             board.setFileYn("Y");
-            board.setFileCnt("5");
-            board.setFileSize("10");
+            board.setFileCntLimit("5");
+            board.setFileSizeLimitMb("10");
             board.setNoticeYn("N");
             board.setNewCnt("7");
-            commonDAO.insert("bbsinfoDAO.insert", board); // useGeneratedKeys → board.rowId
-            vo.setBbsinfoId(board.getRowId());
+            commonDAO.insert("boardDAO.insert", board); // useGeneratedKeys → board.rowId
+            vo.setBoardId(board.getRowId());
         }
         commonDAO.insert("hobbyDAO.insert", vo);
     }

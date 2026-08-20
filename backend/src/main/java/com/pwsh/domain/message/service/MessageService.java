@@ -5,7 +5,7 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.block.service.BlockService;
 import com.pwsh.domain.notification.service.NotificationService;
-import com.pwsh.domain.user.service.UserVO;
+import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.global.realtime.RealtimeService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -31,7 +31,7 @@ public class MessageService {
     /** 내 대화 목록(상대별 최근 + 안읽음). */
     public List<MessageVO> selectConvList() {
         MessageVO vo = new MessageVO();
-        vo.setMyId(currentUserId());
+        vo.setMyId(currentMemberId());
         return commonDAO.selectList("messageDAO.selectConvList", vo);
     }
 
@@ -39,8 +39,8 @@ public class MessageService {
     @Transactional
     public List<MessageVO> selectThread(String otherHandle) {
         MessageVO vo = new MessageVO();
-        vo.setMyId(currentUserId());
-        vo.setOtherId(handleResolver.toUserId(otherHandle)); // 공개 식별자 → 내부 로그인 ID
+        vo.setMyId(currentMemberId());
+        vo.setOtherId(handleResolver.toMemberId(otherHandle)); // 공개 식별자 → 내부 로그인 ID
         commonDAO.update("messageDAO.markThreadRead", vo);
         return commonDAO.selectList("messageDAO.selectThread", vo);
     }
@@ -48,25 +48,25 @@ public class MessageService {
     /** 전체 안읽음 수(헤더 배지). */
     public int unreadCnt() {
         MessageVO vo = new MessageVO();
-        vo.setMyId(currentUserId());
+        vo.setMyId(currentMemberId());
         return commonDAO.selectOne("messageDAO.selectUnreadCnt", vo);
     }
 
     /** 쪽지 보내기 — 받는 사람은 handle로 지정. 발신자=현재 사용자 강제, 본인/미존재 수신자 차단. */
     @Transactional
     public void send(MessageVO req) {
-        String me = currentUserId();
+        String me = currentMemberId();
         if (req.getReceiverHandle() == null || req.getReceiverHandle().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "받는 사람이 없습니다.");
         }
-        String receiver = handleResolver.toUserId(req.getReceiverHandle()); // 공개 식별자 → 내부 로그인 ID
+        String receiver = handleResolver.toMemberId(req.getReceiverHandle()); // 공개 식별자 → 내부 로그인 ID
         if (me.equals(receiver)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "자기 자신에게는 보낼 수 없습니다.");
         }
         if (req.getContent() == null || req.getContent().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "내용을 입력해 주세요.");
         }
-        UserVO r = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(receiver));
+        MemberVO r = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(receiver));
         if (r == null || !"Y".equals(r.getUseYn())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "받는 회원을 찾을 수 없습니다.");
         }
@@ -80,7 +80,7 @@ public class MessageService {
         ins.setContent(req.getContent().trim());
         commonDAO.insert("messageDAO.insert", ins);
         // 수신자 알림(발신자 닉네임 표시)
-        UserVO meU = commonDAO.selectOne("userDAO.selectByUserId", userIdParam(me));
+        MemberVO meU = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(me));
         String nm = (meU != null && meU.getNickname() != null) ? meU.getNickname() : me;
         // 링크는 내 handle로 — 저장되는 값이라 로그인 ID를 넣으면 알림 목록에서 계속 노출된다
         String myHandle = (meU != null) ? meU.getHandle() : null;
@@ -92,36 +92,36 @@ public class MessageService {
 
     /** 내 실시간 스트림 연결(SSE) — 로그인 본인 것만 열 수 있다. */
     public SseEmitter subscribe() {
-        return realtimeService.subscribe(currentUserId());
+        return realtimeService.subscribe(currentMemberId());
     }
 
     /** 상대(handle)와의 대화 읽음 처리. */
     public void markRead(String otherHandle) {
         MessageVO vo = new MessageVO();
-        vo.setMyId(currentUserId());
-        vo.setOtherId(handleResolver.toUserId(otherHandle));
+        vo.setMyId(currentMemberId());
+        vo.setOtherId(handleResolver.toMemberId(otherHandle));
         commonDAO.update("messageDAO.markThreadRead", vo);
     }
 
     /** 대화 삭제(내 화면에서만). 상대는 handle로 지정. */
     public void deleteConv(String otherHandle) {
         MessageVO vo = new MessageVO();
-        vo.setMyId(currentUserId());
-        vo.setOtherId(handleResolver.toUserId(otherHandle));
+        vo.setMyId(currentMemberId());
+        vo.setOtherId(handleResolver.toMemberId(otherHandle));
         commonDAO.update("messageDAO.deleteConv", vo);
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }
         return me;
     }
 
-    private UserVO userIdParam(String userId) {
-        UserVO v = new UserVO();
-        v.setUserId(userId);
+    private MemberVO memberIdParam(String memberId) {
+        MemberVO v = new MemberVO();
+        v.setMemberId(memberId);
         return v;
     }
 }

@@ -20,7 +20,7 @@ export default function PopupListPage() {
     runWithMessage(() => popupApi.moveSort(row.rowId!, dir), '순서를 변경했습니다.', reload)
 
   const columns: TableColumnsType<Popup> = [
-    { title: '팝업명', dataIndex: 'popNm' },
+    { title: '팝업명', dataIndex: 'popupName' },
     { title: '사용', dataIndex: 'useYn', width: 60 },
     {
       title: '순서',
@@ -72,7 +72,7 @@ export default function PopupListPage() {
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
         <Form form={form} layout="vertical">
-          <Form.Item name="popNm" label="팝업명" rules={[{ required: true, message: '팝업명을 입력하세요.' }]}>
+          <Form.Item name="popupName" label="팝업명" rules={[{ required: true, message: '팝업명을 입력하세요.' }]}>
             <Input />
           </Form.Item>
           <Form.Item name="fileId" label="이미지">
@@ -89,23 +89,23 @@ export default function PopupListPage() {
               <Input disabled />
             </Form.Item>
           )}
-          <Form.Item name="link" label="연결 링크">
+          <Form.Item name="linkUrl" label="연결 링크">
             <Input />
           </Form.Item>
-          <Form.Item name="txt" label="내용">
+          <Form.Item name="content" label="내용">
             <Input.TextArea rows={4} />
           </Form.Item>
           <Space size={8} wrap>
-            <Form.Item name="popWidth" label="너비(px)">
+            <Form.Item name="width" label="너비(px)">
               <Input style={{ width: 110 }} placeholder="예: 400" />
             </Form.Item>
-            <Form.Item name="popHeight" label="높이(px)">
+            <Form.Item name="height" label="높이(px)">
               <Input style={{ width: 110 }} placeholder="예: 300" />
             </Form.Item>
-            <Form.Item name="popTop" label="위치 top(px)">
+            <Form.Item name="posTop" label="위치 top(px)">
               <Input style={{ width: 110 }} placeholder="예: 100" />
             </Form.Item>
-            <Form.Item name="popLeft" label="위치 left(px)">
+            <Form.Item name="posLeft" label="위치 left(px)">
               <Input style={{ width: 110 }} placeholder="예: 100" />
             </Form.Item>
           </Space>

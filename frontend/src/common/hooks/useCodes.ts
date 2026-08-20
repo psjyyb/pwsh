@@ -8,7 +8,7 @@ export interface CodeOption {
 
 interface CodeRow {
   codeId: string
-  codeNm: string
+  codeName: string
 }
 
 /**
@@ -21,7 +21,7 @@ export function useCodes(pCodeId: string): CodeOption[] {
   useEffect(() => {
     if (!pCodeId) return
     apiPost<CodeRow[]>('/adm/code/selectCodeListCombo.do', { pCodeId })
-      .then((list) => setOptions(list.map((c) => ({ value: c.codeId, label: c.codeNm }))))
+      .then((list) => setOptions(list.map((c) => ({ value: c.codeId, label: c.codeName }))))
       .catch(() => setOptions([]))
   }, [pCodeId])
 

@@ -20,7 +20,7 @@ export default function PolicyListPage() {
 
   const columns: TableColumnsType<Policy> = [
     { title: '제목', dataIndex: 'title' },
-    { title: '유형', width: 130, render: (_, r) => r.typeCdNm ?? r.typeCd },
+    { title: '유형', width: 130, render: (_, r) => r.typeCdName ?? r.typeCd },
     { title: '필수', dataIndex: 'reqYn', width: 60 },
     {
       title: '순서',

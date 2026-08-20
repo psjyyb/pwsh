@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="postDAO">
+
+    <!-- 목록: 원글(공지 상단 고정 후 최신순)을 페이지 단위로 뽑고, 각 원글의 답글(스레드)을 재귀로 이어붙여 반환.
+         페이징은 원글 기준(totalCount=원글 수). depth=들여쓰기 레벨(0=원글). 답글은 원글 바로 아래 path 순으로 정렬. -->
+    <select id="selectList" parameterType="postVO" resultType="postVO">
+        WITH RECURSIVE paged_roots AS (
+            SELECT post_id,
+                   CASE WHEN notice_yn = 'Y'
+                         AND (notice_start_dt IS NULL OR notice_start_dt = '' OR notice_start_dt &lt;= TO_CHAR(NOW(),'YYYY-MM-DD'))
+                         AND (notice_end_dt   IS NULL OR notice_end_dt   = '' OR notice_end_dt   &gt;= TO_CHAR(NOW(),'YYYY-MM-DD'))
+                        THEN 'Y' ELSE 'N' END AS notice_eff
+            FROM post
+            WHERE use_yn = 'Y' AND p_post_id = 0 AND board_id = #{boardId}::integer
+              AND NOT EXISTS ( -- 내가 차단한 회원의 글은 내 목록에서 제외
+                  SELECT 1 FROM member_block ub
+                  WHERE ub.member_id = #{viewerId} AND ub.blocked_id = post.reg_id
+              )
+            <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
+            ORDER BY notice_eff DESC, post_id DESC
+            LIMIT #{pageSize} OFFSET #{offset}
+        ),
+        thread AS (
+            SELECT b.post_id, b.p_post_id, 0 AS lvl, pr.notice_eff AS root_notice, b.post_id AS root_id, ARRAY[b.post_id] AS path
+            FROM post b JOIN paged_roots pr ON pr.post_id = b.post_id
+            UNION ALL
+            SELECT c.post_id, c.p_post_id, t.lvl + 1, t.root_notice, t.root_id, t.path || c.post_id
+            FROM post c JOIN thread t ON c.p_post_id = t.post_id
+            WHERE c.use_yn = 'Y'
+        )
+        <!-- 공개 목록: 작성자 로그인 ID(reg_id)는 내보내지 않는다. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
+        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.notice_yn, b.secret_yn,
+               b.view_cnt, b.good_cnt, t.lvl AS depth,
+               (SELECT u.nickname FROM member u WHERE u.member_id = b.reg_id) AS reg_name,
+               (SELECT u.handle FROM member u WHERE u.member_id = b.reg_id) AS reg_handle,
+               (CASE WHEN #{viewerId}::text IS NOT NULL AND b.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
+               (SELECT u.profile_file_id FROM member u WHERE u.member_id = b.reg_id) AS reg_profile_file_id,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = b.post_id AND r.file_type = 'POST_IMG'
+                 ORDER BY r.sort_no LIMIT 1) AS file_id,
+               (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') AS comment_cnt,
+               CASE WHEN t.lvl = 0 THEN t.root_notice ELSE 'N' END AS notice_eff
+        FROM thread t JOIN post b ON b.post_id = t.post_id
+        ORDER BY t.root_notice DESC, t.root_id DESC, t.path
+    </select>
+
+    <!-- 내가 쓴 글(마이페이지): 본인 원글, 게시판명 조인 -->
+    <select id="selectListMine" parameterType="postVO" resultType="postVO">
+        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.view_cnt,
+               bi.name AS board_name,
+               (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') AS comment_cnt,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM post b
+        LEFT JOIN board bi ON bi.board_id = b.board_id
+        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.reg_id = #{regId}
+        ORDER BY b.post_id DESC
+        LIMIT 50
+        -- 커밋
+    </select>
+
+    <!--
+      주간 인기글(메인 '이번 주 베스트') — 최근 7일, 취미 공개 게시판·비밀글 제외.
+      점수 = 좋아요*3 + 댓글*2 + 조회*0.1 (참여도 가중).
+    -->
+    <select id="selectListWeeklyBest" parameterType="postVO" resultType="postVO">
+        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.view_cnt, b.good_cnt,
+               bi.name AS board_name,
+               (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') AS comment_cnt,
+               (SELECT u.nickname FROM member u WHERE u.member_id = b.reg_id) AS reg_name,
+               (SELECT u.profile_file_id::TEXT FROM member u WHERE u.member_id = b.reg_id) AS reg_profile_file_id,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM post b
+        JOIN board bi ON bi.board_id = b.board_id
+        JOIN hobby h ON h.board_id = b.board_id AND h.use_yn = 'Y'
+        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N'
+          AND b.reg_dt >= NOW() - INTERVAL '7 days'
+        ORDER BY (COALESCE(b.good_cnt,0) * 3
+                  + (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') * 2
+                  + COALESCE(b.view_cnt,0) * 0.1) DESC,
+                 b.post_id DESC
+        LIMIT 5
+    </select>
+
+    <!-- 회원 공개 프로필용: 그 회원이 '취미(공개) 게시판'에 쓴 글만(비밀글·비공개 게시판 제외). -->
+    <select id="selectListByAuthor" parameterType="postVO" resultType="postVO">
+        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.view_cnt, b.good_cnt,
+               bi.name AS board_name,
+               (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') AS comment_cnt,
+               TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
+        FROM post b
+        JOIN board bi ON bi.board_id = b.board_id
+        JOIN hobby h ON h.board_id = b.board_id AND h.use_yn = 'Y'
+        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N' AND b.reg_id = #{regId}
+        ORDER BY b.post_id DESC
+        LIMIT 20
+    </select>
+
+    <select id="selectListTotalCount" parameterType="postVO" resultType="int">
+        SELECT COUNT(*) FROM post
+        WHERE use_yn = 'Y' AND p_post_id = 0 AND board_id = #{boardId}::integer
+        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
+          <!-- 목록(selectList)과 동일한 차단 필터 — 총건수/페이징이 어긋나지 않도록 -->
+          AND NOT EXISTS (
+              SELECT 1 FROM member_block ub
+              WHERE ub.member_id = #{viewerId} AND ub.blocked_id = post.reg_id
+          )
+    </select>
+
+    <select id="selectView" parameterType="postVO" resultType="postVO">
+        SELECT post_id::TEXT AS row_id, board_id, title, context,
+               p_post_id, depth, sort_no, secret_yn, password, good_cnt, bad_cnt, view_cnt,
+               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
+               notice_yn, notice_start_dt, notice_end_dt,
+               reg_id, <!-- 서버 인가용(비밀글 작성자 판정). 응답 직전 PostService에서 제거 -->
+               (SELECT u.nickname FROM member u WHERE u.member_id = post.reg_id) AS reg_name,
+               (SELECT u.handle FROM member u WHERE u.member_id = post.reg_id) AS reg_handle,
+               (CASE WHEN #{viewerId}::text IS NOT NULL AND reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
+               (SELECT u.profile_file_id FROM member u WHERE u.member_id = post.reg_id) AS reg_profile_file_id,
+               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
+        FROM post WHERE post_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="postVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="post_id">
+        INSERT INTO post (board_id, title, context, p_post_id, depth,
+            sort_no, secret_yn, password, good_cnt, bad_cnt, view_cnt,
+            notice_yn, notice_start_dt, notice_end_dt, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{boardId}::integer, #{title}, #{context},
+            COALESCE(NULLIF(#{pPostId}, '')::integer, 0), COALESCE(NULLIF(#{depth}, '')::integer, 1),
+            (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM post WHERE board_id = #{boardId}::integer),
+            COALESCE(#{secretYn}, 'N'), NULLIF(#{password}, ''), 0, 0, 0,
+            COALESCE(#{noticeYn}, 'N'), NULLIF(#{noticeStartDt}, ''), NULLIF(#{noticeEndDt}, ''), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="postVO">
+        UPDATE post SET
+            title = #{title}, context = #{context},
+            secret_yn = COALESCE(#{secretYn}, 'N'),
+            password = COALESCE(NULLIF(#{password}, ''), password),
+            notice_yn = COALESCE(#{noticeYn}, 'N'),
+            notice_start_dt = NULLIF(#{noticeStartDt}, ''), notice_end_dt = NULLIF(#{noticeEndDt}, ''),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE post_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="postVO">
+        UPDATE post SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE post_id = #{rowId}::integer
+    </update>
+
+    <!-- 조회수 증가 -->
+    <update id="updateViewCnt" parameterType="postVO">
+        UPDATE post SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE post_id = #{rowId}::integer
+    </update>
+
+    <!-- 글의 소속 게시판 ID(콘텐츠 인가에서 취미 게시판 공개 판정용) -->
+    <select id="selectBoardIdByPostId" parameterType="map" resultType="string">
+        SELECT board_id::TEXT FROM post WHERE post_id = #{postId}::integer
+    </select>
+
+</mapper>

@@ -29,7 +29,7 @@ function filterTree(nodes: Code[], kw: string): Code[] {
   const res: Code[] = []
   for (const n of nodes) {
     const kids = n.children ? filterTree(n.children, kw) : []
-    const hit = (n.codeNm ?? '').includes(kw) || (n.rowId ?? '').includes(kw)
+    const hit = (n.codeName ?? '').includes(kw) || (n.rowId ?? '').includes(kw)
     if (hit || kids.length) res.push(kids.length ? { ...n, children: kids } : { ...n, children: undefined })
   }
   return res
@@ -90,7 +90,7 @@ export default function CodeListPage() {
 
   const columns: TableColumnsType<Code> = [
     { title: '코드ID', dataIndex: 'rowId', width: 180 },
-    { title: '코드명', dataIndex: 'codeNm' },
+    { title: '코드명', dataIndex: 'codeName' },
     {
       title: '순서',
       width: 100,
@@ -149,10 +149,10 @@ export default function CodeListPage() {
           <Form.Item name="pCodeId" label="상위코드" rules={[{ required: true, message: '상위코드를 입력하세요.' }]}>
             <Input disabled={isEdit} />
           </Form.Item>
-          <Form.Item name="codeNm" label="코드명" rules={[{ required: true, message: '코드명을 입력하세요.' }]}>
+          <Form.Item name="codeName" label="코드명" rules={[{ required: true, message: '코드명을 입력하세요.' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="codeDesc" label="설명">
+          <Form.Item name="description" label="설명">
             <Input />
           </Form.Item>
           <Form.Item name="sortNo" label="정렬순서(자동)">

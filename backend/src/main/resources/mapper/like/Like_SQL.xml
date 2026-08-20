@@ -3,48 +3,48 @@
 <mapper namespace="likeDAO">
 
     <select id="selectActiveCnt" parameterType="likeVO" resultType="int">
-        SELECT COUNT(*) FROM t_content_like
-        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+        SELECT COUNT(*) FROM content_like
+        WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </select>
 
     <insert id="insert" parameterType="likeVO">
-        INSERT INTO t_content_like (user_id, target_type, target_id, reg_id, reg_dt, reg_ip)
-        VALUES (#{userId}, #{targetType}, #{targetId}::integer, #{regId}, NOW(), #{regIp})
-        ON CONFLICT (user_id, target_type, target_id) DO NOTHING
+        INSERT INTO content_like (member_id, target_type, target_id, reg_id, reg_dt, reg_ip)
+        VALUES (#{memberId}, #{targetType}, #{targetId}::integer, #{regId}, NOW(), #{regIp})
+        ON CONFLICT (member_id, target_type, target_id) DO NOTHING
     </insert>
 
     <delete id="delete" parameterType="likeVO">
-        DELETE FROM t_content_like
-        WHERE user_id = #{userId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+        DELETE FROM content_like
+        WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </delete>
 
     <!-- 표시용 good_cnt 트랜잭션 동기화 -->
-    <update id="incBbsGood" parameterType="likeVO">
-        UPDATE t_bbs SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE bbs_id = #{targetId}::integer
+    <update id="incPostGood" parameterType="likeVO">
+        UPDATE post SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE post_id = #{targetId}::integer
     </update>
-    <update id="decBbsGood" parameterType="likeVO">
-        UPDATE t_bbs SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE bbs_id = #{targetId}::integer
+    <update id="decPostGood" parameterType="likeVO">
+        UPDATE post SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE post_id = #{targetId}::integer
     </update>
     <update id="incCommentGood" parameterType="likeVO">
-        UPDATE t_comment SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE comment_id = #{targetId}::integer
+        UPDATE comment SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE comment_id = #{targetId}::integer
     </update>
     <update id="decCommentGood" parameterType="likeVO">
-        UPDATE t_comment SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE comment_id = #{targetId}::integer
+        UPDATE comment SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE comment_id = #{targetId}::integer
     </update>
 
     <!-- 대상 존재 확인(고아 좋아요 방지) -->
-    <select id="countBbs" parameterType="likeVO" resultType="int">
-        SELECT COUNT(*) FROM t_bbs WHERE bbs_id = #{targetId}::integer AND use_yn = 'Y'
+    <select id="countPost" parameterType="likeVO" resultType="int">
+        SELECT COUNT(*) FROM post WHERE post_id = #{targetId}::integer AND use_yn = 'Y'
     </select>
     <select id="countComment" parameterType="likeVO" resultType="int">
-        SELECT COUNT(*) FROM t_comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y'
+        SELECT COUNT(*) FROM comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y'
     </select>
 
-    <select id="selectBbsGood" parameterType="likeVO" resultType="int">
-        SELECT COALESCE(good_cnt, 0) FROM t_bbs WHERE bbs_id = #{targetId}::integer
+    <select id="selectPostGood" parameterType="likeVO" resultType="int">
+        SELECT COALESCE(good_cnt, 0) FROM post WHERE post_id = #{targetId}::integer
     </select>
     <select id="selectCommentGood" parameterType="likeVO" resultType="int">
-        SELECT COALESCE(good_cnt, 0) FROM t_comment WHERE comment_id = #{targetId}::integer
+        SELECT COALESCE(good_cnt, 0) FROM comment WHERE comment_id = #{targetId}::integer
     </select>
 
 </mapper>

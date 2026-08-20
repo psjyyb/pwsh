@@ -12,12 +12,12 @@
 
     <!-- 취미: 이름·소개 부분일치 -->
     <select id="searchHobbies" parameterType="map" resultType="hobbyVO">
-        SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary,
-               dc.code_nm AS difficulty_nm
-        FROM t_hobby h
-        LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
+        SELECT h.hobby_id::TEXT AS row_id, h.name AS hobby_name, h.summary,
+               dc.name AS difficulty_name
+        FROM hobby h
+        LEFT JOIN code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         WHERE h.use_yn = 'Y'
-          AND (h.hobby_nm LIKE '%' || #{keyword} || '%' ESCAPE '\'
+          AND (h.name LIKE '%' || #{keyword} || '%' ESCAPE '\'
                OR h.summary LIKE '%' || #{keyword} || '%' ESCAPE '\')
         ORDER BY h.sort_no, h.hobby_id
         LIMIT 10
@@ -26,10 +26,10 @@
     <!-- 모집: 모임명·설명 부분일치 -->
     <select id="searchRecruits" parameterType="map" resultType="recruitVO">
         SELECT r.recruit_id::TEXT AS row_id, r.title, r.region, r.meet_dt, r.status_cd,
-               ho.hobby_nm, sc.code_nm AS status_nm
-        FROM t_recruit r
-        LEFT JOIN t_hobby ho ON ho.hobby_id = r.hobby_id
-        LEFT JOIN t_code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
+               ho.name AS hobby_name, sc.name AS status_name
+        FROM recruit r
+        LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
+        LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
         WHERE r.use_yn = 'Y'
           AND (r.title LIKE '%' || #{keyword} || '%' ESCAPE '\'
                OR r.content LIKE '%' || #{keyword} || '%' ESCAPE '\')
@@ -43,20 +43,20 @@
       (취미 게시판 = 커뮤니티 공개, 메뉴 권한 무관) → 검색이 열람 불가 콘텐츠를 노출하지 않는다.
       ※ GEN 메뉴 GUEST 권한으로 한 번 더 좁히면 안 된다 — 취미 게시판엔 GEN 메뉴가 없어서 결과가 0이 됨.
     -->
-    <select id="searchPosts" parameterType="map" resultType="bbsVO">
+    <select id="searchPosts" parameterType="map" resultType="postVO">
         WITH hit AS (
-            SELECT b.bbs_id, b.bbsinfo_id, b.title, b.reg_id, b.reg_dt,
+            SELECT b.post_id, b.board_id, b.title, b.reg_id, b.reg_dt,
                    <!-- 본문에서 HTML 태그를 지운 평문(스니펫·본문매칭 판정에 함께 쓴다).
                         정규식의 '<'는 XML에서 &lt; 로 써야 한다(그대로 두면 매퍼 파싱이 깨진다). -->
                    regexp_replace(COALESCE(b.context, ''), '&lt;[^>]*>', ' ', 'g') AS plain,
                    (b.title LIKE '%' || #{keyword} || '%' ESCAPE '\') AS title_hit
-            FROM t_bbs b
-            WHERE b.use_yn = 'Y' AND b.p_bbs_id = 0 AND b.secret_yn = 'N'
-              AND EXISTS (SELECT 1 FROM t_hobby h WHERE h.bbsinfo_id = b.bbsinfo_id AND h.use_yn = 'Y')
+            FROM post b
+            WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N'
+              AND EXISTS (SELECT 1 FROM hobby h WHERE h.board_id = b.board_id AND h.use_yn = 'Y')
         )
-        SELECT hit.bbs_id::TEXT AS row_id, hit.bbsinfo_id, hit.title,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = hit.reg_id) AS reg_nm,
-               bi.bbsinfo_nm,
+        SELECT hit.post_id::TEXT AS row_id, hit.board_id, hit.title,
+               (SELECT u.nickname FROM member u WHERE u.member_id = hit.reg_id) AS reg_name,
+               bi.name AS board_name,
                TO_CHAR(hit.reg_dt, 'YYYY-MM-DD') AS reg_dt,
                -- 본문에서 찾았을 때만 스니펫: 매칭 지점 앞 20자부터 100자를 잘라 문맥을 보여준다
                CASE WHEN NOT hit.title_hit AND POSITION(#{keyword} IN hit.plain) > 0
@@ -65,10 +65,10 @@
                                 FOR 100))
                END AS search_snippet
         FROM hit
-        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = hit.bbsinfo_id
+        LEFT JOIN board bi ON bi.board_id = hit.board_id
         WHERE hit.title_hit OR hit.plain LIKE '%' || #{keyword} || '%' ESCAPE '\'
         -- 제목에서 찾은 글을 본문에서만 찾은 글보다 앞에(간단한 관련도 정렬)
-        ORDER BY hit.title_hit DESC, hit.bbs_id DESC
+        ORDER BY hit.title_hit DESC, hit.post_id DESC
         LIMIT 10
     </select>
 

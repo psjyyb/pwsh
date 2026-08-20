@@ -22,11 +22,11 @@ class RecruitFlowTest extends IntegrationTest {
 
         // 기본 시드 취미(등산/보드게임/낚시)가 있으므로, 신규 취미의 기대 노출순서 = 현재 최대값+1
         Integer maxSortBefore = jdbc.queryForObject(
-                "SELECT COALESCE(MAX(sort_no), 0) FROM t_hobby WHERE use_yn = 'Y'", Integer.class);
+                "SELECT COALESCE(MAX(sort_no), 0) FROM hobby WHERE use_yn = 'Y'", Integer.class);
 
         // 취미 생성(관리자) → hobbyId
         HttpResponse<String> hres = post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"테스트취미\",\"summary\":\"소개\",\"difficultyCd\":\"HOBBYLV01\"}", admin);
+                "{\"hobbyName\":\"테스트취미\",\"summary\":\"소개\",\"difficultyCd\":\"HOBBYLV01\"}", admin);
         assertEquals(200, hres.statusCode());
         String hobbyId = JsonPath.read(hres.body(), "$.data");
         assertNotNull(hobbyId);
@@ -40,15 +40,15 @@ class RecruitFlowTest extends IntegrationTest {
 
         // 취미 등록 시 전용 게시판 자동 생성·연결 확인
         HttpResponse<String> hv = post("/api/adm/hobby/selectHobbyView.do", "{\"rowId\":\"" + hobbyId + "\"}", null);
-        String boardId = JsonPath.read(hv.body(), "$.data.bbsinfoId");
+        String boardId = JsonPath.read(hv.body(), "$.data.boardId");
         assertNotNull(boardId);
         // 노출 순서 미지정 → 기존 최대값+1 자동 부여
         assertEquals(String.valueOf(maxSortBefore + 1), JsonPath.read(hv.body(), "$.data.sortNo"));
         // 취미 게시판은 공개: 비로그인 목록 조회 가능, 회원은 글 작성 가능
-        assertEquals(200, post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).statusCode());
-        assertEquals(200, post("/api/adm/bbs/insertBbs.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"첫 글\",\"context\":\"<p>안녕</p>\"}", appTok).statusCode());
+        assertEquals(200, post("/api/adm/post/selectPostList.do",
+                "{\"boardId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).statusCode());
+        assertEquals(200, post("/api/adm/post/insertPost.do",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"첫 글\",\"context\":\"<p>안녕</p>\"}", appTok).statusCode());
 
         // 모집 등록(주최자)
         HttpResponse<String> rres = post("/api/adm/recruit/insertRecruit.do",
@@ -78,16 +78,16 @@ class RecruitFlowTest extends IntegrationTest {
 
         // 수락 → 상세에서 수락수 1, 주최자 닉네임
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", orgTok).statusCode());
+                "{\"rowId\":\"" + applyId + "\",\"applyCd\":\"APPLY02\"}", orgTok).statusCode());
         HttpResponse<String> vres = post("/api/adm/recruit/selectRecruitView.do",
                 "{\"rowId\":\"" + recruitId + "\"}", null);
         assertEquals("1", JsonPath.read(vres.body(), "$.data.acceptedCnt"));
-        assertEquals("주최왕", JsonPath.read(vres.body(), "$.data.regNm"));
+        assertEquals("주최왕", JsonPath.read(vres.body(), "$.data.regName"));
 
         // 취미 레벨(신청자) 설정 → 목록 1건
-        assertEquals(200, post("/api/adm/userHobby/insertUserHobby.do",
+        assertEquals(200, post("/api/adm/memberHobby/insertMemberHobby.do",
                 "{\"hobbyId\":\"" + hobbyId + "\",\"levelCd\":\"HOBBYLV02\"}", appTok).statusCode());
-        HttpResponse<String> lres = post("/api/adm/userHobby/selectUserHobbyList.do", "{}", appTok);
+        HttpResponse<String> lres = post("/api/adm/memberHobby/selectMemberHobbyList.do", "{}", appTok);
         List<Object> levels = JsonPath.read(lres.body(), "$.data");
         assertEquals(1, levels.size());
     }

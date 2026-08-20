@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="memberDAO">
+
+    <!-- 로그인/사용자 조회 (컬럼 snake → VO camel 자동 매핑)
+         pw_expired/pw_days_left는 password_expire_dt 기준 계산값(만료 강제 아님, 알림용) -->
+    <select id="selectByMemberId" parameterType="memberVO" resultType="memberVO">
+        SELECT member_id, password, type_cd, nickname, handle, profile_file_id, gender_cd, status_cd, use_yn, password_expire_dt,
+               CONVERT_FROM(DECRYPT(DECODE(name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') AS member_name,
+               CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS phone,
+               CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS email,
+               CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS birth,
+               CASE WHEN password_expire_dt IS NOT NULL AND password_expire_dt &lt; NOW() THEN 'Y' ELSE 'N' END AS pw_expired,
+               CASE WHEN password_expire_dt IS NULL THEN NULL
+                    ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (password_expire_dt - NOW())) / 86400)::int) END AS pw_days_left,
+               CASE WHEN status_cd = 'STATUS02' AND lock_until_dt IS NOT NULL
+                     AND lock_until_dt + ((SELECT fail_lock_mins FROM config LIMIT 1) || ' minutes')::interval &gt; NOW()
+                    THEN 'Y' ELSE 'N' END AS lock_active,
+               fail_cnt, token_ver,
+               (SELECT fail_cnt_limit FROM config LIMIT 1) AS fail_cnt_limit,
+               (SELECT fail_lock_mins FROM config LIMIT 1) AS fail_lock_mins,
+               CASE WHEN status_cd = 'STATUS02' AND lock_until_dt IS NOT NULL
+                    THEN GREATEST(1, CEIL(EXTRACT(EPOCH FROM (lock_until_dt
+                         + ((SELECT fail_lock_mins FROM config LIMIT 1) || ' minutes')::interval - NOW())) / 60)::int)
+                    ELSE NULL END AS lock_remain_min
+        FROM member
+        WHERE member_id = #{memberId}
+    </select>
+
+    <!-- 존재 여부 -->
+    <select id="selectCount" parameterType="memberVO" resultType="int">
+        SELECT COUNT(*) FROM member WHERE member_id = #{memberId}
+    </select>
+
+    <!-- 닉네임 중복 확인(셀프가입) — 활성 계정 기준 -->
+    <select id="selectCountByNickname" parameterType="memberVO" resultType="int">
+        SELECT COUNT(*) FROM member WHERE use_yn = 'Y' AND nickname = #{nickname}
+    </select>
+
+    <!-- 닉네임 중복 확인(본인 제외) — 닉네임 변경 시 -->
+    <select id="selectCountByNicknameExcept" parameterType="memberVO" resultType="int">
+        SELECT COUNT(*) FROM member WHERE use_yn = 'Y' AND nickname = #{nickname} AND member_id &lt;&gt; #{memberId}
+    </select>
+
+    <!-- 토큰 버전 +1 후 새 값 반환. 로그인(새 세션)·로그아웃·강제로그아웃 시 호출 →
+         기존 발급 토큰(ver 불일치)을 즉시 무효화(단일세션 last-wins / 로그아웃 revocation). -->
+    <select id="incrementTokenVer" parameterType="memberVO" resultType="int">
+        UPDATE member SET token_ver = token_ver + 1 WHERE member_id = #{memberId}
+        RETURNING token_ver
+    </select>
+
+    <!-- 목록 (비밀번호 제외, 코드명 조인) -->
+    <select id="selectList" parameterType="memberVO" resultType="memberVO">
+        SELECT u.member_id AS row_id, u.member_id, u.type_cd, mc.name AS member_type_name, u.nickname, u.gender_cd,
+               CONVERT_FROM(DECRYPT(DECODE(u.name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') AS member_name,
+               CONVERT_FROM(DECRYPT(DECODE(u.phone,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS phone,
+               CONVERT_FROM(DECRYPT(DECODE(u.email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS email,
+               CONVERT_FROM(DECRYPT(DECODE(u.birth,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS birth,
+               u.status_cd, sc.name AS status_cd_name, u.use_yn
+        FROM member u
+        LEFT JOIN code mc ON mc.code_id = u.type_cd    AND mc.p_code_id = 'MEM00'
+        LEFT JOIN code sc ON sc.code_id = u.status_cd AND sc.p_code_id = 'STATUS00'
+        WHERE u.use_yn = 'Y'
+        <if test="typeCd != null and typeCd != ''">AND u.type_cd = #{typeCd}</if>
+        <if test="statusCd != null and statusCd != ''">AND u.status_cd = #{statusCd}</if>
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (u.member_id LIKE '%' || #{filterKeyword} || '%'
+                 OR CONVERT_FROM(DECRYPT(DECODE(u.name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') LIKE '%' || #{filterKeyword} || '%')
+        </if>
+        ORDER BY u.reg_dt DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="memberVO" resultType="int">
+        SELECT COUNT(*) FROM member WHERE use_yn = 'Y'
+        <if test="typeCd != null and typeCd != ''">AND type_cd = #{typeCd}</if>
+        <if test="statusCd != null and statusCd != ''">AND status_cd = #{statusCd}</if>
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (member_id LIKE '%' || #{filterKeyword} || '%'
+                 OR CONVERT_FROM(DECRYPT(DECODE(name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') LIKE '%' || #{filterKeyword} || '%')
+        </if>
+    </select>
+
+    <!-- 단건 (비밀번호 제외) -->
+    <select id="selectView" parameterType="memberVO" resultType="memberVO">
+        SELECT member_id AS row_id, member_id, type_cd, nickname, gender_cd, status_cd, use_yn,
+               CONVERT_FROM(DECRYPT(DECODE(name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') AS member_name,
+               CONVERT_FROM(DECRYPT(DECODE(phone,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS phone,
+               CONVERT_FROM(DECRYPT(DECODE(email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS email,
+               CONVERT_FROM(DECRYPT(DECODE(birth,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')   AS birth,
+               -- 어뷰징 판단 참고치(팔로워가 비정상적으로 많은 계정 등). 목록이 아닌 상세에서만 계산한다
+               (SELECT COUNT(*) FROM member_follow f WHERE f.followee_id = member.member_id)::TEXT AS follower_cnt,
+               (SELECT COUNT(*) FROM member_follow f WHERE f.member_id = member.member_id)::TEXT     AS following_cnt
+        FROM member
+        WHERE member_id = #{rowId} AND use_yn = 'Y'
+    </select>
+
+    <!-- 등록 (audit는 AuditInterceptor 자동. 비번은 Controller에서 BCrypt 인코딩 후 전달)
+         status_cd 미지정 시 STATUS01(정상) 기본 -->
+    <insert id="insert" parameterType="memberVO">
+        INSERT INTO member (
+            member_id, password, type_cd, name, nickname, phone, email, gender_cd, birth, status_cd, use_yn,
+            fail_cnt,
+            last_upd_dt, password_expire_dt,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip
+        ) VALUES (
+            #{memberId}, #{password}, #{typeCd},
+            ENCODE(ENCRYPT(CONVERT_TO(#{memberName},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            #{nickname},
+            ENCODE(ENCRYPT(CONVERT_TO(#{phone},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            #{genderCd},
+            ENCODE(ENCRYPT(CONVERT_TO(#{birth},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            COALESCE(NULLIF(#{statusCd}, ''), 'STATUS01'), 'Y',
+            0,
+            NOW(), NOW() + (COALESCE((SELECT password_expire_days FROM config LIMIT 1), 90) * INTERVAL '1 day'),
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp}
+        )
+    </insert>
+
+    <!-- 정보 수정 (비밀번호 제외) -->
+    <update id="updateInfo" parameterType="memberVO">
+        UPDATE member SET
+            type_cd = #{typeCd}, gender_cd = #{genderCd}, status_cd = #{statusCd},
+            name = ENCODE(ENCRYPT(CONVERT_TO(#{memberName},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            phone   = ENCODE(ENCRYPT(CONVERT_TO(#{phone},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            email   = ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            birth   = ENCODE(ENCRYPT(CONVERT_TO(#{birth},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE member_id = #{rowId}
+    </update>
+
+    <!-- 닉네임 변경(본인) -->
+    <update id="updateNickname" parameterType="memberVO">
+        UPDATE member SET nickname = #{nickname}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE member_id = #{rowId}
+    </update>
+
+    <!-- 프로필 사진 변경(본인). profileFileId null → 해제(NULL) -->
+    <update id="updateProfileImage" parameterType="memberVO">
+        UPDATE member SET profile_file_id = #{profileFileId}::integer, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE member_id = #{rowId}
+    </update>
+
+    <!-- 비밀번호 변경 (Controller에서 BCrypt 인코딩 후 전달). 변경 시 만료일 재형성 -->
+    <update id="updatePw" parameterType="memberVO">
+        UPDATE member SET
+            password = #{password}, last_upd_dt = NOW(),
+            password_expire_dt = NOW() + (COALESCE((SELECT password_expire_days FROM config LIMIT 1), 90) * INTERVAL '1 day'),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE member_id = #{rowId}
+    </update>
+
+    <!-- 로그인 성공 시 마지막 로그인 일시/IP 기록 + 실패횟수 초기화 (audit upd_dt는 건드리지 않음) -->
+    <update id="updateLoginInfo" parameterType="memberVO">
+        UPDATE member SET last_login_dt = NOW(), last_login_ip = #{lastLoginIp}, fail_cnt = 0
+        WHERE member_id = #{memberId}
+    </update>
+
+    <!-- 로그인 실패 시 실패횟수 +1, 제한(config.fail_cnt_limit) 도달 시 잠금(STATUS02) + 잠금시각 기록 -->
+    <update id="increaseFailCnt" parameterType="memberVO">
+        UPDATE member SET
+            fail_cnt = fail_cnt + 1,
+            status_cd = CASE WHEN fail_cnt + 1 &gt;= (SELECT fail_cnt_limit FROM config LIMIT 1)
+                             THEN 'STATUS02' ELSE status_cd END,
+            lock_until_dt = CASE WHEN fail_cnt + 1 &gt;= (SELECT fail_cnt_limit FROM config LIMIT 1)
+                                            THEN NOW() ELSE lock_until_dt END
+        WHERE member_id = #{memberId}
+    </update>
+
+    <!-- 잠금시간 경과 시 자동 해제(정상 복귀) -->
+    <update id="unlockAccount" parameterType="memberVO">
+        UPDATE member SET status_cd = 'STATUS01', fail_cnt = 0, lock_until_dt = NULL
+        WHERE member_id = #{memberId}
+    </update>
+
+    <!-- 공개 식별자(handle)로 회원 조회 — 공개 프로필 등에서 로그인 ID 없이 대상을 찾는다 -->
+    <select id="selectByHandle" parameterType="memberVO" resultType="memberVO">
+        SELECT member_id, type_cd, nickname, handle, profile_file_id, use_yn
+        FROM member WHERE handle = #{handle} AND use_yn = 'Y'
+    </select>
+
+    <!-- 관리자 제재: 정지(STATUS03)/해제(STATUS01). 해제 시 실패횟수·잠금시간도 초기화 -->
+    <update id="updateStatus" parameterType="memberVO">
+        UPDATE member
+           SET status_cd = #{statusCd},
+               fail_cnt = CASE WHEN #{statusCd} = 'STATUS01' THEN 0 ELSE fail_cnt END,
+               lock_until_dt = CASE WHEN #{statusCd} = 'STATUS01' THEN NULL ELSE lock_until_dt END,
+               upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+         WHERE member_id = #{memberId}
+    </update>
+
+    <!-- 비밀번호 만료 연장(변경 강제 대신 "나중에" → 만료일만 재형성, last_upd_dt는 유지) -->
+    <update id="extendPwExpire" parameterType="memberVO">
+        UPDATE member SET
+            password_expire_dt = NOW() + (COALESCE((SELECT password_expire_days FROM config LIMIT 1), 90) * INTERVAL '1 day'),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE member_id = #{memberId}
+    </update>
+
+    <!-- 삭제(논리, 탈퇴) -->
+    <update id="delete" parameterType="memberVO">
+        UPDATE member SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE member_id = #{rowId}
+    </update>
+
+    <!-- 사용자의 권한그룹 ID 목록 (auth_member) -->
+    <select id="selectAuthGroupIds" parameterType="memberVO" resultType="string">
+        SELECT auth_group_id FROM auth_member WHERE use_yn = 'Y' AND member_id = #{memberId}
+    </select>
+
+    <!-- 사용자의 권한그룹 전체 삭제(저장 전 초기화) -->
+    <delete id="deleteAuthMember" parameterType="memberVO">
+        DELETE FROM auth_member WHERE member_id = #{memberId}
+    </delete>
+
+    <!-- 사용자-권한그룹 1건 등록 -->
+    <insert id="insertAuthMember" parameterType="memberVO">
+        INSERT INTO auth_member (member_id, auth_group_id, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{memberId}, #{authGroupId}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+</mapper>

@@ -3,8 +3,8 @@ import { Button, Card, Col, Empty, Row, Tag, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { tokenStore } from '../../auth/token'
 import CodeSelect from '../../common/adm/components/CodeSelect'
-import { hobbyApi, userHobbyApi } from '../../adm/hobby/hobby.api'
-import type { Hobby, UserHobby } from '../../adm/hobby/hobby.api'
+import { hobbyApi, memberHobbyApi } from '../../adm/hobby/hobby.api'
+import type { Hobby, MemberHobby } from '../../adm/hobby/hobby.api'
 import { gen, hobbyColor } from '../theme'
 
 /**
@@ -15,9 +15,9 @@ export default function MyHobbyPage() {
   const navigate = useNavigate()
   const loggedIn = !!tokenStore.get()
   const [hobbies, setHobbies] = useState<Hobby[]>([])
-  const [myHobbies, setMyHobbies] = useState<UserHobby[]>([])
+  const [myHobbies, setMyHobbies] = useState<MemberHobby[]>([])
 
-  const loadMine = () => userHobbyApi.list().then(setMyHobbies).catch(() => {})
+  const loadMine = () => memberHobbyApi.list().then(setMyHobbies).catch(() => {})
 
   useEffect(() => {
     if (!loggedIn) return
@@ -37,7 +37,7 @@ export default function MyHobbyPage() {
 
   const setLevel = async (hobbyId: string, levelCd?: string) => {
     try {
-      await userHobbyApi.save(hobbyId, levelCd) // 레벨 지정/해제(담기는 유지)
+      await memberHobbyApi.save(hobbyId, levelCd) // 레벨 지정/해제(담기는 유지)
       await loadMine()
     } catch (e) {
       message.error(e instanceof Error ? e.message : '레벨 저장 실패')
@@ -46,7 +46,7 @@ export default function MyHobbyPage() {
 
   const unregister = async (hobbyId: string) => {
     try {
-      await userHobbyApi.remove(hobbyId)
+      await memberHobbyApi.remove(hobbyId)
       await loadMine()
       message.success('담기를 취소했습니다.')
     } catch (e) {
@@ -80,20 +80,20 @@ export default function MyHobbyPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, overflow: 'hidden', color: '#fff', fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', background: hc.solid }}>
                       {hb?.thumbId
-                        ? <img src={`/api/pub/image/${hb.thumbId}`} alt={u.hobbyNm} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : (u.hobbyNm ?? '').slice(0, 1)}
+                        ? <img src={`/api/pub/image/${hb.thumbId}`} alt={u.hobbyName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (u.hobbyName ?? '').slice(0, 1)}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, cursor: 'pointer' }} onClick={() => navigate(`/gen/hobby/${u.hobbyId}`)}>{u.hobbyNm}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, cursor: 'pointer' }} onClick={() => navigate(`/gen/hobby/${u.hobbyId}`)}>{u.hobbyName}</div>
                       <div style={{ marginTop: 4 }}>
-                        {u.levelNm ? <Tag color="purple">{u.levelNm}</Tag> : <Tag>관심</Tag>}
+                        {u.levelName ? <Tag color="purple">{u.levelName}</Tag> : <Tag>관심</Tag>}
                       </div>
                     </div>
                     <Button type="text" aria-label="담기 취소" onClick={() => unregister(u.hobbyId!)} style={{ color: '#bbb', fontSize: 16 }}>✕</Button>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {hb?.bbsinfoId && (
-                      <Button size="small" type="primary" ghost onClick={() => navigate(`/gen/board/${hb.bbsinfoId}`)} style={{ borderRadius: 10, fontWeight: 600 }}>게시판</Button>
+                    {hb?.boardId && (
+                      <Button size="small" type="primary" ghost onClick={() => navigate(`/gen/board/${hb.boardId}`)} style={{ borderRadius: 10, fontWeight: 600 }}>게시판</Button>
                     )}
                     <Button size="small" onClick={() => navigate(`/gen/recruit?hobby=${u.hobbyId}`)} style={{ borderRadius: 10, fontWeight: 600 }}>모집</Button>
                     <CodeSelect pCodeId="HOBBYLV00" placeholder="레벨" allowClear size="small" style={{ width: 128, marginLeft: 'auto' }}

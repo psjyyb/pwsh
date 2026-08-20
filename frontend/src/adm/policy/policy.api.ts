@@ -7,7 +7,7 @@ export interface Policy {
   title?: string
   content?: string
   typeCd: string
-  typeCdNm?: string // 약관유형명(목록 표시, 조회 전용)
+  typeCdName?: string // 약관유형명(목록 표시, 조회 전용)
   reqYn?: string
   sortNo?: string
   useYn?: string

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 공개 식별자(handle) 계약 회귀 방지.
- * 사용자에게 내려가는 응답에는 <b>로그인 ID(reg_id/user_id)와 pgcrypto 키(cryptoKey)가 없어야</b> 하고,
+ * 사용자에게 내려가는 응답에는 <b>로그인 ID(reg_id/member_id)와 pgcrypto 키(cryptoKey)가 없어야</b> 하고,
  * 회원 지목은 handle로만 이뤄져야 한다. 매퍼에 컬럼을 하나 추가하는 것만으로 조용히 깨질 수 있는
  * 계약이라 실제 HTTP 응답 본문을 문자열째로 검사한다.
  */
@@ -27,16 +27,16 @@ class PublicIdentityTest extends IntegrationTest {
     void public_responses_expose_handle_not_login_id() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"식별자취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"식별자취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         String boardId = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
-                "{\"rowId\":\"" + hobbyId + "\"}", null).body(), "$.data.bbsinfoId");
+                "{\"rowId\":\"" + hobbyId + "\"}", null).body(), "$.data.boardId");
 
         assertEquals(200, signup("ida", "식별자A", "ida@test.local").statusCode());
         assertEquals(200, signup("idb", "식별자B", "idb@test.local").statusCode());
         String ta = accessToken("ida", "Test1234!@");
         String tb = accessToken("idb", "Test1234!@");
 
-        // 내 handle 확인 — me()는 handle을 주고 userId는 주지 않는다
+        // 내 handle 확인 — me()는 handle을 주고 memberId는 주지 않는다
         String meBody = post("/api/auth/me", "{}", ta).body();
         String handleA = JsonPath.read(meBody, "$.data.handle");
         assertNotNull(handleA);
@@ -44,24 +44,24 @@ class PublicIdentityTest extends IntegrationTest {
         assertNoKey(meBody, "cryptoKey", "me");
 
         // 게시글 — 목록/상세 모두 regHandle만
-        String bbsId = JsonPath.read(post("/api/adm/bbs/insertBbs.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"title\":\"식별자 글\",\"context\":\"x\"}", ta).body(), "$.data");
-        String listBody = post("/api/adm/bbs/selectBbsList.do",
-                "{\"bbsinfoId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).body();
+        String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"식별자 글\",\"context\":\"x\"}", ta).body(), "$.data");
+        String listBody = post("/api/adm/post/selectPostList.do",
+                "{\"boardId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).body();
         assertTrue(listBody.contains("\"regHandle\""), "게시글 목록에 regHandle이 있어야 한다");
         assertNoKey(listBody, "regId", "게시글 목록");
         assertNoKey(listBody, "cryptoKey", "게시글 목록");
 
-        String viewBody = post("/api/adm/bbs/selectBbsView.do",
-                "{\"rowId\":\"" + bbsId + "\",\"viewUp\":\"N\"}", tb).body();
+        String viewBody = post("/api/adm/post/selectPostView.do",
+                "{\"rowId\":\"" + postId + "\",\"viewUp\":\"N\"}", tb).body();
         assertNoKey(viewBody, "regId", "게시글 상세");
         assertEquals("N", JsonPath.read(viewBody, "$.data.mineYn"), "남의 글은 mineYn=N (서버 계산)");
 
         // 댓글
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"bbsId\":\"" + bbsId + "\",\"context\":\"댓글\"}", tb).statusCode());
+                "{\"postId\":\"" + postId + "\",\"context\":\"댓글\"}", tb).statusCode());
         String cmtBody = post("/api/adm/comment/selectCommentList.do",
-                "{\"bbsId\":\"" + bbsId + "\"}", ta).body();
+                "{\"postId\":\"" + postId + "\"}", ta).body();
         assertTrue(cmtBody.contains("\"regHandle\""));
         assertNoKey(cmtBody, "regId", "댓글 목록");
 
@@ -79,9 +79,9 @@ class PublicIdentityTest extends IntegrationTest {
         assertNoKey(rViewBody, "regId", "모집 상세");
 
         // 공개 프로필 — handle로 조회하고, 응답에 로그인 ID가 없어야 한다
-        String profBody = post("/api/auth/userProfile", "{\"handle\":\"" + handleA + "\"}", tb).body();
+        String profBody = post("/api/auth/memberProfile", "{\"handle\":\"" + handleA + "\"}", tb).body();
         assertEquals("식별자A", JsonPath.read(profBody, "$.data.nickname"));
-        assertNoKey(profBody, "userId", "공개 프로필");
+        assertNoKey(profBody, "memberId", "공개 프로필");
         assertNoKey(profBody, "cryptoKey", "공개 프로필");
 
         // 쪽지 — 상대 지목도 handle, 스레드에 발신/수신 ID 없음
@@ -116,7 +116,7 @@ class PublicIdentityTest extends IntegrationTest {
         assertNoKey(blockBody, "blockedId", "차단 목록");
 
         // 존재하지 않는 handle은 404 — 순차 ID 열거가 불가능해야 한다
-        assertEquals(404, post("/api/auth/userProfile", "{\"handle\":\"zzzznotexist\"}", tb).statusCode());
+        assertEquals(404, post("/api/auth/memberProfile", "{\"handle\":\"zzzznotexist\"}", tb).statusCode());
     }
 
     /** 신청 후 주최자가 수락 → 최종 상태 반환. */
@@ -125,11 +125,11 @@ class PublicIdentityTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + recruitId + "\"}", applicantTok).statusCode());
         String applyId = jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = ?",
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = ?",
                 String.class, recruitId, applicantId);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + applyId + "\",\"applyStatus\":\"APPLY02\"}", hostTok).statusCode());
-        return jdbc.queryForObject("SELECT apply_status FROM t_recruit_apply WHERE apply_id = ?::integer",
+                "{\"rowId\":\"" + applyId + "\",\"applyCd\":\"APPLY02\"}", hostTok).statusCode());
+        return jdbc.queryForObject("SELECT apply_cd FROM recruit_apply WHERE apply_id = ?::integer",
                 String.class, applyId);
     }
 }

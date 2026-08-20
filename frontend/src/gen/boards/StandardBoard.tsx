@@ -15,43 +15,43 @@ import YnSelect from '../../common/adm/components/YnSelect'
 import RichTextEditor from '../../common/adm/components/RichTextEditor'
 import SafeHtml from '../../common/SafeHtml'
 import type { RichTextEditorHandle } from '../../common/adm/components/RichTextEditor'
-import { hasViewedRecently, markViewed } from '../../common/util/bbsView'
+import { hasViewedRecently, markViewed } from '../../common/util/postView'
 import { likeApi } from '../../api/like'
 import { bookmarkApi } from '../../api/bookmark'
-import UserAvatar from '../../common/gen/components/UserAvatar'
+import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import MentionText from '../../common/gen/components/MentionText'
 import ReportAction from '../../common/gen/components/ReportAction'
 import { extractEditorImageIds } from '../../common/util/editorImages'
-import type { Bbsinfo } from '../../adm/bbsinfo/bbsinfo.api'
-import { BBS_LIST_URL, bbsApi } from '../../adm/bbs/bbs.api'
-import type { Bbs } from '../../adm/bbs/bbs.api'
-import { commentApi } from '../../adm/bbs/comment.api'
-import type { Comment } from '../../adm/bbs/comment.api'
+import type { Board } from '../../adm/board/board.api'
+import { POST_LIST_URL, postApi } from '../../adm/post/post.api'
+import type { Post } from '../../adm/post/post.api'
+import { commentApi } from '../../adm/post/comment.api'
+import type { Comment } from '../../adm/post/comment.api'
 
 type Mode = 'list' | 'view' | 'write'
-const FILE_LOC = 'BBS' // 첨부파일
-const IMG_LOC = 'BBS_IMG' // 갤러리 사진(캡션 포함)
-const EDITOR_LOC = 'BBS_EDITOR' // 본문 에디터 삽입 이미지(고아 추적용)
+const FILE_TYPE = 'POST' // 첨부파일
+const IMG_LOC = 'POST_IMG' // 갤러리 사진(캡션 포함)
+const EDITOR_LOC = 'POST_EDITOR' // 본문 에디터 삽입 이미지(고아 추적용)
 
 /**
- * 표준 게시판 스킨 — 일반(BBSINFO001)/갤러리(004)/1:1문의(003) 공용.
+ * 표준 게시판 스킨 — 일반(BOARD01)/갤러리(004)/1:1문의(003) 공용.
  * 유형별 차이: 갤러리=카드목록+대표이미지, 1:1=비밀글 강제+답변상태(댓글=답변).
  */
-export default function StandardBoard({ board }: { board: Bbsinfo }) {
-  const bbsinfoId = board.rowId
+export default function StandardBoard({ board }: { board: Board }) {
+  const boardId = board.rowId
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const isGallery = board.bbsinfoCd === 'BBSINFO004'
-  const isQna = board.bbsinfoCd === 'BBSINFO003'
+  const isGallery = board.typeCd === 'BOARD04'
+  const isQna = board.typeCd === 'BOARD03'
 
   const [mode, setMode] = useState<Mode>('list')
-  const [rows, setRows] = useState<Bbs[]>([])
+  const [rows, setRows] = useState<Post[]>([])
   const [total, setTotal] = useState(0)
   const [pageNo, setPageNo] = useState(1)
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const [post, setPost] = useState<Bbs | null>(null)
+  const [post, setPost] = useState<Post | null>(null)
   const [bookmarked, setBookmarked] = useState(false) // 이 글의 내 북마크 여부
   const [comments, setComments] = useState<Comment[]>([])
   const [commentText, setCommentText] = useState('')
@@ -63,7 +63,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
 
   const [form] = Form.useForm()
   const [editKey, setEditKey] = useState<string | null>(null)
-  const [replyTo, setReplyTo] = useState<Bbs | null>(null) // 답글 작성 시 원글(비어있으면 일반 글)
+  const [replyTo, setReplyTo] = useState<Post | null>(null) // 답글 작성 시 원글(비어있으면 일반 글)
   const [fileIds, setFileIds] = useState<string[]>([])
   const [fileMetas, setFileMetas] = useState<FileMeta[]>([])
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]) // 갤러리 작성용 사진+캡션
@@ -76,7 +76,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
 
   /** @멘션 후보 — 글쓴이 + 댓글 작성자(중복·빈값 제거, 최대 8명). 화면에 이미 보이는 사람들이다. */
   const mentionCandidates = Array.from(
-    new Set([post?.regNm, ...comments.map((c) => c.regNm)].filter((n): n is string => !!n)),
+    new Set([post?.regName, ...comments.map((c) => c.regName)].filter((n): n is string => !!n)),
   ).slice(0, 8)
   const canEdit = (mineYn?: string) => isAdmin() || mineYn === 'Y' // 소유자 판정=서버계산 mineYn(로그인 ID 미노출)
   const isNew = (regDt?: string) => {
@@ -90,10 +90,10 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
 
   const loadList = useCallback(
     async (p = 1, kw = keyword) => {
-      if (!bbsinfoId) return
+      if (!boardId) return
       setLoading(true)
       try {
-        const res = await apiPost<ListResult<Bbs>>(BBS_LIST_URL, { bbsinfoId, pageNo: p, pageSize, filterKeyword: kw })
+        const res = await apiPost<ListResult<Post>>(POST_LIST_URL, { boardId, pageNo: p, pageSize, filterKeyword: kw })
         setRows(res.list)
         setTotal(res.totalCount)
         setPageNo(p)
@@ -103,7 +103,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         setLoading(false)
       }
     },
-    [bbsinfoId, pageSize, keyword],
+    [boardId, pageSize, keyword],
   )
 
   useEffect(() => {
@@ -111,37 +111,37 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     loadList(1, '')
     setKeyword('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bbsinfoId])
+  }, [boardId])
 
-  const openView = async (bbsId: string) => {
+  const openView = async (postId: string) => {
     try {
-      const countUp = !hasViewedRecently(bbsId)
-      let p = await bbsApi.view(bbsId, undefined, countUp)
+      const countUp = !hasViewedRecently(postId)
+      let p = await postApi.view(postId, undefined, countUp)
       if (p?.secretLocked === 'Y') {
         const pw = window.prompt(isQna ? '작성자와 관리자만 열람할 수 있습니다. 비밀번호를 입력하세요.' : '비밀글입니다. 비밀번호를 입력하세요.')
         if (!pw) return
-        p = await bbsApi.view(bbsId, pw, countUp)
+        p = await postApi.view(postId, pw, countUp)
         if (p?.secretLocked === 'Y') {
           message.error('열람할 수 없습니다. (비밀번호 불일치)')
           return
         }
       }
-      if (countUp) markViewed(bbsId)
+      if (countUp) markViewed(postId)
       setPost(p)
       // 북마크 여부(로그인 시) — 실패해도 본문 표시엔 영향 없음
       if (meId) {
-        bookmarkApi.ids('BBS').then((ids) => setBookmarked(ids.includes(bbsId))).catch(() => setBookmarked(false))
+        bookmarkApi.ids('POST').then((ids) => setBookmarked(ids.includes(postId))).catch(() => setBookmarked(false))
       } else {
         setBookmarked(false)
       }
-      setComments(await commentApi.list(bbsId))
+      setComments(await commentApi.list(postId))
       if (isGallery) {
-        const imgs = await fileApi.listByMap(bbsId, IMG_LOC)
-        setViewGallery(imgs.map((f) => ({ fileId: f.fileId!, fileOrgNm: f.fileOrgNm, fileDesc: f.fileDesc })))
+        const imgs = await fileApi.listByMap(postId, IMG_LOC)
+        setViewGallery(imgs.map((f) => ({ fileId: f.fileId!, originalName: f.originalName, description: f.description })))
         setViewFiles([])
       } else {
         setViewGallery([])
-        setViewFiles(board.fileYn === 'Y' ? await fileApi.listByMap(bbsId, FILE_LOC) : [])
+        setViewFiles(board.fileYn === 'Y' ? await fileApi.listByMap(postId, FILE_TYPE) : [])
       }
       setMode('view')
     } catch (e) {
@@ -149,12 +149,12 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     }
   }
 
-  // 딥링크: ?post=bbsId 로 진입 시 해당 글 바로 열기(위 목록 리셋 effect 뒤에 실행되도록 openView 이후에 선언)
+  // 딥링크: ?post=postId 로 진입 시 해당 글 바로 열기(위 목록 리셋 effect 뒤에 실행되도록 openView 이후에 선언)
   useEffect(() => {
     const postId = searchParams.get('post')
     if (postId) openView(postId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, bbsinfoId])
+  }, [searchParams, boardId])
 
   const openWrite = () => {
     setEditKey(null)
@@ -187,18 +187,18 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     form.setFieldsValue({
       title: post.title,
       secretYn: post.secretYn === 'Y',
-      bbsPw: undefined,
+      password: undefined,
       noticeYn: post.noticeYn ?? 'N',
       noticeStartDt: post.noticeStartDt,
       noticeEndDt: post.noticeEndDt,
     })
     if (isGallery) {
       const imgs = await fileApi.listByMap(post.rowId!, IMG_LOC)
-      setGalleryItems(imgs.map((f) => ({ fileId: f.fileId!, fileOrgNm: f.fileOrgNm, fileDesc: f.fileDesc })))
+      setGalleryItems(imgs.map((f) => ({ fileId: f.fileId!, originalName: f.originalName, description: f.description })))
       setFileMetas([])
       setFileIds([])
     } else if (board.fileYn === 'Y') {
-      const metas = await fileApi.listByMap(post.rowId!, FILE_LOC)
+      const metas = await fileApi.listByMap(post.rowId!, FILE_TYPE)
       setFileMetas(metas)
       setFileIds(metas.map((f) => f.fileId!))
       setGalleryItems([])
@@ -210,7 +210,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     setMode('write')
   }
 
-  const saveBbs = async () => {
+  const savePost = async () => {
     const v = await form.validateFields()
     const html = editorRef.current?.getHTML() ?? context
     // 갤러리는 사진 1장 이상 필수(본문은 선택), 그 외는 본문 필수
@@ -225,21 +225,21 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     }
     try {
       const payload = {
-        bbsinfoId,
+        boardId,
         title: v.title,
         context: html,
         secretYn: isQna ? 'Y' : v.secretYn ? 'Y' : 'N', // 1:1은 항상 비밀글
-        bbsPw: !isQna && v.secretYn ? (v.bbsPw ?? '') : '',
+        password: !isQna && v.secretYn ? (v.password ?? '') : '',
         noticeYn: isQna ? 'N' : v.noticeYn ?? 'N',
         noticeStartDt: v.noticeStartDt,
         noticeEndDt: v.noticeEndDt,
-        ...(replyTo && !editKey ? { pBbsId: replyTo.rowId } : {}), // 답글: 원글 id 전송(서버가 게시판·depth 상속)
+        ...(replyTo && !editKey ? { pPostId: replyTo.rowId } : {}), // 답글: 원글 id 전송(서버가 게시판·depth 상속)
       }
-      const id = editKey ? (await bbsApi.update({ ...payload, rowId: editKey }), editKey) : await bbsApi.insert(payload)
+      const id = editKey ? (await postApi.update({ ...payload, rowId: editKey }), editKey) : await postApi.insert(payload)
       if (isGallery) {
-        await fileApi.saveMapping(id, IMG_LOC, galleryItems.map((i) => i.fileId), galleryItems.map((i) => i.fileDesc ?? ''))
+        await fileApi.saveMapping(id, IMG_LOC, galleryItems.map((i) => i.fileId), galleryItems.map((i) => i.description ?? ''))
       } else if (board.fileYn === 'Y') {
-        await fileApi.saveMapping(id, FILE_LOC, fileIds)
+        await fileApi.saveMapping(id, FILE_TYPE, fileIds)
       }
       // 본문 에디터 삽입 이미지 추적(고아 판별용)
       await fileApi.saveMapping(id, EDITOR_LOC, extractEditorImageIds(html))
@@ -251,10 +251,10 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     }
   }
 
-  const removeBbs = async () => {
+  const removePost = async () => {
     if (!post) return
     try {
-      await bbsApi.remove(post.rowId!)
+      await postApi.remove(post.rowId!)
       message.success('삭제되었습니다.')
       setMode('list')
       loadList(1)
@@ -295,7 +295,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const toggleLikePost = async () => {
     if (!post) return
     try {
-      const r = await likeApi.toggle('BBS', post.rowId!)
+      const r = await likeApi.toggle('POST', post.rowId!)
       setPost({ ...post, likedYn: r.likedYn, goodCnt: r.goodCnt })
     } catch (e) {
       message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
@@ -305,7 +305,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
   const toggleBookmark = async () => {
     if (!post) return
     try {
-      const r = await bookmarkApi.toggle('BBS', post.rowId!)
+      const r = await bookmarkApi.toggle('POST', post.rowId!)
       const on = r.markedYn === 'Y'
       setBookmarked(on)
       message.success(on ? '북마크에 저장했습니다.' : '북마크를 해제했습니다.')
@@ -334,8 +334,8 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
     }
   }
 
-  const titleCell = (r: Bbs) => {
-    const depth = Number(r.bbsDepth) || 0
+  const titleCell = (r: Post) => {
+    const depth = Number(r.depth) || 0
     return (
       <span style={{ paddingLeft: depth * 20 }}>
         {depth > 0 && <span style={{ color: '#999', marginRight: 4 }}>↳</span>}
@@ -386,24 +386,24 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         </div>
       )
 
-    const columns: TableColumnsType<Bbs> = [
+    const columns: TableColumnsType<Post> = [
       { title: '제목', render: (_, r) => titleCell(r) },
       ...(isQna
         ? [{
             title: '답변상태',
             width: 90,
-            render: (_: unknown, r: Bbs) =>
+            render: (_: unknown, r: Post) =>
               Number(r.commentCnt) > 0 ? <Tag color="blue">답변완료</Tag> : <Tag>답변대기</Tag>,
           }]
         : []),
-      { title: '작성자', width: 130, render: (_: unknown, r: Bbs) => r.regNm || '-' },
+      { title: '작성자', width: 130, render: (_: unknown, r: Post) => r.regName || '-' },
       { title: '조회', dataIndex: 'viewCnt', width: 70 },
       { title: '작성일', dataIndex: 'regDt', width: 120 },
     ]
 
     return (
       <Card
-        title={board.bbsinfoNm ?? '게시판'}
+        title={board.boardName ?? '게시판'}
         extra={meId
           ? <Button type="primary" onClick={openWrite}>글쓰기</Button>
           : <Button onClick={() => navigate('/login')}>로그인하고 글쓰기</Button>}
@@ -422,7 +422,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
           </>
         ) : (
           <>
-            <Table<Bbs>
+            <Table<Post>
               rowKey="rowId"
               size="small"
               loading={loading}
@@ -465,7 +465,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             {!isGallery && !isQna && <Button onClick={openReply}>답글</Button>}
             {canEdit(post.mineYn) && <Button onClick={openEdit}>수정</Button>}
             {canEdit(post.mineYn) && (
-              <Popconfirm title="삭제하시겠습니까?" onConfirm={removeBbs} okText="삭제" cancelText="취소">
+              <Popconfirm title="삭제하시겠습니까?" onConfirm={removePost} okText="삭제" cancelText="취소">
                 <Button danger>삭제</Button>
               </Popconfirm>
             )}
@@ -474,15 +474,15 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
         }
       >
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <UserAvatar fileId={post.regProfileFileId} name={post.regNm || '-'} handle={post.regHandle} size={24} />
+          <MemberAvatar fileId={post.regProfileFileId} name={post.regName || '-'} handle={post.regHandle} size={24} />
           <span>· {post.regDt} · 조회 {post.viewCnt}</span>
         </div>
         {isGallery && viewGallery.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16, marginBottom: 16 }}>
             {viewGallery.map((g) => (
               <figure key={g.fileId} style={{ margin: 0 }}>
-                <img src={`/api/pub/image/${g.fileId}`} alt={g.fileDesc ?? ''} style={{ width: '100%', borderRadius: 6, display: 'block', border: '1px solid #eee' }} />
-                {g.fileDesc && <figcaption style={{ marginTop: 6, color: '#555', fontSize: 13, textAlign: 'center' }}>{g.fileDesc}</figcaption>}
+                <img src={`/api/pub/image/${g.fileId}`} alt={g.description ?? ''} style={{ width: '100%', borderRadius: 6, display: 'block', border: '1px solid #eee' }} />
+                {g.description && <figcaption style={{ marginTop: 6, color: '#555', fontSize: 13, textAlign: 'center' }}>{g.description}</figcaption>}
               </figure>
             ))}
           </div>
@@ -507,7 +507,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             </Button>
           )}
           {meId && post.mineYn !== 'Y' && (
-            <span style={{ marginLeft: 14 }}><ReportAction targetType="BBS" targetId={post.rowId!} /></span>
+            <span style={{ marginLeft: 14 }}><ReportAction targetType="POST" targetId={post.rowId!} /></span>
           )}
         </div>
 
@@ -517,7 +517,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <ul style={{ margin: '6px 0' }}>
               {viewFiles.map((f) => (
                 <li key={f.fileId}>
-                  <a onClick={() => fileApi.download(f.fileId!, f.fileOrgNm ?? 'file')}>{f.fileOrgNm}</a>
+                  <a onClick={() => fileApi.download(f.fileId!, f.originalName ?? 'file')}>{f.originalName}</a>
                 </li>
               ))}
             </ul>
@@ -532,7 +532,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <div key={c.rowId} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
               <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {isReply && <span style={{ color: '#bbb' }}>↳</span>}
-                <UserAvatar fileId={c.regProfileFileId} name={c.regNm || '-'} handle={c.regHandle} size={18} />
+                <MemberAvatar fileId={c.regProfileFileId} name={c.regName || '-'} handle={c.regHandle} size={18} />
                 <span>· {c.regDt}</span>
                 {canEdit(c.mineYn) && editCommentKey !== c.rowId && (
                   <>
@@ -617,7 +617,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
       extra={
         <Space>
           <Button onClick={() => setMode('list')}>목록</Button>
-          <Button type="primary" onClick={saveBbs}>저장</Button>
+          <Button type="primary" onClick={savePost}>저장</Button>
         </Space>
       }
     >
@@ -630,7 +630,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <GalleryImages
               key={`${editKey ?? 'new'}-gallery`}
               initialItems={galleryItems}
-              maxSizeMb={Number(board.fileSize) || undefined}
+              maxSizeMb={Number(board.fileSizeLimitMb) || undefined}
               onChange={setGalleryItems}
             />
           </Form.Item>
@@ -647,7 +647,7 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             </Form.Item>
             {secretWatch && (
               <Form.Item
-                name="bbsPw"
+                name="password"
                 label={editKey ? '비밀번호 (변경 시에만 입력)' : '비밀번호'}
                 rules={editKey ? [] : [{ required: true, message: '비밀번호를 입력하세요.' }]}
               >
@@ -668,8 +668,8 @@ export default function StandardBoard({ board }: { board: Bbsinfo }) {
             <FileUpload
               key={`${editKey ?? 'new'}-file`}
               initialFiles={fileMetas}
-              maxCount={Number(board.fileCnt) || undefined}
-              maxSizeMb={Number(board.fileSize) || undefined}
+              maxCount={Number(board.fileCntLimit) || undefined}
+              maxSizeMb={Number(board.fileSizeLimitMb) || undefined}
               onChange={setFileIds}
             />
           </Form.Item>

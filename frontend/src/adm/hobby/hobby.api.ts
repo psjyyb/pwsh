@@ -5,16 +5,16 @@ import { createCrudApi } from '../../api/crudApi'
 /** 취미 카탈로그 VO */
 export interface Hobby {
   rowId?: string // PK(hobby_id)
-  hobbyNm?: string
+  hobbyName?: string
   summary?: string
   intro?: string
   guide?: string
   difficultyCd?: string
-  difficultyNm?: string
+  difficultyName?: string
   equipment?: string
-  estCost?: string
-  bbsinfoId?: string
-  bbsinfoNm?: string
+  estimatedCost?: string
+  boardId?: string
+  boardName?: string
   sortNo?: string
   thumbId?: string
   postCnt?: string
@@ -33,20 +33,20 @@ export const hobbyApi = {
 export const HOBBY_LIST_URL = hobbyApi.listUrl
 
 /** 회원별 취미 레벨 */
-export interface UserHobby {
+export interface MemberHobby {
   rowId?: string // = hobby_id
   hobbyId?: string
   levelCd?: string
-  hobbyNm?: string
-  levelNm?: string
+  hobbyName?: string
+  levelName?: string
 }
 
-export const userHobbyApi = {
+export const memberHobbyApi = {
   /** 내가 담은 취미 목록(관심=레벨 없음 포함) */
-  list: () => apiPost<UserHobby[]>('/adm/userHobby/selectUserHobbyList.do', {}),
+  list: () => apiPost<MemberHobby[]>('/adm/memberHobby/selectMemberHobbyList.do', {}),
   /** 담기(관심) + 레벨(선택) upsert. levelCd 생략/undefined=관심만(레벨 없음), 값=레벨 지정. */
   save: (hobbyId: string, levelCd?: string) =>
-    apiPost<void>('/adm/userHobby/insertUserHobby.do', { hobbyId, levelCd: levelCd ?? null }),
+    apiPost<void>('/adm/memberHobby/insertMemberHobby.do', { hobbyId, levelCd: levelCd ?? null }),
   /** 담기 취소(목록에서 제거) */
-  remove: (hobbyId: string) => apiPost<void>('/adm/userHobby/deleteUserHobby.do', { hobbyId }),
+  remove: (hobbyId: string) => apiPost<void>('/adm/memberHobby/deleteMemberHobby.do', { hobbyId }),
 }

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 좋아요 토글 — 로그인 필요(본인 기준, 서버가 user_id 강제). 로직은 {@link LikeService}.
+ * 좋아요 토글 — 로그인 필요(본인 기준, 서버가 member_id 강제). 로직은 {@link LikeService}.
  */
 @RestController
 @RequestMapping("/api/adm/like")
@@ -19,7 +19,7 @@ public class LikeController {
 
     private final LikeService likeService;
 
-    /** 좋아요 토글. body {targetType: BBS|COMMENT, targetId} → {likedYn, goodCnt} */
+    /** 좋아요 토글. body {targetType: POST|COMMENT, targetId} → {likedYn, goodCnt} */
     @RequestMapping("/toggleLike.do")
     public ApiResponse<LikeVO> toggle(@RequestBody LikeVO vo) {
         Validate.required(vo.getTargetType(), "대상 유형");

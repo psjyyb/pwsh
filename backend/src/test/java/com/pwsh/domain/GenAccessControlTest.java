@@ -12,50 +12,50 @@ import org.junit.jupiter.api.Test;
  */
 class GenAccessControlTest extends IntegrationTest {
 
-    private static final String BBS_LIST = "/api/adm/bbs/selectBbsList.do";
-    private static final String BBSINFO_VIEW = "/api/adm/bbsinfo/selectBbsinfoView.do";
+    private static final String POST_LIST = "/api/adm/post/selectPostList.do";
+    private static final String BOARD_VIEW = "/api/adm/board/selectBoardView.do";
 
     @Test
     @DisplayName("비회원은 공개 게시판(board1) 목록을 볼 수 있다")
     void guestCanReadPublicBoard() throws Exception {
-        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"1\"}", null).statusCode()).isEqualTo(200);
+        assertThat(post(POST_LIST, "{\"boardId\":\"1\"}", null).statusCode()).isEqualTo(200);
     }
 
     @Test
     @DisplayName("비회원은 회원전용 게시판(board4) 목록에 접근하면 403")
     void guestBlockedFromMemberOnlyBoard() throws Exception {
-        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"4\"}", null).statusCode()).isEqualTo(403);
+        assertThat(post(POST_LIST, "{\"boardId\":\"4\"}", null).statusCode()).isEqualTo(403);
     }
 
     @Test
     @DisplayName("회원은 회원전용 게시판(board4)을 볼 수 있다")
     void memberCanReadMemberOnlyBoard() throws Exception {
         String token = accessToken("user", "user1234!");
-        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"4\"}", token).statusCode()).isEqualTo(200);
+        assertThat(post(POST_LIST, "{\"boardId\":\"4\"}", token).statusCode()).isEqualTo(200);
     }
 
     @Test
     @DisplayName("관리자는 콘텐츠 인가를 우회(회원전용 board4도 접근)")
     void adminBypassesContentGuard() throws Exception {
         String token = accessToken("admin", "admin1234!");
-        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"4\"}", token).statusCode()).isEqualTo(200);
+        assertThat(post(POST_LIST, "{\"boardId\":\"4\"}", token).statusCode()).isEqualTo(200);
     }
 
     @Test
     @DisplayName("비회원은 연결 메뉴 없는 게시판(board3)에 접근하면 403")
     void guestBlockedFromUnlinkedBoard() throws Exception {
-        assertThat(post(BBS_LIST, "{\"bbsinfoId\":\"3\"}", null).statusCode()).isEqualTo(403);
+        assertThat(post(POST_LIST, "{\"boardId\":\"3\"}", null).statusCode()).isEqualTo(403);
     }
 
     @Test
     @DisplayName("비회원은 회원전용 게시판 상세(스킨) 조회 시 403")
     void guestBlockedFromMemberOnlyBoardInfo() throws Exception {
-        assertThat(post(BBSINFO_VIEW, "{\"rowId\":\"4\"}", null).statusCode()).isEqualTo(403);
+        assertThat(post(BOARD_VIEW, "{\"rowId\":\"4\"}", null).statusCode()).isEqualTo(403);
     }
 
     @Test
     @DisplayName("비회원도 공개 게시판 상세는 조회 가능")
     void guestCanReadPublicBoardInfo() throws Exception {
-        assertThat(post(BBSINFO_VIEW, "{\"rowId\":\"1\"}", null).statusCode()).isEqualTo(200);
+        assertThat(post(BOARD_VIEW, "{\"rowId\":\"1\"}", null).statusCode()).isEqualTo(200);
     }
 }

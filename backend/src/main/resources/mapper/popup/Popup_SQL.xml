@@ -3,71 +3,71 @@
 <mapper namespace="popupDAO">
 
     <select id="selectList" parameterType="popupVO" resultType="popupVO">
-        SELECT pop_id::TEXT AS row_id, pop_nm, start_dt, end_dt, link, txt, sort_no,
-               pop_width, pop_height, pop_top, pop_left, use_yn
-        FROM t_popup
+        SELECT popup_id::TEXT AS row_id, name AS popup_name, start_dt, end_dt, link_url, content, sort_no,
+               width, height, pos_top, pos_left, use_yn
+        FROM popup
         WHERE use_yn = 'Y'
         <if test="filterKeyword != null and filterKeyword != ''">
-            AND pop_nm LIKE '%' || #{filterKeyword} || '%'
+            AND name LIKE '%' || #{filterKeyword} || '%'
         </if>
-        ORDER BY sort_no, pop_id DESC
+        ORDER BY sort_no, popup_id DESC
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
     <select id="selectListTotalCount" parameterType="popupVO" resultType="int">
-        SELECT COUNT(*) FROM t_popup WHERE use_yn = 'Y'
-        <if test="filterKeyword != null and filterKeyword != ''">AND pop_nm LIKE '%' || #{filterKeyword} || '%'</if>
+        SELECT COUNT(*) FROM popup WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">AND name LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <!-- 사용자 메인 노출용: 사용중 + 오늘이 노출기간 내(기간 미설정은 항상 노출) + 순서 -->
     <select id="selectMainList" parameterType="popupVO" resultType="popupVO">
-        SELECT pop_id::TEXT AS row_id, pop_nm, start_dt, end_dt, link, txt, sort_no,
-               pop_width, pop_height, pop_top, pop_left,
-               (SELECT r.file_id FROM r_file r
-                 JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
-                 WHERE r.map_key = t_popup.pop_id AND r.file_loc = 'POPUP'
+        SELECT popup_id::TEXT AS row_id, name AS popup_name, start_dt, end_dt, link_url, content, sort_no,
+               width, height, pos_top, pos_left,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = popup.popup_id AND r.file_type = 'POPUP'
                  ORDER BY r.sort_no LIMIT 1) AS file_id
-        FROM t_popup
+        FROM popup
         WHERE use_yn = 'Y'
           AND (start_dt IS NULL OR start_dt = '' OR start_dt &lt;= TO_CHAR(NOW(), 'YYYY-MM-DD'))
           AND (end_dt   IS NULL OR end_dt   = '' OR end_dt   &gt;= TO_CHAR(NOW(), 'YYYY-MM-DD'))
-        ORDER BY sort_no, pop_id
+        ORDER BY sort_no, popup_id
     </select>
 
     <select id="selectView" parameterType="popupVO" resultType="popupVO">
-        SELECT pop_id::TEXT AS row_id, pop_nm, start_dt, end_dt, link, txt, sort_no,
-               pop_width, pop_height, pop_top, pop_left, use_yn,
-               (SELECT r.file_id FROM r_file r
-                 JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
-                 WHERE r.map_key = t_popup.pop_id AND r.file_loc = 'POPUP'
+        SELECT popup_id::TEXT AS row_id, name AS popup_name, start_dt, end_dt, link_url, content, sort_no,
+               width, height, pos_top, pos_left, use_yn,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = popup.popup_id AND r.file_type = 'POPUP'
                  ORDER BY r.sort_no LIMIT 1) AS file_id
-        FROM t_popup WHERE pop_id = #{rowId}::integer AND use_yn = 'Y'
+        FROM popup WHERE popup_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
-    <insert id="insert" parameterType="popupVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="pop_id">
-        INSERT INTO t_popup (pop_nm, start_dt, end_dt, link, txt, sort_no,
-            pop_width, pop_height, pop_top, pop_left, use_yn,
+    <insert id="insert" parameterType="popupVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="popup_id">
+        INSERT INTO popup (name, start_dt, end_dt, link_url, content, sort_no,
+            width, height, pos_top, pos_left, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{popNm}, #{startDt}, #{endDt}, #{link}, #{txt},
+        VALUES (#{popupName}, #{startDt}, #{endDt}, #{linkUrl}, #{content},
             -- 전역 마지막(사용중) 순서+1 자동 부여
-            COALESCE(NULLIF(#{sortNo}, '')::integer, (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_popup WHERE use_yn = 'Y')),
-            #{popWidth}, #{popHeight}, #{popTop}, #{popLeft}, 'Y',
+            COALESCE(NULLIF(#{sortNo}, '')::integer, (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM popup WHERE use_yn = 'Y')),
+            #{width}, #{height}, #{posTop}, #{posLeft}, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="popupVO">
-        UPDATE t_popup SET
-            pop_nm = #{popNm}, start_dt = #{startDt}, end_dt = #{endDt},
-            link = #{link}, txt = #{txt},
-            pop_width = #{popWidth}, pop_height = #{popHeight}, pop_top = #{popTop}, pop_left = #{popLeft},
+        UPDATE popup SET
+            name = #{popupName}, start_dt = #{startDt}, end_dt = #{endDt},
+            link_url = #{linkUrl}, content = #{content},
+            width = #{width}, height = #{height}, pos_top = #{posTop}, pos_left = #{posLeft},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE pop_id = #{rowId}::integer
+        WHERE popup_id = #{rowId}::integer
     </update>
 
     <!-- 순서 교환용: 인접 팝업 (전역 sort_no, UP=바로 위, 그 외=바로 아래) -->
     <select id="selectAdjacentSort" parameterType="popupVO" resultType="popupVO">
-        SELECT pop_id::TEXT AS row_id, sort_no
-        FROM t_popup
+        SELECT popup_id::TEXT AS row_id, sort_no
+        FROM popup
         WHERE use_yn = 'Y'
         <choose>
             <when test="direction == 'UP'">
@@ -82,22 +82,22 @@
 
     <!-- 정렬순서 변경 (updatePopupsort.do 분기용: 대상 행 sort_no를 지정값으로 → 교환에 사용) -->
     <update id="updatesort" parameterType="popupVO">
-        UPDATE t_popup SET
+        UPDATE popup SET
             sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE pop_id = #{rowId}::integer
+        WHERE popup_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="popupVO">
-        UPDATE t_popup SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
-        WHERE pop_id = #{rowId}::integer
+        UPDATE popup SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE popup_id = #{rowId}::integer
     </update>
 
     <!-- 삭제 후 순서 당김: 전역에서 지운 행보다 큰 순서를 -1 -->
     <update id="shiftSortAfterDelete" parameterType="popupVO">
-        UPDATE t_popup SET sort_no = sort_no - 1, upd_dt = NOW()
+        UPDATE popup SET sort_no = sort_no - 1, upd_dt = NOW()
         WHERE use_yn = 'Y'
-          AND sort_no > (SELECT sort_no FROM t_popup WHERE pop_id = #{rowId}::integer)
+          AND sort_no > (SELECT sort_no FROM popup WHERE popup_id = #{rowId}::integer)
     </update>
 
 </mapper>

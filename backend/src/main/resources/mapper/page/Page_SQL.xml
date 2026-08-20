@@ -4,7 +4,7 @@
 
     <select id="selectList" parameterType="pageVO" resultType="pageVO">
         SELECT page_id::TEXT AS row_id, title, use_yn
-        FROM t_page
+        FROM page
         WHERE use_yn = 'Y'
         <if test="filterKeyword != null and filterKeyword != ''">
             AND title LIKE '%' || #{filterKeyword} || '%'
@@ -14,28 +14,28 @@
     </select>
 
     <select id="selectListTotalCount" parameterType="pageVO" resultType="int">
-        SELECT COUNT(*) FROM t_page WHERE use_yn = 'Y'
+        SELECT COUNT(*) FROM page WHERE use_yn = 'Y'
         <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="pageVO" resultType="pageVO">
         SELECT page_id::TEXT AS row_id, title, context, use_yn
-        FROM t_page WHERE page_id = #{rowId}::integer AND use_yn = 'Y'
+        FROM page WHERE page_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="pageVO">
-        INSERT INTO t_page (title, context, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        INSERT INTO page (title, context, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{title}, #{context}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="pageVO">
-        UPDATE t_page SET title = #{title}, context = #{context},
+        UPDATE page SET title = #{title}, context = #{context},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE page_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="pageVO">
-        UPDATE t_page SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE page SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE page_id = #{rowId}::integer
     </update>
 

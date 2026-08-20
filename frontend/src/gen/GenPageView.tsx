@@ -6,7 +6,7 @@ import type { Page } from '../adm/page/page.api'
 import SafeHtml from '../common/SafeHtml'
 
 /**
- * 범용 페이지 뷰어 — 메뉴(conn_ty=페이지)의 conn_id(page_id)로 t_page를 조회해 본문(HTML) 렌더.
+ * 범용 페이지 뷰어 — 메뉴(conn_cd=페이지)의 conn_id(page_id)로 page를 조회해 본문(HTML) 렌더.
  * 페이지관리에서 만든 콘텐츠가 메뉴 연결만으로 노출됨(코드 수정 불필요).
  */
 export default function GenPageView() {

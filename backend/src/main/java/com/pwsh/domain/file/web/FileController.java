@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 파일 업로드/다운로드/삭제 + 엔티티 매핑(r_file) + 고아 정리 — 컨트롤러는 매핑만, 로직은 {@link FileService}.
+ * 파일 업로드/다운로드/삭제 + 엔티티 매핑(file_ref) + 고아 정리 — 컨트롤러는 매핑만, 로직은 {@link FileService}.
  * 표준 CRUD 틀에 안 맞는 특수 컨트롤러(멀티파트 업로드·바이너리 다운로드·유지보수 gc).
  */
 @RestController
@@ -49,7 +49,7 @@ public class FileController {
         return ApiResponse.ok(fileService.sweep());
     }
 
-    /** 업로드(다중) → 저장 + t_file 등록, 생성된 파일 메타 반환 */
+    /** 업로드(다중) → 저장 + file 등록, 생성된 파일 메타 반환 */
     @RequestMapping("/upload.do")
     public ApiResponse<List<FileVO>> upload(@RequestParam("files") MultipartFile[] files) {
         return ApiResponse.ok(fileService.upload(files));
@@ -84,7 +84,7 @@ public class FileController {
         }
         fileService.assertServable(file); // 첨부는 소속 게시판 접근권자만 다운로드(IDOR 차단)
         Resource resource = fileService.loadResource(file);
-        String encoded = URLEncoder.encode(file.getFileOrgNm(), StandardCharsets.UTF_8).replace("+", "%20");
+        String encoded = URLEncoder.encode(file.getOriginalName(), StandardCharsets.UTF_8).replace("+", "%20");
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
@@ -100,16 +100,16 @@ public class FileController {
     }
 
     /**
-     * 엔티티(map_key+file_loc)에 연결된 파일 목록.
+     * 엔티티(map_key+file_type)에 연결된 파일 목록.
      *
-     * <p>게시글 첨부(BBS*)는 <b>그 글의 열람 권한</b>으로 판정한다 — 공개 글이면 비로그인도 목록을 볼 수 있고
+     * <p>게시글 첨부(POST*)는 <b>그 글의 열람 권한</b>으로 판정한다 — 공개 글이면 비로그인도 목록을 볼 수 있고
      * (막아두면 게스트가 첨부 있는 글을 열자마자 401로 로그인 화면에 튕긴다), 접근 권한이 없는 게시판의
      * 글이면 로그인 회원이라도 파일명조차 얻지 못한다. 그 외 위치(팝업·로고)는 공개 자산이다.
      */
     @RequestMapping("/selectFileMapList.do")
     public ApiResponse<List<FileVO>> selectFileMapList(@RequestBody FileVO searchVO) {
-        String loc = searchVO.getFileLoc();
-        if (loc != null && loc.startsWith("BBS")) {
+        String loc = searchVO.getFileType();
+        if (loc != null && loc.startsWith("POST")) {
             genAccessGuard.checkPost(searchVO.getMapKey());
         }
         return ApiResponse.ok(fileService.selectFilesByMap(searchVO));

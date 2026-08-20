@@ -3,9 +3,9 @@
 <mapper namespace="policyDAO">
 
     <select id="selectList" parameterType="policyVO" resultType="policyVO">
-        SELECT p.policy_id::TEXT AS row_id, p.title, p.type_cd, c.code_nm AS type_cd_nm, p.req_yn, p.sort_no, p.use_yn
-        FROM t_policy p
-        LEFT JOIN t_code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
+        SELECT p.policy_id::TEXT AS row_id, p.title, p.type_cd, c.name AS type_cd_name, p.req_yn, p.sort_no, p.use_yn
+        FROM policy p
+        LEFT JOIN code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
         WHERE p.use_yn = 'Y'
         <if test="typeCd != null and typeCd != ''">AND p.type_cd = #{typeCd}</if>
         <if test="filterKeyword != null and filterKeyword != ''">
@@ -16,29 +16,29 @@
     </select>
 
     <select id="selectListTotalCount" parameterType="policyVO" resultType="int">
-        SELECT COUNT(*) FROM t_policy WHERE use_yn = 'Y'
+        SELECT COUNT(*) FROM policy WHERE use_yn = 'Y'
         <if test="typeCd != null and typeCd != ''">AND type_cd = #{typeCd}</if>
         <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="policyVO" resultType="policyVO">
         SELECT policy_id::TEXT AS row_id, title, content, type_cd, req_yn, sort_no, use_yn
-        FROM t_policy WHERE policy_id = #{rowId}::integer AND use_yn = 'Y'
+        FROM policy WHERE policy_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="policyVO">
-        INSERT INTO t_policy (title, content, type_cd, req_yn, sort_no, use_yn,
+        INSERT INTO policy (title, content, type_cd, req_yn, sort_no, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{title}, #{content}, #{typeCd}, COALESCE(#{reqYn}, 'Y'),
             -- 같은 약관유형(type_cd) 내 마지막 순서+1 자동 부여
             COALESCE(NULLIF(#{sortNo}, '')::integer,
-                (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_policy WHERE type_cd = #{typeCd} AND use_yn = 'Y')),
+                (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM policy WHERE type_cd = #{typeCd} AND use_yn = 'Y')),
             'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="policyVO">
-        UPDATE t_policy SET
+        UPDATE policy SET
             title = #{title}, content = #{content}, type_cd = #{typeCd}, req_yn = #{reqYn},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE policy_id = #{rowId}::integer
@@ -47,7 +47,7 @@
     <!-- 순서 교환용: 같은 약관유형(type_cd) 내 인접 약관 (UP=바로 위, 그 외=바로 아래) -->
     <select id="selectAdjacentSort" parameterType="policyVO" resultType="policyVO">
         SELECT policy_id::TEXT AS row_id, sort_no
-        FROM t_policy
+        FROM policy
         WHERE use_yn = 'Y' AND type_cd = #{typeCd}
         <choose>
             <when test="direction == 'UP'">
@@ -62,23 +62,23 @@
 
     <!-- 정렬순서 변경 (updatePolicysort.do 분기용: 대상 행 sort_no를 지정값으로 → 교환에 사용) -->
     <update id="updatesort" parameterType="policyVO">
-        UPDATE t_policy SET
+        UPDATE policy SET
             sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE policy_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="policyVO">
-        UPDATE t_policy SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE policy SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE policy_id = #{rowId}::integer
     </update>
 
     <!-- 삭제 후 순서 당김: 같은 약관유형(type_cd)에서 지운 행보다 큰 순서를 -1 -->
     <update id="shiftSortAfterDelete" parameterType="policyVO">
-        UPDATE t_policy SET sort_no = sort_no - 1, upd_dt = NOW()
+        UPDATE policy SET sort_no = sort_no - 1, upd_dt = NOW()
         WHERE use_yn = 'Y'
-          AND type_cd = (SELECT type_cd FROM t_policy WHERE policy_id = #{rowId}::integer)
-          AND sort_no > (SELECT sort_no FROM t_policy WHERE policy_id = #{rowId}::integer)
+          AND type_cd = (SELECT type_cd FROM policy WHERE policy_id = #{rowId}::integer)
+          AND sort_no > (SELECT sort_no FROM policy WHERE policy_id = #{rowId}::integer)
     </update>
 
 </mapper>

@@ -30,14 +30,14 @@ export default function ForgotPasswordPage() {
 
   const handleSendCode = async () => {
     try {
-      await form.validateFields(['userId'])
+      await form.validateFields(['memberId'])
     } catch {
       return
     }
-    const userId = form.getFieldValue('userId') as string
+    const memberId = form.getFieldValue('memberId') as string
     setSendingCode(true)
     try {
-      await sendResetCode(userId)
+      await sendResetCode(memberId)
       setCodeSent(true)
       // 열거 방지: 계정 유무와 무관하게 동일 안내
       message.success('가입 시 등록한 이메일로 인증코드를 보냈습니다. (계정이 있는 경우, 유효 10분)')
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
   }
 
   const onFinish = async (values: {
-    userId: string; code: string; newPw: string; pwConfirm: string
+    memberId: string; code: string; newPw: string; pwConfirm: string
   }) => {
     setSubmitting(true)
     try {
@@ -84,7 +84,7 @@ export default function ForgotPasswordPage() {
         <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
           <Form.Item label="아이디" required extra="가입 시 등록한 이메일로 인증코드를 보냅니다.">
             <Space.Compact style={{ width: '100%' }}>
-              <Form.Item name="userId" noStyle rules={[{ required: true, message: '아이디를 입력하세요.' }]}>
+              <Form.Item name="memberId" noStyle rules={[{ required: true, message: '아이디를 입력하세요.' }]}>
                 <Input autoFocus placeholder="아이디" autoComplete="username" />
               </Form.Item>
               <Button

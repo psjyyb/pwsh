@@ -4,7 +4,7 @@ import type { TableColumnsType } from 'antd'
 import { reportApi } from '../../api/report'
 import type { Report } from '../../api/report'
 
-const TYPE_NM: Record<string, string> = { BBS: '게시글', COMMENT: '댓글', RECRUIT: '모집', CHAT: '모임대화' }
+const TYPE_NM: Record<string, string> = { POST: '게시글', COMMENT: '댓글', RECRUIT: '모집', CHAT: '모임대화' }
 const statusTag = (s?: string) =>
   s === 'RESOLVED' ? <Tag color="red">삭제조치</Tag>
     : s === 'DISMISSED' ? <Tag>반려</Tag>
@@ -62,15 +62,15 @@ export default function ReportListPage() {
           : <span style={{ color: '#999' }}>{label} (삭제됨)</span>
       },
     },
-    { title: '분류', width: 110, align: 'center', render: (_, r) => (r.reasonNm ? <Tag color="volcano">{r.reasonNm}</Tag> : '-') },
+    { title: '분류', width: 110, align: 'center', render: (_, r) => (r.reasonName ? <Tag color="volcano">{r.reasonName}</Tag> : '-') },
     { title: '내용', render: (_, r) => r.reason, ellipsis: true },
-    { title: '신고자', width: 120, render: (_, r) => r.regNm || '-' },
+    { title: '신고자', width: 120, render: (_, r) => r.regName || '-' },
     { title: '신고일', dataIndex: 'regDt', width: 140 },
-    { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.status) },
+    { title: '상태', width: 90, align: 'center', render: (_, r) => statusTag(r.statusType) },
     {
       title: '처리', width: 170, align: 'center',
       render: (_, r) =>
-        r.status === 'PENDING' ? (
+        r.statusType === 'PENDING' ? (
           <Space>
             <Popconfirm title="신고 대상을 삭제(숨김) 처리하시겠습니까?" onConfirm={() => handle(r.rowId!, 'RESOLVED')} okText="삭제조치" okButtonProps={{ danger: true }} cancelText="취소">
               <Button size="small" danger>삭제조치</Button>

@@ -7,20 +7,20 @@ import { me, changePw, updateProfileImage, withdraw } from '../../api/auth'
 import { fileApi } from '../../api/file'
 import { applyApi } from '../recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../recruit/recruit.api'
-import type { Bbs } from '../../adm/bbs/bbs.api'
+import type { Post } from '../../adm/post/post.api'
 import { myPosts, myRecruits, changeNickname } from './mypage.api'
 import ScheduleCalendar from './ScheduleCalendar'
 import { downloadIcs } from '../../common/util/ics'
 import type { ScheduleItem } from './ScheduleCalendar'
 import { reviewApi } from '../../api/review'
 import type { ReviewStats, ReviewTarget } from '../../api/review'
-import { getUserProfile } from '../../api/profile'
+import { getMemberProfile } from '../../api/profile'
 import type { AttendStats } from '../../api/profile'
 import { badgesOf, num } from '../badges'
 import { bookmarkApi } from '../../api/bookmark'
 import type { Bookmark } from '../../api/bookmark'
 import { notificationApi } from '../../api/notification'
-import type { NotiSetting } from '../../api/notification'
+import type { NotificationSetting } from '../../api/notification'
 import { blockApi } from '../../api/block'
 import { followApi } from '../../api/follow'
 import type { Follow } from '../../api/follow'
@@ -35,7 +35,7 @@ export default function MyPage() {
   const navigate = useNavigate()
   const loggedIn = !!tokenStore.get()
 
-  const [userId, setUserId] = useState('')
+  const [memberId, setMemberId] = useState('')
   const [nickname, setNickname] = useState('')
   const [nickInput, setNickInput] = useState('')
   const [nickOpen, setNickOpen] = useState(false)
@@ -47,7 +47,7 @@ export default function MyPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [withdrawPw, setWithdrawPw] = useState('')
 
-  const [posts, setPosts] = useState<Bbs[]>([])
+  const [posts, setPosts] = useState<Post[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [applies, setApplies] = useState<RecruitApply[]>([])
   // 후기 쓰기(종료된 모임에서 함께한 회원)
@@ -61,7 +61,7 @@ export default function MyPage() {
   // 북마크(스크랩) / 알림 수신 설정
   const [bmPosts, setBmPosts] = useState<Bookmark[]>([])
   const [bmRecruits, setBmRecruits] = useState<Bookmark[]>([])
-  const [notiSet, setNotiSet] = useState<NotiSetting>({})
+  const [notiSet, setNotiSet] = useState<NotificationSetting>({})
   const [notiSaving, setNotiSaving] = useState(false)
 
   const [blocks, setBlocks] = useState<Block[]>([])
@@ -108,12 +108,12 @@ export default function MyPage() {
 
   const loadReviewTargets = () => { reviewApi.myTargets().then(setReviewTargets).catch(() => {}) }
   const loadBookmarks = () => {
-    bookmarkApi.list('BBS').then(setBmPosts).catch(() => {})
+    bookmarkApi.list('POST').then(setBmPosts).catch(() => {})
     bookmarkApi.list('RECRUIT').then(setBmRecruits).catch(() => {})
   }
 
   /** 알림 수신 설정 토글 — 즉시 저장(낙관적 반영, 실패 시 롤백). */
-  const toggleNoti = async (key: keyof NotiSetting, on: boolean) => {
+  const toggleNoti = async (key: keyof NotificationSetting, on: boolean) => {
     const next = { ...notiSet, [key]: on ? 'Y' : 'N' }
     setNotiSet(next)
     setNotiSaving(true)
@@ -127,7 +127,7 @@ export default function MyPage() {
     }
   }
 
-  const removeBookmark = async (type: 'BBS' | 'RECRUIT', targetId: string) => {
+  const removeBookmark = async (type: 'POST' | 'RECRUIT', targetId: string) => {
     try {
       await bookmarkApi.toggle(type, targetId)
       message.success('북마크를 해제했습니다.')
@@ -140,11 +140,11 @@ export default function MyPage() {
   useEffect(() => {
     if (!loggedIn) return
     me().then((info) => {
-      setUserId(info.userId ?? ''); setNickname(info.nickname ?? ''); setNickInput(info.nickname ?? '')
+      setMemberId(info.memberId ?? ''); setNickname(info.nickname ?? ''); setNickInput(info.nickname ?? '')
       setProfileFileId(info.profileFileId || undefined)
       // 배지 재료(참석 기록·받은 후기)는 공개 프로필 쪽에 있어 내 handle로 함께 가져온다
       if (info.handle) {
-        getUserProfile(info.handle).then((p) => setMyAttend(p.attend ?? {})).catch(() => {})
+        getMemberProfile(info.handle).then((p) => setMyAttend(p.attend ?? {})).catch(() => {})
         reviewApi.stats(info.handle).then((s) => setMyReview(s)).catch(() => {})
       }
     }).catch(() => {})
@@ -170,7 +170,7 @@ export default function MyPage() {
       .filter((r) => r.meetDt)
       .map((r) => ({ key: `h-${r.rowId}`, id: r.rowId!, title: r.title ?? '', meetDt: r.meetDt!, region: r.region, role: '주최' as const }))
     const joined = applies
-      .filter((a) => a.applyStatus === 'APPLY02' && a.meetDt)
+      .filter((a) => a.applyCd === 'APPLY02' && a.meetDt)
       .map((a) => ({ key: `a-${a.rowId}`, id: a.recruitId!, title: a.recruitTitle ?? '', meetDt: a.meetDt!, region: a.region, role: '참여' as const }))
     return [...mine, ...joined].sort((x, y) => x.meetDt.localeCompare(y.meetDt))
   })()
@@ -310,14 +310,14 @@ export default function MyPage() {
     </span>
   )
 
-  const postCols: TableColumnsType<Bbs> = [
-    { title: '게시판', dataIndex: 'bbsinfoNm', width: 130 },
+  const postCols: TableColumnsType<Post> = [
+    { title: '게시판', dataIndex: 'boardName', width: 130 },
     { title: '제목', render: (_, r) => r.title },
     { title: '댓글', width: 60, align: 'center', render: (_, r) => Number(r.commentCnt) || 0 },
     { title: '작성일', dataIndex: 'regDt', width: 120 },
   ]
   const recruitCols: TableColumnsType<Recruit> = [
-    { title: '취미', dataIndex: 'hobbyNm', width: 110 },
+    { title: '취미', dataIndex: 'hobbyName', width: 110 },
     { title: '모임명', render: (_, r) => r.title },
     { title: '신청', width: 90, align: 'center', render: (_, r) => `${r.acceptedCnt ?? 0}/${r.applyCnt ?? 0}` },
     { title: '상태', width: 80, align: 'center', render: (_, r) => (r.statusCd === 'RECRUIT01' ? <Tag color="green">모집중</Tag> : <Tag>마감</Tag>) },
@@ -329,12 +329,12 @@ export default function MyPage() {
       title: '상태', width: 120, align: 'center',
       render: (_, r) => (
         <Space size={4} wrap>
-          {applyTag(r.applyStatus, r.applyStatusNm)}
-          {r.applyStatus === 'APPLY01' && r.waitNo && <Tag color="orange">대기 {r.waitNo}</Tag>}
+          {applyTag(r.applyCd, r.applyName)}
+          {r.applyCd === 'APPLY01' && r.waitNo && <Tag color="orange">대기 {r.waitNo}</Tag>}
         </Space>
       ),
     },
-    { title: '', width: 80, render: (_, r) => (r.applyStatus !== 'APPLY02' ? <a onClick={(e) => { e.stopPropagation(); cancelApply(r.rowId!) }}>취소</a> : null) },
+    { title: '', width: 80, render: (_, r) => (r.applyCd !== 'APPLY02' ? <a onClick={(e) => { e.stopPropagation(); cancelApply(r.rowId!) }}>취소</a> : null) },
   ]
 
   return (
@@ -346,7 +346,7 @@ export default function MyPage() {
             style={{ width: 64, height: 64, borderRadius: '50%', background: gen.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, cursor: 'pointer', overflow: 'hidden', opacity: uploading ? 0.6 : 1 }}>
             {profileFileId
               ? <img src={`/api/pub/image/${profileFileId}`} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : (nickname || userId || '?').slice(0, 1)}
+              : (nickname || memberId || '?').slice(0, 1)}
           </div>
           <div onClick={() => fileRef.current?.click()} aria-hidden
             style={{ position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, cursor: 'pointer' }}>📷</div>
@@ -356,7 +356,7 @@ export default function MyPage() {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: gen.heroText }}>{nickname || '회원'}</div>
           <div style={{ color: '#8078A8', fontSize: 13, marginTop: 2 }}>
-            @{userId}
+            @{memberId}
             {profileFileId && <> · <a onClick={removePhoto}>사진 삭제</a></>}
           </div>
           {/* 활동 배지 — 참석·주최·후기에서 파생(공개 프로필과 같은 기준) */}
@@ -416,8 +416,8 @@ export default function MyPage() {
       {/* 내가 쓴 글 */}
       <Card style={{ borderRadius: 18 }} title={cardTitle('📝', '내가 쓴 글', posts.length)}>
         {posts.length === 0 ? <Empty description="작성한 글이 없습니다." image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
-          <Table<Bbs> rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={postCols} dataSource={posts} pagination={false}
-            onRow={(r) => ({ onClick: () => navigate(`/gen/board/${r.bbsinfoId}?post=${r.rowId}`), style: { cursor: 'pointer' } })} />
+          <Table<Post> rowKey="rowId" size="small" scroll={{ x: 'max-content' }} columns={postCols} dataSource={posts} pagination={false}
+            onRow={(r) => ({ onClick: () => navigate(`/gen/board/${r.boardId}?post=${r.rowId}`), style: { cursor: 'pointer' } })} />
         )}
       </Card>
 
@@ -445,18 +445,18 @@ export default function MyPage() {
           <Space direction="vertical" style={{ width: '100%' }} size={6}>
             {bmPosts.map((b) => (
               <div key={`b-${b.rowId}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Tag color="cyan" style={{ flexShrink: 0 }}>{b.subNm || '게시판'}</Tag>
+                <Tag color="cyan" style={{ flexShrink: 0 }}>{b.subName || '게시판'}</Tag>
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
-                  onClick={() => navigate(`/gen/board/${b.bbsinfoId}?post=${b.targetId}`)}>{b.title}</span>
-                <a style={{ fontSize: 12, color: '#999', flexShrink: 0 }} onClick={() => removeBookmark('BBS', b.targetId!)}>해제</a>
+                  onClick={() => navigate(`/gen/board/${b.boardId}?post=${b.targetId}`)}>{b.title}</span>
+                <a style={{ fontSize: 12, color: '#999', flexShrink: 0 }} onClick={() => removeBookmark('POST', b.targetId!)}>해제</a>
               </div>
             ))}
             {bmRecruits.map((b) => (
               <div key={`r-${b.rowId}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Tag color="purple" style={{ flexShrink: 0 }}>{b.subNm || '모집'}</Tag>
+                <Tag color="purple" style={{ flexShrink: 0 }}>{b.subName || '모집'}</Tag>
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                   onClick={() => navigate(`/gen/recruit/${b.targetId}`)}>{b.title}</span>
-                {b.statusNm && <Tag style={{ flexShrink: 0 }}>{b.statusNm}</Tag>}
+                {b.statusName && <Tag style={{ flexShrink: 0 }}>{b.statusName}</Tag>}
                 <a style={{ fontSize: 12, color: '#999', flexShrink: 0 }} onClick={() => removeBookmark('RECRUIT', b.targetId!)}>해제</a>
               </div>
             ))}
@@ -488,8 +488,8 @@ export default function MyPage() {
             {(followTab === 'following' ? following : followers).map((f) => (
               <div key={f.rowId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }}
-                  onClick={() => navigate(`/gen/user/${f.followeeHandle}`)}>
-                  {f.followeeNm || '-'}
+                  onClick={() => navigate(`/gen/member/${f.followeeHandle}`)}>
+                  {f.followeeName || '-'}
                 </span>
                 <Space size={8}>
                   <span style={{ fontSize: 12, color: '#aaa' }}>{f.regDt}</span>
@@ -511,8 +511,8 @@ export default function MyPage() {
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             {blocks.map((b) => (
               <div key={b.rowId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <span style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }} onClick={() => navigate(`/gen/user/${b.blockedHandle}`)}>
-                  {b.blockedNm || '-'}
+                <span style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }} onClick={() => navigate(`/gen/member/${b.blockedHandle}`)}>
+                  {b.blockedName || '-'}
                 </span>
                 <Space size={8}>
                   <span style={{ fontSize: 12, color: '#aaa' }}>{b.regDt}</span>
@@ -528,11 +528,11 @@ export default function MyPage() {
       <Card style={{ borderRadius: 18 }} title={cardTitle('🔔', '알림 설정')}>
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
           {([
-            ['notiApply', '모집 신청·수락·거절'],
-            ['notiComment', '댓글·답글'],
-            ['notiMessage', '쪽지'],
-            ['notiReview', '모임 후기'],
-          ] as [keyof NotiSetting, string][]).map(([key, label]) => (
+            ['applyYn', '모집 신청·수락·거절'],
+            ['commentYn', '댓글·답글'],
+            ['messageYn', '쪽지'],
+            ['reviewYn', '모임 후기'],
+          ] as [keyof NotificationSetting, string][]).map(([key, label]) => (
             <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>{label}</span>
               <Switch
@@ -556,9 +556,9 @@ export default function MyPage() {
                 <div style={{ minWidth: 0 }}>
                   <span
                     style={{ fontWeight: 600, color: gen.primary, cursor: 'pointer' }}
-                    onClick={() => navigate(`/gen/user/${t.targetHandle}`)}
+                    onClick={() => navigate(`/gen/member/${t.targetHandle}`)}
                   >
-                    {t.targetNm || '-'}
+                    {t.targetName || '-'}
                   </span>
                   <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>{t.recruitTitle}</span>
                 </div>
@@ -577,7 +577,7 @@ export default function MyPage() {
 
       {/* 후기 작성 */}
       <Modal
-        open={reviewOpen} title={`후기 쓰기 — ${reviewTarget?.targetNm || ''}`}
+        open={reviewOpen} title={`후기 쓰기 — ${reviewTarget?.targetName || ''}`}
         onOk={submitReview} onCancel={() => setReviewOpen(false)}
         okText="등록" cancelText="취소" confirmLoading={reviewSaving}
       >

@@ -45,7 +45,7 @@ public class ReportController {
     @RequestMapping("/updateReportStatus.do")
     public ApiResponse<Void> updateStatus(@RequestBody ReportVO vo) {
         Validate.required(vo.getRowId(), "신고");
-        Validate.required(vo.getStatus(), "상태");
+        Validate.required(vo.getStatusType(), "상태");
         reportService.updateStatus(vo);
         return ApiResponse.ok();
     }

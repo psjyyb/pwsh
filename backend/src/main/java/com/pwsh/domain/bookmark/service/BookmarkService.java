@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 북마크(스크랩) 단일 @Service. user_id는 서버가 강제(위변조 차단).
+ * 북마크(스크랩) 단일 @Service. member_id는 서버가 강제(위변조 차단).
  * 토글: 없으면 추가, 있으면 제거. 목록은 대상이 살아있는 것만(삭제 콘텐츠 제외).
  */
 @Service
@@ -22,14 +22,14 @@ public class BookmarkService {
     /** 북마크 토글 → 결과 상태(markedYn) 반환. */
     @Transactional
     public BookmarkVO toggle(String targetType, String targetId) {
-        if (!"BBS".equals(targetType) && !"RECRUIT".equals(targetType)) {
+        if (!"POST".equals(targetType) && !"RECRUIT".equals(targetType)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상 유형입니다.");
         }
         if (targetId == null || !targetId.matches("\\d+")) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상입니다.");
         }
         BookmarkVO key = new BookmarkVO();
-        key.setUserId(currentUserId());
+        key.setMemberId(currentMemberId());
         key.setTargetType(targetType);
         key.setTargetId(targetId);
         // 대상 존재 확인 — 삭제/없는 콘텐츠 북마크로 고아행이 생기지 않도록
@@ -52,25 +52,25 @@ public class BookmarkService {
         return r;
     }
 
-    /** 내 북마크 목록 — type='BBS'면 게시글, 그 외 모집. */
+    /** 내 북마크 목록 — type='POST'면 게시글, 그 외 모집. */
     public List<BookmarkVO> selectMyList(String targetType) {
         BookmarkVO vo = new BookmarkVO();
-        vo.setUserId(currentUserId());
-        return "BBS".equals(targetType)
-                ? commonDAO.selectList("bookmarkDAO.selectMyBbsList", vo)
+        vo.setMemberId(currentMemberId());
+        return "POST".equals(targetType)
+                ? commonDAO.selectList("bookmarkDAO.selectMyPostList", vo)
                 : commonDAO.selectList("bookmarkDAO.selectMyRecruitList", vo);
     }
 
     /** 내가 북마크한 대상 id 목록(목록 화면 하트 표시용). */
     public List<String> selectMyIds(String targetType) {
         BookmarkVO vo = new BookmarkVO();
-        vo.setUserId(currentUserId());
-        vo.setTargetType("BBS".equals(targetType) ? "BBS" : "RECRUIT");
+        vo.setMemberId(currentMemberId());
+        vo.setTargetType("POST".equals(targetType) ? "POST" : "RECRUIT");
         return commonDAO.selectList("bookmarkDAO.selectMyIdsByType", vo);
     }
 
-    private String currentUserId() {
-        String me = SecurityUtil.getCurrentUserId();
+    private String currentMemberId() {
+        String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
         }

@@ -14,11 +14,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * API 엔드포인트 권한 강제. /api/adm/{domain}/... 요청을 메뉴 link_url(/adm/{domain})에 매핑해
- * 로그인 사용자가 t_auth 권한(그룹)으로 그 메뉴 접근권을 가졌는지 검사(없으면 403).
- * - 슈퍼관리자(userId=admin) 전면 허용
+ * 로그인 사용자가 auth 권한(그룹)으로 그 메뉴 접근권을 가졌는지 검사(없으면 403).
+ * - 슈퍼관리자(memberId=admin) 전면 허용
  * - 공용/인프라 엔드포인트(코드콤보·메뉴트리·설정조회·이벤트로그기록·권한그룹콤보·파일)는 예외 허용
  * - 매핑되는 메뉴가 없거나 권한이 없으면 거부(fail-closed). 신규 /adm 도메인은 메뉴(link_url=/adm/{domain}) 등록 필요.
- *   조회/수정은 구분하지 않는다(메뉴 접근권 유무만). superYn(admin)·예외 목록·file/bbs/comment(콘텐츠)는 위에서 선허용.
+ *   조회/수정은 구분하지 않는다(메뉴 접근권 유무만). superYn(admin)·예외 목록·file/post/comment(콘텐츠)는 위에서 선허용.
  */
 @Component
 @RequiredArgsConstructor
@@ -33,11 +33,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/config/selectConfigView.do",
             "/page/selectPageView.do",
             "/popup/selectPopupListMain.do",
-            "/bbsinfo/selectBbsinfoView.do",
-            "/bbsinfo/selectBbsinfoListCombo.do",
+            "/board/selectBoardView.do",
+            "/board/selectBoardListCombo.do",
             "/hobby/selectHobbyList.do",
             "/hobby/selectHobbyView.do",
-            "/authgrp/selectAuthgrpListCombo.do");
+            "/authgroup/selectAuthGroupListCombo.do");
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -47,20 +47,20 @@ public class PermissionInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String userId = SecurityUtil.getCurrentUserId();
+        String memberId = SecurityUtil.getCurrentMemberId();
         // 부트스트랩 슈퍼관리자 전면 허용(잠금 방지)
-        if ("admin".equals(userId)) {
+        if ("admin".equals(memberId)) {
             return true;
         }
         // 공용/인프라 예외: 파일, 게시글/댓글, 모집/신청(사용자 콘텐츠 — 로그인만 필요, 메뉴권한 무관.
         // 소유자/상태 등 세부 인가는 각 Service가 담당)
         if (path.startsWith("/api/adm/file/")
-                || path.startsWith("/api/adm/bbs/")
+                || path.startsWith("/api/adm/post/")
                 || path.startsWith("/api/adm/comment/")
                 || path.startsWith("/api/adm/recruit/")
                 || path.startsWith("/api/adm/recruitApply/")
                 || path.startsWith("/api/adm/recruitChat/")
-                || path.startsWith("/api/adm/userHobby/")
+                || path.startsWith("/api/adm/memberHobby/")
                 || path.startsWith("/api/adm/notification/")
                 || path.startsWith("/api/adm/like/")
                 || path.startsWith("/api/adm/search/")
@@ -90,7 +90,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
         String linkUrl = "/adm/" + domain;
 
         Integer cnt = commonDAO.selectOne("menuDAO.selectPermittedCount",
-                Map.of("userId", userId == null ? "" : userId, "linkUrl", linkUrl));
+                Map.of("memberId", memberId == null ? "" : memberId, "linkUrl", linkUrl));
         if (cnt != null && cnt > 0) {
             return true;
         }

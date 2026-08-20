@@ -6,10 +6,10 @@ export interface Menu {
   rowId?: string // PK(menu_id)
   pMenuId?: string // 부모 메뉴 참조(FK)
   area?: string // ADM=관리자, GEN=사용자
-  menuNm: string
-  menuDesc?: string | null
+  menuName: string
+  description?: string | null
   sortNo?: string
-  connTy?: string // MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹
+  connCd?: string // MENU01=URL, MENU02=게시판, MENU03=페이지, MENU04=그룹
   connId?: string
   linkUrl?: string | null
   targetYn?: string

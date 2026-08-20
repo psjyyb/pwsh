@@ -4,7 +4,7 @@ import { hasMapKey, loadKakaoMap } from '../../util/kakaoMap'
 import { gen } from '../../../gen/theme'
 
 export interface PickedPlace {
-  placeNm: string
+  placeName: string
   addr: string
   lat: string
   lng: string
@@ -109,7 +109,7 @@ export default function PlacePicker({ value, onChange }: Props) {
         }
         const list: Candidate[] = data.map((d) => ({
           id: d.id,
-          placeNm: d.place_name,
+          placeName: d.place_name,
           addr: d.road_address_name || d.address_name,
           lat: String(d.y),
           lng: String(d.x),
@@ -129,7 +129,7 @@ export default function PlacePicker({ value, onChange }: Props) {
       message.warning('목록에서 장소를 선택해 주세요.')
       return
     }
-    onChange?.({ placeNm: sel.placeNm, addr: sel.addr, lat: sel.lat, lng: sel.lng })
+    onChange?.({ placeName: sel.placeName, addr: sel.addr, lat: sel.lat, lng: sel.lng })
     setOpen(false)
   }
 
@@ -143,9 +143,9 @@ export default function PlacePicker({ value, onChange }: Props) {
   return (
     <>
       <Space size={8} wrap>
-        {value?.placeNm ? (
+        {value?.placeName ? (
           <>
-            <Tag color="purple" style={{ margin: 0 }}>{value.placeNm}</Tag>
+            <Tag color="purple" style={{ margin: 0 }}>{value.placeName}</Tag>
             {value.addr && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{value.addr}</Typography.Text>}
             <Button size="small" onClick={() => setOpen(true)}>변경</Button>
             <Button size="small" onClick={clear}>지우기</Button>
@@ -206,7 +206,7 @@ export default function PlacePicker({ value, onChange }: Props) {
                   >
                     <Space direction="vertical" size={0}>
                       <Space size={6}>
-                        <b>{c.placeNm}</b>
+                        <b>{c.placeName}</b>
                         {c.category && <Tag style={{ margin: 0 }}>{c.category}</Tag>}
                       </Space>
                       <span style={{ fontSize: 12, color: gen.inkFaint }}>{c.addr}</span>

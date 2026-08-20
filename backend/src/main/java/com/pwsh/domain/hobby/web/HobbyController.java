@@ -38,14 +38,14 @@ public class HobbyController {
 
     @RequestMapping("/insertHobby.do")
     public ApiResponse<String> insert(@RequestBody HobbyVO searchVO) {
-        Validate.required(searchVO.getHobbyNm(), "취미명");
+        Validate.required(searchVO.getHobbyName(), "취미명");
         hobbyService.insert(searchVO);
         return ApiResponse.ok(searchVO.getRowId());
     }
 
     @RequestMapping("/updateHobby.do")
     public ApiResponse<Void> update(@RequestBody HobbyVO searchVO) {
-        Validate.required(searchVO.getHobbyNm(), "취미명");
+        Validate.required(searchVO.getHobbyName(), "취미명");
         hobbyService.update(searchVO);
         return ApiResponse.ok();
     }

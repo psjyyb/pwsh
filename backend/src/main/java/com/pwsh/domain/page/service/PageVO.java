@@ -4,7 +4,7 @@ import com.pwsh.common.BaseVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 페이지 VO (t_page). BaseVO 상속. */
+/** 페이지 VO (page). BaseVO 상속. */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class PageVO extends BaseVO {

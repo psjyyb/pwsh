@@ -4,23 +4,23 @@
 
     <!-- 단일 행 설정 -->
     <select id="selectView" parameterType="configVO" resultType="configVO">
-        SELECT fail_cnt_limit, fail_cnt_denied_ti, pw_expire_cnt, session_expire_cnt,
-               del_log_cnt, acc_ip_yn, title, menu_version,
-               (SELECT r.file_id FROM r_file r
-                 JOIN t_file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
-                 WHERE r.map_key = 1 AND r.file_loc = 'LOGO'
+        SELECT fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins,
+               del_log_days, acc_ip_yn, title, menu_version,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
+                 WHERE r.map_key = 1 AND r.file_type = 'LOGO'
                  ORDER BY r.sort_no LIMIT 1) AS logo_file_id  <!-- 단일행 config(map_key=1)의 로고, 없으면 프론트 기본 로고 -->
-        FROM t_config
+        FROM config
         LIMIT 1
     </select>
 
     <update id="update" parameterType="configVO">
-        UPDATE t_config SET
+        UPDATE config SET
             fail_cnt_limit = NULLIF(#{failCntLimit}, '')::integer,
-            fail_cnt_denied_ti = NULLIF(#{failCntDeniedTi}, '')::integer,
-            pw_expire_cnt = NULLIF(#{pwExpireCnt}, '')::integer,
-            session_expire_cnt = NULLIF(#{sessionExpireCnt}, '')::integer,
-            del_log_cnt = NULLIF(#{delLogCnt}, '')::integer,
+            fail_lock_mins = NULLIF(#{failLockMins}, '')::integer,
+            password_expire_days = NULLIF(#{passwordExpireDays}, '')::integer,
+            session_expire_mins = NULLIF(#{sessionExpireMins}, '')::integer,
+            del_log_days = NULLIF(#{delLogDays}, '')::integer,
             acc_ip_yn = #{accIpYn},
             title = #{title}
     </update>

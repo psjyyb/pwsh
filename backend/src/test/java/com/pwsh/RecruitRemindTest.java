@@ -26,7 +26,7 @@ class RecruitRemindTest extends IntegrationTest {
 
         // 취미(전용 게시판 자동 생성) → 모집 주최자/신청자/거절자 계정
         String hobbyId = JsonPath.read(post("/api/adm/hobby/insertHobby.do",
-                "{\"hobbyNm\":\"리마인드취미\",\"summary\":\"s\"}", admin).body(), "$.data");
+                "{\"hobbyName\":\"리마인드취미\",\"summary\":\"s\"}", admin).body(), "$.data");
         assertNotNull(hobbyId);
         assertEquals(200, signup("rmhost", "리마인드주최", "rmhost@test.local").statusCode());
         assertEquals(200, signup("rmok", "수락자", "rmok@test.local").statusCode());
@@ -52,10 +52,10 @@ class RecruitRemindTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/recruitApply/insertRecruitApply.do",
                 "{\"recruitId\":\"" + rid + "\"}", noTok).statusCode());
         String okApplyId = jdbc.queryForObject(
-                "SELECT apply_id::text FROM t_recruit_apply WHERE recruit_id = ?::integer AND user_id = 'rmok'",
+                "SELECT apply_id::text FROM recruit_apply WHERE recruit_id = ?::integer AND member_id = 'rmok'",
                 String.class, rid);
         assertEquals(200, post("/api/adm/recruitApply/updateRecruitApply.do",
-                "{\"rowId\":\"" + okApplyId + "\",\"applyStatus\":\"APPLY02\"}", hostTok).statusCode());
+                "{\"rowId\":\"" + okApplyId + "\",\"applyCd\":\"APPLY02\"}", hostTok).statusCode());
 
         // 신청/수락 알림은 이미 적재되므로 리마인더만 세어 비교한다
         int sent = recruitService.sendMeetReminders(tomorrow);
@@ -67,10 +67,10 @@ class RecruitRemindTest extends IntegrationTest {
 
         // 링크·문구 확인(클릭 시 모집 상세로)
         String link = jdbc.queryForObject(
-                "SELECT link_url FROM t_notification WHERE user_id = 'rmhost' AND noti_type = 'REMIND'", String.class);
+                "SELECT link_url FROM notification WHERE member_id = 'rmhost' AND type = 'REMIND'", String.class);
         assertEquals("/gen/recruit/" + rid, link);
         String content = jdbc.queryForObject(
-                "SELECT content FROM t_notification WHERE user_id = 'rmok' AND noti_type = 'REMIND'", String.class);
+                "SELECT content FROM notification WHERE member_id = 'rmok' AND type = 'REMIND'", String.class);
         assertTrue(content.contains("내일모임") && content.contains(tomorrow), "모임명·일자 포함: " + content);
 
         // 같은 날 재실행해도 중복 발송되지 않는다(재기동/중복 스케줄 안전)
@@ -89,15 +89,15 @@ class RecruitRemindTest extends IntegrationTest {
         // 삭제된 모집은 대상에서 제외
         assertEquals(200, post("/api/adm/recruit/deleteRecruit.do",
                 "{\"rowId\":\"" + rid + "\"}", hostTok).statusCode());
-        jdbc.update("DELETE FROM t_notification WHERE noti_type = 'REMIND'");
+        jdbc.update("DELETE FROM notification WHERE type = 'REMIND'");
         assertEquals(0, recruitService.sendMeetReminders(tomorrow), "삭제된 모집은 발송하지 않음");
     }
 
     /** 특정 회원이 특정 모집으로 받은 리마인더 건수. */
-    private int remindCnt(String userId, String recruitId) {
+    private int remindCnt(String memberId, String recruitId) {
         Integer n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM t_notification WHERE user_id = ? AND noti_type = 'REMIND' AND link_url = ?",
-                Integer.class, userId, "/gen/recruit/" + recruitId);
+                "SELECT COUNT(*) FROM notification WHERE member_id = ? AND type = 'REMIND' AND link_url = ?",
+                Integer.class, memberId, "/gen/recruit/" + recruitId);
         return n == null ? 0 : n;
     }
 }

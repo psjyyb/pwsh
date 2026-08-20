@@ -4,18 +4,18 @@
 
     <select id="selectList" parameterType="commentVO" resultType="commentVO">
         <!-- 공개 목록: 작성자 로그인 ID(reg_id) 미노출. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
-        SELECT comment_id::TEXT AS row_id, bbs_id, p_comment_id, context, good_cnt, bad_cnt,
-               (SELECT u.nickname FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_nm,
-               (SELECT u.handle FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_handle,
-               (CASE WHEN #{viewerId}::text IS NOT NULL AND t_comment.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
-               (SELECT u.profile_file_id FROM t_user u WHERE u.user_id = t_comment.reg_id) AS reg_profile_file_id,
-               (CASE WHEN EXISTS (SELECT 1 FROM t_content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = t_comment.comment_id AND l.user_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
+        SELECT comment_id::TEXT AS row_id, post_id, p_comment_id, context, good_cnt, bad_cnt,
+               (SELECT u.nickname FROM member u WHERE u.member_id = comment.reg_id) AS reg_name,
+               (SELECT u.handle FROM member u WHERE u.member_id = comment.reg_id) AS reg_handle,
+               (CASE WHEN #{viewerId}::text IS NOT NULL AND comment.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
+               (SELECT u.profile_file_id FROM member u WHERE u.member_id = comment.reg_id) AS reg_profile_file_id,
+               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = comment.comment_id AND l.member_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
-        FROM t_comment
-        WHERE use_yn = 'Y' AND bbs_id = #{bbsId}::integer
+        FROM comment
+        WHERE use_yn = 'Y' AND post_id = #{postId}::integer
           AND NOT EXISTS ( -- 내가 차단한 회원의 댓글은 내 화면에서 제외
-              SELECT 1 FROM t_user_block ub
-              WHERE ub.user_id = #{viewerId} AND ub.blocked_id = t_comment.reg_id
+              SELECT 1 FROM member_block ub
+              WHERE ub.member_id = #{viewerId} AND ub.blocked_id = comment.reg_id
           )
         ORDER BY CASE WHEN p_comment_id = 0 THEN comment_id ELSE p_comment_id END,  -- 스레드(부모) 기준
                  CASE WHEN p_comment_id = 0 THEN 0 ELSE 1 END,                       -- 부모 먼저, 답글 뒤
@@ -24,24 +24,24 @@
 
     <!-- 단건(수정/삭제 인가용: 작성자·소속 게시글 확인) -->
     <select id="selectView" parameterType="commentVO" resultType="commentVO">
-        SELECT comment_id::TEXT AS row_id, bbs_id, context, reg_id
-        FROM t_comment WHERE comment_id = #{rowId}::integer AND use_yn = 'Y'
+        SELECT comment_id::TEXT AS row_id, post_id, context, reg_id
+        FROM comment WHERE comment_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="commentVO">
-        INSERT INTO t_comment (bbs_id, p_comment_id, context, good_cnt, bad_cnt, use_yn,
+        INSERT INTO comment (post_id, p_comment_id, context, good_cnt, bad_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{bbsId}::integer, COALESCE(NULLIF(#{pCommentId}, '')::integer, 0), #{context}, 0, 0, 'Y',
+        VALUES (#{postId}::integer, COALESCE(NULLIF(#{pCommentId}, '')::integer, 0), #{context}, 0, 0, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="commentVO">
-        UPDATE t_comment SET context = #{context}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE comment SET context = #{context}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE comment_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="commentVO">
-        UPDATE t_comment SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE comment SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE comment_id = #{rowId}::integer
     </update>
 

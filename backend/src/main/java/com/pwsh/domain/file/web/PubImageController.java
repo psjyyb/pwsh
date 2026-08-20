@@ -36,7 +36,7 @@ public class PubImageController {
         if (file == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "이미지를 찾을 수 없습니다.");
         }
-        String ext = file.getFileExt() == null ? "" : file.getFileExt().toLowerCase();
+        String ext = file.getExt() == null ? "" : file.getExt().toLowerCase();
         if (!IMAGE_EXTS.contains(ext)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이미지 파일이 아닙니다.");
         }

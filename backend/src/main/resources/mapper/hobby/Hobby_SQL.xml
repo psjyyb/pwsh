@@ -3,72 +3,72 @@
 <mapper namespace="hobbyDAO">
 
     <sql id="thumb">
-        (SELECT r.file_id FROM r_file r
-          JOIN t_file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
-          WHERE r.map_key = h.hobby_id AND r.file_loc = 'HOBBY'
+        (SELECT r.file_id FROM file_ref r
+          JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+          WHERE r.map_key = h.hobby_id AND r.file_type = 'HOBBY'
           ORDER BY r.sort_no LIMIT 1)
     </sql>
 
     <select id="selectList" parameterType="hobbyVO" resultType="hobbyVO">
-        SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary, h.difficulty_cd, h.equipment, h.est_cost,
-               h.bbsinfo_id, h.sort_no,
-               dc.code_nm AS difficulty_nm,
-               bi.bbsinfo_nm,
+        SELECT h.hobby_id::TEXT AS row_id, h.name AS hobby_name, h.summary, h.difficulty_cd, h.equipment, h.estimated_cost,
+               h.board_id, h.sort_no,
+               dc.name AS difficulty_name,
+               bi.name AS board_name,
                <include refid="thumb"/> AS thumb_id,
-               (SELECT COUNT(*) FROM t_bbs b WHERE b.bbsinfo_id = h.bbsinfo_id AND b.use_yn = 'Y' AND b.p_bbs_id = 0) AS post_cnt,
-               (SELECT COUNT(*) FROM t_user_hobby uh WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y') AS member_cnt
-        FROM t_hobby h
-        LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
-        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
+               (SELECT COUNT(*) FROM post b WHERE b.board_id = h.board_id AND b.use_yn = 'Y' AND b.p_post_id = 0) AS post_cnt,
+               (SELECT COUNT(*) FROM member_hobby uh WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y') AS member_cnt
+        FROM hobby h
+        LEFT JOIN code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
+        LEFT JOIN board bi ON bi.board_id = h.board_id
         WHERE h.use_yn = 'Y'
-        <if test="filterKeyword != null and filterKeyword != ''">AND h.hobby_nm LIKE '%' || #{filterKeyword} || '%'</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND h.name LIKE '%' || #{filterKeyword} || '%'</if>
         ORDER BY h.sort_no, h.hobby_id
     </select>
 
     <!-- 특정 게시판이 취미 게시판인지(취미 커뮤니티 공개 판정용) -->
-    <select id="countByBbsinfo" parameterType="map" resultType="int">
-        SELECT COUNT(*) FROM t_hobby WHERE use_yn = 'Y' AND bbsinfo_id = #{bbsinfoId}::integer
+    <select id="countByBoard" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM hobby WHERE use_yn = 'Y' AND board_id = #{boardId}::integer
     </select>
 
     <select id="selectListTotalCount" parameterType="hobbyVO" resultType="int">
-        SELECT COUNT(*) FROM t_hobby h WHERE h.use_yn = 'Y'
-        <if test="filterKeyword != null and filterKeyword != ''">AND h.hobby_nm LIKE '%' || #{filterKeyword} || '%'</if>
+        SELECT COUNT(*) FROM hobby h WHERE h.use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">AND h.name LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
     <select id="selectView" parameterType="hobbyVO" resultType="hobbyVO">
-        SELECT h.hobby_id::TEXT AS row_id, h.hobby_nm, h.summary, h.intro, h.guide, h.difficulty_cd,
-               h.equipment, h.est_cost, h.bbsinfo_id, h.sort_no,
-               dc.code_nm AS difficulty_nm,
-               bi.bbsinfo_nm,
+        SELECT h.hobby_id::TEXT AS row_id, h.name AS hobby_name, h.summary, h.intro, h.guide, h.difficulty_cd,
+               h.equipment, h.estimated_cost, h.board_id, h.sort_no,
+               dc.name AS difficulty_name,
+               bi.name AS board_name,
                <include refid="thumb"/> AS thumb_id
-        FROM t_hobby h
-        LEFT JOIN t_code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
-        LEFT JOIN t_bbsinfo bi ON bi.bbsinfo_id = h.bbsinfo_id
+        FROM hobby h
+        LEFT JOIN code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
+        LEFT JOIN board bi ON bi.board_id = h.board_id
         WHERE h.hobby_id = #{rowId}::integer AND h.use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="hobbyVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="hobby_id">
-        INSERT INTO t_hobby (hobby_nm, summary, intro, guide, difficulty_cd, equipment, est_cost, bbsinfo_id, sort_no, use_yn,
+        INSERT INTO hobby (name, summary, intro, guide, difficulty_cd, equipment, estimated_cost, board_id, sort_no, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{hobbyNm}, NULLIF(#{summary}, ''), #{intro}, #{guide}, NULLIF(#{difficultyCd}, ''),
-            NULLIF(#{equipment}, ''), NULLIF(#{estCost}, ''),
-            NULLIF(#{bbsinfoId}, '')::integer,
-            COALESCE(NULLIF(#{sortNo}, '')::integer, (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM t_hobby WHERE use_yn = 'Y')),
+        VALUES (#{hobbyName}, NULLIF(#{summary}, ''), #{intro}, #{guide}, NULLIF(#{difficultyCd}, ''),
+            NULLIF(#{equipment}, ''), NULLIF(#{estimatedCost}, ''),
+            NULLIF(#{boardId}, '')::integer,
+            COALESCE(NULLIF(#{sortNo}, '')::integer, (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM hobby WHERE use_yn = 'Y')),
             'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="hobbyVO">
-        UPDATE t_hobby SET
-            hobby_nm = #{hobbyNm}, summary = NULLIF(#{summary}, ''), intro = #{intro}, guide = #{guide},
-            difficulty_cd = NULLIF(#{difficultyCd}, ''), equipment = NULLIF(#{equipment}, ''), est_cost = NULLIF(#{estCost}, ''),
-            bbsinfo_id = NULLIF(#{bbsinfoId}, '')::integer, sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
+        UPDATE hobby SET
+            name = #{hobbyName}, summary = NULLIF(#{summary}, ''), intro = #{intro}, guide = #{guide},
+            difficulty_cd = NULLIF(#{difficultyCd}, ''), equipment = NULLIF(#{equipment}, ''), estimated_cost = NULLIF(#{estimatedCost}, ''),
+            board_id = NULLIF(#{boardId}, '')::integer, sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE hobby_id = #{rowId}::integer
     </update>
 
     <update id="delete" parameterType="hobbyVO">
-        UPDATE t_hobby SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE hobby SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE hobby_id = #{rowId}::integer
     </update>
 
