@@ -70,7 +70,7 @@ class FollowTest extends IntegrationTest {
 
         // 팔로우한 회원의 글·모집이 피드에 뜨고, 출처가 FOLLOW로 표시된다
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"팔로워용 글\",\"context\":\"본문\"}",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"팔로워용 글\",\"content\":\"본문\"}",
                 host).body(), "$.data");
         String feed = post("/api/adm/feed/selectFeedList.do", "{\"pageNo\":1,\"pageSize\":50}", fan).body();
         // rowId는 유형별 시퀀스라 글 id와 모집 id가 우연히 같을 수 있다 → feedType까지 함께 걸러야 한다

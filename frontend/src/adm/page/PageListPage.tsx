@@ -23,7 +23,7 @@ export default function PageListPage() {
   const [mode, setMode] = useState<'list' | 'form'>('list')
   const [editKey, setEditKey] = useState<string | null>(null)
   const [pendingTitle, setPendingTitle] = useState('')
-  const [context, setContext] = useState('') // 본문 HTML(단일 소스)
+  const [content, setContent] = useState('') // 본문 HTML(단일 소스)
   const [contentMode, setContentMode] = useState<ContentMode>('html')
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewHtml, setPreviewHtml] = useState('')
@@ -35,14 +35,14 @@ export default function PageListPage() {
     if (mode === 'form') form.setFieldsValue({ title: pendingTitle })
   }, [mode, pendingTitle, form])
 
-  /** 현재 본문 HTML. 에디터에서 "실제 편집"했을 때만 에디터값, 그 외엔 원본 HTML(context) 그대로 */
+  /** 현재 본문 HTML. 에디터에서 "실제 편집"했을 때만 에디터값, 그 외엔 원본 HTML(content) 그대로 */
   const currentHtml = () =>
-    contentMode === 'editor' && editorDirty.current ? editorRef.current?.getHTML() ?? context : context
+    contentMode === 'editor' && editorDirty.current ? editorRef.current?.getHTML() ?? content : content
 
   const openNew = () => {
     setEditKey(null)
     setPendingTitle('')
-    setContext('')
+    setContent('')
     setContentMode('html')
     editorDirty.current = false
     setMode('form')
@@ -52,7 +52,7 @@ export default function PageListPage() {
       const data = await pageApi.view(row.rowId!)
       setEditKey(row.rowId!)
       setPendingTitle(data.title ?? '')
-      setContext(data.context ?? '')
+      setContent(data.content ?? '')
       setContentMode('html')
       editorDirty.current = false
       setMode('form')
@@ -70,14 +70,14 @@ export default function PageListPage() {
     if (m === contentMode) return
     if (contentMode === 'editor') {
       const edited = editorRef.current?.getHTML() ?? ''
-      if (editorDirty.current) setContext(edited) // 에디터에서 수정한 경우만 반영
+      if (editorDirty.current) setContent(edited) // 에디터에서 수정한 경우만 반영
       editorDirty.current = false
     }
     setContentMode(m)
   }
 
   const openPreview = () => {
-    setPreviewHtml(currentHtml()) // 현재 편집 화면 기준(raw 보존, context는 건드리지 않음)
+    setPreviewHtml(currentHtml()) // 현재 편집 화면 기준(raw 보존, content는 건드리지 않음)
     setPreviewOpen(true)
   }
 
@@ -85,8 +85,8 @@ export default function PageListPage() {
     const values = await form.validateFields()
     const html = currentHtml()
     try {
-      if (editKey) await pageApi.update({ rowId: editKey, title: values.title, context: html })
-      else await pageApi.insert({ title: values.title, context: html })
+      if (editKey) await pageApi.update({ rowId: editKey, title: values.title, content: html })
+      else await pageApi.insert({ title: values.title, content: html })
       message.success('저장되었습니다.')
       setMode('list')
       reload()
@@ -146,8 +146,8 @@ export default function PageListPage() {
             </Space>
             {contentMode === 'html' ? (
               <Input.TextArea
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
                 autoSize={{ minRows: 16, maxRows: 40 }}
                 placeholder="<div>...</div>"
                 style={{ fontFamily: 'monospace', fontSize: 13 }}
@@ -156,7 +156,7 @@ export default function PageListPage() {
               <RichTextEditor
                 key={`${editKey ?? 'new'}-editor`}
                 ref={editorRef}
-                initialHtml={context}
+                initialHtml={content}
                 onChange={() => { editorDirty.current = true }}
               />
             )}

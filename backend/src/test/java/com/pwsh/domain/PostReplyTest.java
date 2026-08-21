@@ -19,8 +19,8 @@ class PostReplyTest extends IntegrationTest {
     @DisplayName("답글은 원글의 게시판을 상속하고 depth+1로 저장된다")
     void replyInheritsBoardAndDepth() throws Exception {
         String admin = accessToken("admin", "admin1234!");
-        String root = insertPost("{\"boardId\":\"1\",\"title\":\"원글\",\"context\":\"x\"}", admin);
-        String reply = insertPost("{\"boardId\":\"1\",\"pPostId\":\"" + root + "\",\"title\":\"답글\",\"context\":\"y\"}", admin);
+        String root = insertPost("{\"boardId\":\"1\",\"title\":\"원글\",\"content\":\"x\"}", admin);
+        String reply = insertPost("{\"boardId\":\"1\",\"pPostId\":\"" + root + "\",\"title\":\"답글\",\"content\":\"y\"}", admin);
 
         HttpResponse<String> view = post("/api/adm/post/selectPostView.do", "{\"rowId\":\"" + reply + "\"}", admin);
         assertThat(view.statusCode()).isEqualTo(200);

@@ -30,7 +30,7 @@ export default function GenPageView() {
   return (
     <Card title={page.title}>
       {/* 페이지관리(에디터) 작성 HTML — DOMPurify 새니타이즈 후 렌더 */}
-      <SafeHtml html={page.context ?? ''} />
+      <SafeHtml html={page.content ?? ''} />
     </Card>
   )
 }

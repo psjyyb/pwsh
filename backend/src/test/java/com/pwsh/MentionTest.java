@@ -32,32 +32,32 @@ class MentionTest extends IntegrationTest {
         String reader = accessToken("mnreader", "Test1234!@");
 
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"멘션 테스트 글\",\"context\":\"본문\"}",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"멘션 테스트 글\",\"content\":\"본문\"}",
                 writer).body(), "$.data");
 
         int before = notificationCnt("mnreader");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"postId\":\"" + postId + "\",\"context\":\"@언급대상 이거 같이 가실래요?\"}", reader).statusCode());
+                "{\"postId\":\"" + postId + "\",\"content\":\"@언급대상 이거 같이 가실래요?\"}", reader).statusCode());
         assertEquals(before + 0, notificationCnt("mnreader"), "본인을 언급하면 알림 없음");
 
         // 글쓴이가 언급대상을 부르면 → MENTION 알림 1건
         int r0 = notificationCnt("mnreader");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"postId\":\"" + postId + "\",\"context\":\"@언급대상 님 의견 궁금해요\"}", writer).statusCode());
+                "{\"postId\":\"" + postId + "\",\"content\":\"@언급대상 님 의견 궁금해요\"}", writer).statusCode());
         assertEquals(r0 + 1, notificationCnt("mnreader"), "언급된 회원에게 알림 1건");
         assertEquals("MENTION", lastNotiType("mnreader"));
 
         // 언급대상이 글쓴이를 언급 → 글쓴이는 '댓글 알림'과 '멘션 알림'을 중복으로 받지 않는다
         int w0 = notificationCnt("mnwriter");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"postId\":\"" + postId + "\",\"context\":\"@글쓴이 확인 부탁드려요\"}", reader).statusCode());
+                "{\"postId\":\"" + postId + "\",\"content\":\"@글쓴이 확인 부탁드려요\"}", reader).statusCode());
         assertEquals(w0 + 1, notificationCnt("mnwriter"), "멘션+댓글이 겹쳐도 1건만");
         assertEquals("MENTION", lastNotiType("mnwriter"));
 
         // 없는 닉네임은 무시(오류 없이 등록만 된다)
         int w1 = notificationCnt("mnwriter");
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"postId\":\"" + postId + "\",\"context\":\"@존재하지않는닉네임 안녕\"}", reader).statusCode());
+                "{\"postId\":\"" + postId + "\",\"content\":\"@존재하지않는닉네임 안녕\"}", reader).statusCode());
         assertEquals(w1 + 1, notificationCnt("mnwriter"), "없는 닉네임은 무시되고 글쓴이 댓글 알림만");
 
         post("/api/adm/post/deletePost.do", "{\"rowId\":\"" + postId + "\"}", writer);

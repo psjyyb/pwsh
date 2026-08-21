@@ -42,7 +42,7 @@ public class CommentService {
         String link = post != null ? "/gen/board/" + post.getBoardId() + "?post=" + vo.getPostId() : null;
 
         // @닉네임 멘션이 있으면 그 회원에게 먼저 알린다. 아래 댓글 알림과 중복되지 않게 대상을 모아 둔다.
-        java.util.Set<String> mentioned = notificationService.notifyMentions(vo.getContext(), link, java.util.Set.of());
+        java.util.Set<String> mentioned = notificationService.notifyMentions(vo.getContent(), link, java.util.Set.of());
 
         String pid = vo.getPCommentId();
         if (pid != null && !pid.isEmpty() && !"0".equals(pid)) {

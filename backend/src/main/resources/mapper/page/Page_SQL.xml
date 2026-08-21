@@ -19,17 +19,17 @@
     </select>
 
     <select id="selectView" parameterType="pageVO" resultType="pageVO">
-        SELECT page_id::TEXT AS row_id, title, context, use_yn
+        SELECT page_id::TEXT AS row_id, title, content, use_yn
         FROM page WHERE page_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="pageVO">
-        INSERT INTO page (title, context, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{title}, #{context}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+        INSERT INTO page (title, content, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{title}, #{content}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="pageVO">
-        UPDATE page SET title = #{title}, context = #{context},
+        UPDATE page SET title = #{title}, content = #{content},
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE page_id = #{rowId}::integer
     </update>

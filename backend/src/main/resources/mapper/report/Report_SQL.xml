@@ -36,7 +36,7 @@
                CASE r.target_type
                    WHEN 'POST'     THEN (SELECT title FROM post WHERE post_id = r.target_id)
                    WHEN 'RECRUIT' THEN (SELECT title FROM recruit WHERE recruit_id = r.target_id)
-                   WHEN 'COMMENT' THEN (SELECT LEFT(context, 40) FROM comment WHERE comment_id = r.target_id)
+                   WHEN 'COMMENT' THEN (SELECT LEFT(content, 40) FROM comment WHERE comment_id = r.target_id)
                    WHEN 'CHAT'    THEN (SELECT LEFT(content, 40) FROM recruit_chat WHERE chat_id = r.target_id)
                END AS target_title,
                -- 대상으로 이동할 링크(관리자가 신고 내용을 직접 확인). 대상 삭제 시 NULL/미존재.

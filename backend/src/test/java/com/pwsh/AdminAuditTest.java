@@ -26,7 +26,7 @@ class AdminAuditTest extends IntegrationTest {
         String boardId = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
                 "{\"rowId\":\"" + hobbyId + "\"}", null).body(), "$.data.boardId");
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"신고될 글\",\"context\":\"x\"}", victim).body(), "$.data");
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"신고될 글\",\"content\":\"x\"}", victim).body(), "$.data");
         assertNotNull(postId);
         assertEquals(200, post("/api/adm/report/insertReport.do",
                 "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\",\"reason\":\"감사테스트\",\"reasonCd\":\"REPORT01\"}",

@@ -26,14 +26,14 @@ public class CommentController {
     @RequestMapping("/insertComment.do")
     public ApiResponse<Void> insert(@RequestBody CommentVO searchVO) {
         Validate.required(searchVO.getPostId(), "게시글");
-        Validate.required(searchVO.getContext(), "내용");
+        Validate.required(searchVO.getContent(), "내용");
         commentService.insert(searchVO);
         return ApiResponse.ok();
     }
 
     @RequestMapping("/updateComment.do")
     public ApiResponse<Void> update(@RequestBody CommentVO searchVO) {
-        Validate.required(searchVO.getContext(), "내용");
+        Validate.required(searchVO.getContent(), "내용");
         commentService.update(searchVO);
         return ApiResponse.ok();
     }

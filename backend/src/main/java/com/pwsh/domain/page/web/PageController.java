@@ -39,7 +39,7 @@ public class PageController {
     @RequestMapping("/insertPage.do")
     public ApiResponse<Void> insert(@RequestBody PageVO searchVO) {
         Validate.required(searchVO.getTitle(), "제목");
-        Validate.required(searchVO.getContext(), "내용");
+        Validate.required(searchVO.getContent(), "내용");
         pageService.insert(searchVO);
         return ApiResponse.ok();
     }
@@ -50,7 +50,7 @@ public class PageController {
                                     @RequestBody PageVO searchVO) {
         if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getTitle(), "제목");
-            Validate.required(searchVO.getContext(), "내용");
+            Validate.required(searchVO.getContent(), "내용");
             pageService.update(searchVO);
         }
         return ApiResponse.ok();

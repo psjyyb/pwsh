@@ -50,15 +50,15 @@ class BlockAndFeedTest extends IntegrationTest {
 
         // 담은 취미 게시판 글 / 담지 않은 취미 게시판 글
         String postIn = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardIn + "\",\"title\":\"담은취미 글\",\"context\":\"x\"}", you).body(), "$.data");
+                "{\"boardId\":\"" + boardIn + "\",\"title\":\"담은취미 글\",\"content\":\"x\"}", you).body(), "$.data");
         String postOut = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardOut + "\",\"title\":\"안담은취미 글\",\"context\":\"x\"}", you).body(), "$.data");
+                "{\"boardId\":\"" + boardOut + "\",\"title\":\"안담은취미 글\",\"content\":\"x\"}", you).body(), "$.data");
         // 비밀글과 답글은 피드에서 빠져야 한다
         String secret = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardIn + "\",\"title\":\"비밀글\",\"context\":\"x\",\"secretYn\":\"Y\",\"password\":\"pw12\"}",
+                "{\"boardId\":\"" + boardIn + "\",\"title\":\"비밀글\",\"content\":\"x\",\"secretYn\":\"Y\",\"password\":\"pw12\"}",
                 you).body(), "$.data");
         String reply = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardIn + "\",\"title\":\"답글\",\"context\":\"x\",\"pPostId\":\"" + postIn + "\"}",
+                "{\"boardId\":\"" + boardIn + "\",\"title\":\"답글\",\"content\":\"x\",\"pPostId\":\"" + postIn + "\"}",
                 you).body(), "$.data");
         assertNotNull(reply);
 
@@ -93,7 +93,7 @@ class BlockAndFeedTest extends IntegrationTest {
 
         // ===== 차단 =====
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"postId\":\"" + postIn + "\",\"context\":\"차단될 댓글\"}", you).statusCode());
+                "{\"postId\":\"" + postIn + "\",\"content\":\"차단될 댓글\"}", you).statusCode());
 
         int totBefore = JsonPath.read(post("/api/adm/post/selectPostList.do",
                 "{\"boardId\":\"" + boardIn + "\",\"pageNo\":1,\"pageSize\":50}", me).body(), "$.data.totalCount");

@@ -11,7 +11,7 @@ public class CommentVO extends BaseVO {
 
     private String postId;   // 소속 게시글
     private String pCommentId; // 부모 댓글(0/빈값=최상위, 값=대댓글)
-    private String context;
+    private String content;
     private String goodCnt;
     private String badCnt;
     private String likedYn;   // 조회 표시: 내가 좋아요 눌렀는지(Y/N)

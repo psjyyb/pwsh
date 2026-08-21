@@ -4,7 +4,7 @@
 
     <select id="selectList" parameterType="commentVO" resultType="commentVO">
         <!-- 공개 목록: 작성자 로그인 ID(reg_id) 미노출. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
-        SELECT comment_id::TEXT AS row_id, post_id, p_comment_id, context, good_cnt, bad_cnt,
+        SELECT comment_id::TEXT AS row_id, post_id, p_comment_id, content, good_cnt, bad_cnt,
                (SELECT u.nickname FROM member u WHERE u.member_id = comment.reg_id) AS reg_name,
                (SELECT u.handle FROM member u WHERE u.member_id = comment.reg_id) AS reg_handle,
                (CASE WHEN #{viewerId}::text IS NOT NULL AND comment.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
@@ -24,19 +24,19 @@
 
     <!-- 단건(수정/삭제 인가용: 작성자·소속 게시글 확인) -->
     <select id="selectView" parameterType="commentVO" resultType="commentVO">
-        SELECT comment_id::TEXT AS row_id, post_id, context, reg_id
+        SELECT comment_id::TEXT AS row_id, post_id, content, reg_id
         FROM comment WHERE comment_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="commentVO">
-        INSERT INTO comment (post_id, p_comment_id, context, good_cnt, bad_cnt, use_yn,
+        INSERT INTO comment (post_id, p_comment_id, content, good_cnt, bad_cnt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{postId}::integer, COALESCE(NULLIF(#{pCommentId}, '')::integer, 0), #{context}, 0, 0, 'Y',
+        VALUES (#{postId}::integer, COALESCE(NULLIF(#{pCommentId}, '')::integer, 0), #{content}, 0, 0, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
     <update id="update" parameterType="commentVO">
-        UPDATE comment SET context = #{context}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        UPDATE comment SET content = #{content}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE comment_id = #{rowId}::integer
     </update>
 

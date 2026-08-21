@@ -24,7 +24,7 @@ export default function FaqBoard({ board }: { board: Board }) {
   const [editKey, setEditKey] = useState<string | null>(null)
   const [form] = Form.useForm()
   const editorRef = useRef<RichTextEditorHandle>(null)
-  const [context, setContext] = useState('')
+  const [content, setContent] = useState('')
 
   const load = useCallback(async () => {
     if (!boardId) return
@@ -51,7 +51,7 @@ export default function FaqBoard({ board }: { board: Board }) {
     if (id && answers[id] === undefined) {
       try {
         const p = await postApi.view(id)
-        setAnswers((m) => ({ ...m, [id]: p.context ?? '' }))
+        setAnswers((m) => ({ ...m, [id]: p.content ?? '' }))
       } catch {
         /* 무시 */
       }
@@ -60,7 +60,7 @@ export default function FaqBoard({ board }: { board: Board }) {
 
   const openWrite = () => {
     setEditKey(null)
-    setContext('')
+    setContent('')
     form.resetFields()
     setMode('write')
   }
@@ -68,7 +68,7 @@ export default function FaqBoard({ board }: { board: Board }) {
     try {
       const p = await postApi.view(r.rowId!)
       setEditKey(r.rowId!)
-      setContext(p.context ?? '')
+      setContent(p.content ?? '')
       form.setFieldsValue({ title: p.title })
       setMode('write')
     } catch (e) {
@@ -77,13 +77,13 @@ export default function FaqBoard({ board }: { board: Board }) {
   }
   const save = async () => {
     const v = await form.validateFields()
-    const html = editorRef.current?.getHTML() ?? context
+    const html = editorRef.current?.getHTML() ?? content
     if (!html || !html.replace(/<[^>]*>/g, '').trim()) {
       message.warning('답변 내용을 입력하세요.')
       return
     }
     try {
-      const payload = { boardId, title: v.title, context: html }
+      const payload = { boardId, title: v.title, content: html }
       const id = editKey ? (await postApi.update({ ...payload, rowId: editKey }), editKey) : await postApi.insert(payload)
       // 본문(답변) 에디터 삽입 이미지 추적(고아 판별용)
       await fileApi.saveMapping(id, 'POST_EDITOR', extractEditorImageIds(html))
@@ -122,7 +122,7 @@ export default function FaqBoard({ board }: { board: Board }) {
             <Input />
           </Form.Item>
           <Form.Item label="답변" required>
-            <RichTextEditor key={`${editKey ?? 'new'}-editor`} ref={editorRef} initialHtml={context} uploadImage={fileApi.uploadImage} />
+            <RichTextEditor key={`${editKey ?? 'new'}-editor`} ref={editorRef} initialHtml={content} uploadImage={fileApi.uploadImage} />
           </Form.Item>
         </Form>
       </Card>

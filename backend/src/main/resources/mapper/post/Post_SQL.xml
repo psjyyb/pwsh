@@ -110,7 +110,7 @@
     </select>
 
     <select id="selectView" parameterType="postVO" resultType="postVO">
-        SELECT post_id::TEXT AS row_id, board_id, title, context,
+        SELECT post_id::TEXT AS row_id, board_id, title, content,
                p_post_id, depth, sort_no, secret_yn, password, good_cnt, bad_cnt, view_cnt,
                (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
                notice_yn, notice_start_dt, notice_end_dt,
@@ -124,11 +124,11 @@
     </select>
 
     <insert id="insert" parameterType="postVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="post_id">
-        INSERT INTO post (board_id, title, context, p_post_id, depth,
+        INSERT INTO post (board_id, title, content, p_post_id, depth,
             sort_no, secret_yn, password, good_cnt, bad_cnt, view_cnt,
             notice_yn, notice_start_dt, notice_end_dt, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{boardId}::integer, #{title}, #{context},
+        VALUES (#{boardId}::integer, #{title}, #{content},
             COALESCE(NULLIF(#{pPostId}, '')::integer, 0), COALESCE(NULLIF(#{depth}, '')::integer, 1),
             (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM post WHERE board_id = #{boardId}::integer),
             COALESCE(#{secretYn}, 'N'), NULLIF(#{password}, ''), 0, 0, 0,
@@ -138,7 +138,7 @@
 
     <update id="update" parameterType="postVO">
         UPDATE post SET
-            title = #{title}, context = #{context},
+            title = #{title}, content = #{content},
             secret_yn = COALESCE(#{secretYn}, 'N'),
             password = COALESCE(NULLIF(#{password}, ''), password),
             notice_yn = COALESCE(#{noticeYn}, 'N'),

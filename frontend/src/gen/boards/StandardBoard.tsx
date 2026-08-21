@@ -69,7 +69,7 @@ export default function StandardBoard({ board }: { board: Board }) {
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]) // 갤러리 작성용 사진+캡션
   const [viewGallery, setViewGallery] = useState<GalleryItem[]>([]) // 갤러리 상세 표시용
   const editorRef = useRef<RichTextEditorHandle>(null)
-  const [context, setContext] = useState('')
+  const [content, setContent] = useState('')
 
   const pageSize = Number(board.listCnt) || 10
   const meId = getClaims()?.sub
@@ -162,7 +162,7 @@ export default function StandardBoard({ board }: { board: Board }) {
     setFileIds([])
     setFileMetas([])
     setGalleryItems([])
-    setContext('')
+    setContent('')
     form.resetFields()
     setMode('write')
   }
@@ -174,7 +174,7 @@ export default function StandardBoard({ board }: { board: Board }) {
     setFileIds([])
     setFileMetas([])
     setGalleryItems([])
-    setContext('')
+    setContent('')
     form.resetFields()
     form.setFieldsValue({ title: `RE: ${post.title ?? ''}` })
     setMode('write')
@@ -183,7 +183,7 @@ export default function StandardBoard({ board }: { board: Board }) {
     if (!post) return
     setEditKey(post.rowId!)
     setReplyTo(null)
-    setContext(post.context ?? '')
+    setContent(post.content ?? '')
     form.setFieldsValue({
       title: post.title,
       secretYn: post.secretYn === 'Y',
@@ -212,7 +212,7 @@ export default function StandardBoard({ board }: { board: Board }) {
 
   const savePost = async () => {
     const v = await form.validateFields()
-    const html = editorRef.current?.getHTML() ?? context
+    const html = editorRef.current?.getHTML() ?? content
     // 갤러리는 사진 1장 이상 필수(본문은 선택), 그 외는 본문 필수
     if (isGallery) {
       if (galleryItems.length === 0) {
@@ -227,7 +227,7 @@ export default function StandardBoard({ board }: { board: Board }) {
       const payload = {
         boardId,
         title: v.title,
-        context: html,
+        content: html,
         secretYn: isQna ? 'Y' : v.secretYn ? 'Y' : 'N', // 1:1은 항상 비밀글
         password: !isQna && v.secretYn ? (v.password ?? '') : '',
         noticeYn: isQna ? 'N' : v.noticeYn ?? 'N',
@@ -487,7 +487,7 @@ export default function StandardBoard({ board }: { board: Board }) {
             ))}
           </div>
         )}
-        <SafeHtml className="toastui-editor-contents" style={{ minHeight: isGallery ? 0 : 120 }} html={post.context ?? ''} />
+        <SafeHtml className="toastui-editor-contents" style={{ minHeight: isGallery ? 0 : 120 }} html={post.content ?? ''} />
 
         <div style={{ marginTop: 16, textAlign: 'center' }}>
           {meId ? (
@@ -536,7 +536,7 @@ export default function StandardBoard({ board }: { board: Board }) {
                 <span>· {c.regDt}</span>
                 {canEdit(c.mineYn) && editCommentKey !== c.rowId && (
                   <>
-                    <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.rowId!); setEditCommentText(c.context ?? '') }}>수정</a>
+                    <a style={{ marginLeft: 8 }} onClick={() => { setEditCommentKey(c.rowId!); setEditCommentText(c.content ?? '') }}>수정</a>
                     <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.rowId!)}>삭제</a>
                   </>
                 )}
@@ -549,7 +549,7 @@ export default function StandardBoard({ board }: { board: Board }) {
                 </Space.Compact>
               ) : (
                 <>
-                  <div><MentionText text={c.context} /></div>
+                  <div><MentionText text={c.content} /></div>
                   <div style={{ marginTop: 2, display: 'flex', gap: 12, alignItems: 'center' }}>
                     {meId ? (
                       <a onClick={() => toggleLikeComment(c)} style={{ color: c.likedYn === 'Y' ? '#6C4EE3' : '#999', fontSize: 12 }}>
@@ -636,7 +636,7 @@ export default function StandardBoard({ board }: { board: Board }) {
           </Form.Item>
         )}
         <Form.Item label={isGallery ? '설명 (선택)' : '내용'} required={!isGallery}>
-          <RichTextEditor key={`${editKey ?? 'new'}-editor`} ref={editorRef} initialHtml={context} uploadImage={fileApi.uploadImage} />
+          <RichTextEditor key={`${editKey ?? 'new'}-editor`} ref={editorRef} initialHtml={content} uploadImage={fileApi.uploadImage} />
         </Form.Item>
         {isQna ? (
           <div style={{ color: '#888', fontSize: 12, marginBottom: 8 }}>※ 1:1 문의는 작성자와 관리자만 볼 수 있습니다.</div>

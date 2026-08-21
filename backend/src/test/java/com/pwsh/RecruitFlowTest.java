@@ -48,7 +48,7 @@ class RecruitFlowTest extends IntegrationTest {
         assertEquals(200, post("/api/adm/post/selectPostList.do",
                 "{\"boardId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).statusCode());
         assertEquals(200, post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"첫 글\",\"context\":\"<p>안녕</p>\"}", appTok).statusCode());
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"첫 글\",\"content\":\"<p>안녕</p>\"}", appTok).statusCode());
 
         // 모집 등록(주최자)
         HttpResponse<String> rres = post("/api/adm/recruit/insertRecruit.do",

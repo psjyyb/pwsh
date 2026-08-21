@@ -43,7 +43,7 @@ class GuestPublicPageTest extends IntegrationTest {
         String admin = accessToken("admin", "admin1234!");
         String boardId = firstHobbyBoardId();
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"게스트공개글\",\"context\":\"본문\"}",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"게스트공개글\",\"content\":\"본문\"}",
                 admin).body(), "$.data");
 
         assertThat(post("/api/adm/post/selectPostView.do", "{\"rowId\":\"" + postId + "\"}", null).statusCode())
@@ -72,7 +72,7 @@ class GuestPublicPageTest extends IntegrationTest {
         assertThat(boardId).as("게스트 비공개 게시판이 시드에 있어야 한다").isNotNull();
 
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"비공개글\",\"context\":\"본문\"}",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"비공개글\",\"content\":\"본문\"}",
                 admin).body(), "$.data");
 
         assertThat(post("/api/adm/file/selectFileMapList.do",

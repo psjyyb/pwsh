@@ -59,7 +59,7 @@ export default function PostMngPage() {
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]) // 갤러리 작성용 사진+캡션
   const [viewGallery, setViewGallery] = useState<GalleryItem[]>([]) // 갤러리 상세용
   const editorRef = useRef<RichTextEditorHandle>(null)
-  const [context, setContext] = useState('')
+  const [content, setContent] = useState('')
 
   const pageSize = Number(board?.listCnt) || 10
   const isGallery = board?.typeCd === 'BOARD04'
@@ -124,7 +124,7 @@ export default function PostMngPage() {
     setFileIds([])
     setFileMetas([])
     setGalleryItems([])
-    setContext('')
+    setContent('')
     form.resetFields()
     setMode('write')
   }
@@ -132,7 +132,7 @@ export default function PostMngPage() {
     if (!post) return
     if (boardId) boardApi.view(boardId).then(setBoard).catch(() => {})
     setEditKey(post.rowId!)
-    setContext(post.context ?? '')
+    setContent(post.content ?? '')
     form.setFieldsValue({ title: post.title, noticeYn: post.noticeYn ?? 'N', noticeStartDt: post.noticeStartDt, noticeEndDt: post.noticeEndDt })
     if (isGallery) {
       const imgs = await fileApi.listByMap(post.rowId!, IMG_LOC)
@@ -154,7 +154,7 @@ export default function PostMngPage() {
 
   const savePost = async () => {
     const v = await form.validateFields()
-    const html = editorRef.current?.getHTML() ?? context
+    const html = editorRef.current?.getHTML() ?? content
     // 갤러리는 사진 1장 이상 필수(본문 선택), 그 외는 본문 필수
     if (isGallery) {
       if (galleryItems.length === 0) {
@@ -167,7 +167,7 @@ export default function PostMngPage() {
     }
     try {
       // 관리자는 비밀글을 설정/해제하지 않음 — 신규는 'N', 수정은 기존값 유지(비번도 COALESCE로 보존)
-      const payload = { boardId, title: v.title, context: html, secretYn: editKey ? (post?.secretYn ?? 'N') : 'N', noticeYn: v.noticeYn ?? 'N', noticeStartDt: v.noticeStartDt, noticeEndDt: v.noticeEndDt }
+      const payload = { boardId, title: v.title, content: html, secretYn: editKey ? (post?.secretYn ?? 'N') : 'N', noticeYn: v.noticeYn ?? 'N', noticeStartDt: v.noticeStartDt, noticeEndDt: v.noticeEndDt }
       const id = editKey ? (await postApi.update({ ...payload, rowId: editKey }), editKey) : await postApi.insert(payload)
       if (isGallery) {
         await fileApi.saveMapping(id, IMG_LOC, galleryItems.map((i) => i.fileId), galleryItems.map((i) => i.description ?? ''))
@@ -338,7 +338,7 @@ export default function PostMngPage() {
             ))}
           </div>
         )}
-        <SafeHtml className="toastui-editor-contents" style={{ minHeight: isGallery ? 0 : 120 }} html={post.context ?? ''} />
+        <SafeHtml className="toastui-editor-contents" style={{ minHeight: isGallery ? 0 : 120 }} html={post.content ?? ''} />
 
         {viewFiles.length > 0 && (
           <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 8 }}>
@@ -363,7 +363,7 @@ export default function PostMngPage() {
                   {c.regName || c.regId} · {c.regDt}
                   <a style={{ marginLeft: 8 }} onClick={() => removeComment(c.rowId!)}>삭제</a>
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{c.context}</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
               </div>
             ))}
             <Space.Compact style={{ width: '100%', marginTop: 8 }}>
@@ -411,7 +411,7 @@ export default function PostMngPage() {
           <RichTextEditor
             key={`${editKey ?? 'new'}-editor`}
             ref={editorRef}
-            initialHtml={context}
+            initialHtml={content}
             uploadImage={fileApi.uploadImage}
           />
         </Form.Item>

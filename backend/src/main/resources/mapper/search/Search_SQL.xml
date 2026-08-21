@@ -48,7 +48,7 @@
             SELECT b.post_id, b.board_id, b.title, b.reg_id, b.reg_dt,
                    <!-- 본문에서 HTML 태그를 지운 평문(스니펫·본문매칭 판정에 함께 쓴다).
                         정규식의 '<'는 XML에서 &lt; 로 써야 한다(그대로 두면 매퍼 파싱이 깨진다). -->
-                   regexp_replace(COALESCE(b.context, ''), '&lt;[^>]*>', ' ', 'g') AS plain,
+                   regexp_replace(COALESCE(b.content, ''), '&lt;[^>]*>', ' ', 'g') AS plain,
                    (b.title LIKE '%' || #{keyword} || '%' ESCAPE '\') AS title_hit
             FROM post b
             WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N'

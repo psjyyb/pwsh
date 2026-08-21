@@ -5,7 +5,7 @@ export interface Post {
   rowId?: string // PK(post_id)
   boardId?: string
   title?: string
-  context?: string
+  content?: string
   searchSnippet?: string // 통합검색에서 본문이 매칭된 경우의 발췌(태그 제거된 평문)
   fileId?: string // 대표 이미지(갤러리 썸네일) post.file_id
   noticeYn?: string

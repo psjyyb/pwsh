@@ -45,7 +45,7 @@ class PublicIdentityTest extends IntegrationTest {
 
         // 게시글 — 목록/상세 모두 regHandle만
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"식별자 글\",\"context\":\"x\"}", ta).body(), "$.data");
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"식별자 글\",\"content\":\"x\"}", ta).body(), "$.data");
         String listBody = post("/api/adm/post/selectPostList.do",
                 "{\"boardId\":\"" + boardId + "\",\"pageNo\":1,\"pageSize\":10}", null).body();
         assertTrue(listBody.contains("\"regHandle\""), "게시글 목록에 regHandle이 있어야 한다");
@@ -59,7 +59,7 @@ class PublicIdentityTest extends IntegrationTest {
 
         // 댓글
         assertEquals(200, post("/api/adm/comment/insertComment.do",
-                "{\"postId\":\"" + postId + "\",\"context\":\"댓글\"}", tb).statusCode());
+                "{\"postId\":\"" + postId + "\",\"content\":\"댓글\"}", tb).statusCode());
         String cmtBody = post("/api/adm/comment/selectCommentList.do",
                 "{\"postId\":\"" + postId + "\"}", ta).body();
         assertTrue(cmtBody.contains("\"regHandle\""));

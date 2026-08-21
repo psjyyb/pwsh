@@ -11,7 +11,7 @@ public class PostVO extends BaseVO {
 
     private String boardId;      // 소속 게시판(필터)
     private String title;
-    private String context;
+    private String content;
     private String searchSnippet;  // 통합검색 전용: 본문에서 찾았을 때 매칭 지점 주변 발췌(태그 제거된 평문)
     private String fileId;         // 썸네일(Phase2)
     private String pPostId;

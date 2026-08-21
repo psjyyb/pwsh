@@ -12,7 +12,7 @@ class PostOwnershipTest extends IntegrationTest {
 
     private String insertPost(String title, String token) throws Exception {
         return JsonPath.read(
-                post("/api/adm/post/insertPost.do", "{\"boardId\":\"1\",\"title\":\"" + title + "\",\"context\":\"x\"}", token)
+                post("/api/adm/post/insertPost.do", "{\"boardId\":\"1\",\"title\":\"" + title + "\",\"content\":\"x\"}", token)
                         .body(), "$.data");
     }
 

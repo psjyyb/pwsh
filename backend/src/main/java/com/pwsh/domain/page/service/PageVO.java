@@ -11,5 +11,5 @@ public class PageVO extends BaseVO {
 
     // PK(page_id)는 BaseVO.rowId로 통일 (조회 결과 별칭 + WHERE 바인딩)
     private String title;
-    private String context;
+    private String content;
 }

@@ -5,7 +5,7 @@ export interface Comment {
   rowId?: string // PK(comment_id)
   postId?: string
   pCommentId?: string // 부모 댓글(0/빈값=최상위, 값=대댓글)
-  context?: string
+  content?: string
   regId?: string // 작성자 로그인 ID — 관리자 화면 전용(사용자(GEN) 응답에는 내려오지 않음)
   regName?: string // 작성자 표시명(닉네임)
   regHandle?: string // 작성자 공개 식별자 — 프로필 링크용(GEN)
@@ -18,8 +18,8 @@ export interface Comment {
 
 export const commentApi = {
   list: (postId: string) => apiPost<Comment[]>('/adm/comment/selectCommentList.do', { postId }),
-  insert: (postId: string, context: string, pCommentId?: string) =>
-    apiPost<void>('/adm/comment/insertComment.do', { postId, context, pCommentId }),
-  update: (rowId: string, context: string) => apiPost<void>('/adm/comment/updateComment.do', { rowId, context }),
+  insert: (postId: string, content: string, pCommentId?: string) =>
+    apiPost<void>('/adm/comment/insertComment.do', { postId, content, pCommentId }),
+  update: (rowId: string, content: string) => apiPost<void>('/adm/comment/updateComment.do', { rowId, content }),
   remove: (rowId: string) => apiPost<void>('/adm/comment/deleteComment.do', { rowId }),
 }

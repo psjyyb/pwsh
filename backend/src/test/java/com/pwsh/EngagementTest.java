@@ -29,7 +29,7 @@ class EngagementTest extends IntegrationTest {
         String boardId = jdbc.queryForObject(
                 "SELECT board_id::text FROM hobby WHERE hobby_id = ?::integer", String.class, hobbyId);
         String postId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + boardId + "\",\"title\":\"" + title + "\",\"context\":\"본문\"}",
+                "{\"boardId\":\"" + boardId + "\",\"title\":\"" + title + "\",\"content\":\"본문\"}",
                 admin).body(), "$.data");
         return new String[] { hobbyId, boardId, postId };
     }
@@ -127,7 +127,7 @@ class EngagementTest extends IntegrationTest {
                         + " ORDER BY bi.board_id LIMIT 1", String.class);
         assertNotNull(closedBoard, "게스트 비공개 게시판이 시드에 있어야 한다");
         String secretId = JsonPath.read(post("/api/adm/post/insertPost.do",
-                "{\"boardId\":\"" + closedBoard + "\",\"title\":\"비공개글 " + uniq + "\",\"context\":\"본문\"}",
+                "{\"boardId\":\"" + closedBoard + "\",\"title\":\"비공개글 " + uniq + "\",\"content\":\"본문\"}",
                 admin).body(), "$.data");
 
         String guest = post("/api/adm/search/selectSearchAll.do", "{\"filterKeyword\":\"" + uniq + "\"}", null).body();

@@ -4,7 +4,7 @@ import { createCrudApi } from '../../api/crudApi'
 export interface Page {
   rowId?: string // PK(page_id)
   title: string
-  context: string
+  content: string
   useYn?: string
 }
 
