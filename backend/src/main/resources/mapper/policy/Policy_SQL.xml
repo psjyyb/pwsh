@@ -21,6 +21,34 @@
         <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
+    <!--
+      공개 목록(가입 화면 동의 항목 · 푸터 링크). 본문(content)은 빼고 내려보낸다 —
+      목록에서 전체 본문을 실어보내면 응답이 불필요하게 커지고, 본문은 selectView로 따로 읽는다.
+    -->
+    <select id="selectListPublic" parameterType="policyVO" resultType="policyVO">
+        SELECT p.policy_id::TEXT AS row_id, p.title, p.type_cd, p.req_yn, p.sort_no
+        FROM policy p
+        WHERE p.use_yn = 'Y'
+        ORDER BY p.req_yn DESC, p.type_cd, p.sort_no
+    </select>
+
+    <!-- 가입 시 반드시 동의해야 하는 약관 ID(필수동의). 서버에서 누락을 판정하는 기준이다. -->
+    <select id="selectListRequiredIds" parameterType="policyVO" resultType="string">
+        SELECT policy_id::TEXT FROM policy
+        WHERE use_yn = 'Y' AND req_yn = 'Y'
+        ORDER BY policy_id
+    </select>
+
+    <!-- 동의 이력 1건. 같은 회원이 같은 약관에 재동의하면 시각만 갱신(PK 충돌 방지). -->
+    <insert id="insertMemberPolicy" parameterType="policyVO">
+        INSERT INTO member_policy (member_id, policy_id, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{memberId}, #{rowId}::integer, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+        ON CONFLICT (member_id, policy_id) DO UPDATE
+            SET use_yn = 'Y', upd_id = EXCLUDED.upd_id, upd_dt = NOW(), upd_ip = EXCLUDED.upd_ip
+    </insert>
+
     <select id="selectView" parameterType="policyVO" resultType="policyVO">
         SELECT policy_id::TEXT AS row_id, title, content, type_cd, req_yn, sort_no, use_yn
         FROM policy WHERE policy_id = #{rowId}::integer AND use_yn = 'Y'

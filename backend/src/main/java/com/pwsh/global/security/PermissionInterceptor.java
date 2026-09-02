@@ -32,6 +32,9 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/menu/selectMenuListTree.do",
             "/config/selectConfigView.do",
             "/page/selectPageView.do",
+            // 약관은 공개 문서(가입 동의 항목·푸터) — 약관관리 메뉴 권한과 무관하게 읽을 수 있어야 한다
+            "/policy/selectPolicyListPublic.do",
+            "/policy/selectPolicyView.do",
             "/popup/selectPopupListMain.do",
             "/board/selectBoardView.do",
             "/board/selectBoardListCombo.do",

@@ -20,6 +20,7 @@ export interface SignupParams {
   nickname: string
   email: string
   code: string // 이메일 인증코드(6자리)
+  agreedPolicyIds: string[] // 동의한 약관 ID. 필수동의 약관이 빠지면 서버가 400으로 거부
 }
 
 /** 셀프 회원가입 — 이메일 인증코드 검증 후 MEMBER 권한으로 계정 생성(자동 로그인은 아님). */

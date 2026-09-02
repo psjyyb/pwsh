@@ -67,6 +67,9 @@ public class SecurityConfig {
                                 "/api/adm/post/selectPostView.do",
                                 "/api/adm/comment/selectCommentList.do",
                                 "/api/adm/page/selectPageView.do",
+                                // 약관: 가입 화면의 동의 항목·푸터 링크가 비로그인 상태에서 읽는다.
+                                "/api/adm/policy/selectPolicyListPublic.do",
+                                "/api/adm/policy/selectPolicyView.do",
                                 "/api/adm/popup/selectPopupListMain.do",
                                 "/api/adm/recruit/selectRecruitList.do",
                                 "/api/adm/recruit/selectRecruitView.do",

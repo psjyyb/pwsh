@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, ConfigProvider, Form, Input, Space, message } from 'antd'
+import { Button, Card, Checkbox, ConfigProvider, Form, Input, Space, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { signup, login, sendSignupCode } from '../api/auth'
 import { tokenStore } from './token'
 import { configApi } from '../adm/config/config.api'
+import { policyApi } from '../adm/policy/policy.api'
+import type { Policy } from '../adm/policy/policy.api'
+import PolicyViewModal from '../common/gen/components/PolicyViewModal'
 import { genTheme } from '../gen/theme'
 import defaultLogo from '../assets/logo.svg'
 
@@ -19,7 +22,17 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
   const [codeSent, setCodeSent] = useState(false)
+  const [policies, setPolicies] = useState<Policy[]>([])
+  const [agreed, setAgreed] = useState<string[]>([])
+  const [viewPolicyId, setViewPolicyId] = useState<string | undefined>()
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
+
+  const requiredIds = policies.filter((p) => p.reqYn === 'Y').map((p) => p.rowId!)
+  const allRequiredAgreed = requiredIds.every((id) => agreed.includes(id))
+  const allAgreed = policies.length > 0 && policies.every((p) => agreed.includes(p.rowId!))
+
+  const toggle = (rowId: string, checked: boolean) =>
+    setAgreed((prev) => (checked ? [...new Set([...prev, rowId])] : prev.filter((v) => v !== rowId)))
 
   // 가입 이메일 인증코드 발송 — 이메일 필드 검증 후 요청
   const handleSendCode = async () => {
@@ -46,11 +59,17 @@ export default function SignupPage() {
       if (c.title) setSiteTitle(c.title)
       setLogoFileId(c.logoFileId ?? undefined)
     }).catch(() => {})
+    // 동의 항목은 약관 관리(policy)에 등록된 내용을 그대로 쓴다 — 약관이 늘면 화면 수정 없이 항목이 늘어난다
+    policyApi.publicList().then(setPolicies).catch(() => setPolicies([]))
   }, [])
 
   const onFinish = async (values: {
     memberId: string; password: string; pwConfirm: string; nickname: string; email: string; code: string
   }) => {
+    if (!allRequiredAgreed) {
+      message.error('필수 약관에 동의해야 가입할 수 있습니다.')
+      return
+    }
     setSubmitting(true)
     try {
       await signup({
@@ -60,6 +79,7 @@ export default function SignupPage() {
         nickname: values.nickname,
         email: values.email,
         code: values.code,
+        agreedPolicyIds: agreed,
       })
       // 가입 성공 → 바로 로그인 처리(재로그인 불필요) 후 관심 취미 고르기로.
       // 취미를 하나도 안 담으면 피드가 비고 새 모집 알림도 안 오므로, 첫 화면에서 고르게 한다(건너뛸 수 있음).
@@ -163,7 +183,37 @@ export default function SignupPage() {
           >
             <Input placeholder="6자리 인증코드" maxLength={6} inputMode="numeric" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" block loading={submitting}>
+          {policies.length > 0 && (
+            <div style={{ border: '1px solid #EFEAFB', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+              <Checkbox
+                checked={allAgreed}
+                onChange={(e) => setAgreed(e.target.checked ? policies.map((p) => p.rowId!) : [])}
+                style={{ fontWeight: 600 }}
+              >
+                약관에 모두 동의합니다
+              </Checkbox>
+              <div style={{ borderTop: '1px solid #F2EEFC', margin: '10px 0 8px' }} />
+              {policies.map((p) => (
+                <div key={p.rowId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 }}>
+                  <Checkbox
+                    checked={agreed.includes(p.rowId!)}
+                    onChange={(e) => toggle(p.rowId!, e.target.checked)}
+                  >
+                    <span style={{ fontSize: 13 }}>
+                      <span style={{ color: p.reqYn === 'Y' ? '#6C4EE3' : '#999' }}>
+                        [{p.reqYn === 'Y' ? '필수' : '선택'}]
+                      </span>{' '}
+                      {p.title} 동의
+                    </span>
+                  </Checkbox>
+                  <a style={{ fontSize: 12, whiteSpace: 'nowrap' }} onClick={() => setViewPolicyId(p.rowId)}>
+                    내용 보기
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button type="primary" htmlType="submit" block loading={submitting} disabled={!allRequiredAgreed}>
             가입하기
           </Button>
           <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13 }}>
@@ -172,6 +222,7 @@ export default function SignupPage() {
           </div>
         </Form>
       </Card>
+      <PolicyViewModal rowId={viewPolicyId} onClose={() => setViewPolicyId(undefined)} />
     </div>
     </ConfigProvider>
   )

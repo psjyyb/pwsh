@@ -23,6 +23,24 @@ public class PolicyService {
         return commonDAO.selectOne("policyDAO.selectListTotalCount", vo);
     }
 
+    /** 공개 목록(가입 동의 항목·푸터). 본문 없이 제목·유형·필수여부만. */
+    public List<PolicyVO> selectListPublic(PolicyVO vo) {
+        return commonDAO.selectList("policyDAO.selectListPublic", vo);
+    }
+
+    /** 가입 시 필수 동의 약관 ID 목록. */
+    public List<String> selectListRequiredIds() {
+        return commonDAO.selectList("policyDAO.selectListRequiredIds", new PolicyVO());
+    }
+
+    /** 동의 이력 1건 저장(회원-약관). */
+    public void insertMemberPolicy(String memberId, String policyId) {
+        PolicyVO vo = new PolicyVO();
+        vo.setMemberId(memberId);
+        vo.setRowId(policyId);
+        commonDAO.insert("policyDAO.insertMemberPolicy", vo);
+    }
+
     public PolicyVO selectView(PolicyVO vo) {
         return commonDAO.selectOne("policyDAO.selectView", vo);
     }

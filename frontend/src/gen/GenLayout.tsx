@@ -17,6 +17,9 @@ import NotFound from '../common/NotFound'
 import defaultLogo from '../assets/logo.svg'
 import hobbyPattern from '../assets/hobby-pattern.svg'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
+import PolicyViewModal from '../common/gen/components/PolicyViewModal'
+import { policyApi } from '../adm/policy/policy.api'
+import type { Policy } from '../adm/policy/policy.api'
 import { useEventStream } from '../common/gen/useEventStream'
 import { notificationApi } from '../api/notification'
 import { messageApi } from '../api/message'
@@ -120,6 +123,8 @@ export default function GenLayout() {
   const [msgUnread, setMsgUnread] = useState(0)
   const [notiList, setNotiList] = useState<Noti[]>([])
   const [notiOpen, setNotiOpen] = useState(false)
+  const [policies, setPolicies] = useState<Policy[]>([])            // 푸터 약관 링크
+  const [viewPolicyId, setViewPolicyId] = useState<string | undefined>()
   const loggedIn = !!tokenStore.get() // 비로그인(게스트)도 /gen 접근 가능 — 메뉴는 GUEST 권한그룹 기준
   const { warningOpen, remainingSec, extend, logoutNow } = useIdleLogout(loggedIn ? idleMinutes : 0)
 
@@ -134,6 +139,7 @@ export default function GenLayout() {
       .catch(() => {
         /* 메뉴 미시드 시 빈 메뉴 */
       })
+    policyApi.publicList().then(setPolicies).catch(() => setPolicies([]))
     configApi
       .view()
       .then((c) => {
@@ -368,6 +374,14 @@ export default function GenLayout() {
           </div>
           <div style={{ maxWidth: 1080, margin: '20px auto 0', paddingTop: 16, borderTop: '1px dashed rgba(108,78,227,.18)', display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', fontSize: 12.5, color: '#9A93B8' }}>
             <span>© {new Date().getFullYear()} {siteTitle}. All rights reserved.</span>
+            {/* 약관·개인정보처리방침은 상시 열람할 수 있어야 한다(가입 동의 항목과 같은 문서를 그대로 노출) */}
+            <Space size={12} wrap>
+              {policies.map((p) => (
+                <span key={p.rowId} className="gen-foot-link" onClick={() => setViewPolicyId(p.rowId)}>
+                  {p.title}
+                </span>
+              ))}
+            </Space>
             <span>Made with 💜 for hobby lovers</span>
           </div>
         </Layout.Footer>
@@ -387,6 +401,7 @@ export default function GenLayout() {
         </p>
         <p>계속 이용하시려면 [계속 이용]을 눌러주세요.</p>
       </Modal>
+      <PolicyViewModal rowId={viewPolicyId} onClose={() => setViewPolicyId(undefined)} />
     </ConfigProvider>
   )
 }

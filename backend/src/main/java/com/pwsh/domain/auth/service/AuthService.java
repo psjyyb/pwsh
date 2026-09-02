@@ -5,6 +5,7 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.eventlog.service.EventLogService;
 import com.pwsh.domain.member.service.MemberVO;
+import com.pwsh.domain.policy.service.PolicyService;
 import com.pwsh.global.security.CustomUserDetails;
 import com.pwsh.global.security.SecurityUtil;
 import com.pwsh.global.security.jwt.JwtTokenProvider;
@@ -33,6 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EventLogService eventLogService;
     private final EmailVerifyService emailVerifyService;
+    private final PolicyService policyService;
 
     public TokenResponse login(LoginRequest request) {
         // 계정 상태 사전 점검: 정지=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
@@ -109,6 +111,14 @@ public class AuthService {
         if (!request.password().equals(request.pwConfirm())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호 확인이 일치하지 않습니다.");
         }
+        // 필수 약관 동의 확인 — 화면 체크박스는 우회 가능하므로 서버가 다시 판정한다.
+        // (중복검사·계정생성보다 앞에서 막아 불필요한 조회·생성을 하지 않는다)
+        java.util.List<String> required = policyService.selectListRequiredIds();
+        java.util.List<String> agreed = request.agreedPolicyIds() == null
+                ? java.util.List.of() : request.agreedPolicyIds();
+        if (!agreed.containsAll(required)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "필수 약관에 동의해야 가입할 수 있습니다.");
+        }
         // 이메일 인증코드 검증(발급받은 유효 코드여야 가입 진행)
         if (!emailVerifyService.verify(request.email(), "SIGNUP", request.code())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일 인증코드가 올바르지 않거나 만료되었습니다.");
@@ -141,6 +151,10 @@ public class AuthService {
         authMember.setMemberId(request.memberId());
         authMember.setAuthGroupId("MEMBER");
         commonDAO.insert("memberDAO.insertAuthMember", authMember);
+        // 동의 이력 저장(필수 약관 + 회원이 함께 체크한 선택 약관). 동의 시각·IP가 증빙으로 남는다.
+        for (String policyId : agreed) {
+            policyService.insertMemberPolicy(request.memberId(), policyId);
+        }
         // 사용한 인증코드 소비(재사용 방지)
         emailVerifyService.consume(request.email(), "SIGNUP");
     }

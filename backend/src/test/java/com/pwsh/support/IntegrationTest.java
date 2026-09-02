@@ -6,6 +6,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -73,14 +75,29 @@ public abstract class IntegrationTest {
      * (SMTP 발송은 EmailVerifyService.issue 경로이며, 여기서는 검증(verify) 경로를 테스트한다)
      */
     protected HttpResponse<String> signup(String memberId, String nickname, String email) throws Exception {
+        return signup(memberId, nickname, email, requiredPolicyIdsJson());
+    }
+
+    /** 동의 약관을 지정하는 가입(약관 검증 테스트용). agreedPolicyIdsJson 예: "[\"1\"]" 또는 "[]" */
+    protected HttpResponse<String> signup(String memberId, String nickname, String email,
+                                          String agreedPolicyIdsJson) throws Exception {
         String code = "123456";
         jdbc.update("DELETE FROM email_verification WHERE target = ? AND purpose = 'SIGNUP'", email);
         jdbc.update("INSERT INTO email_verification (target, purpose, code, expire_dt) VALUES (?, 'SIGNUP', ?, NOW() + INTERVAL '10 minutes')",
                 email, code);
         return post("/api/auth/signup",
                 "{\"memberId\":\"" + memberId + "\",\"password\":\"Test1234!@\",\"pwConfirm\":\"Test1234!@\","
-                        + "\"nickname\":\"" + nickname + "\",\"email\":\"" + email + "\",\"code\":\"" + code + "\"}",
+                        + "\"nickname\":\"" + nickname + "\",\"email\":\"" + email + "\",\"code\":\"" + code + "\","
+                        + "\"agreedPolicyIds\":" + agreedPolicyIdsJson + "}",
                 null);
+    }
+
+    /** 기초데이터의 필수동의 약관 ID를 JSON 배열로. 가입은 이걸 다 넘겨야 통과한다. */
+    protected String requiredPolicyIdsJson() {
+        List<String> ids = jdbc.queryForList(
+                "SELECT policy_id::text FROM policy WHERE use_yn = 'Y' AND req_yn = 'Y' ORDER BY policy_id",
+                String.class);
+        return ids.stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(",", "[", "]"));
     }
 
     /** 테스트용 회원(MEM01) 생성. 비번은 정책 충족값(Test1234!@). 관리자 토큰 필요. */

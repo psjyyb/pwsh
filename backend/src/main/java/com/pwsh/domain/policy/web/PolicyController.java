@@ -24,9 +24,14 @@ public class PolicyController {
 
     private final PolicyService policyService;
 
-    @RequestMapping("/selectPolicyList.do")
-    public ApiResponse<Map<String, Object>> selectList(@RequestBody(required = false) PolicyVO searchVO) {
+    /** 목록. variant: "Public"=공개 목록(가입 동의 항목·푸터, 비로그인 허용), 빈값=관리 목록(페이징) */
+    @RequestMapping("/selectPolicyList{variant}.do")
+    public ApiResponse<Map<String, Object>> selectList(@PathVariable(name = "variant", required = false) String variant,
+                                                       @RequestBody(required = false) PolicyVO searchVO) {
         PolicyVO vo = searchVO == null ? new PolicyVO() : searchVO;
+        if ("Public".equals(variant)) {
+            return ApiResponse.ok(Map.of("list", policyService.selectListPublic(vo)));
+        }
         int totalCount = policyService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", policyService.selectList(vo),
