@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RecruitService {
 
+    /** 내 근처 찾기 최대 반경(km). 이 이상은 사실상 전국이라 거리 검색의 의미가 없고 인덱스도 못 탄다. */
+    private static final double MAX_RADIUS_KM = 100;
+
     private final CommonDAO commonDAO;
     private final com.pwsh.domain.notification.service.NotificationService notificationService;
     private final com.pwsh.domain.block.service.BlockService blockService;
@@ -33,6 +36,7 @@ public class RecruitService {
     // ===== 모집 =====
     public List<RecruitVO> selectList(RecruitVO vo) {
         vo.setViewerId(viewerId()); // mine_yn(내가 연 모집) 판정용
+        validateNear(vo);
         return commonDAO.selectList("recruitDAO.selectList", vo);
     }
 
@@ -44,7 +48,34 @@ public class RecruitService {
 
     public int selectListTotalCount(RecruitVO vo) {
         vo.setViewerId(viewerId()); // 목록과 동일한 차단 필터를 적용해 총건수 일치
+        validateNear(vo);
         return commonDAO.selectOne("recruitDAO.selectListTotalCount", vo);
+    }
+
+    /**
+     * 내 근처 찾기 입력 검증 — 좌표·반경은 클라이언트(브라우저 위치)가 보내는 값이라 그대로 믿지 않는다.
+     * 셋 중 일부만 오면 거리 조건이 조용히 무시돼 "근처인 줄 알았는데 전국 목록"이 되므로 400으로 막는다.
+     * (매퍼의 ::numeric 캐스트가 500으로 터지는 것도 함께 방지)
+     */
+    private void validateNear(RecruitVO vo) {
+        boolean hasLat = vo.getCenterLat() != null && !vo.getCenterLat().isBlank();
+        boolean hasLng = vo.getCenterLng() != null && !vo.getCenterLng().isBlank();
+        boolean hasRadius = vo.getRadiusKm() != null && !vo.getRadiusKm().isBlank();
+        if (!hasLat && !hasLng && !hasRadius) {
+            return; // 거리 검색 아님(전체 목록)
+        }
+        if (!(hasLat && hasLng && hasRadius)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "위치와 반경을 모두 지정해야 근처 모집을 찾을 수 있습니다.");
+        }
+        double lat = parseCoord(vo.getCenterLat());
+        double lng = parseCoord(vo.getCenterLng());
+        double radius = parseCoord(vo.getRadiusKm());
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "위치 좌표가 올바르지 않습니다.");
+        }
+        if (radius <= 0 || radius > MAX_RADIUS_KM) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "반경은 0보다 크고 " + (int) MAX_RADIUS_KM + "km 이하여야 합니다.");
+        }
     }
 
     /** 내가 연 모집(마이페이지) — 본인 reg_id 기준. */

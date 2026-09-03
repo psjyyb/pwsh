@@ -3,8 +3,32 @@
 <mapper namespace="recruitDAO">
 
     <!-- ===================== 모집 (recruit) ===================== -->
+    <!--
+      내 근처 찾기: 기준좌표 3개(centerLat/centerLng/radiusKm)가 모두 있을 때만 동작.
+      ① 위경도 사각형으로 먼저 후보를 줄이고(인덱스 ix_recruit_lat_lng 사용)
+      ② 하버사인으로 실제 반경 안인지 판정한다. 사각형만 쓰면 모서리가 반경보다 멀어 오차가 난다.
+      경도 1도의 거리는 위도에 따라 줄어들므로 cos(위도)로 보정한다(고위도에서 사각형이 과도하게 넓어지는 것 방지).
+    -->
+    <sql id="distanceExpr">
+        (6371 * ACOS(LEAST(1, GREATEST(-1,
+            COS(RADIANS(#{centerLat}::numeric)) * COS(RADIANS(r.lat)) * COS(RADIANS(r.lng) - RADIANS(#{centerLng}::numeric))
+          + SIN(RADIANS(#{centerLat}::numeric)) * SIN(RADIANS(r.lat))))))
+    </sql>
+
+    <sql id="nearFilter">
+        <if test="centerLat != null and centerLat != '' and centerLng != null and centerLng != '' and radiusKm != null and radiusKm != ''">
+            AND r.lat IS NOT NULL AND r.lng IS NOT NULL
+            AND r.lat BETWEEN #{centerLat}::numeric - (#{radiusKm}::numeric / 111.0)
+                          AND #{centerLat}::numeric + (#{radiusKm}::numeric / 111.0)
+            AND r.lng BETWEEN #{centerLng}::numeric - (#{radiusKm}::numeric / (111.0 * GREATEST(0.01, COS(RADIANS(#{centerLat}::numeric)))))
+                          AND #{centerLng}::numeric + (#{radiusKm}::numeric / (111.0 * GREATEST(0.01, COS(RADIANS(#{centerLat}::numeric)))))
+            AND <include refid="distanceExpr"/> &lt;= #{radiusKm}::numeric
+        </if>
+    </sql>
+
     <sql id="listFilter">
         WHERE r.use_yn = 'Y'
+        <include refid="nearFilter"/>
         <if test="hobbyId != null and hobbyId != ''">AND r.hobby_id = #{hobbyId}::integer</if>
         <if test="statusCd != null and statusCd != ''">AND r.status_cd = #{statusCd}</if>
         <if test="areaCd != null and areaCd != ''">AND r.area_cd = #{areaCd}</if>
@@ -29,12 +53,24 @@
                (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y') AS apply_cnt,
                (SELECT COUNT(*) FROM recruit_apply a WHERE a.recruit_id = r.recruit_id AND a.use_yn = 'Y' AND a.apply_cd = 'APPLY02') AS accepted_cnt,
                TO_CHAR(r.reg_dt, 'YYYY-MM-DD') AS reg_dt
+               <!-- 거리 검색일 때만 거리(km, 소수1자리)를 함께 내려 카드에 표시한다 -->
+               <if test="centerLat != null and centerLat != '' and centerLng != null and centerLng != '' and radiusKm != null and radiusKm != ''">
+               , ROUND(<include refid="distanceExpr"/>::numeric, 1)::TEXT AS distance_km
+               </if>
         FROM recruit r
         LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
         LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
         LEFT JOIN code ac ON ac.code_id = r.area_cd AND ac.p_code_id = 'AREA00'
         <include refid="listFilter"/>
-        ORDER BY r.recruit_id DESC
+        <choose>
+            <!-- 내 근처 찾기는 가까운 순이 기본. 같은 거리면 최신순 -->
+            <when test="centerLat != null and centerLat != '' and centerLng != null and centerLng != '' and radiusKm != null and radiusKm != ''">
+                ORDER BY <include refid="distanceExpr"/>, r.recruit_id DESC
+            </when>
+            <otherwise>
+                ORDER BY r.recruit_id DESC
+            </otherwise>
+        </choose>
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 

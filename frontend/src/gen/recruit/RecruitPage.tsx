@@ -66,6 +66,12 @@ export default function RecruitPage() {
   const [copyOpen, setCopyOpen] = useState(false)
   const [copying, setCopying] = useState(false)
 
+  // 내 근처 찾기 — 브라우저 위치권한으로 좌표를 받아 반경 안의 모집만, 가까운 순으로 본다.
+  const [center, setCenter] = useState<{ lat: string; lng: string } | null>(null)
+  const [radiusKm, setRadiusKm] = useState<string | undefined>()
+  const [locating, setLocating] = useState(false)
+  const nearOn = !!center && !!radiusKm
+
   const pageSize = 10
   const meId = getClaims()?.sub
   const loggedIn = !!tokenStore.get()
@@ -85,6 +91,8 @@ export default function RecruitPage() {
       try {
         const res = await recruitApi.list({
           hobbyId: filterCat, statusCd: filterStatus, areaCd: filterArea, filterKeyword: kw, pageNo: p, pageSize,
+          // 좌표·반경은 셋이 함께 가야 한다(서버가 일부만 오면 400) — 근처 모드일 때만 싣는다
+          ...(nearOn ? { centerLat: center!.lat, centerLng: center!.lng, radiusKm } : {}),
         })
         setRows(res.list)
         setTotal(res.totalCount)
@@ -95,13 +103,48 @@ export default function RecruitPage() {
         setLoading(false)
       }
     },
-    [filterCat, filterStatus, filterArea, keyword],
+    [filterCat, filterStatus, filterArea, keyword, nearOn, center, radiusKm],
   )
 
   useEffect(() => {
     if (mode === 'list') loadList(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCat, filterStatus, filterArea])
+  }, [filterCat, filterStatus, filterArea, center, radiusKm])
+
+  /**
+   * 현재 위치 받기 — 브라우저 권한 요청. 거부·실패해도 목록은 그대로 쓸 수 있어야 하므로
+   * 실패 시 근처 모드를 끄고 안내만 한다(화면을 막지 않는다).
+   */
+  const useMyLocation = (nextRadius?: string) => {
+    if (!navigator.geolocation) {
+      message.warning('이 브라우저에서는 위치 기능을 쓸 수 없습니다.')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCenter({ lat: String(pos.coords.latitude), lng: String(pos.coords.longitude) })
+        setRadiusKm(nextRadius ?? radiusKm ?? '5')
+        setLocating(false)
+      },
+      (err) => {
+        setLocating(false)
+        setCenter(null)
+        setRadiusKm(undefined)
+        message.warning(
+          err.code === err.PERMISSION_DENIED
+            ? '위치 권한이 거부되어 근처 모집을 찾을 수 없습니다. 지역 필터를 이용해 주세요.'
+            : '현재 위치를 가져오지 못했습니다.',
+        )
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+    )
+  }
+
+  const clearNear = () => {
+    setCenter(null)
+    setRadiusKm(undefined)
+  }
 
   const openView = async (rowId: string) => {
     try {
@@ -328,6 +371,13 @@ export default function RecruitPage() {
       // 지도로 고른 장소가 있으면 그게 가장 구체적인 정보다
       { title: '지역', width: 160, render: (_, r) => r.placeName || [r.areaName, r.region].filter(Boolean).join(' ') || '-' },
       { title: '일정', dataIndex: 'meetDt', width: 120, render: (v) => v || '-' },
+      // 거리 컬럼은 '내 근처' 모드에서만 의미가 있어 그때만 붙인다
+      ...(nearOn
+        ? [{
+            title: '거리', width: 80, align: 'center' as const,
+            render: (_: unknown, r: Recruit) => (r.distanceKm ? `${r.distanceKm}km` : '-'),
+          }]
+        : []),
       {
         title: '인원', width: 90, align: 'center',
         render: (_, r) => `${r.acceptedCnt ?? 0}${Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}`,
@@ -356,11 +406,29 @@ export default function RecruitPage() {
             pCodeId="AREA00" allowClear placeholder="지역 전체" style={{ width: 130 }}
             value={filterArea} onChange={setFilterArea}
           />
+          {/* 내 근처 찾기: 반경을 고르면 위치 권한을 요청하고, 이후 가까운 순으로 정렬된다 */}
+          <Select
+            allowClear placeholder="내 근처" style={{ width: 130 }} value={radiusKm} loading={locating}
+            onChange={(v) => (v ? useMyLocation(v) : clearNear())}
+            options={[
+              { value: '3', label: '3km 이내' },
+              { value: '5', label: '5km 이내' },
+              { value: '10', label: '10km 이내' },
+              { value: '20', label: '20km 이내' },
+              { value: '50', label: '50km 이내' },
+            ]}
+          />
           <Input.Search
             placeholder="모임명 검색" allowClear style={{ width: 220 }}
             onSearch={(v) => { setKeyword(v); loadList(1, v) }}
           />
         </Space>
+        {nearOn && (
+          <div style={{ marginBottom: 10, fontSize: 13, color: '#6C4EE3' }}>
+            현재 위치에서 <b>{radiusKm}km</b> 이내 · 가까운 순 · 장소를 지정한 모집만 표시됩니다
+            <a style={{ marginLeft: 10 }} onClick={clearNear}>해제</a>
+          </div>
+        )}
         {rows.length === 0 && !loading ? (
           <Empty description="등록된 모집이 없습니다." />
         ) : !screens.md ? (
@@ -377,6 +445,7 @@ export default function RecruitPage() {
                     <span>{r.placeName || [r.areaName, r.region].filter(Boolean).join(' ') || '-'}</span>
                     <span>{r.meetDt || '-'}</span>
                     <span>인원 {r.acceptedCnt ?? 0}{Number(r.capacity) > 0 ? ` / ${r.capacity}` : ''}</span>
+                    {r.distanceKm && <span style={{ color: '#6C4EE3', fontWeight: 600 }}>{r.distanceKm}km</span>}
                   </div>
                   <div style={{ marginTop: 6 }}><MemberAvatar fileId={r.regProfileFileId} name={r.regName || '-'} handle={r.regHandle} size={20} /></div>
                 </Card>

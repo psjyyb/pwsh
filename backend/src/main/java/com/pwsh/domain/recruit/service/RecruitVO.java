@@ -34,4 +34,9 @@ public class RecruitVO extends BaseVO {
     private String applyCnt;    // 활성 신청 수(대기+수락)
     private String acceptedCnt; // 수락 수
     private String viewUp;      // 조회수 증가 플래그('Y'일 때만 증가 — 새로고침 중복증가 방지)
+    // 내 근처 찾기(목록 필터). 셋이 모두 있을 때만 거리 검색이 걸리고, 결과는 가까운 순으로 정렬된다.
+    private String centerLat;   // 기준 위도(브라우저 위치)
+    private String centerLng;   // 기준 경도
+    private String radiusKm;    // 반경(km)
+    private String distanceKm;  // 조회 표시용: 기준점에서의 거리(거리 검색일 때만 값이 있다)
 }

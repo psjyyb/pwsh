@@ -244,6 +244,9 @@ COMMENT ON COLUMN event_log.device_type IS '기기 유형(desktop/mobile/tablet)
 COMMENT ON COLUMN event_log.user_agent IS '브라우저 User-Agent 원문';
 COMMENT ON COLUMN event_log.reg_dt IS '발생 시각';
 COMMENT ON COLUMN event_log.reg_ip IS '발생 IP';
+-- 활동로그 목록은 유형 필터 + 최신순 페이징이다. 필터 없는 목록은 PK 역방향 스캔으로 정렬되지만,
+-- 유형을 고르면 정렬까지 이 인덱스가 처리한다(로그는 계속 쌓이므로 미리 잡아둔다).
+CREATE INDEX IF NOT EXISTS ix_event_log_type ON event_log (event_cd, event_log_id DESC);
 
 -- ============================ 페이지(단일 콘텐츠) ============================
 CREATE TABLE page (
@@ -823,6 +826,9 @@ CREATE INDEX IF NOT EXISTS ix_file_ref_map    ON file_ref (map_key, file_type); 
 CREATE INDEX IF NOT EXISTS ix_code_parent ON code (p_code_id);   -- 코드 그룹별 조회(콤보 등)
 CREATE INDEX IF NOT EXISTS ix_recruit_hobby ON recruit (hobby_id);            -- 취미(카테고리)별 모집 목록
 CREATE INDEX IF NOT EXISTS ix_recruit_area ON recruit (area_cd, status_cd);    -- 지역(시도)+상태 필터
+-- 내 근처 찾기: 위경도 사각형으로 후보를 좁힐 때 쓴다(하버사인 계산 자체는 인덱스를 못 타므로 선필터가 필요).
+-- 장소 미지정 모집(온라인·미정)은 대상이 아니라 부분 인덱스로 제외한다.
+CREATE INDEX IF NOT EXISTS ix_recruit_lat_lng ON recruit (lat, lng) WHERE lat IS NOT NULL AND lng IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_hobby_sort ON hobby (use_yn, sort_no);        -- 취미 카탈로그 정렬 노출
 CREATE INDEX IF NOT EXISTS ix_member_hobby_member ON member_hobby (member_id);        -- 회원별 취미 레벨 조회
 -- 한 회원이 한 취미에 활성 레벨 1건

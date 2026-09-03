@@ -28,6 +28,7 @@ export interface Recruit {
   regDt?: string
   applyCnt?: string // 활성 신청 수
   acceptedCnt?: string // 수락 수
+  distanceKm?: string // 내 근처 찾기일 때만 — 기준 위치에서의 거리(km)
 }
 
 /** 참여 신청 VO. */
@@ -71,6 +72,10 @@ export interface RecruitListParams {
   filterKeyword?: string
   pageNo?: number
   pageSize?: number
+  // 내 근처 찾기 — 셋을 함께 보내야 한다(일부만 보내면 서버가 400). 결과는 가까운 순.
+  centerLat?: string
+  centerLng?: string
+  radiusKm?: string
 }
 
 export const RECRUIT_LIST_URL = '/adm/recruit/selectRecruitList.do'
