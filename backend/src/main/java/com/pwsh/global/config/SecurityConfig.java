@@ -20,6 +20,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -40,11 +41,40 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
 
+    /** CSP 정책 문자열. 빈 값이면 헤더 미전송(에디터·외부 리소스 때문에 정책이 필요한 프로젝트만 켠다). */
+    @Value("${security.headers.csp:}")
+    private String cspPolicy;
+
+    /** HSTS max-age(초). 0이면 미전송 — HTTP 개발 환경에서 https 강제 전환을 막기 위한 기본값. */
+    @Value("${security.headers.hsts-max-age:0}")
+    private long hstsMaxAge;
+
+    /** Referrer-Policy 값. 기본은 외부로 경로를 흘리지 않는 strict-origin-when-cross-origin. */
+    @Value("${security.headers.referrer-policy:strict-origin-when-cross-origin}")
+    private String referrerPolicy;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
+                // 보안 응답 헤더. 값은 security.headers.* 로 조정하고, 빈 값이면 그 헤더를 보내지 않는다.
+                //  - CSP: XSS·데이터 유출 완화. 에디터/외부 이미지가 있으면 정책을 넓혀야 한다.
+                //  - HSTS: HTTPS 환경에서만 의미. HTTP 개발 환경에서 켜면 브라우저가 https로 강제 전환해 접속이 막힌다
+                //    → 기본 0(미전송)으로 두고 운영에서만 값을 준다.
+                .headers(h -> {
+                    h.frameOptions(f -> f.sameOrigin());                       // 클릭재킹: 외부 iframe 삽입 차단
+                    h.contentTypeOptions(Customizer.withDefaults());           // MIME 스니핑 차단(nosniff)
+                    h.referrerPolicy(r -> r.policy(referrerPolicyOf(referrerPolicy)));
+                    if (!cspPolicy.isBlank()) {
+                        h.contentSecurityPolicy(c -> c.policyDirectives(cspPolicy));
+                    }
+                    if (hstsMaxAge > 0) {
+                        h.httpStrictTransportSecurity(s -> s.maxAgeInSeconds(hstsMaxAge).includeSubDomains(true));
+                    } else {
+                        h.httpStrictTransportSecurity(s -> s.disable());
+                    }
+                })
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/pwExtend", "/api/auth/pwChange", "/api/auth/logout", "/api/auth/nickname", "/api/auth/me", "/api/auth/updateProfileImage", "/api/auth/withdraw").authenticated() // 본인 인증 필요(순서상 permitAll보다 먼저)
@@ -85,6 +115,16 @@ public class SecurityConfig {
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /** 설정 문자열 → Spring Security의 Referrer-Policy enum. 오타·미지원 값은 기본값으로 떨어뜨린다. */
+    private static ReferrerPolicy referrerPolicyOf(String value) {
+        for (ReferrerPolicy p : ReferrerPolicy.values()) {
+            if (p.getPolicy().equalsIgnoreCase(value)) {
+                return p;
+            }
+        }
+        return ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN;
     }
 
     /** CORS. 허용 오리진은 cors.allowed-origins(콤마구분, 기본 localhost:3000)로 설정. */

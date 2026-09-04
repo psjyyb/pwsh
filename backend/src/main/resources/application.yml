@@ -59,6 +59,21 @@ mybatis:
 server:
   port: 8080
 
+# 로그 패턴에 요청 추적 ID(RequestLoggingFilter가 MDC에 넣는 reqId)를 포함 —
+# 동시 요청이 섞여도 한 요청의 로그를 묶어서 볼 수 있다. 값이 없는 로그(기동 등)는 빈칸으로 나온다.
+logging:
+  pattern:
+    level: "%5p [%X{reqId:-}]"
+
+# 보안 응답 헤더 (SecurityConfig)
+#  - csp: 빈 값이면 헤더 미전송. 외부 이미지/에디터/카카오맵이 있으면 정책을 넓혀야 한다.
+#  - hsts-max-age: 0=미전송. HTTPS 운영에서만 값을 준다(HTTP 개발환경에서 켜면 접속이 막힌다).
+security:
+  headers:
+    csp: ""
+    hsts-max-age: 0
+    referrer-policy: strict-origin-when-cross-origin
+
 # JWT (secret은 환경변수/시크릿으로 주입)
 jwt:
   secret: ${JWT_SECRET:}

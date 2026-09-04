@@ -3,6 +3,7 @@ package com.pwsh.domain.comment.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.banword.service.BanwordService;
 import com.pwsh.domain.post.service.PostVO;
 import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.global.security.GenAccessGuard;
@@ -23,6 +24,7 @@ public class CommentService {
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
     private final NotificationService notificationService;
+    private final BanwordService banwordService;
 
     public List<CommentVO> selectList(CommentVO vo) {
         genAccessGuard.checkPost(vo.getPostId());
@@ -35,6 +37,7 @@ public class CommentService {
     @Transactional
     public void insert(CommentVO vo) {
         genAccessGuard.checkPost(vo.getPostId());
+        banwordService.assertClean(vo.getContent());
         commonDAO.insert("commentDAO.insert", vo);
         PostVO key = new PostVO();
         key.setRowId(vo.getPostId());
@@ -63,6 +66,7 @@ public class CommentService {
     /** 수정 — 작성자 본인·관리자만(IDOR 방지). */
     public void update(CommentVO vo) {
         loadForModify(vo);
+        banwordService.assertClean(vo.getContent());
         commonDAO.update("commentDAO.update", vo);
     }
 

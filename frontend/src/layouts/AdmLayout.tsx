@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Modal, Space, Tabs } from 'antd'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, ConfigProvider, Drawer, Dropdown, Grid, Input, Layout, Menu, Modal, Space, Tabs, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { extendPw, logout as authLogout } from '../api/auth'
@@ -10,6 +10,8 @@ import { configApi } from '../adm/config/config.api'
 import { resolveScreen, DEFAULT_PATH } from '../adm/admScreens'
 import { useIdleLogout } from '../common/hooks/useIdleLogout'
 import { useDocumentTitle } from '../common/hooks/useDocumentTitle'
+import { useLocalState } from '../common/hooks/useLocalState'
+import { useRecentMenus } from '../common/hooks/useRecentMenus'
 import PasswordChangeModal from '../common/adm/components/PasswordChangeModal'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
 import defaultLogo from '../assets/logo.svg'
@@ -63,7 +65,8 @@ export default function AdmLayout() {
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.lg // lg 미만이면 사이드바 대신 서랍
 
-  const [items, setItems] = useState<MenuItem[]>([])
+  const [menuList, setMenuList] = useState<MenuVO[]>([]) // 원본 목록 — 검색 필터의 기준
+  const [menuKeyword, setMenuKeyword] = useState('')
   const [menuNames, setMenuNames] = useState<Record<string, string>>({}) // link_url → menu_name (탭 제목 단일 소스)
   const [openKeys, setOpenKeys] = useState<string[]>([])
   const [openPaths, setOpenPaths] = useState<string[]>([DEFAULT_PATH])
@@ -74,6 +77,24 @@ export default function AdmLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
 
+  // 화면 편의 설정 — 이 브라우저에만 남는 값(서버 저장 아님)
+  const [collapsed, setCollapsed] = useLocalState('adm.sidebarCollapsed', false)
+  const [fontLevel, setFontLevel] = useLocalState('adm.fontLevel', 1) // 0.9 / 1 / 1.1 / 1.2
+  const { list: recentMenus, record: recordRecent } = useRecentMenus()
+
+  // 글자크기는 AntD 기준 폰트(14px)와 메뉴 폰트를 같은 배율로 키운다 → 화면 전체가 일관되게 커진다
+  const scaledTheme = useMemo(
+    () => ({
+      ...admTheme,
+      token: { ...admTheme.token, fontSize: Math.round(14 * fontLevel) },
+      components: {
+        ...admTheme.components,
+        Menu: { ...admTheme.components?.Menu, fontSize: Math.round(15 * fontLevel) },
+      },
+    }),
+    [fontLevel],
+  )
+
   // 유휴 자동 로그아웃(config.session_expire_mins 분, 미설정 시 30분) + 1분 전 경고
   const { warningOpen, remainingSec, extend, logoutNow } = useIdleLogout(idleMinutes)
 
@@ -82,7 +103,7 @@ export default function AdmLayout() {
     menuApi
       .tree('ADM')
       .then((list) => {
-        setItems(buildItems(list))
+        setMenuList(list)
         // 탭 제목용 목적지경로→menu_name 매핑 (메뉴명 수정/추가가 탭에 자동 반영)
         setMenuNames(
           Object.fromEntries(
@@ -102,6 +123,37 @@ export default function AdmLayout() {
       })
       .catch(() => setIdleMinutes(30))
   }, [])
+
+  /**
+   * 사이드바 메뉴 검색 — 메뉴가 늘어나면 트리를 펼쳐가며 찾는 게 번거로워진다.
+   * 매칭된 메뉴 + 그 조상(부모 그룹)만 남긴다. 조상을 함께 남기지 않으면 트리 구조가 끊겨
+   * 매칭된 하위 메뉴가 화면에서 사라진다.
+   */
+  const filteredMenu = useMemo(() => {
+    const kw = menuKeyword.trim().toLowerCase()
+    if (!kw) return menuList
+    const byId = new Map(menuList.map((m) => [m.rowId!, m]))
+    const keep = new Set<string>()
+    for (const m of menuList) {
+      if (!(m.menuName ?? '').toLowerCase().includes(kw)) continue
+      keep.add(m.rowId!)
+      let p = m.pMenuId
+      while (p && p !== '0' && byId.has(p) && !keep.has(p)) {
+        keep.add(p)
+        p = byId.get(p)!.pMenuId
+      }
+    }
+    return menuList.filter((m) => keep.has(m.rowId!))
+  }, [menuList, menuKeyword])
+
+  const items = useMemo(() => buildItems(filteredMenu), [filteredMenu])
+
+  // 검색 중에는 결과의 부모 그룹을 자동으로 펼친다(접혀 있으면 매칭 결과가 안 보인다).
+  const searchOpenKeys = useMemo(() => {
+    if (!menuKeyword.trim()) return null
+    const parentIds = new Set(filteredMenu.map((m) => m.pMenuId).filter((p): p is string => !!p && p !== '0'))
+    return filteredMenu.filter((m) => parentIds.has(m.rowId!)).map((m) => `g${m.rowId}`)
+  }, [filteredMenu, menuKeyword])
 
   // 현재 탭(메뉴명)을 문서 제목에 반영: "메뉴명 | 사이트명"
   useDocumentTitle(menuNames[path], siteTitle)
@@ -129,12 +181,40 @@ export default function AdmLayout() {
     setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
   }, [path, navigate])
 
+  // 최근 사용 메뉴 기록 — menuNames가 채워진 뒤여야 경로 대신 메뉴명이 남는다.
+  // 대시보드(기본 탭)는 항상 열려 있어 기록해도 의미가 없어 제외한다.
+  useEffect(() => {
+    const label = menuNames[path]
+    if (label && path !== DEFAULT_PATH) recordRecent({ path, label })
+  }, [path, menuNames, recordRecent])
+
+  // 우클릭 메뉴 동작은 탭 활성화가 끝난 뒤(다음 tick) 실행되므로, 그때의 현재 경로를 봐야 한다.
+  const pathRef = useRef(path)
+  pathRef.current = path
+
   const closeTab = (target: string) => {
-    const remaining = openPaths.filter((p) => p !== target)
-    setOpenPaths(remaining)
-    if (path === target) {
-      navigate(remaining[remaining.length - 1] ?? DEFAULT_PATH)
-    }
+    setOpenPaths((prev) => {
+      const remaining = prev.filter((p) => p !== target)
+      if (pathRef.current === target) {
+        navigate(remaining[remaining.length - 1] ?? DEFAULT_PATH)
+      }
+      return remaining
+    })
+  }
+
+  /** 지정 탭만 남기고 닫기. 대시보드(기본 탭)는 닫지 않는다 — 항상 돌아갈 자리가 필요하다. */
+  const closeOtherTabs = (keep: string) => {
+    setOpenPaths((prev) => {
+      const remaining = prev.filter((p) => p === keep || p === DEFAULT_PATH)
+      if (!remaining.includes(pathRef.current)) navigate(keep)
+      return remaining
+    })
+  }
+
+  /** 전체 닫기 = 대시보드만 남긴다. */
+  const closeAllTabs = () => {
+    setOpenPaths([DEFAULT_PATH])
+    navigate(DEFAULT_PATH)
   }
 
   const logout = async () => {
@@ -144,21 +224,59 @@ export default function AdmLayout() {
 
   const tabItems = openPaths.map((p) => {
     const Screen = resolveScreen(p) // link_url → 컴포넌트(파일 규칙 자동 매핑)
+    // 탭 제목은 menu(menu_name) 기준. 메뉴 없는 경로(게시판 설정→글 관리로 직접 진입하는
+    // 취미 게시판 등)는 경로가 그대로 노출되지 않도록 화면명으로 대체한다.
+    const title = menuNames[p] ?? (p.startsWith('/adm/post/') ? '게시글 관리' : p)
     return {
       key: p,
-      // 탭 제목은 menu(menu_name) 기준. 메뉴 없는 경로(게시판 설정→글 관리로 직접 진입하는
-      // 취미 게시판 등)는 경로가 그대로 노출되지 않도록 화면명으로 대체한다.
-      label: menuNames[p] ?? (p.startsWith('/adm/post/') ? '게시글 관리' : p),
+      // 우클릭 메뉴 — 탭을 여러 개 열어두고 작업할 때 하나씩 닫는 수고를 줄인다.
+      label: (
+        <Dropdown
+          trigger={['contextMenu']}
+          getPopupContainer={() => document.body}
+          menu={{
+            items: [
+              { key: 'self', label: '이 탭 닫기', disabled: p === DEFAULT_PATH },
+              { key: 'others', label: '다른 탭 닫기', disabled: openPaths.length <= 1 },
+              { key: 'all', label: '전체 닫기', disabled: openPaths.length <= 1 },
+            ],
+            // React 포털은 DOM이 아니라 React 트리로 이벤트를 올려, 항목 클릭이 탭 활성화까지 발동한다.
+            // stopPropagation으로 막으면 드롭다운이 닫히지 않으므로 활성화 후 다음 tick에 닫는다.
+            onClick: ({ key }) => {
+              setTimeout(() => {
+                if (key === 'self') closeTab(p)
+                else if (key === 'others') closeOtherTabs(p)
+                else closeAllTabs()
+              }, 0)
+            },
+          }}
+        >
+          <span>{title}</span>
+        </Dropdown>
+      ),
       closable: p !== DEFAULT_PATH, // 대시보드는 닫기 불가
       children: Screen ? <Screen /> : null,
     }
   })
 
   const menuNode = (
+    <>
+      {/* 메뉴 검색 — 사이드바를 접었을 땐 입력칸이 들어갈 자리가 없어 숨긴다 */}
+      {!collapsed && (
+        <div style={{ padding: '10px 12px 4px' }}>
+          <Input
+            allowClear
+            placeholder="메뉴 검색"
+            value={menuKeyword}
+            onChange={(e) => setMenuKeyword(e.target.value)}
+          />
+        </div>
+      )}
     <Menu
       mode="inline"
       selectedKeys={[path]}
-      openKeys={openKeys}
+      // 검색 중에는 결과의 부모를 강제로 펼치고, 검색을 지우면 사용자가 펼쳐둔 상태로 돌아간다
+      openKeys={searchOpenKeys ?? openKeys}
       onOpenChange={(keys) => setOpenKeys(keys as string[])}
       items={items}
       onClick={(e) => {
@@ -166,27 +284,49 @@ export default function AdmLayout() {
         setDrawerOpen(false)
       }}
     />
+      {!collapsed && menuKeyword.trim() && items.length === 0 && (
+        <div style={{ padding: '8px 16px', color: '#999', fontSize: 13 }}>검색 결과가 없습니다.</div>
+      )}
+    </>
   )
 
   return (
-    <ConfigProvider theme={admTheme}>
+    <ConfigProvider theme={scaledTheme}>
     <Layout style={{ minHeight: '100vh' }}>
       {!isMobile && (
-        <Layout.Sider theme="light" width={260} style={{ borderRight: '1px solid #e8e8e8' }}>
+        <Layout.Sider
+          theme="light"
+          width={260}
+          // 접기 상태는 localStorage에 남아 새로고침·재로그인 후에도 유지된다
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(v) => setCollapsed(v)}
+          collapsedWidth={64}
+          style={{ borderRight: '1px solid #e8e8e8' }}
+        >
           <div
             style={{
               height: 64, // 헤더(AntD Layout.Header 기본 64px)와 하단 구분선 높이 맞춤
               display: 'flex',
               alignItems: 'center',
-              padding: '0 12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              padding: collapsed ? 0 : '0 12px',
               borderBottom: '1px solid #e8e8e8',
+              overflow: 'hidden',
             }}
           >
-            {/* 고정 박스(236×48) + contain → 어떤 비율의 로고든 이 박스에 최대 크기로 들어감(일관된 footprint) */}
+            {/* 고정 박스(236×48) + contain → 어떤 비율의 로고든 이 박스에 최대 크기로 들어감.
+                접었을 땐 좁은 폭(48px)에 맞춰 축소 — 로고가 잘려 보이지 않게 한다. */}
             <img
               src={logoSrc}
               alt={siteTitle}
-              style={{ width: 236, height: 48, objectFit: 'contain', objectPosition: 'left center', display: 'block' }}
+              style={{
+                width: collapsed ? 48 : 236,
+                height: collapsed ? 32 : 48,
+                objectFit: 'contain',
+                objectPosition: collapsed ? 'center' : 'left center',
+                display: 'block',
+              }}
             />
           </div>
           {menuNode}
@@ -216,6 +356,55 @@ export default function AdmLayout() {
             <span />
           )}
           <Space>
+            {/* 세션 잔여시간 — 갑자기 로그아웃되는 걸 막으려면 남은 시간이 보여야 한다. 클릭 시 연장. */}
+            {idleMinutes > 0 && remainingSec > 0 && (
+              <Tooltip title="클릭하면 세션이 연장됩니다">
+                <Button
+                  size="small"
+                  danger={remainingSec <= 60}
+                  onClick={extend}
+                  style={{ fontVariantNumeric: 'tabular-nums' }} // 초가 바뀔 때 폭이 흔들리지 않게
+                >
+                  ⏱ {Math.floor(remainingSec / 60)}:{String(remainingSec % 60).padStart(2, '0')}
+                </Button>
+              </Tooltip>
+            )}
+            {/* 최근 사용 메뉴 — 자주 오가는 화면을 메뉴 트리에서 다시 찾지 않게 한다 */}
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: recentMenus.length
+                  ? recentMenus.map((m) => ({ key: m.path, label: m.label }))
+                  : [{ key: 'empty', label: '최근 사용한 메뉴가 없습니다', disabled: true }],
+                onClick: ({ key }) => {
+                  if (key !== 'empty') navigate(key)
+                },
+              }}
+            >
+              <Button>최근 메뉴</Button>
+            </Dropdown>
+            {/* 글자크기 — 0.9~1.2배. AntD 기준 폰트를 바꿔 화면 전체가 같은 비율로 커진다 */}
+            <Space.Compact>
+              <Tooltip title="글자 작게">
+                <Button
+                  disabled={fontLevel <= 0.9}
+                  onClick={() => setFontLevel(Math.round((fontLevel - 0.1) * 10) / 10)}
+                >
+                  가⁻
+                </Button>
+              </Tooltip>
+              <Tooltip title="기본 크기로">
+                <Button onClick={() => setFontLevel(1)}>{Math.round(fontLevel * 100)}%</Button>
+              </Tooltip>
+              <Tooltip title="글자 크게">
+                <Button
+                  disabled={fontLevel >= 1.2}
+                  onClick={() => setFontLevel(Math.round((fontLevel + 0.1) * 10) / 10)}
+                >
+                  가⁺
+                </Button>
+              </Tooltip>
+            </Space.Compact>
             <Button onClick={() => navigate('/gen/main')}>홈페이지</Button>
             <Button onClick={() => setPwModalOpen(true)}>비밀번호 변경</Button>
             <Button onClick={logout}>로그아웃</Button>

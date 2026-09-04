@@ -3,6 +3,8 @@ package com.pwsh.domain.file.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.util.AfterCommit;
+import com.pwsh.global.file.FileSignature;
 import com.pwsh.global.file.FileStorage;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
@@ -71,6 +73,13 @@ public class FileService {
     }
 
     private FileVO store(MultipartFile f) {
+        // 확장자 위장 차단: 확장자만 믿으면 exe를 jpg로 바꿔 올리는 걸 막을 수 없다.
+        // 저장 전에 검사해야 한다 — 저장 후 거부하면 디스크에 파일이 남는다.
+        String ext = StringUtils.getFilenameExtension(f.getOriginalFilename());
+        if (!FileSignature.matches(f, ext)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "파일 내용이 확장자와 일치하지 않습니다. (" + f.getOriginalFilename() + ")");
+        }
         FileStorage.Stored s = fileStorage.store(f);
         FileVO vo = new FileVO();
         vo.setPath(s.subDir()); // 루트 제외 상대경로(날짜 서브폴더)
@@ -195,9 +204,17 @@ public class FileService {
             if (meta == null) {
                 continue;
             }
-            if (fileStorage.delete(meta.getPath(), meta.getStoredName())) {
-                commonDAO.delete("fileDAO.deleteHard", p);
-            }
+            // DB 행은 트랜잭션 안에서 지우고, 디스크 삭제는 커밋 이후로 미룬다.
+            // 트랜잭션 안에서 먼저 지우면, 이후 롤백 시 DB 행은 살아나지만 파일은 이미 사라져 복구 불가다.
+            commonDAO.delete("fileDAO.deleteHard", p);
+            String path = meta.getPath();
+            String storedName = meta.getStoredName();
+            AfterCommit.run(() -> {
+                if (!fileStorage.delete(path, storedName)) {
+                    // 커밋은 됐으니 DB 기준으로는 없는 파일이다. 디스크 잔여물은 운영자가 정리해야 한다.
+                    log.warn("[File] 커밋 후 디스크 삭제 실패 — 수동 정리 필요: {}/{}", path, storedName);
+                }
+            });
         }
     }
 

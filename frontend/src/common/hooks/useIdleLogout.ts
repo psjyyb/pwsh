@@ -50,10 +50,12 @@ export function useIdleLogout(minutes: number, warnMinutes = 1) {
         logoutNow()
         return
       }
+      // 잔여시간은 항상 갱신한다 — 헤더에 상시 표시(은행식 카운트다운)하기 위함.
+      // 경고 모달은 종전대로 warnMs 구간에서만 띄운다.
+      setRemainingSec(Math.ceil(left / 1000))
       if (left <= warnMs) {
         warnOpenRef.current = true
         setWarningOpen(true)
-        setRemainingSec(Math.ceil(left / 1000))
       }
     }, 1000)
 

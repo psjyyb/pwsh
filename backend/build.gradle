@@ -6,13 +6,20 @@ plugins {
 }
 
 group = 'com.pwsh'
-version = '0.0.1-SNAPSHOT'
+// 프론트(frontend/package.json)와 같은 값을 유지한다 — 한쪽만 올리면 어느 버전이 배포됐는지 추적이 깨진다.
+version = '0.1.0'
 description = 'pwsh'
 
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
 	}
+}
+
+// META-INF/build-info.properties 생성 → BuildProperties 빈으로 버전·빌드시각을 읽을 수 있다.
+// (배포된 산출물이 어느 버전인지 화면·로그에서 확인하기 위함. actuator 없이 동작한다.)
+springBoot {
+	buildInfo()
 }
 
 configurations {

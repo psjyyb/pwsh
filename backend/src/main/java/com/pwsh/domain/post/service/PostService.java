@@ -3,6 +3,7 @@ package com.pwsh.domain.post.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.banword.service.BanwordService;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -24,6 +25,7 @@ public class PostService {
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
     private final PasswordEncoder passwordEncoder;
+    private final BanwordService banwordService;
 
     public List<PostVO> selectList(PostVO vo) {
         genAccessGuard.checkBoard(vo.getBoardId());
@@ -107,6 +109,7 @@ public class PostService {
         } else {
             genAccessGuard.checkBoard(vo.getBoardId());
         }
+        banwordService.assertClean(vo.getTitle(), vo.getContent());
         encodePostPw(vo);
         commonDAO.insert("postDAO.insert", vo);
     }
@@ -121,6 +124,7 @@ public class PostService {
     /** 수정 — 작성자 본인·관리자만(IDOR 방지), 소속 게시판 접근권 확인. */
     public void update(PostVO vo) {
         loadForModify(vo);
+        banwordService.assertClean(vo.getTitle(), vo.getContent());
         encodePostPw(vo);
         commonDAO.update("postDAO.update", vo);
     }

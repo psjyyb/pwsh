@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="banwordDAO">
+
+    <select id="selectList" parameterType="banwordVO" resultType="banwordVO">
+        SELECT banword_id::TEXT AS row_id, word, use_yn
+        FROM banword
+        WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND word LIKE '%' || #{filterKeyword} || '%'
+        </if>
+        ORDER BY word
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="banwordVO" resultType="int">
+        SELECT COUNT(*) FROM banword WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">AND word LIKE '%' || #{filterKeyword} || '%'</if>
+    </select>
+
+    <select id="selectView" parameterType="banwordVO" resultType="banwordVO">
+        SELECT banword_id::TEXT AS row_id, word, use_yn
+        FROM banword WHERE banword_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 검사용: 활성 금칙어 단어만. 등록 건수가 많지 않아 전건을 읽어 메모리에서 대조한다. -->
+    <select id="selectWords" parameterType="banwordVO" resultType="string">
+        SELECT word FROM banword WHERE use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="banwordVO">
+        INSERT INTO banword (word, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{word}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="banwordVO">
+        UPDATE banword SET
+            word = #{word},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE banword_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="banwordVO">
+        UPDATE banword SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE banword_id = #{rowId}::integer
+    </update>
+
+    <!-- 중복 등록 방지(대소문자 무시). 수정 시 자기 행은 제외한다. -->
+    <select id="selectCountByWord" parameterType="banwordVO" resultType="int">
+        SELECT COUNT(*) FROM banword
+        WHERE use_yn = 'Y' AND LOWER(word) = LOWER(#{word})
+        <if test="rowId != null and rowId != ''">AND banword_id &lt;&gt; #{rowId}::integer</if>
+    </select>
+
+</mapper>

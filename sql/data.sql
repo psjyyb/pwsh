@@ -154,7 +154,8 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 (41, 46, 'ADM', '취미 정보 관리', 1, 'MENU01', 0, '/adm/hobby',     'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (45, 46, 'ADM', '모집 관리',      2, 'MENU01', 0, '/adm/recruit',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (43,  0, 'ADM', '커뮤니티 관리',  7, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(42, 43, 'ADM', '신고관리',       1, 'MENU01', 0, '/adm/report',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+(42, 43, 'ADM', '신고관리',       1, 'MENU01', 0, '/adm/report',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(48, 43, 'ADM', '금칙어관리',     2, 'MENU01', 0, '/adm/banword',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- 사용자(GEN) 메뉴 — 취미 커뮤니티(도감 중심).
 --  · 취미는 상단 메뉴가 아니라 메인(도감 카드) → 취미 허브(/gen/hobby/{id})로 진입 → 게시판/모집/레벨.
