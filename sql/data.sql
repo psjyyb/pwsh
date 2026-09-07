@@ -118,8 +118,8 @@ INSERT INTO code (code_id, p_code_id, name, sort_no, use_yn, reg_id, upd_id, reg
 ('HOBBYLV04', 'HOBBYLV00', '고급', 4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- ============================ 환경설정 (config, 단일 행) ============================
-INSERT INTO config (fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins, del_log_days, acc_ip_yn, title, menu_version)
-VALUES (5, 5, 90, 30, 365, 'N', '취만사', 1);
+INSERT INTO config (fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins, del_log_days, acc_ip_yn, maint_yn, maint_message, title, menu_version)
+VALUES (5, 5, 90, 30, 365, 'N', 'N', '서비스 점검 중입니다. 잠시 후 다시 이용해 주세요.', '취만사', 1);
 
 -- ============================ 관리자 권한그룹 (auth_group) ============================
 INSERT INTO auth_group (auth_group_id, name, description, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
@@ -136,6 +136,7 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 ( 5,  1, 'ADM', '팝업관리',       4, 'MENU01', 0, '/adm/popup',     'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 6,  1, 'ADM', '약관관리',       5, 'MENU01', 0, '/adm/policy',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 7,  1, 'ADM', '환경설정',       6, 'MENU01', 0, '/adm/config',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(49,  1, 'ADM', '접속IP관리',     7, 'MENU01', 0, '/adm/accessip',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 8,  0, 'ADM', '회원관리',       3, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 9,  8, 'ADM', '사용자관리',     1, 'MENU01', 0, '/adm/member',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (13,  8, 'ADM', '권한그룹관리',   2, 'MENU01', 0, '/adm/authgroup',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -189,6 +190,8 @@ UPDATE menu SET icon = CASE
     WHEN link_url LIKE '%/file%'    THEN 'file'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'
     WHEN link_url LIKE '%/config%'  THEN 'setting'
+    WHEN link_url LIKE '%/accessip%' THEN 'shield'
+    WHEN link_url LIKE '%/banword%' THEN 'tag'
     WHEN link_url LIKE '%/report%'  THEN 'flag'
     WHEN link_url LIKE '%/dashboard%' THEN 'grid'
     ELSE icon END

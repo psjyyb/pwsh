@@ -7,8 +7,15 @@ plugins {
 
 group = 'com.pwsh'
 // 프론트(frontend/package.json)와 같은 값을 유지한다 — 한쪽만 올리면 어느 버전이 배포됐는지 추적이 깨진다.
-version = '0.1.0'
+version = '0.2.0'
 description = 'pwsh'
+
+// ★ 이 프로젝트는 직접 만든 CMS(framework 저장소)를 복사해 만든 파생 서비스다.
+//   위 version은 pwsh 자체 버전이고, 아래 cmsVersion은 "바탕 CMS의 어느 버전까지 흡수했는지"다.
+//   둘은 따로 움직인다 — pwsh 기능만 추가하면 version만 오르고, CMS를 따라가면 cmsVersion만 오른다.
+//   CMS의 최신 버전과 버전별 적용 방법(DDL 포함)은 framework 저장소의 CHANGELOG.md를 본다.
+//   현재: 접속 IP 제한 · 점검 모드(CMS 1.1.2)까지 흡수. 접속 세션(1.1.3)은 미적용.
+ext.cmsVersion = '1.1.2'
 
 java {
 	toolchain {
@@ -19,7 +26,12 @@ java {
 // META-INF/build-info.properties 생성 → BuildProperties 빈으로 버전·빌드시각을 읽을 수 있다.
 // (배포된 산출물이 어느 버전인지 화면·로그에서 확인하기 위함. actuator 없이 동작한다.)
 springBoot {
-	buildInfo()
+	buildInfo {
+		properties {
+			// build-info.properties에 cmsVersion을 함께 넣어 BuildProperties.get("cmsVersion")로 읽는다.
+			additional = ['cmsVersion': project.ext.cmsVersion]
+		}
+	}
 }
 
 configurations {

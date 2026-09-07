@@ -16,6 +16,7 @@ public enum ErrorCode {
     WEAK_PASSWORD(HttpStatus.BAD_REQUEST, "C004", "비밀번호는 8~64자이며 영문·숫자·특수문자를 모두 포함해야 합니다."),
     DUPLICATE(HttpStatus.CONFLICT, "C005", "이미 사용 중인 값입니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C500", "서버 오류가 발생했습니다."),
+    MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "C503", "서비스 점검 중입니다. 잠시 후 다시 이용해 주세요."),
 
     // 인증/인가
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A001", "인증이 필요합니다."),

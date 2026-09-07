@@ -15,11 +15,16 @@ public final class ErrorResponseWriter {
     private ErrorResponseWriter() {}
 
     public static void write(HttpServletResponse response, ErrorCode ec) throws IOException {
+        write(response, ec, ec.getMessage());
+    }
+
+    /** 기본 메시지 대신 상황 설명을 내려야 할 때(예: 차단된 IP 안내). 상태·코드는 ErrorCode 그대로. */
+    public static void write(HttpServletResponse response, ErrorCode ec, String message) throws IOException {
         response.setStatus(ec.getStatus().value());
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write(
                 "{\"success\":false,\"data\":null,\"error\":{\"code\":\"" + ec.getCode()
-                        + "\",\"message\":\"" + escape(ec.getMessage()) + "\"}}");
+                        + "\",\"message\":\"" + escape(message) + "\"}}");
     }
 
     /** JSON 문자열 이스케이프(메시지에 \ 또는 " 포함 대비) */

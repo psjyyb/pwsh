@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Form, Input, message } from 'antd'
+import { Button, Card, Form, Input, Select, message } from 'antd'
 import NumberInput from '../../common/adm/components/NumberInput'
 import ImageUpload from '../../common/adm/components/ImageUpload'
 import { fileApi } from '../../api/file'
@@ -7,6 +7,12 @@ import { configApi } from './config.api'
 import type { Config } from './config.api'
 
 const LOGO_MAP_KEY = '1' // config 단일행(config_id=1)에 로고 매핑
+
+/** DB에 Y/N 한 글자로 저장되는 항목의 선택지 */
+const YN_OPTIONS = [
+  { value: 'Y', label: '사용' },
+  { value: 'N', label: '사용안함' },
+]
 
 /** 환경설정 (단일 행 — 조회 후 수정) */
 export default function ConfigPage() {
@@ -47,8 +53,22 @@ export default function ConfigPage() {
         >
           <ImageUpload />
         </Form.Item>
-        <Form.Item name="accIpYn" label="접속 IP 제한(Y/N)">
-          <Input />
+        <Form.Item
+          name="accIpYn"
+          label="접속 IP 제한"
+          extra="켜면 [접속IP관리]에 등록된 IP에서만 관리자 기능을 쓸 수 있습니다. 목록이 비어 있으면 제한은 동작하지 않습니다."
+        >
+          <Select options={YN_OPTIONS} />
+        </Form.Item>
+        <Form.Item
+          name="maintYn"
+          label="점검(유지보수) 모드"
+          extra="켜면 관리자를 제외한 모든 요청이 차단되고 아래 안내 문구가 표시됩니다. 관리자는 그대로 로그인·작업할 수 있습니다."
+        >
+          <Select options={YN_OPTIONS} />
+        </Form.Item>
+        <Form.Item name="maintMessage" label="점검 안내 문구">
+          <Input.TextArea rows={2} maxLength={500} showCount />
         </Form.Item>
         <Form.Item name="failCntLimit" label="로그인 실패 제한 횟수">
           <NumberInput />

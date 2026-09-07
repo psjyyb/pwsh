@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="accessIpDAO">
+
+    <select id="selectList" parameterType="accessIpVO" resultType="accessIpVO">
+        SELECT access_ip_id::TEXT AS row_id, ip, description, use_yn
+        FROM access_ip
+        WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (ip LIKE '%' || #{filterKeyword} || '%' OR description LIKE '%' || #{filterKeyword} || '%')
+        </if>
+        ORDER BY access_ip_id
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="accessIpVO" resultType="int">
+        SELECT COUNT(*) FROM access_ip WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (ip LIKE '%' || #{filterKeyword} || '%' OR description LIKE '%' || #{filterKeyword} || '%')
+        </if>
+    </select>
+
+    <select id="selectView" parameterType="accessIpVO" resultType="accessIpVO">
+        SELECT access_ip_id::TEXT AS row_id, ip, description, use_yn
+        FROM access_ip WHERE access_ip_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 검사용: 활성 허용 IP 문자열만. 요청마다 읽지 않도록 서비스가 짧게 캐시한다. -->
+    <select id="selectIps" parameterType="accessIpVO" resultType="string">
+        SELECT ip FROM access_ip WHERE use_yn = 'Y'
+    </select>
+
+    <!-- 같은 IP 중복 등록 방지. 수정 시에는 자기 자신을 제외한다. -->
+    <select id="selectCountByIp" parameterType="accessIpVO" resultType="int">
+        SELECT COUNT(*) FROM access_ip
+        WHERE use_yn = 'Y' AND TRIM(ip) = TRIM(#{ip})
+        <if test="rowId != null and rowId != ''">
+            AND access_ip_id &lt;&gt; #{rowId}::integer
+        </if>
+    </select>
+
+    <!-- 특정 1건을 지운다고 가정했을 때 남는 허용 IP — 자기 잠금 방지 사전 검사용 -->
+    <select id="selectIpsExcept" parameterType="accessIpVO" resultType="string">
+        SELECT ip FROM access_ip WHERE use_yn = 'Y' AND access_ip_id &lt;&gt; #{rowId}::integer
+    </select>
+
+    <insert id="insert" parameterType="accessIpVO">
+        INSERT INTO access_ip (ip, description, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{ip}, #{description}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="accessIpVO">
+        UPDATE access_ip SET
+            ip = #{ip}, description = #{description},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE access_ip_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="accessIpVO">
+        UPDATE access_ip SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE access_ip_id = #{rowId}::integer
+    </update>
+
+</mapper>

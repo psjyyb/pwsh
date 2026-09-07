@@ -6,6 +6,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import AdmLayout from './layouts/AdmLayout'
 import GenLayout from './gen/GenLayout'
 import NotFound from './common/NotFound'
+import Maintenance from './common/Maintenance'
 
 export default function App() {
   return (
@@ -13,6 +14,9 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot" element={<ForgotPasswordPage />} />
+
+      {/* 점검(유지보수) 안내 — 503(C503)을 받으면 axios 인터셉터가 여기로 보낸다 */}
+      <Route path="/maintenance" element={<Maintenance />} />
 
       {/* 관리자 영역 (/adm/*) — 로그인 + 관리자(MEM02)만. 화면은 AdmLayout 내부 탭에서 렌더 */}
       <Route

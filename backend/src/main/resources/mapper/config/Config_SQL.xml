@@ -5,7 +5,7 @@
     <!-- 단일 행 설정 -->
     <select id="selectView" parameterType="configVO" resultType="configVO">
         SELECT fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins,
-               del_log_days, acc_ip_yn, title, menu_version,
+               del_log_days, acc_ip_yn, maint_yn, maint_message, title, menu_version,
                (SELECT r.file_id FROM file_ref r
                  JOIN file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
                  WHERE r.map_key = 1 AND r.file_type = 'LOGO'
@@ -22,6 +22,8 @@
             session_expire_mins = NULLIF(#{sessionExpireMins}, '')::integer,
             del_log_days = NULLIF(#{delLogDays}, '')::integer,
             acc_ip_yn = #{accIpYn},
+            maint_yn = #{maintYn},
+            maint_message = #{maintMessage},
             title = #{title}
     </update>
 

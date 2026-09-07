@@ -14,6 +14,7 @@ import { useLocalState } from '../common/hooks/useLocalState'
 import { useRecentMenus } from '../common/hooks/useRecentMenus'
 import PasswordChangeModal from '../common/adm/components/PasswordChangeModal'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
+import VersionBadge from '../common/adm/components/VersionBadge'
 import defaultLogo from '../assets/logo.svg'
 
 type MenuItem = Required<MenuProps>['items'][number]
@@ -287,6 +288,7 @@ export default function AdmLayout() {
       {!collapsed && menuKeyword.trim() && items.length === 0 && (
         <div style={{ padding: '8px 16px', color: '#999', fontSize: 13 }}>검색 결과가 없습니다.</div>
       )}
+      <VersionBadge collapsed={collapsed} />
     </>
   )
 

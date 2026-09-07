@@ -17,6 +17,9 @@ export function useList<T>(url: string, initialParams: Record<string, unknown> =
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [params, setParams] = useState<Record<string, unknown>>(initialParams)
+  // list/totalCount/page 외에 목록 API가 함께 내려주는 값(예: 접속IP관리의 myIp·enforcedYn).
+  // 화면마다 별도 조회를 한 번 더 하지 않기 위해 그대로 보관한다.
+  const [extra, setExtra] = useState<Record<string, unknown>>({})
 
   const load = async (p: number, sz: number, prm: Record<string, unknown>) => {
     setLoading(true)
@@ -24,6 +27,7 @@ export function useList<T>(url: string, initialParams: Record<string, unknown> =
       const res = await apiPost<ListResult<T>>(url, { pageNo: p, pageSize: sz, ...prm })
       setRows(res.list)
       setTotal(res.totalCount)
+      setExtra(res as unknown as Record<string, unknown>)
       setPage(p)
       setPageSize(sz)
       setParams(prm)
@@ -46,6 +50,8 @@ export function useList<T>(url: string, initialParams: Record<string, unknown> =
     loading,
     page,
     pageSize,
+    /** 목록 응답 원본(표준 3필드 + 화면별 추가 값) */
+    extra,
     /** 현재 조건으로 재조회 (등록/수정/삭제 후) */
     reload: () => load(page, pageSize, params),
     /** 검색조건 갱신 후 1페이지부터 조회 */

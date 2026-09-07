@@ -3,6 +3,7 @@ package com.pwsh.domain.auth.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.domain.eventlog.service.EventLogService;
 import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.domain.policy.service.PolicyService;
@@ -35,6 +36,7 @@ public class AuthService {
     private final EventLogService eventLogService;
     private final EmailVerifyService emailVerifyService;
     private final PolicyService policyService;
+    private final AccessIpService accessIpService;
 
     public TokenResponse login(LoginRequest request) {
         // 계정 상태 사전 점검: 정지=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
@@ -80,6 +82,13 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        // 관리자 계정은 허용 IP에서만 로그인 — 토큰을 아예 발급하지 않는다.
+        // (비밀번호 검증 뒤에 두는 이유: 인증 전에 막으면 IP만으로 계정 존재 여부가 드러난다)
+        if (("admin".equals(userDetails.getMemberId()) || "MEM02".equals(userDetails.getTypeCd()))
+                && !accessIpService.isAllowed(ClientIpHolder.get())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "허용되지 않은 IP에서의 접속입니다. (" + ClientIpHolder.get() + ")");
+        }
         // 새 세션 시작: token_ver +1 → 다른 기기에 남아있던 토큰은 다음 요청에서 무효(단일세션 last-wins)
         String newVer = String.valueOf(
                 (Integer) commonDAO.selectOne("memberDAO.incrementTokenVer", memberIdParam(userDetails.getMemberId())));

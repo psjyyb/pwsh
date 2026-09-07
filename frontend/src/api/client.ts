@@ -26,6 +26,19 @@ function toLogin() {
   }
 }
 
+/** 점검 안내 문구 전달용 키 — 리다이렉트로 화면이 갈리므로 상태가 아니라 sessionStorage로 넘긴다. */
+export const MAINT_MESSAGE_KEY = 'maintMessage'
+
+/** 점검 모드(503) — 서버가 준 안내 문구를 들고 점검 화면으로 보낸다. 관리자는 503을 받지 않는다. */
+function toMaintenance(message?: string) {
+  if (message) {
+    sessionStorage.setItem(MAINT_MESSAGE_KEY, message)
+  }
+  if (window.location.pathname !== '/maintenance') {
+    window.location.assign('/maintenance')
+  }
+}
+
 // 동시 401이 각자 /auth/refresh를 쏘면(회전 토큰 시) 뒤 요청이 stale refresh로 실패 → 강제 로그아웃.
 // 진행 중인 refresh 하나를 모듈 스코프에 공유해, 동시 401은 그 결과를 함께 기다린다.
 let refreshInFlight: Promise<string> | null = null
@@ -54,6 +67,12 @@ client.interceptors.response.use(
   async (error) => {
     const original = error.config
     const refreshToken = tokenStore.getRefresh()
+
+    // 점검 모드 — 어떤 화면에서 났든 안내 화면으로 통일(개별 화면이 "조회 실패"만 띄우면 이유를 알 수 없다)
+    if (error.response?.status === 503 && error.response?.data?.error?.code === 'C503') {
+      toMaintenance(error.response.data.error.message)
+      return Promise.reject(error)
+    }
 
     // 401 + refresh 보유 + 아직 재시도 안 함 → 공유 refresh로 재발급 후 원요청 재시도
     if (error.response?.status === 401 && refreshToken && original && !original._retry) {
