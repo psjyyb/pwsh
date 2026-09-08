@@ -5,6 +5,7 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.domain.eventlog.service.EventLogService;
+import com.pwsh.domain.loginsession.service.LoginSessionService;
 import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.domain.policy.service.PolicyService;
 import com.pwsh.global.security.CustomUserDetails;
@@ -37,6 +38,7 @@ public class AuthService {
     private final EmailVerifyService emailVerifyService;
     private final PolicyService policyService;
     private final AccessIpService accessIpService;
+    private final LoginSessionService loginSessionService;
 
     public TokenResponse login(LoginRequest request) {
         // 계정 상태 사전 점검: 정지=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
@@ -102,6 +104,8 @@ public class AuthService {
         commonDAO.update("memberDAO.updateLoginInfo", loginInfo);
 
         eventLogService.write("LOGIN", null, null);
+        // 접속 세션 시작(이전 세션은 RELOGIN으로 닫힌다) — 관리자 화면의 접속 현황 근거
+        loginSessionService.open(userDetails.getMemberId());
 
         // 비밀번호 만료 알림(강제 아님)
         boolean pwExpired = "Y".equals(userDetails.getPwExpired());
@@ -209,6 +213,7 @@ public class AuthService {
         upd.setPassword(passwordEncoder.encode(request.newPw()));
         commonDAO.update("memberDAO.updatePw", upd);
         commonDAO.selectOne("memberDAO.incrementTokenVer", memberIdParam(request.memberId())); // 기존 세션 전부 무효화
+        loginSessionService.close(request.memberId(), LoginSessionService.END_PWCHANGE);
         emailVerifyService.consume(request.memberId(), "RESET");
     }
 
@@ -279,6 +284,7 @@ public class AuthService {
         upd.setRowId(memberId);
         commonDAO.update("memberDAO.delete", upd);            // use_yn='N' (로그인 차단)
         commonDAO.selectOne("memberDAO.incrementTokenVer", memberIdParam(memberId)); // 현재 토큰 즉시 무효화
+        loginSessionService.close(memberId, LoginSessionService.END_WITHDRAW);
     }
 
     /**
@@ -347,6 +353,7 @@ public class AuthService {
         upd.setPassword(passwordEncoder.encode(request.newPw()));
         commonDAO.update("memberDAO.updatePw", upd);
         commonDAO.selectOne("memberDAO.incrementTokenVer", param); // 비번 변경 → 세션 무효화
+        loginSessionService.close(memberId, LoginSessionService.END_PWCHANGE);
     }
 
     /** Access 만료 시 Refresh 토큰으로 재발급 */
@@ -382,7 +389,9 @@ public class AuthService {
 
     /** 로그아웃 — token_ver +1로 현재 계정에 발급된 모든 토큰(access·refresh)을 즉시 무효화. */
     public void logout() {
-        commonDAO.selectOne("memberDAO.incrementTokenVer", memberIdParam(SecurityUtil.getCurrentMemberId()));
+        String memberId = SecurityUtil.getCurrentMemberId();
+        commonDAO.selectOne("memberDAO.incrementTokenVer", memberIdParam(memberId));
+        loginSessionService.close(memberId, LoginSessionService.END_LOGOUT);
     }
 
     /** memberId만 담은 조회/갱신용 파라미터 VO */

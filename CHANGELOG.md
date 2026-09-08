@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.2.0 · CMS 1.1.2` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.3.0 · CMS 1.1.3` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -22,6 +22,18 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
 
 ---
+
+## 0.3.0 (CMS 1.1.3) — 접속 세션
+
+CMS 1.1.3을 흡수했다. 상세는 framework의 CHANGELOG 참고. pwsh에 맞춰 바꾼 곳:
+
+- **표시 이름은 닉네임** — 셀프 가입 회원은 실명(`member.name`)이 없을 수 있고 이 서비스의 표기는 닉네임이다.
+  목록 매퍼에서 `COALESCE(m.nickname, 복호화한 name)`으로 뽑는다.
+- **종료 사유 2종 추가** — CMS의 4종(LOGOUT/FORCE/RELOGIN/PWCHANGE)에 더해
+  `WITHDRAW`(셀프 탈퇴) · `SUSPEND`(관리자 정지). 둘 다 pwsh에만 있는 기능이라 CMS에는 없다.
+  `AuthService.withdraw`, `MemberService.updateStatus`에서 세션을 닫는다.
+- 비밀번호 **재설정**(이메일 인증 경로)도 `PWCHANGE`로 닫는다 — CMS에는 없는 진입점이다.
+- 메뉴 id는 pwsh 기준 **50**(회원관리 하위).
 
 ## 0.2.0 (CMS 1.1.2) — 접속 IP 제한 · 점검 모드
 
@@ -50,6 +62,4 @@ CMS 1.1.1을 흡수했다. 커밋 `bf73c52`.
 
 ## 아직 흡수하지 않은 CMS 버전
 
-| CMS 버전 | 내용 | 상태 |
-|---|---|---|
-| 1.1.3 | 접속 세션 목록 · 강제종료 | **미적용** |
+없음 — 현재 CMS 최신(1.1.3)까지 따라와 있다.

@@ -19,7 +19,15 @@ import CodeSelect from './CodeSelect'
  */
 export type SearchField =
   | { type: 'text'; name: string; placeholder?: string; width?: number }
-  | { type: 'select'; name: string; placeholder?: string; options: { value: string; label: string }[]; width?: number }
+  /** defaultValue: 화면 진입 시 미리 선택해 둘 값(useList의 initialParams와 같은 값을 줘야 표시와 결과가 맞는다) */
+  | {
+      type: 'select'
+      name: string
+      placeholder?: string
+      options: { value: string; label: string }[]
+      width?: number
+      defaultValue?: string
+    }
   | { type: 'code'; name: string; placeholder?: string; pCodeId: string; width?: number }
   /**
    * "검색 대상 선택 + 검색어" 조합. 드롭다운으로 검색할 컬럼을 바꿔가며 하나의 검색어로 조회.
@@ -44,11 +52,12 @@ interface Props {
 }
 
 export default function SearchBar({ fields, onSearch, onCreate, createText = '등록', leftExtra }: Props) {
-  // keyword 필드는 검색조건 드롭다운의 기본값(첫 조건)으로 초기화
+  // keyword 필드는 검색조건 드롭다운의 기본값(첫 조건)으로, select 필드는 defaultValue로 초기화
   const buildDefaults = () => {
     const d: Record<string, string> = {}
     fields.forEach((f) => {
       if (f.type === 'keyword') d[f.condName ?? 'filterField'] = f.conditions[0]?.value ?? ''
+      else if (f.type === 'select' && f.defaultValue !== undefined) d[f.name] = f.defaultValue
     })
     return d
   }
@@ -60,6 +69,8 @@ export default function SearchBar({ fields, onSearch, onCreate, createText = '�
     const cleared = buildDefaults()
     fields.forEach((f) => {
       if (f.type === 'keyword') cleared[f.name ?? 'filterKeyword'] = ''
+      // 기본값이 선언된 select는 빈값이 아니라 그 기본값으로 되돌린다(진입 직후 상태 = 초기화 상태)
+      else if (f.type === 'select' && f.defaultValue !== undefined) cleared[f.name] = f.defaultValue
       else cleared[f.name] = ''
     })
     setValues(cleared)

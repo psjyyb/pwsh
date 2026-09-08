@@ -4,6 +4,7 @@ import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.eventlog.service.EventLogService;
+import com.pwsh.domain.loginsession.service.LoginSessionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +22,7 @@ public class MemberService {
     private final CommonDAO commonDAO;
     private final PasswordEncoder passwordEncoder;
     private final EventLogService eventLogService;
+    private final LoginSessionService loginSessionService;
 
     public List<MemberVO> selectList(MemberVO vo) {
         return commonDAO.selectList("memberDAO.selectList", vo);
@@ -52,6 +54,7 @@ public class MemberService {
         MemberVO t = new MemberVO();
         t.setMemberId(vo.getRowId()); // updatePw는 rowId(=member_id) 기준
         commonDAO.selectOne("memberDAO.incrementTokenVer", t);
+        loginSessionService.close(vo.getRowId(), LoginSessionService.END_PWCHANGE);
     }
 
     /** 정보 수정(비번 제외) */
@@ -75,6 +78,7 @@ public class MemberService {
     /** 관리자 강제 로그아웃 — 대상 사용자의 token_ver +1로 발급된 토큰(access·refresh) 즉시 무효화. */
     public void forceLogout(MemberVO vo) {
         commonDAO.selectOne("memberDAO.incrementTokenVer", vo);
+        loginSessionService.close(vo.getMemberId(), LoginSessionService.END_FORCE);
         eventLogService.write("MEMBER_LOGOUT", "member", vo.getMemberId());
     }
 
@@ -92,6 +96,7 @@ public class MemberService {
         commonDAO.update("memberDAO.updateStatus", vo);
         if ("STATUS03".equals(status)) {
             commonDAO.selectOne("memberDAO.incrementTokenVer", vo); // 정지 즉시 접근 차단
+            loginSessionService.close(vo.getMemberId(), LoginSessionService.END_SUSPEND);
         }
         // 감사: 컨트롤러 진입점이 updateStatus라 AOP 대상이 아니므로 여기서 직접 남긴다(제재는 추적 필수).
         eventLogService.write("STATUS03".equals(status) ? "MEMBER_SUSPEND" : "MEMBER_RESTORE", "member", vo.getMemberId());

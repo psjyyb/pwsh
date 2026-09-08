@@ -1,5 +1,6 @@
 package com.pwsh.global.security.jwt;
 
+import com.pwsh.domain.loginsession.service.LoginSessionService;
 import com.pwsh.global.security.CustomUserDetails;
 import com.pwsh.global.security.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
@@ -21,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final LoginSessionService loginSessionService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -40,6 +42,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                // 접속 세션의 마지막 활동 시각 갱신(서비스가 60초 단위로 묶어 DB에 반영)
+                loginSessionService.touch(memberId);
             }
         }
         filterChain.doFilter(request, response);

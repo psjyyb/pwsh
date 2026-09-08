@@ -1,5 +1,6 @@
 package com.pwsh.global.config;
 
+import com.pwsh.domain.loginsession.service.LoginSessionService;
 import com.pwsh.global.security.CustomUserDetailsService;
 import com.pwsh.global.security.RestAccessDeniedHandler;
 import com.pwsh.global.security.RestAuthenticationEntryPoint;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
+    private final LoginSessionService loginSessionService;
 
     /** CSP 정책 문자열. 빈 값이면 헤더 미전송(에디터·외부 리소스 때문에 정책이 필요한 프로젝트만 켠다). */
     @Value("${security.headers.csp:}")
@@ -112,7 +114,7 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(authenticationEntryPoint)   // 미인증 → 401
                         .accessDeniedHandler(accessDeniedHandler))            // 권한부족 → 403
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService, loginSessionService),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="loginSessionDAO">
+
+    <!--
+      활성 판정: 아직 열려 있고(end_dt IS NULL) 마지막 활동이 세션 만료(분) 안쪽.
+      만료된 열린 행을 별도로 닫아주는 배치는 두지 않는다 — 판정이 여기 한 곳에만 있어야
+      설정(session_expire_mins)을 바꿨을 때 곧바로 반영된다.
+    -->
+    <sql id="activeExpr">
+        (s.end_dt IS NULL
+         AND s.last_seen_dt > NOW() - (COALESCE((SELECT session_expire_mins FROM config LIMIT 1), 30) || ' minutes')::interval)
+    </sql>
+
+    <sql id="listCond">
+        <if test="filterStatus == 'ACTIVE'">AND <include refid="activeExpr" /></if>
+        <if test="filterStatus == 'ENDED'">AND NOT <include refid="activeExpr" /></if>
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND s.member_id LIKE '%' || #{filterKeyword} || '%'
+        </if>
+    </sql>
+
+    <select id="selectList" parameterType="loginSessionVO" resultType="loginSessionVO">
+        SELECT s.login_session_id::TEXT AS row_id, s.member_id,
+               <!-- 셀프 가입 회원은 실명(name)이 없을 수 있고 이 서비스의 표시 이름은 닉네임이다 -->
+               COALESCE(m.nickname, CONVERT_FROM(DECRYPT(DECODE(m.name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')) AS member_name,
+               s.device_type, s.user_agent, s.login_dt, s.last_seen_dt, s.end_dt, s.end_reason, s.reg_ip,
+               CASE WHEN <include refid="activeExpr" /> THEN 'Y' ELSE 'N' END AS active_yn
+        FROM login_session s
+        LEFT JOIN member m ON m.member_id = s.member_id
+        <where>
+            <include refid="listCond" />
+        </where>
+        ORDER BY s.login_session_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="loginSessionVO" resultType="int">
+        SELECT COUNT(*)
+        FROM login_session s
+        <where>
+            <include refid="listCond" />
+        </where>
+    </select>
+
+    <select id="selectView" parameterType="loginSessionVO" resultType="loginSessionVO">
+        SELECT s.login_session_id::TEXT AS row_id, s.member_id,
+               <!-- 셀프 가입 회원은 실명(name)이 없을 수 있고 이 서비스의 표시 이름은 닉네임이다 -->
+               COALESCE(m.nickname, CONVERT_FROM(DECRYPT(DECODE(m.name,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')) AS member_name,
+               s.device_type, s.user_agent, s.login_dt, s.last_seen_dt, s.end_dt, s.end_reason, s.reg_ip,
+               CASE WHEN <include refid="activeExpr" /> THEN 'Y' ELSE 'N' END AS active_yn
+        FROM login_session s
+        LEFT JOIN member m ON m.member_id = s.member_id
+        WHERE s.login_session_id = #{rowId}::integer
+    </select>
+
+    <!-- 로그인 시 새 세션 시작. reg_ip는 AuditInterceptor 자동. -->
+    <insert id="insert" parameterType="loginSessionVO">
+        INSERT INTO login_session (member_id, device_type, user_agent, login_dt, last_seen_dt, reg_ip)
+        VALUES (#{memberId}, #{deviceType}, #{userAgent}, NOW(), NOW(), #{regIp})
+    </insert>
+
+    <!-- 해당 사용자의 열린 세션을 모두 종료. 단일세션이라 보통 1건이지만 방어적으로 전체를 닫는다. -->
+    <update id="closeByMember" parameterType="loginSessionVO">
+        UPDATE login_session
+        SET end_dt = NOW(), end_reason = #{endReason}
+        WHERE member_id = #{memberId} AND end_dt IS NULL
+    </update>
+
+    <!-- 세션 1건만 종료(관리자 강제종료 화면). 이미 닫힌 행은 건드리지 않는다. -->
+    <update id="closeOne" parameterType="loginSessionVO">
+        UPDATE login_session
+        SET end_dt = NOW(), end_reason = #{endReason}
+        WHERE login_session_id = #{rowId}::integer AND end_dt IS NULL
+    </update>
+
+    <!-- 마지막 활동 시각 갱신. 열린 세션이 없으면 0건(예: 강제종료 직후 남은 요청) -->
+    <update id="touch" parameterType="loginSessionVO">
+        UPDATE login_session SET last_seen_dt = NOW()
+        WHERE member_id = #{memberId} AND end_dt IS NULL
+    </update>
+
+</mapper>

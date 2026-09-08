@@ -140,6 +140,7 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 ( 8,  0, 'ADM', '회원관리',       3, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 9,  8, 'ADM', '사용자관리',     1, 'MENU01', 0, '/adm/member',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (13,  8, 'ADM', '권한그룹관리',   2, 'MENU01', 0, '/adm/authgroup',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(50,  8, 'ADM', '접속세션',       3, 'MENU01', 0, '/adm/loginsession', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (10,  0, 'ADM', '로그관리',       4, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (12, 10, 'ADM', '활동로그',       1, 'MENU01', 0, '/adm/eventlog',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 -- 게시판 관리 그룹: 게시판 설정(관리화면 URL) + 게시판별 관리(연결유형=게시판 → /adm/post/{conn_id})
@@ -188,6 +189,8 @@ UPDATE menu SET icon = CASE
     WHEN link_url LIKE '%/popup%'   THEN 'popup'
     WHEN link_url LIKE '%/policy%'  THEN 'policy'
     WHEN link_url LIKE '%/file%'    THEN 'file'
+    -- ★ 아래 '%/log%'가 '/adm/loginsession'도 잡으므로 반드시 그 앞에 둔다
+    WHEN link_url LIKE '%/loginsession%' THEN 'clock'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'
     WHEN link_url LIKE '%/config%'  THEN 'setting'
     WHEN link_url LIKE '%/accessip%' THEN 'shield'
