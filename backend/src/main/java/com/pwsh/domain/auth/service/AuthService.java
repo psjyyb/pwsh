@@ -3,6 +3,7 @@ package com.pwsh.domain.auth.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.common.event.LoginSucceededEvent;
 import com.pwsh.common.event.SessionEndReason;
@@ -51,9 +52,8 @@ public class AuthService {
             }
             if ("STATUS02".equals(pre.getStatusCd())) {
                 if ("Y".equals(pre.getLockActive())) {
-                    throw new BusinessException(ErrorCode.ACCOUNT_LOCKED,
-                            "비밀번호를 " + pre.getFailCntLimit() + "회 이상 틀려 계정이 잠겼습니다. 약 "
-                                    + pre.getLockRemainMin() + "분 후 다시 시도해 주세요.");
+                    throw new BusinessException(ErrorCode.ACCOUNT_LOCKED, Messages.get(
+                            "error.auth.accountLockedWait", pre.getFailCntLimit(), pre.getLockRemainMin()));
                 }
                 commonDAO.update("memberDAO.unlockAccount", memberIdParam(request.memberId())); // 잠금시간 경과 → 자동 해제
             }
@@ -74,13 +74,12 @@ public class AuthService {
                 throw e; // 재조회 사이 계정이 사라진 극단적 레이스 → 일반 인증 실패로 처리(NPE 방지)
             }
             if ("STATUS02".equals(after.getStatusCd())) {
-                throw new BusinessException(ErrorCode.ACCOUNT_LOCKED,
-                        "비밀번호를 " + after.getFailCntLimit() + "회 틀려 계정이 " + after.getFailLockMins()
-                                + "분간 잠겼습니다. " + after.getFailLockMins() + "분 후 다시 시도해 주세요.");
+                throw new BusinessException(ErrorCode.ACCOUNT_LOCKED, Messages.get(
+                        "error.auth.accountLockedNow", after.getFailCntLimit(), after.getFailLockMins()));
             }
-            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS,
-                    "비밀번호가 일치하지 않습니다. (" + after.getFailCnt() + "/" + after.getFailCntLimit()
-                            + "회) " + after.getFailCntLimit() + "회 틀리면 계정이 " + after.getFailLockMins() + "분간 잠깁니다.");
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS, Messages.get(
+                    "error.auth.passwordMismatchCount",
+                    after.getFailCnt(), after.getFailCntLimit(), after.getFailLockMins()));
         }
         // 접속로그 audit(reg_id=로그인 사용자)을 위해 컨텍스트 설정 (STATELESS라 요청 종료 시 사라짐)
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -91,7 +90,7 @@ public class AuthService {
         if (("admin".equals(userDetails.getMemberId()) || "MEM02".equals(userDetails.getTypeCd()))
                 && !accessIpService.isAllowed(ClientIpHolder.get())) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "허용되지 않은 IP에서의 접속입니다. (" + ClientIpHolder.get() + ")");
+                    Messages.get("error.accessip.notAllowed", ClientIpHolder.get()));
         }
         // 새 세션 시작: token_ver +1 → 다른 기기에 남아있던 토큰은 다음 요청에서 무효(단일세션 last-wins)
         String newVer = String.valueOf(
@@ -124,7 +123,7 @@ public class AuthService {
     @Transactional
     public void signup(SignupRequest request) {
         if (!request.password().equals(request.pwConfirm())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호 확인이 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.passwordConfirmMismatch"));
         }
         // 필수 약관 동의 확인 — 화면 체크박스는 우회 가능하므로 서버가 다시 판정한다.
         // (중복검사·계정생성보다 앞에서 막아 불필요한 조회·생성을 하지 않는다)
@@ -132,25 +131,25 @@ public class AuthService {
         java.util.List<String> agreed = request.agreedPolicyIds() == null
                 ? java.util.List.of() : request.agreedPolicyIds();
         if (!agreed.containsAll(required)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "필수 약관에 동의해야 가입할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.signup.policyRequired"));
         }
         // 이메일 인증코드 검증(발급받은 유효 코드여야 가입 진행)
         if (!emailVerifyService.verify(request.email(), "SIGNUP", request.code())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일 인증코드가 올바르지 않거나 만료되었습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.signup.invalidCode"));
         }
         // 아이디 중복
         MemberVO idCheck = new MemberVO();
         idCheck.setMemberId(request.memberId());
         Integer idCnt = commonDAO.selectOne("memberDAO.selectCount", idCheck);
         if (idCnt != null && idCnt > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 사용 중인 아이디입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.signup.duplicateId"));
         }
         // 닉네임 중복
         MemberVO nickCheck = new MemberVO();
         nickCheck.setNickname(request.nickname());
         Integer nickCnt = commonDAO.selectOne("memberDAO.selectCountByNickname", nickCheck);
         if (nickCnt != null && nickCnt > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 사용 중인 닉네임입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.signup.duplicateNickname"));
         }
         // 생성 (일반회원 MEM01, 정상 STATUS01, 비번 BCrypt. 실명은 미수집 → member_name null)
         MemberVO user = new MemberVO();
@@ -177,7 +176,7 @@ public class AuthService {
     /** 가입 이메일 인증코드 발송(공개) — 형식만 확인하고 코드 발송. */
     public void sendSignupCode(String email) {
         if (email == null || email.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일을 입력해 주세요.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.signup.emailRequired"));
         }
         emailVerifyService.issue(email.trim(), "SIGNUP", email.trim());
     }
@@ -201,14 +200,14 @@ public class AuthService {
     @Transactional
     public void resetPassword(PwResetRequest request) {
         if (!request.newPw().equals(request.pwConfirm())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호 확인이 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.passwordConfirmMismatch"));
         }
         if (!emailVerifyService.verify(request.memberId(), "RESET", request.code())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "인증코드가 올바르지 않거나 만료되었습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.reset.invalidCode"));
         }
         MemberVO u = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(request.memberId()));
         if (u == null || !"Y".equals(u.getUseYn())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "인증코드가 올바르지 않거나 만료되었습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.reset.invalidCode"));
         }
         MemberVO upd = new MemberVO();
         upd.setRowId(request.memberId());
@@ -238,13 +237,13 @@ public class AuthService {
      */
     public java.util.Map<String, Object> selectMemberProfile(String handle) {
         if (handle == null || handle.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "회원을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.memberNotFound"));
         }
         MemberVO h = new MemberVO();
         h.setHandle(handle);
         MemberVO u = commonDAO.selectOne("memberDAO.selectByHandle", h);
         if (u == null || !"Y".equals(u.getUseYn())) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "회원을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.auth.memberNotFound"));
         }
         String memberId = u.getMemberId(); // 내부 조회용(집계 쿼리 파라미터). 응답에는 넣지 않는다.
         java.util.Map<String, Object> m = new java.util.HashMap<>();
@@ -275,11 +274,11 @@ public class AuthService {
     public void withdraw(String currentPw) {
         String memberId = SecurityUtil.getCurrentMemberId();
         if (memberId == null || "system".equals(memberId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         MemberVO user = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(memberId));
         if (user == null || !passwordEncoder.matches(currentPw, user.getPassword())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "현재 비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.currentPasswordMismatch"));
         }
         MemberVO upd = new MemberVO();
         upd.setRowId(memberId);
@@ -295,7 +294,7 @@ public class AuthService {
     public void updateProfileImage(String fileId) {
         String memberId = SecurityUtil.getCurrentMemberId();
         if (memberId == null || "system".equals(memberId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         String normalized = (fileId == null || fileId.isBlank()) ? null : fileId;
         if (normalized != null) {
@@ -304,7 +303,7 @@ public class AuthService {
             p.put("memberId", memberId);
             Integer owned = commonDAO.selectOne("fileDAO.countOwnedFileByMember", p);
             if (owned == null || owned == 0) {
-                throw new BusinessException(ErrorCode.ACCESS_DENIED, "본인이 업로드한 이미지만 프로필로 설정할 수 있습니다.");
+                throw new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.profile.notOwnImage"));
             }
         }
         MemberVO upd = new MemberVO();
@@ -322,7 +321,7 @@ public class AuthService {
         chk.setMemberId(memberId);
         Integer cnt = commonDAO.selectOne("memberDAO.selectCountByNicknameExcept", chk);
         if (cnt != null && cnt > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 사용 중인 닉네임입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.signup.duplicateNickname"));
         }
         MemberVO upd = new MemberVO();
         upd.setRowId(memberId);
@@ -346,7 +345,7 @@ public class AuthService {
         param.setMemberId(memberId);
         MemberVO user = commonDAO.selectOne("memberDAO.selectByMemberId", param);
         if (user == null || !passwordEncoder.matches(request.currentPw(), user.getPassword())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "현재 비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.currentPasswordMismatch"));
         }
         MemberVO upd = new MemberVO();
         upd.setRowId(memberId);

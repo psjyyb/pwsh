@@ -2,6 +2,7 @@ package com.pwsh.domain.file.web;
 
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.file.service.FileService;
 import com.pwsh.domain.file.service.FileVO;
 import java.util.Set;
@@ -34,11 +35,11 @@ public class PubImageController {
         param.setFileId(fileId);
         FileVO file = fileService.selectView(param);
         if (file == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "이미지를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.image.notFound"));
         }
         String ext = file.getExt() == null ? "" : file.getExt().toLowerCase();
         if (!IMAGE_EXTS.contains(ext)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미지 파일이 아닙니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.image.notImage"));
         }
         fileService.assertServable(file); // 순차 id 열거(IDOR) 차단 — 연결 콘텐츠 접근권으로 서빙 가부 판정
         Resource resource = fileService.loadResource(file);

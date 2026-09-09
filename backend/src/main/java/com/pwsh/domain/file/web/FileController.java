@@ -2,6 +2,7 @@ package com.pwsh.domain.file.web;
 
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.response.ApiResponse;
 import com.pwsh.common.util.PageUtil;
 import com.pwsh.domain.file.service.FileService;
@@ -80,7 +81,7 @@ public class FileController {
         param.setFileId(fileId);
         FileVO file = fileService.selectView(param);
         if (file == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "파일을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.file.notFound"));
         }
         fileService.assertServable(file); // 첨부는 소속 게시판 접근권자만 다운로드(IDOR 차단)
         Resource resource = fileService.loadResource(file);

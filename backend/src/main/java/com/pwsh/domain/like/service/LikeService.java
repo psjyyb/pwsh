@@ -3,6 +3,7 @@ package com.pwsh.domain.like.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,17 +22,17 @@ public class LikeService {
     @Transactional
     public LikeVO toggle(String targetType, String targetId) {
         if (!"POST".equals(targetType) && !"COMMENT".equals(targetType)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상 유형입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.common.invalidTargetType"));
         }
         // 숫자 검증: 매퍼의 ::integer 캐스트가 500(DB 오류)으로 터지지 않도록 400으로 선차단
         if (targetId == null || !targetId.matches("\\d+")) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.common.invalidTarget"));
         }
         boolean post = "POST".equals(targetType);
         // 대상 존재 확인 — 없는 콘텐츠에 좋아요 고아행이 생기지 않도록
         Integer exists = commonDAO.selectOne(post ? "likeDAO.countPost" : "likeDAO.countComment", targetIdParam(targetId));
         if (exists == null || exists == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대상을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.common.targetNotFound"));
         }
         LikeVO key = new LikeVO();
         key.setMemberId(currentMemberId());
@@ -72,7 +73,7 @@ public class LikeService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

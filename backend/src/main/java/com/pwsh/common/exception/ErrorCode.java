@@ -1,5 +1,6 @@
 package com.pwsh.common.exception;
 
+import com.pwsh.common.message.Messages;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
@@ -30,6 +31,17 @@ public enum ErrorCode {
     private final HttpStatus status;
     private final String code;
     private final String message;
+
+    /** messages.properties에서 이 코드의 문구를 덮어쓸 때 쓰는 키. */
+    public String getMessageKey() {
+        return "error." + code;
+    }
+
+    /** properties에 재정의가 있으면 그 값, 없으면 위의 기본 메시지. */
+    public String resolveMessage() {
+        String override = Messages.find(getMessageKey());
+        return override != null ? override : message;
+    }
 
     ErrorCode(HttpStatus status, String code, String message) {
         this.status = status;

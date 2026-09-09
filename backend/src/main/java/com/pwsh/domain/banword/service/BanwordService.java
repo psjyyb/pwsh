@@ -3,6 +3,7 @@ package com.pwsh.domain.banword.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,7 @@ public class BanwordService {
     private void assertNotDuplicated(BanwordVO vo) {
         Integer cnt = commonDAO.selectOne("banwordDAO.selectCountByWord", vo);
         if (cnt != null && cnt > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 등록된 금칙어입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.banword.duplicate"));
         }
     }
 
@@ -75,7 +76,7 @@ public class BanwordService {
                     .findFirst();
             if (hit.isPresent()) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT,
-                        "사용할 수 없는 단어가 포함되어 있습니다.");
+                        Messages.get("error.banword.contains"));
             }
         }
     }

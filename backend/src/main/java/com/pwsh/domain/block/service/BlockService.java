@@ -3,6 +3,7 @@ package com.pwsh.domain.block.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -28,7 +29,7 @@ public class BlockService {
         String me = currentMemberId();
         String blockedId = handleResolver.toMemberId(blockedHandle); // 공개 식별자 → 내부 로그인 ID(미존재 시 404)
         if (me.equals(blockedId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "자기 자신은 차단할 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.block.self"));
         }
         BlockVO key = key(me, blockedId);
         Integer active = commonDAO.selectOne("blockDAO.selectActiveCnt", key);
@@ -94,7 +95,7 @@ public class BlockService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

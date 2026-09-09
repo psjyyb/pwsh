@@ -3,6 +3,7 @@ package com.pwsh.domain.memberhobby.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +47,7 @@ public class MemberHobbyService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

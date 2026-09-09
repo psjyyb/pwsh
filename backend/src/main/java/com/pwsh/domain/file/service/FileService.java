@@ -3,6 +3,7 @@ package com.pwsh.domain.file.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.util.AfterCommit;
 import com.pwsh.global.file.FileSignature;
 import com.pwsh.global.file.FileStorage;
@@ -67,7 +68,7 @@ public class FileService {
         String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
         String lower = ext == null ? "" : ext.toLowerCase();
         if (!IMAGE_EXTS.contains(lower)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미지 파일만 업로드할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.file.imageOnly"));
         }
         return store(file);
     }
@@ -78,7 +79,7 @@ public class FileService {
         String ext = StringUtils.getFilenameExtension(f.getOriginalFilename());
         if (!FileSignature.matches(f, ext)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
-                    "파일 내용이 확장자와 일치하지 않습니다. (" + f.getOriginalFilename() + ")");
+                    Messages.get("error.file.signatureMismatch", f.getOriginalFilename()));
         }
         FileStorage.Stored s = fileStorage.store(f);
         FileVO vo = new FileVO();

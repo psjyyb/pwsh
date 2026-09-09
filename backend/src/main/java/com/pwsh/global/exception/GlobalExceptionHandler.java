@@ -2,6 +2,7 @@ package com.pwsh.global.exception;
 
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.response.ApiError;
 import com.pwsh.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -35,14 +36,14 @@ public class GlobalExceptionHandler {
         ErrorCode ec = ErrorCode.UNAUTHORIZED;
         log.warn("AuthenticationException: {}", e.getMessage());
         return ResponseEntity.status(ec.getStatus())
-                .body(ApiResponse.fail(new ApiError(ec.getCode(), "아이디 또는 비밀번호가 올바르지 않습니다.")));
+                .body(ApiResponse.fail(new ApiError(ec.getCode(), Messages.get("error.auth.badCredentials"))));
     }
 
     /** Bean Validation(@Valid) 실패 */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
         FieldError fieldError = e.getBindingResult().getFieldError();
-        String message = fieldError != null ? fieldError.getDefaultMessage() : ErrorCode.INVALID_INPUT.getMessage();
+        String message = fieldError != null ? fieldError.getDefaultMessage() : ErrorCode.INVALID_INPUT.resolveMessage();
         ErrorCode ec = ErrorCode.INVALID_INPUT;
         return ResponseEntity.status(ec.getStatus())
                 .body(ApiResponse.fail(new ApiError(ec.getCode(), message)));
@@ -54,7 +55,7 @@ public class GlobalExceptionHandler {
         ErrorCode ec = ErrorCode.RESOURCE_NOT_FOUND;
         log.warn("No handler: {}", e.getMessage());
         return ResponseEntity.status(ec.getStatus())
-                .body(ApiResponse.fail(new ApiError(ec.getCode(), ec.getMessage())));
+                .body(ApiResponse.fail(new ApiError(ec.getCode(), ec.resolveMessage())));
     }
 
     /** 그 외 모든 예외 */
@@ -63,6 +64,6 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception", e);
         ErrorCode ec = ErrorCode.INTERNAL_ERROR;
         return ResponseEntity.status(ec.getStatus())
-                .body(ApiResponse.fail(new ApiError(ec.getCode(), ec.getMessage())));
+                .body(ApiResponse.fail(new ApiError(ec.getCode(), ec.resolveMessage())));
     }
 }

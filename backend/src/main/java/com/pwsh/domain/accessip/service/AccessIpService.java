@@ -3,6 +3,7 @@ package com.pwsh.domain.accessip.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.util.IpMatcher;
 import com.pwsh.domain.config.service.ConfigVO;
 import com.pwsh.global.web.ClientIpHolder;
@@ -82,8 +83,7 @@ public class AccessIpService {
         }
         if (myIp == null || remain.stream().noneMatch(rule -> IpMatcher.matches(myIp, rule))) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
-                    "이 IP를 지우면 현재 접속 IP(" + myIp + ")가 허용 목록에서 빠져 "
-                            + "관리자 화면에 접속할 수 없습니다.");
+                    Messages.get("error.accessip.deleteSelfLockout", myIp));
         }
     }
 
@@ -100,8 +100,7 @@ public class AccessIpService {
         String myIp = ClientIpHolder.get();
         if (myIp == null || ips.stream().noneMatch(rule -> IpMatcher.matches(myIp, rule))) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
-                    "현재 접속 IP(" + myIp + ")가 접속 허용 IP에 없습니다. "
-                            + "접속IP관리에서 먼저 추가한 뒤 제한을 켜 주세요.");
+                    Messages.get("error.accessip.selfLockout", myIp));
         }
     }
 
@@ -158,7 +157,7 @@ public class AccessIpService {
     private void assertNotDuplicated(AccessIpVO vo) {
         Integer cnt = commonDAO.selectOne("accessIpDAO.selectCountByIp", vo);
         if (cnt != null && cnt > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 등록된 IP입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.accessip.duplicate"));
         }
     }
 
@@ -166,7 +165,7 @@ public class AccessIpService {
     private static void assertValidIp(String ip) {
         if (!IpMatcher.isValidRule(ip)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
-                    "IP 형식이 올바르지 않습니다. 예) 192.168.0.10 또는 192.168.0.0/24");
+                    Messages.get("error.accessip.invalidFormat"));
         }
     }
 }

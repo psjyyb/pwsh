@@ -3,6 +3,7 @@ package com.pwsh.domain.feed.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,14 +42,14 @@ public class FeedService {
         vo.setViewerId(currentMemberId());
         String f = vo.getFeedFilter();
         if (f != null && !f.isBlank() && !"POST".equals(f) && !"RECRUIT".equals(f)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 피드 구분입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.feed.invalidType"));
         }
     }
 
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

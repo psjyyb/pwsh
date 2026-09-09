@@ -3,6 +3,7 @@ package com.pwsh.domain.bookmark.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +24,10 @@ public class BookmarkService {
     @Transactional
     public BookmarkVO toggle(String targetType, String targetId) {
         if (!"POST".equals(targetType) && !"RECRUIT".equals(targetType)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상 유형입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.common.invalidTargetType"));
         }
         if (targetId == null || !targetId.matches("\\d+")) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 대상입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.common.invalidTarget"));
         }
         BookmarkVO key = new BookmarkVO();
         key.setMemberId(currentMemberId());
@@ -35,7 +36,7 @@ public class BookmarkService {
         // 대상 존재 확인 — 삭제/없는 콘텐츠 북마크로 고아행이 생기지 않도록
         Integer targetExists = commonDAO.selectOne("bookmarkDAO.countTarget", key);
         if (targetExists == null || targetExists == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대상을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.common.targetNotFound"));
         }
 
         Integer active = commonDAO.selectOne("bookmarkDAO.selectActiveCnt", key);
@@ -72,7 +73,7 @@ public class BookmarkService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

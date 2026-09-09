@@ -5,6 +5,11 @@
 spring:
   application:
     name: pwsh
+  # 사용자 노출 메시지(messages.properties) — 문구를 코드에서 분리해 한 곳에서 관리한다.
+  # encoding을 명시하는 이유: 기본값이 바뀌면 한글이 깨진 채로 조용히 응답에 실린다.
+  messages:
+    basename: messages
+    encoding: UTF-8
   profiles:
     active: dev
 

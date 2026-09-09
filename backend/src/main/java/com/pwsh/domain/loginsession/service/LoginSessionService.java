@@ -3,6 +3,7 @@ package com.pwsh.domain.loginsession.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.event.SessionEndReason;
 import com.pwsh.domain.member.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -116,7 +117,7 @@ public class LoginSessionService {
     public void forceEnd(LoginSessionVO vo) {
         LoginSessionVO target = selectView(vo);
         if (target == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "세션을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.loginsession.notFound"));
         }
         // 세션 닫기는 직접 하지 않는다 — 토큰 무효화 창구가 이벤트를 발행하고,
         // 그 이벤트를 받는 리스너가 close()를 호출한다(경로를 하나로 유지).

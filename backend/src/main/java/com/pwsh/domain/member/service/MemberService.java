@@ -3,6 +3,7 @@ package com.pwsh.domain.member.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.event.SessionEndReason;
 import com.pwsh.common.event.SessionInvalidatedEvent;
 import com.pwsh.domain.eventlog.service.EventLogService;
@@ -63,7 +64,7 @@ public class MemberService {
     public void insert(MemberVO vo) {
         Integer cnt = commonDAO.selectOne("memberDAO.selectCount", vo);
         if (cnt != null && cnt > 0) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 존재하는 사용자 ID입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.member.duplicateId"));
         }
         vo.setPassword(passwordEncoder.encode(vo.getPassword()));
         commonDAO.insert("memberDAO.insert", vo);
@@ -110,7 +111,7 @@ public class MemberService {
     public void updateStatus(MemberVO vo) {
         String status = vo.getStatusCd();
         if (!"STATUS01".equals(status) && !"STATUS03".equals(status)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "정상(STATUS01) 또는 정지(STATUS03)만 지정할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.member.invalidStatus"));
         }
         commonDAO.update("memberDAO.updateStatus", vo);
         if ("STATUS03".equals(status)) {

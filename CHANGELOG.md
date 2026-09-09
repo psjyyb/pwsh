@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.4.0 · CMS 1.1.4` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.5.0 · CMS 1.1.5` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -22,6 +22,25 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
 
 ---
+
+## 0.5.0 (CMS 1.1.5) — 메시지 소스
+
+CMS 1.1.5를 흡수했다. 상세는 framework의 CHANGELOG 참고. pwsh에 맞춰 바꾼 곳:
+
+- **이관 대상이 102건** — CMS는 17건인데 이 프로젝트는 도메인이 많다
+  (모집·후기·쪽지·신고·북마크·좋아요·팔로우·차단·알림·피드·셀프가입·이메일 인증).
+  `messages.properties` 키는 **84개**(CMS 26개).
+- 문구가 같은데 도메인이 다른 것은 **공용 키로 합쳤다** — `error.common.loginRequired`(9곳),
+  `error.common.targetNotFound`, `error.common.invalidTargetType/invalidTarget`,
+  `error.common.contentRequired`, `error.member.targetRequired`(회원관리·후기 공용).
+  같은 문구에 키를 둘 두면 한쪽만 고쳐 문구가 갈라진다.
+- **CMS에 없는 영역 추가**: 모집(21) · 후기(6) · 쪽지(4) · 신고(4) · 이메일 인증(3) ·
+  셀프가입/프로필(7) · 차단·팔로우·알림·피드(4).
+- `Validate.invalid`도 이관 — CMS의 `Validate`에는 `required`만 있는데 여기엔 형식 검증이 하나 더 있다.
+- 알림 제목(`notification.review.arrived`)도 포함 — 에러가 아니지만 사용자에게 보이는 문구다.
+- `ProdEnvGuard`의 기동 실패 메시지는 **제외** — 운영자·개발자용이고 응답에 나가지 않는다.
+
+DB 변경 없음.
 
 ## 0.4.0 (CMS 1.1.4) — 도메인 이벤트
 
@@ -77,4 +96,4 @@ CMS 1.1.1을 흡수했다. 커밋 `bf73c52`.
 
 ## 아직 흡수하지 않은 CMS 버전
 
-없음 — 현재 CMS 최신(1.1.3)까지 따라와 있다.
+없음 — 현재 CMS 최신(1.1.5)까지 따라와 있다.

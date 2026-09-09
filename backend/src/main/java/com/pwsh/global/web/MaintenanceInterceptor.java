@@ -1,6 +1,7 @@
 package com.pwsh.global.web;
 
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.response.ErrorResponseWriter;
 import com.pwsh.domain.config.service.ConfigService;
 import com.pwsh.global.security.SecurityUtil;
@@ -64,7 +65,7 @@ public class MaintenanceInterceptor implements HandlerInterceptor {
             }
         }
         String message = maint.message() == null || maint.message().isBlank()
-                ? ErrorCode.MAINTENANCE.getMessage() : maint.message();
+                ? Messages.get("maintenance.default") : maint.message();
         ErrorResponseWriter.write(response, ErrorCode.MAINTENANCE, message);
         return false;
     }

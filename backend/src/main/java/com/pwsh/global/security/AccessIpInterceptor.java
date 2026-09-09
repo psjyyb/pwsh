@@ -1,6 +1,7 @@
 package com.pwsh.global.security;
 
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.common.response.ErrorResponseWriter;
 import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.global.web.ClientIpHolder;
@@ -43,7 +44,7 @@ public class AccessIpInterceptor implements HandlerInterceptor {
         }
         log.warn("[AccessIp] 허용되지 않은 IP의 관리자 요청 차단 — ip={}, memberId={}, path={}",
                 ip, SecurityUtil.getCurrentMemberId(), request.getRequestURI());
-        ErrorResponseWriter.write(response, ErrorCode.ACCESS_DENIED, "허용되지 않은 IP에서의 접속입니다. (" + ip + ")");
+        ErrorResponseWriter.write(response, ErrorCode.ACCESS_DENIED, Messages.get("error.accessip.notAllowed", ip));
         return false;
     }
 }

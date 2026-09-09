@@ -3,6 +3,7 @@ package com.pwsh.domain.follow.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,7 @@ public class FollowService {
         String me = currentMemberId();
         String followeeId = handleResolver.toMemberId(followeeHandle); // 공개 식별자 → 내부 ID(미존재 시 404)
         if (me.equals(followeeId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "자기 자신은 팔로우할 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.follow.self"));
         }
         FollowVO key = key(me, followeeId);
         Integer active = commonDAO.selectOne("followDAO.selectActiveCnt", key);
@@ -93,7 +94,7 @@ public class FollowService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

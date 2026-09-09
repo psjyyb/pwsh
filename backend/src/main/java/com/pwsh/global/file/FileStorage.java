@@ -2,6 +2,7 @@ package com.pwsh.global.file;
 
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,14 +55,14 @@ public class FileStorage {
         try {
             Path dir = root.resolve(subDir).normalize();
             if (!dir.startsWith(root)) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 파일 경로입니다.");
+                throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.file.invalidPath"));
             }
             Files.createDirectories(dir);
             Path target = dir.resolve(stored).normalize();
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
             return new Stored(subDir, stored, original, ext == null ? "" : ext, file.getSize());
         } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "파일 저장 실패: " + original);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, Messages.get("error.file.saveFailed", original));
         }
     }
 
@@ -95,15 +96,15 @@ public class FileStorage {
             Path base = (subDir == null || subDir.isBlank()) ? root : root.resolve(subDir).normalize();
             Path target = base.resolve(storedName).normalize();
             if (!target.startsWith(root)) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 파일 경로입니다.");
+                throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.file.invalidPath"));
             }
             Resource resource = new UrlResource(target.toUri());
             if (!resource.exists() || !resource.isReadable()) {
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "파일을 찾을 수 없습니다.");
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.file.notFound"));
             }
             return resource;
         } catch (java.net.MalformedURLException e) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "파일을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.file.notFound"));
         }
     }
 }

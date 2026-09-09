@@ -3,6 +3,7 @@ package com.pwsh.global.security;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.member.service.MemberVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,13 +22,13 @@ public class HandleResolver {
     /** handle → 로그인 ID. 없거나 비활성 회원이면 404. */
     public String toMemberId(String handle) {
         if (handle == null || handle.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "대상 회원이 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.member.targetRequired"));
         }
         MemberVO p = new MemberVO();
         p.setHandle(handle);
         MemberVO u = commonDAO.selectOne("memberDAO.selectByHandle", p);
         if (u == null || !"Y".equals(u.getUseYn())) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "회원을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.auth.memberNotFound"));
         }
         return u.getMemberId();
     }

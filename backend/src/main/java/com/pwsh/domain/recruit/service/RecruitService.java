@@ -3,6 +3,7 @@ package com.pwsh.domain.recruit.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import java.util.Map;
@@ -65,16 +66,16 @@ public class RecruitService {
             return; // 거리 검색 아님(전체 목록)
         }
         if (!(hasLat && hasLng && hasRadius)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "위치와 반경을 모두 지정해야 근처 모집을 찾을 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.nearParamRequired"));
         }
         double lat = parseCoord(vo.getCenterLat());
         double lng = parseCoord(vo.getCenterLng());
         double radius = parseCoord(vo.getRadiusKm());
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "위치 좌표가 올바르지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.invalidCoord"));
         }
         if (radius <= 0 || radius > MAX_RADIUS_KM) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "반경은 0보다 크고 " + (int) MAX_RADIUS_KM + "km 이하여야 합니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.invalidRadius", (int) MAX_RADIUS_KM));
         }
     }
 
@@ -201,14 +202,14 @@ public class RecruitService {
         key.setRowId(srcId);
         RecruitVO src = commonDAO.selectOne("recruitDAO.selectView", key);
         if (src == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.notFound"));
         }
         String meetDt = vo.getMeetDt() == null ? "" : vo.getMeetDt().trim();
         if (meetDt.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "다음 모임 일정을 선택해 주세요.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.nextDateRequired"));
         }
         if (meetDt.compareTo(java.time.LocalDate.now().toString()) < 0) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "지난 날짜로는 다음 회차를 만들 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.nextDatePast"));
         }
 
         RecruitVO next = new RecruitVO();
@@ -282,12 +283,12 @@ public class RecruitService {
             return;
         }
         if (hasLat != hasLng) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "장소 좌표가 올바르지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.invalidPlace"));
         }
         double lat = parseCoord(vo.getLat());
         double lng = parseCoord(vo.getLng());
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "장소 좌표가 올바르지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.invalidPlace"));
         }
     }
 
@@ -295,7 +296,7 @@ public class RecruitService {
         try {
             return Double.parseDouble(value.trim());
         } catch (NumberFormatException e) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "장소 좌표가 올바르지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.invalidPlace"));
         }
     }
 
@@ -340,20 +341,20 @@ public class RecruitService {
         key.setRowId(vo.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         if (recruit == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.notFound"));
         }
         if ("RECRUIT02".equals(recruit.getStatusCd()) && !isFullByCapacity(recruit)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "마감된 모집입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.closed"));
         }
         if (isPastMeetDt(recruit)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 지난 모임입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.alreadyPast"));
         }
         if (me.equals(recruit.getRegId())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "본인이 등록한 모집에는 신청할 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.ownRecruit"));
         }
         Integer dup = commonDAO.selectOne("recruitDAO.selectApplyCountByMember", applyKey(vo.getRecruitId(), me));
         if (dup != null && dup > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 신청한 모집입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.recruit.alreadyApplied"));
         }
         vo.setMemberId(me);
         vo.setApplyCd("APPLY01"); // 신청은 항상 대기로 생성 — 수락(APPLY02)은 주최자만(applyUpdate). 클라이언트 위조 차단.
@@ -368,7 +369,7 @@ public class RecruitService {
     public void applyUpdate(RecruitApplyVO vo) {
         RecruitApplyVO apply = commonDAO.selectOne("recruitDAO.selectApplyView", vo);
         if (apply == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.applyNotFound"));
         }
         assertOwner(apply.getRecruitId());
         RecruitVO key = new RecruitVO();
@@ -380,7 +381,7 @@ public class RecruitService {
             int cap = parseCnt(recruit.getCapacity());
             int accepted = parseCnt(recruit.getAcceptedCnt());
             if (cap > 0 && accepted >= cap) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "정원이 가득 찼습니다. 모집을 마감해 주세요.");
+                throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.full"));
             }
             commonDAO.update("recruitDAO.updateApplyStatus", vo);
             if (cap > 0 && accepted + 1 >= cap) { // 정원 충족 → 자동 마감
@@ -406,22 +407,22 @@ public class RecruitService {
     public void applyAttend(RecruitApplyVO vo) {
         RecruitApplyVO apply = commonDAO.selectOne("recruitDAO.selectApplyView", vo);
         if (apply == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.applyNotFound"));
         }
         assertOwner(apply.getRecruitId()); // 주최자·관리자만
         if (!"APPLY02".equals(apply.getApplyCd())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "수락된 참여자만 참석 결과를 기록할 수 있습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.attendAcceptedOnly"));
         }
         String cd = vo.getAttendCd();
         boolean clear = cd == null || cd.isBlank();
         if (!clear && !"ATTEND01".equals(cd) && !"ATTEND02".equals(cd) && !"ATTEND03".equals(cd)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 참석 결과입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.invalidAttend"));
         }
         RecruitVO key = new RecruitVO();
         key.setRowId(apply.getRecruitId());
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         if (recruit != null && !isFinished(recruit)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임이 끝난 뒤에 기록할 수 있습니다. (마감 또는 모임일 경과)");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.attendTooEarly"));
         }
         RecruitApplyVO upd = new RecruitApplyVO();
         upd.setRowId(vo.getRowId());
@@ -480,7 +481,7 @@ public class RecruitService {
     public void applyDelete(RecruitApplyVO vo) {
         RecruitApplyVO apply = commonDAO.selectOne("recruitDAO.selectApplyView", vo);
         if (apply == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신청을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.applyNotFound"));
         }
         SecurityUtil.assertOwnerOrAdmin(apply.getMemberId());
         commonDAO.delete("recruitDAO.deleteApply", vo);
@@ -512,7 +513,7 @@ public class RecruitService {
         assertChatMember(vo.getRecruitId(), me);
         String content = vo.getContent() == null ? "" : vo.getContent().trim();
         if (content.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "내용을 입력해 주세요.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.common.contentRequired"));
         }
         if (content.length() > 1000) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "1000자 이내로 입력해 주세요.");
@@ -545,7 +546,7 @@ public class RecruitService {
     public void chatDelete(RecruitChatVO vo) {
         RecruitChatVO chat = commonDAO.selectOne("recruitDAO.selectChatView", vo);
         if (chat == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "대화를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.chatNotFound"));
         }
         SecurityUtil.assertOwnerOrAdmin(chat.getRegId());
         commonDAO.update("recruitDAO.deleteChat", vo);
@@ -554,14 +555,14 @@ public class RecruitService {
     /** 내가 이 모집의 대화 참여 자격이 있는지(주최자·수락 참여자). 관리자도 자격이 없으면 못 본다(사적 대화). */
     private void assertChatMember(String recruitId, String memberId) {
         if (recruitId == null || recruitId.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "모집을 선택해 주세요.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.recruit.required"));
         }
         Map<String, Object> p = new java.util.HashMap<>();
         p.put("recruitId", recruitId);
         p.put("memberId", memberId);
         Integer cnt = commonDAO.selectOne("recruitDAO.selectChatMemberCnt", p);
         if (cnt == null || cnt == 0) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "참여가 확정된 회원만 대화할 수 있습니다.");
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.recruit.chatConfirmedOnly"));
         }
     }
 
@@ -572,7 +573,7 @@ public class RecruitService {
         key.setRowId(recruitId);
         RecruitVO recruit = commonDAO.selectOne("recruitDAO.selectView", key);
         if (recruit == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "모집을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.recruit.notFound"));
         }
         SecurityUtil.assertOwnerOrAdmin(recruit.getRegId());
     }
@@ -580,7 +581,7 @@ public class RecruitService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

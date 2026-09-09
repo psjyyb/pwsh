@@ -3,6 +3,7 @@ package com.pwsh.domain.post.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.banword.service.BanwordService;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
@@ -100,7 +101,7 @@ public class PostService {
             key.setRowId(pId);
             PostVO parent = commonDAO.selectOne("postDAO.selectView", key);
             if (parent == null) {
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "원글을 찾을 수 없습니다.");
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.post.parentNotFound"));
             }
             vo.setBoardId(parent.getBoardId());
             int depth = parent.getDepth() == null ? 1 : Integer.parseInt(parent.getDepth());
@@ -148,7 +149,7 @@ public class PostService {
     private PostVO loadForModify(PostVO vo) {
         PostVO post = commonDAO.selectOne("postDAO.selectView", vo);
         if (post == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.post.notFound"));
         }
         genAccessGuard.checkBoard(post.getBoardId());
         SecurityUtil.assertOwnerOrAdmin(post.getRegId());

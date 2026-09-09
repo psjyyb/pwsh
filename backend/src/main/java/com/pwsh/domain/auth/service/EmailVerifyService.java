@@ -3,6 +3,7 @@ package com.pwsh.domain.auth.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import jakarta.mail.internet.MimeMessage;
 import java.security.SecureRandom;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ public class EmailVerifyService {
         if (mailFrom == null || mailFrom.isBlank()) {
             // 발신 계정 미설정 → 실제 발송 불가(모킹 금지). 운영자가 환경변수 설정해야 함.
             throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    "메일 발송이 설정되지 않았습니다. 잠시 후 다시 시도하거나 관리자에게 문의하세요.");
+                    Messages.get("error.email.notConfigured"));
         }
         EmailVerificationVO throttleKey = new EmailVerificationVO();
         throttleKey.setTarget(target);
@@ -54,7 +55,7 @@ public class EmailVerifyService {
         Integer sinceLast = commonDAO.selectOne("emailVerifyDAO.selectSecondsSinceLast", throttleKey);
         if (sinceLast != null && sinceLast < RESEND_COOLDOWN_SEC) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
-                    "인증코드는 " + RESEND_COOLDOWN_SEC + "초 후에 다시 요청할 수 있습니다.");
+                    Messages.get("error.email.resendCooldown", RESEND_COOLDOWN_SEC));
         }
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
         EmailVerificationVO vo = new EmailVerificationVO();
@@ -122,7 +123,7 @@ public class EmailVerifyService {
             mailSender.send(mime);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    "인증 메일 발송에 실패했습니다. 이메일 주소를 확인하거나 잠시 후 다시 시도해 주세요.");
+                    Messages.get("error.email.sendFailed"));
         }
     }
 

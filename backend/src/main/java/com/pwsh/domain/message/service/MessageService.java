@@ -3,6 +3,7 @@ package com.pwsh.domain.message.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.block.service.BlockService;
 import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.domain.member.service.MemberVO;
@@ -57,22 +58,22 @@ public class MessageService {
     public void send(MessageVO req) {
         String me = currentMemberId();
         if (req.getReceiverHandle() == null || req.getReceiverHandle().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "받는 사람이 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.message.receiverRequired"));
         }
         String receiver = handleResolver.toMemberId(req.getReceiverHandle()); // 공개 식별자 → 내부 로그인 ID
         if (me.equals(receiver)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "자기 자신에게는 보낼 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.message.selfSend"));
         }
         if (req.getContent() == null || req.getContent().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "내용을 입력해 주세요.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.common.contentRequired"));
         }
         MemberVO r = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(receiver));
         if (r == null || !"Y".equals(r.getUseYn())) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "받는 회원을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.message.receiverNotFound"));
         }
         // 상대가 나를 차단했으면 발송 차단(차단 사실은 노출하지 않는 일반 문구)
         if (blockService.isBlockedBy(me, receiver)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "이 회원에게는 쪽지를 보낼 수 없습니다.");
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.message.blocked"));
         }
         MessageVO ins = new MessageVO();
         ins.setSenderId(me);
@@ -114,7 +115,7 @@ public class MessageService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

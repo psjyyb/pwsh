@@ -3,6 +3,7 @@ package com.pwsh.domain.review.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -49,18 +50,18 @@ public class ReviewService {
     public void insert(ReviewVO req) {
         String me = currentMemberId();
         if (req.getRecruitId() == null || req.getRecruitId().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "모임 정보가 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.review.recruitRequired"));
         }
         if (req.getTargetHandle() == null || req.getTargetHandle().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "대상 회원이 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.member.targetRequired"));
         }
         req.setTargetId(handleResolver.toMemberId(req.getTargetHandle())); // 공개 식별자 → 내부 로그인 ID
         if (me.equals(req.getTargetId())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "본인에게는 후기를 쓸 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.review.selfReview"));
         }
         int rating = parseRating(req.getRating());
         if (rating < 1 || rating > 5) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "별점은 1~5 사이여야 합니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.review.invalidScore"));
         }
         ReviewVO chk = new ReviewVO();
         chk.setRecruitId(req.getRecruitId());
@@ -68,11 +69,11 @@ public class ReviewService {
         chk.setRegId(me);
         Integer eligible = commonDAO.selectOne("reviewDAO.selectEligibleCnt", chk);
         if (eligible == null || eligible == 0) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "종료된 모임에서 함께한 회원에게만 후기를 쓸 수 있습니다.");
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.review.notEligible"));
         }
         Integer dup = commonDAO.selectOne("reviewDAO.selectDupCnt", chk);
         if (dup != null && dup > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 이 모임에서 후기를 작성했습니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.review.duplicate"));
         }
         ReviewVO ins = new ReviewVO();
         ins.setRecruitId(req.getRecruitId());
@@ -82,7 +83,7 @@ public class ReviewService {
         commonDAO.insert("reviewDAO.insert", ins);
         // 링크는 대상의 handle로 — 저장되는 값이라 로그인 ID를 넣으면 알림 목록에서 계속 노출된다
         notificationService.notify(req.getTargetId(), "REVIEW",
-                "모임 후기가 도착했어요. (별점 " + rating + "점)", "/gen/user/" + req.getTargetHandle());
+                Messages.get("notification.review.arrived", rating), "/gen/user/" + req.getTargetHandle());
     }
 
     /** 후기 삭제(논리) — 작성자 본인·관리자만. */
@@ -90,7 +91,7 @@ public class ReviewService {
     public void delete(ReviewVO vo) {
         ReviewVO r = commonDAO.selectOne("reviewDAO.selectView", vo);
         if (r == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "후기를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.review.notFound"));
         }
         SecurityUtil.assertOwnerOrAdmin(r.getRegId());
         commonDAO.update("reviewDAO.delete", vo);
@@ -110,7 +111,7 @@ public class ReviewService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

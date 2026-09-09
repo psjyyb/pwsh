@@ -3,6 +3,7 @@ package com.pwsh.domain.comment.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.banword.service.BanwordService;
 import com.pwsh.domain.post.service.PostVO;
 import com.pwsh.domain.notification.service.NotificationService;
@@ -80,7 +81,7 @@ public class CommentService {
     private void loadForModify(CommentVO vo) {
         CommentVO cmt = commonDAO.selectOne("commentDAO.selectView", vo);
         if (cmt == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.comment.notFound"));
         }
         SecurityUtil.assertOwnerOrAdmin(cmt.getRegId());
     }

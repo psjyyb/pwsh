@@ -15,7 +15,7 @@ public final class ErrorResponseWriter {
     private ErrorResponseWriter() {}
 
     public static void write(HttpServletResponse response, ErrorCode ec) throws IOException {
-        write(response, ec, ec.getMessage());
+        write(response, ec, ec.resolveMessage()); // properties에 error.{코드} 재정의가 있으면 그 값
     }
 
     /** 기본 메시지 대신 상황 설명을 내려야 할 때(예: 차단된 IP 안내). 상태·코드는 ErrorCode 그대로. */

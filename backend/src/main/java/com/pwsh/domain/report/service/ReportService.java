@@ -3,6 +3,7 @@ package com.pwsh.domain.report.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.eventlog.service.EventLogService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -26,20 +27,20 @@ public class ReportService {
         String me = currentMemberId();
         if (!"POST".equals(vo.getTargetType()) && !"COMMENT".equals(vo.getTargetType())
                 && !"RECRUIT".equals(vo.getTargetType()) && !"CHAT".equals(vo.getTargetType())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 신고 대상입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.report.invalidTarget"));
         }
         // 숫자 검증(::integer 캐스트 500 방지) + 대상 존재 확인(없는 콘텐츠 신고 차단)
         if (vo.getTargetId() == null || !vo.getTargetId().matches("\\d+")) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 신고 대상입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.report.invalidTarget"));
         }
         Integer targetExists = commonDAO.selectOne("reportDAO.countTarget", vo);
         if (targetExists == null || targetExists == 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "신고 대상을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.report.targetNotFound"));
         }
         vo.setRegId(me);
         Integer dup = commonDAO.selectOne("reportDAO.selectDupCnt", vo);
         if (dup != null && dup > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE, "이미 신고한 대상입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE, Messages.get("error.report.duplicate"));
         }
         commonDAO.insert("reportDAO.insert", vo);
     }
@@ -66,7 +67,7 @@ public class ReportService {
         assertAdmin();
         String status = vo.getStatusType();
         if (!"RESOLVED".equals(status) && !"DISMISSED".equals(status) && !"PENDING".equals(status)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "잘못된 상태입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.report.invalidStatus"));
         }
         // 삭제조치/되돌리기는 대상 콘텐츠의 노출 여부까지 변경(대상 유형은 서버에서 재조회 — 위변조 차단)
         if ("RESOLVED".equals(status) || "PENDING".equals(status)) {
@@ -110,7 +111,7 @@ public class ReportService {
     private String currentMemberId() {
         String me = SecurityUtil.getCurrentMemberId();
         if (me == null || "system".equals(me)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
         return me;
     }

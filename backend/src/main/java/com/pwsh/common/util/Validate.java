@@ -2,6 +2,7 @@ package com.pwsh.common.util;
 
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 
 /**
  * 컨트롤러 입력 검증 헬퍼. 프론트 검증에 더한 백엔드 방어선.
@@ -15,7 +16,7 @@ public final class Validate {
     /** 필수값(공백 불가). 비어 있으면 "{label}은(는) 필수입니다." */
     public static void required(String value, String label) {
         if (StringUtil.isEmpty(value)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, label + "은(는) 필수입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.validate.required", label));
         }
     }
 
@@ -26,7 +27,7 @@ public final class Validate {
      */
     public static void numeric(String value, String label) {
         if (!StringUtil.isEmpty(value) && !value.matches("\\d+")) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, label + "이(가) 올바르지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.validate.invalid", label));
         }
     }
 }
