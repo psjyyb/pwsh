@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.3.0 · CMS 1.1.3` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.4.0 · CMS 1.1.4` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -22,6 +22,21 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
 
 ---
+
+## 0.4.0 (CMS 1.1.4) — 도메인 이벤트
+
+CMS 1.1.4를 흡수했다. 상세는 framework의 CHANGELOG 참고. pwsh에 맞춰 바꾼 곳:
+
+- **창구를 타야 하는 진입점이 8곳** — CMS는 5곳(로그인·로그아웃·본인 비번변경·관리자 리셋·
+  강제로그아웃)이지만 pwsh엔 **비밀번호 재설정·탈퇴·계정정지**가 더 있다.
+  전부 `MemberService.invalidateToken`으로 모았다. 이 항목이 이번 흡수의 핵심 이득이다 —
+  진입점이 많을수록 세션 닫기를 손으로 짝짓다 빠뜨릴 확률이 높았다.
+- **종료 사유 2종을 `SessionEndReason`으로 이전** — `WITHDRAW`·`SUSPEND`가
+  `LoginSessionService.END_*`에 있었는데, 이벤트 발행 측(`MemberService`)이 쓰려면
+  세션 서비스를 import 해야 해서 결합이 되살아난다. CMS의 4종과 같은 파일로 옮겼다.
+- `PasswordEncoder`를 `PasswordEncoderConfig`로 분리 — CMS와 동일하게 순환 의존 회피용.
+
+DB 변경 없음.
 
 ## 0.3.0 (CMS 1.1.3) — 접속 세션
 

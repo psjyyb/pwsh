@@ -67,13 +67,6 @@
         WHERE member_id = #{memberId} AND end_dt IS NULL
     </update>
 
-    <!-- 세션 1건만 종료(관리자 강제종료 화면). 이미 닫힌 행은 건드리지 않는다. -->
-    <update id="closeOne" parameterType="loginSessionVO">
-        UPDATE login_session
-        SET end_dt = NOW(), end_reason = #{endReason}
-        WHERE login_session_id = #{rowId}::integer AND end_dt IS NULL
-    </update>
-
     <!-- 마지막 활동 시각 갱신. 열린 세션이 없으면 0건(예: 강제종료 직후 남은 요청) -->
     <update id="touch" parameterType="loginSessionVO">
         UPDATE login_session SET last_seen_dt = NOW()

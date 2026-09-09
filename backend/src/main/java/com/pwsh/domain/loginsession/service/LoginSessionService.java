@@ -3,7 +3,8 @@ package com.pwsh.domain.loginsession.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
-import com.pwsh.domain.member.service.MemberVO;
+import com.pwsh.common.event.SessionEndReason;
+import com.pwsh.domain.member.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
@@ -26,15 +27,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @RequiredArgsConstructor
 public class LoginSessionService {
 
-    /** 종료 사유 — login_session.end_reason 주석과 같은 값을 쓴다. */
-    public static final String END_LOGOUT = "LOGOUT";
-    public static final String END_FORCE = "FORCE";
-    public static final String END_RELOGIN = "RELOGIN";
-    public static final String END_PWCHANGE = "PWCHANGE";
-    /** 이 서비스에만 있는 사유 — 셀프 탈퇴·관리자 정지(CMS 틀에는 두 기능이 없다). */
-    public static final String END_WITHDRAW = "WITHDRAW";
-    public static final String END_SUSPEND = "SUSPEND";
-
     /**
      * 마지막 활동 시각을 DB에 반영하는 최소 간격(ms).
      * 요청마다 UPDATE를 날리면 조회 API 한 번에 쓰기 한 번이 붙는다 —
@@ -43,6 +35,7 @@ public class LoginSessionService {
     private static final long TOUCH_INTERVAL_MS = 60_000L;
 
     private final CommonDAO commonDAO;
+    private final MemberService memberService;
 
     /** memberId → 마지막으로 DB에 반영한 시각. 단일 JVM 기준(스케일아웃하면 각 인스턴스가 각자 갱신). */
     private final Map<String, Long> lastTouched = new ConcurrentHashMap<>();
@@ -67,7 +60,7 @@ public class LoginSessionService {
      * 단일세션(last-wins)이라 앞선 세션은 어차피 token_ver 증가로 무효화되므로 여기서도 닫아준다.
      */
     public void open(String memberId) {
-        close(memberId, END_RELOGIN);
+        close(memberId, SessionEndReason.RELOGIN);
         LoginSessionVO vo = new LoginSessionVO();
         vo.setMemberId(memberId);
         String ua = currentUserAgent();
@@ -125,12 +118,9 @@ public class LoginSessionService {
         if (target == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "세션을 찾을 수 없습니다.");
         }
-        vo.setEndReason(END_FORCE);
-        commonDAO.update("loginSessionDAO.closeOne", vo);
-        MemberVO m = new MemberVO();
-        m.setMemberId(target.getMemberId());
-        commonDAO.selectOne("memberDAO.incrementTokenVer", m);
-        lastTouched.remove(target.getMemberId());
+        // 세션 닫기는 직접 하지 않는다 — 토큰 무효화 창구가 이벤트를 발행하고,
+        // 그 이벤트를 받는 리스너가 close()를 호출한다(경로를 하나로 유지).
+        memberService.invalidateToken(target.getMemberId(), SessionEndReason.FORCE);
     }
 
     private String currentUserAgent() {

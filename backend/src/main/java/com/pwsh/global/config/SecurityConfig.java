@@ -18,8 +18,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -142,10 +140,8 @@ public class SecurityConfig {
         return source;
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
+    // PasswordEncoder는 PasswordEncoderConfig로 분리했다 —
+    // 이 클래스는 도메인 서비스를 주입받으므로, 비밀번호를 쓰는 서비스가 여기서 빈을 받으면 순환이 된다.
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
