@@ -12,6 +12,7 @@ import { followApi } from '../../api/follow'
 import { me } from '../../api/auth'
 import { tokenStore } from '../../auth/token'
 import { gen } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /** 회원 공개 프로필 — 닉네임·프로필사진 + 담은 취미 + 주최 모집 + 작성글. 닉네임 클릭 진입(/gen/member/:memberId). */
 export default function MemberProfilePage() {
@@ -84,8 +85,8 @@ export default function MemberProfilePage() {
     }
   }
 
-  if (status === 'loading') return <div style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" /></div>
-  if (status === 'error' || !data) return <Result status="warning" title="회원을 찾을 수 없습니다." />
+  if (status === 'loading') return <PageBody narrow><div style={{ textAlign: 'center', padding: '60px 0' }}><Spin size="large" /></div></PageBody>
+  if (status === 'error' || !data) return <PageBody narrow><Result status="warning" title="회원을 찾을 수 없습니다." /></PageBody>
 
   const hobbies = data.hobbies ?? []
   const recruits = data.recruits ?? []
@@ -99,13 +100,32 @@ export default function MemberProfilePage() {
   })
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* 헤더 */}
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-          <MemberAvatar fileId={data.profileFileId} name={data.nickname} size={72} showName={false} />
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: gen.heroText }}>{data.nickname || '회원'}</div>
+    <>
+      {/* 헤드 밴드(공통 셸) — 프로필 사진은 media, 팔로우·쪽지·차단은 right */}
+      <PageHead
+        eyebrow="프로필"
+        title={data.nickname || '회원'}
+        media={<MemberAvatar fileId={data.profileFileId} name={data.nickname} size={84} showName={false} />}
+        right={myId && myId !== data.handle ? (
+          <Space wrap>
+            {/* 팔로우하면 이 회원이 새 모집을 열 때 알림이 오고, 내 피드에 이 회원의 글·모집이 함께 뜬다 */}
+            <Button type={following ? 'default' : 'primary'} ghost={following} onClick={toggleFollow}>
+              {following ? '✓ 팔로잉' : '+ 팔로우'}
+            </Button>
+            <Button onClick={() => navigate(`/gen/message?with=${data.handle}`)}>쪽지 보내기</Button>
+            {blocked ? (
+              <Popconfirm title="차단 해제" description="이 회원의 쪽지를 다시 받습니다." onConfirm={toggleBlock} okText="해제" cancelText="취소">
+                <Button>차단 해제</Button>
+              </Popconfirm>
+            ) : (
+              <Popconfirm title="회원 차단" description="이 회원은 나에게 쪽지를 보낼 수 없게 됩니다." onConfirm={toggleBlock} okText="차단" okButtonProps={{ danger: true }} cancelText="취소">
+                <Button danger>차단</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        ) : undefined}
+      >
+          <div>
             {Number(stats?.reviewCnt) > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                 <Rate disabled allowHalf value={Number(stats?.avgRating) || 0} style={{ fontSize: 14 }} />
@@ -138,27 +158,10 @@ export default function MemberProfilePage() {
               </Space>
             )}
           </div>
-          {myId && myId !== data.handle && (
-            <Space>
-              {/* 팔로우하면 이 회원이 새 모집을 열 때 알림이 오고, 내 피드에 이 회원의 글·모집이 함께 뜬다 */}
-              <Button type={following ? 'default' : 'primary'} ghost={following} onClick={toggleFollow}>
-                {following ? '✓ 팔로잉' : '+ 팔로우'}
-              </Button>
-              <Button onClick={() => navigate(`/gen/message?with=${data.handle}`)}>쪽지 보내기</Button>
-              {blocked ? (
-                <Popconfirm title="차단 해제" description="이 회원의 쪽지를 다시 받습니다." onConfirm={toggleBlock} okText="해제" cancelText="취소">
-                  <Button>차단 해제</Button>
-                </Popconfirm>
-              ) : (
-                <Popconfirm title="회원 차단" description="이 회원은 나에게 쪽지를 보낼 수 없게 됩니다." onConfirm={toggleBlock} okText="차단" okButtonProps={{ danger: true }} cancelText="취소">
-                  <Button danger>차단</Button>
-                </Popconfirm>
-              )}
-            </Space>
-          )}
-        </div>
-      </Card>
+      </PageHead>
 
+      <PageBody narrow>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* 받은 후기(모임 함께한 회원들의 평가) */}
       <Card title={`받은 후기 (${reviews.length})`} size="small">
         {reviews.length === 0
@@ -246,6 +249,8 @@ export default function MemberProfilePage() {
             />
           )}
       </Card>
-    </div>
+      </div>
+      </PageBody>
+    </>
   )
 }

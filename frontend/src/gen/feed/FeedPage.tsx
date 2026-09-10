@@ -5,7 +5,7 @@ import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import { tokenStore } from '../../auth/token'
 import { feedApi } from './feed.api'
 import type { FeedItem } from './feed.api'
-import { gen } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 const PAGE_SIZE = 20
 
@@ -52,11 +52,15 @@ export default function FeedPage() {
 
   if (!loggedIn) {
     return (
-      <Card style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: gen.heroText, marginBottom: 8 }}>내 취미 피드</div>
-        <div style={{ color: '#777', marginBottom: 16 }}>담은 취미의 새 글과 모집을 모아서 보여드려요. 로그인이 필요합니다.</div>
-        <Button type="primary" onClick={() => navigate('/login')}>로그인</Button>
-      </Card>
+      <>
+        <PageHead eyebrow="피드" title="내 취미 피드" lead="담은 취미의 새 글과 모집을 모아서 보여드려요." />
+        <PageBody narrow>
+          <Card style={{ textAlign: 'center' }}>
+            <div style={{ color: 'var(--gen-ink-soft)', marginBottom: 16 }}>로그인이 필요합니다.</div>
+            <Button type="primary" onClick={() => navigate('/login')}>로그인</Button>
+          </Card>
+        </PageBody>
+      </>
     )
   }
 
@@ -66,12 +70,14 @@ export default function FeedPage() {
   }
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Card
-        title={<span style={{ color: gen.heroText }}>내 취미 피드</span>}
-        extra={
+    <>
+      <PageHead
+        eyebrow="피드"
+        title="내 취미 피드"
+        lead="담은 취미와 팔로우한 회원의 새 글·모집이 시간순으로 모입니다."
+        right={
           <Segmented
-            size="small" value={filter}
+            value={filter}
             onChange={(v) => { setFilter(v as '' | 'POST' | 'RECRUIT'); setPage(1) }}
             options={[
               { value: '', label: '전체' },
@@ -80,7 +86,9 @@ export default function FeedPage() {
             ]}
           />
         }
-      >
+      />
+      <PageBody narrow>
+      <Card>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '48px 0' }}><Spin size="large" /></div>
         ) : items.length === 0 ? (
@@ -151,6 +159,7 @@ export default function FeedPage() {
           </>
         )}
       </Card>
-    </div>
+      </PageBody>
+    </>
   )
 }

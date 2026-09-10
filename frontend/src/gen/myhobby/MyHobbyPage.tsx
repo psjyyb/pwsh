@@ -5,7 +5,8 @@ import { tokenStore } from '../../auth/token'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import { hobbyApi, memberHobbyApi } from '../../adm/hobby/hobby.api'
 import type { Hobby, MemberHobby } from '../../adm/hobby/hobby.api'
-import { gen, hobbyColor } from '../theme'
+import { hobbyColor } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /**
  * 나의 취미(/gen/myhobby) — 내가 담은 취미만 모아 보고, 각 취미의 게시판·모집으로 바로 이동.
@@ -28,10 +29,15 @@ export default function MyHobbyPage() {
 
   if (!loggedIn) {
     return (
-      <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center', borderRadius: 20 }}>
-        <p>로그인 후 이용할 수 있습니다.</p>
-        <Button type="primary" onClick={() => navigate('/login')}>로그인</Button>
-      </Card>
+      <>
+        <PageHead eyebrow="나의 취미" title="담은 취미" lead="담아둔 취미의 게시판과 모집을 한곳에서 확인하세요." />
+        <PageBody>
+          <Card style={{ textAlign: 'center' }}>
+            <p>로그인 후 이용할 수 있습니다.</p>
+            <Button type="primary" onClick={() => navigate('/login')}>로그인</Button>
+          </Card>
+        </PageBody>
+      </>
     )
   }
 
@@ -55,14 +61,17 @@ export default function MyHobbyPage() {
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* 헤더 */}
-      <div style={{ background: gen.heroTint, borderRadius: 24, padding: '24px 26px' }}>
-        <div style={{ fontSize: 13, color: gen.primary, fontWeight: 700 }}>♥ MY HOBBIES</div>
-        <div style={{ fontSize: 24, fontWeight: 800, color: gen.heroText, marginTop: 4 }}>나의 취미</div>
-        <div style={{ fontSize: 14, color: '#7A72A8', marginTop: 6 }}>담아둔 취미의 게시판과 모집을 한곳에서 확인하세요.</div>
-      </div>
-
+    <>
+      {/* 헤드 밴드는 모든 사용자 화면 공통(PageShell) — 화면마다 직접 만들지 않는다 */}
+      <PageHead
+        eyebrow="나의 취미"
+        title="담은 취미"
+        lead="담아둔 취미의 게시판과 모집을 한곳에서 확인하세요."
+        right={myHobbies.length > 0
+          ? <span className="gen-nums" style={{ fontSize: 13, fontWeight: 600, color: 'var(--gen-ink-soft)' }}>담은 취미 {myHobbies.length}</span>
+          : undefined}
+      />
+      <PageBody>
       {myHobbies.length === 0 ? (
         <Card style={{ borderRadius: 20 }}>
           <Empty description="아직 담은 취미가 없습니다. 마음에 드는 취미를 담아보세요." image={Empty.PRESENTED_IMAGE_SIMPLE}>
@@ -105,6 +114,7 @@ export default function MyHobbyPage() {
           })}
         </Row>
       )}
-    </div>
+      </PageBody>
+    </>
   )
 }

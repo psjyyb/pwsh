@@ -13,6 +13,7 @@ import type { Post } from '../../adm/post/post.api'
 import { recruitApi } from '../recruit/recruit.api'
 import type { Recruit } from '../recruit/recruit.api'
 import { gen } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 const TEAL = gen.primary
 
@@ -84,55 +85,58 @@ export default function GenHobby() {
     }
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div>
-  if (!hobby) return <Empty description="취미를 찾을 수 없습니다." />
+  if (loading) return <PageBody><div style={{ textAlign: 'center', padding: 60 }}><Spin /></div></PageBody>
+  if (!hobby) return <PageBody><Empty description="취미를 찾을 수 없습니다." /></PageBody>
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* 헤더(라이트) */}
-      <div style={{ background: gen.heroTint, borderRadius: 24, padding: '28px 24px', display: 'flex', gap: 20, alignItems: 'center' }}>
-        {hobby.thumbId
-          ? <img src={`/api/pub/image/${hobby.thumbId}`} alt={hobby.hobbyName}
-              style={{ width: 92, height: 92, objectFit: 'cover', borderRadius: 18, flexShrink: 0 }} />
-          : <div style={{ width: 92, height: 92, borderRadius: 18, flexShrink: 0, background: '#fff', color: gen.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, fontWeight: 800 }}>{(hobby.hobbyName ?? '').slice(0, 1)}</div>}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 26, fontWeight: 800, color: gen.heroText }}>{hobby.hobbyName}</span>
+    <>
+      {/* 헤드 밴드(공통 셸) — 썸네일은 media, 게시판·모집 이동은 right */}
+      <PageHead
+        eyebrow="도감"
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {hobby.hobbyName}
             {hobby.difficultyName && <Tag color="purple">{hobby.difficultyName}</Tag>}
-          </div>
-          {hobby.summary && <div style={{ fontSize: 15, color: '#7A72A8', marginTop: 6 }}>{hobby.summary}</div>}
-          {loggedIn && (
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <Button type={registered ? 'default' : 'primary'} onClick={toggleRegister}
-                style={{ borderRadius: 14, fontWeight: 700 }}>
-                {registered ? '♥ 담은 취미' : '+ 내 취미 담기'}
-              </Button>
-              <span style={{ color: '#7A72A8', fontSize: 13 }}>내 레벨</span>
-              <CodeSelect pCodeId="HOBBYLV00" placeholder="선택" allowClear size="small"
-                style={{ width: 140 }} value={myLevel} onChange={(v?: string) => saveLevel(v)} />
-            </div>
-          )}
-          <Space style={{ marginTop: 14 }}>
+          </span>
+        }
+        lead={hobby.summary}
+        media={hobby.thumbId
+          ? <img src={`/api/pub/image/${hobby.thumbId}`} alt={hobby.hobbyName} />
+          : (hobby.hobbyName ?? '').slice(0, 1)}
+        right={
+          <Space wrap>
             {hobby.boardId && (
-              <Button type="primary" onClick={() => navigate(`/gen/board/${hobby.boardId}`)}
-                style={{ borderRadius: 14, fontWeight: 700 }}>게시판 가기</Button>
+              <Button type="primary" onClick={() => navigate(`/gen/board/${hobby.boardId}`)}>게시판 가기</Button>
             )}
-            <Button onClick={() => navigate(`/gen/recruit?hobby=${id}`)} style={{ borderRadius: 14 }}>모집 보기</Button>
+            <Button onClick={() => navigate(`/gen/recruit?hobby=${id}`)}>모집 보기</Button>
           </Space>
-        </div>
-      </div>
+        }
+      >
+        {loggedIn && (
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Button type={registered ? 'default' : 'primary'} ghost={registered} onClick={toggleRegister}>
+              {registered ? '♥ 담은 취미' : '+ 내 취미 담기'}
+            </Button>
+            <span style={{ color: 'var(--gen-ink-soft)', fontSize: 13 }}>내 레벨</span>
+            <CodeSelect pCodeId="HOBBYLV00" placeholder="선택" allowClear size="small"
+              style={{ width: 140 }} value={myLevel} onChange={(v?: string) => saveLevel(v)} />
+          </div>
+        )}
+      </PageHead>
 
+      <PageBody>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* 소개 */}
       {hobby.intro && (
         <section>
-          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>소개</h3>
+          <h3 className="gen-h2" style={{ marginBottom: 10 }}>소개</h3>
           <Card><SafeHtml html={hobby.intro} /></Card>
         </section>
       )}
 
       {/* 입문 가이드 + 장비/비용 */}
       <section>
-        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>입문 가이드</h3>
+        <h3 className="gen-h2" style={{ marginBottom: 10 }}>입문 가이드</h3>
         <Card>
           {hobby.guide ? <SafeHtml html={hobby.guide} /> : <span style={{ color: '#999' }}>준비 중입니다.</span>}
           {(hobby.equipment || hobby.estimatedCost) && (
@@ -147,7 +151,7 @@ export default function GenHobby() {
       {/* 지금 모집 중 */}
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>이 취미 모집</h3>
+          <h3 className="gen-h2">이 취미 모집</h3>
           <a style={{ color: TEAL }} onClick={() => navigate(`/gen/recruit?hobby=${id}`)}>전체 보기</a>
         </div>
         {recruits.length === 0 ? (
@@ -156,7 +160,7 @@ export default function GenHobby() {
           <Card styles={{ body: { padding: 0 } }}>
             {recruits.map((r, i) => (
               <div key={r.rowId} onClick={() => navigate(`/gen/recruit/${r.rowId}`)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1px solid #f0f0f0' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : `1px solid ${gen.line}` }}>
                 <span style={{ flex: 1 }}>{r.title}</span>
                 <span style={{ fontSize: 13, color: '#888' }}>{r.region || '-'} · {r.meetDt || '-'}</span>
                 {r.statusCd === 'RECRUIT01' ? <Tag color="green">모집중</Tag> : <Tag>마감</Tag>}
@@ -169,7 +173,7 @@ export default function GenHobby() {
       {/* 최근 글 */}
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>최근 글</h3>
+          <h3 className="gen-h2">최근 글</h3>
           {hobby.boardId && <a style={{ color: TEAL }} onClick={() => navigate(`/gen/board/${hobby.boardId}`)}>게시판 가기</a>}
         </div>
         {posts.length === 0 ? (
@@ -178,7 +182,7 @@ export default function GenHobby() {
           <Card styles={{ body: { padding: 0 } }}>
             {posts.map((p, i) => (
               <div key={p.rowId} onClick={() => navigate(`/gen/board/${hobby.boardId}?post=${p.rowId}`)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1px solid #f0f0f0' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', borderTop: i === 0 ? 'none' : `1px solid ${gen.line}` }}>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                 {Number(p.commentCnt) > 0 && <span style={{ color: TEAL }}>[{p.commentCnt}]</span>}
                 <span style={{ fontSize: 12, color: '#aaa' }}>{p.regName || '-'} · {p.regDt}</span>
@@ -187,6 +191,8 @@ export default function GenHobby() {
           </Card>
         )}
       </section>
-    </div>
+      </div>
+      </PageBody>
+    </>
   )
 }

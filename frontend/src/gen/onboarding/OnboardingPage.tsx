@@ -5,6 +5,7 @@ import { tokenStore } from '../../auth/token'
 import { hobbyApi, memberHobbyApi } from '../../adm/hobby/hobby.api'
 import type { Hobby } from '../../adm/hobby/hobby.api'
 import { gen, hobbyColor } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /** 권장 선택 수 — 이 정도는 담아야 피드가 비지 않는다(강제는 아님). */
 const RECOMMEND = 3
@@ -56,18 +57,24 @@ export default function OnboardingPage() {
     }
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" /></div>
+  if (loading) return <PageBody narrow><div style={{ textAlign: 'center', padding: '60px 0' }}><Spin size="large" /></div></PageBody>
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 26, fontWeight: 800, color: gen.heroText }}>어떤 취미에 관심 있으세요?</div>
-        <div style={{ color: gen.inkSoft, marginTop: 8 }}>
-          고른 취미의 새 글과 모집이 <b>내 피드</b>에 모이고, 새 모집이 열리면 알려드려요.
-          {' '}{RECOMMEND}개 이상이면 딱 좋아요. (나중에 바꿀 수 있어요)
-        </div>
-      </div>
-
+    <>
+      <PageHead
+        eyebrow="시작하기"
+        title="어떤 취미에 관심 있으세요?"
+        lead={
+          <>
+            고른 취미의 새 글과 모집이 <b>내 피드</b>에 모이고, 새 모집이 열리면 알려드려요.
+            {' '}{RECOMMEND}개 이상이면 딱 좋아요. (나중에 바꿀 수 있어요)
+          </>
+        }
+        right={picked.size > 0
+          ? <span className="gen-nums" style={{ fontSize: 13, fontWeight: 600, color: 'var(--gen-ink-soft)' }}>선택 {picked.size}개</span>
+          : undefined}
+      />
+      <PageBody narrow>
       {hobbies.length === 0 ? (
         <Empty description="등록된 취미가 없습니다." />
       ) : (
@@ -109,6 +116,7 @@ export default function OnboardingPage() {
           {picked.size > 0 ? `${picked.size}개 담고 시작하기` : '시작하기'}
         </Button>
       </div>
-    </div>
+      </PageBody>
+    </>
   )
 }

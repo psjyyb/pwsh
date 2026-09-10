@@ -11,6 +11,7 @@ import type { Board } from '../../adm/board/board.api'
 import { POST_LIST_URL, postApi } from '../../adm/post/post.api'
 import type { Post } from '../../adm/post/post.api'
 import SafeHtml from '../../common/SafeHtml'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /** FAQ 스킨 — 질문(제목) 클릭 시 답변(내용) 아코디언으로 펼침. 작성/수정/삭제는 관리자만. */
 export default function FaqBoard({ board }: { board: Board }) {
@@ -108,15 +109,19 @@ export default function FaqBoard({ board }: { board: Board }) {
 
   if (mode === 'write') {
     return (
-      <Card
-        title={editKey ? 'FAQ 수정' : 'FAQ 등록'}
-        extra={
-          <Space>
-            <Button onClick={() => setMode('list')}>목록</Button>
-            <Button type="primary" onClick={save}>저장</Button>
-          </Space>
-        }
-      >
+      <>
+        <PageHead
+          eyebrow="도움말"
+          title={editKey ? 'FAQ 수정' : 'FAQ 등록'}
+          right={
+            <Space>
+              <Button onClick={() => setMode('list')}>목록</Button>
+              <Button type="primary" onClick={save}>저장</Button>
+            </Space>
+          }
+        />
+        <PageBody narrow>
+        <Card>
         <Form form={form} layout="vertical">
           <Form.Item name="title" label="질문" rules={[{ required: true, message: '질문을 입력하세요.' }]}>
             <Input />
@@ -125,7 +130,9 @@ export default function FaqBoard({ board }: { board: Board }) {
             <RichTextEditor key={`${editKey ?? 'new'}-editor`} ref={editorRef} initialHtml={content} uploadImage={fileApi.uploadImage} />
           </Form.Item>
         </Form>
-      </Card>
+        </Card>
+        </PageBody>
+      </>
     )
   }
 
@@ -153,10 +160,20 @@ export default function FaqBoard({ board }: { board: Board }) {
   }))
 
   return (
-    <Card title={board.boardName ?? 'FAQ'} extra={admin ? <Button type="primary" onClick={openWrite}>등록</Button> : null}>
-      <Spin spinning={loading}>
-        {rows.length === 0 ? <Empty description="등록된 FAQ가 없습니다." /> : <Collapse accordion items={items} onChange={onChange} />}
-      </Spin>
-    </Card>
+    <>
+      <PageHead
+        eyebrow="도움말"
+        title={board.boardName ?? 'FAQ'}
+        lead={board.description || '자주 묻는 질문을 모았습니다.'}
+        right={admin ? <Button type="primary" onClick={openWrite}>등록</Button> : undefined}
+      />
+      <PageBody narrow>
+        <Card>
+          <Spin spinning={loading}>
+            {rows.length === 0 ? <Empty description="등록된 FAQ가 없습니다." /> : <Collapse accordion items={items} onChange={onChange} />}
+          </Spin>
+        </Card>
+      </PageBody>
+    </>
   )
 }

@@ -6,6 +6,7 @@ import { genTheme, gen } from './theme'
 import { tokenStore, isAdmin } from '../auth/token'
 import { logout as authLogout } from '../api/auth'
 import { configApi } from '../adm/config/config.api'
+import { pubConfigItemApi } from '../adm/configitem/configitem.api'
 import { menuApi } from '../adm/menu/menu.api'
 import type { Menu as MenuVO } from '../adm/menu/menu.api'
 import { useIdleLogout } from '../common/hooks/useIdleLogout'
@@ -18,14 +19,20 @@ import defaultLogo from '../assets/logo.svg'
 import hobbyPattern from '../assets/hobby-pattern.svg'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
 import PolicyViewModal from '../common/gen/components/PolicyViewModal'
+import { CrumbProvider, PageBody } from '../common/gen/components/PageShell'
 import { policyApi } from '../adm/policy/policy.api'
 import type { Policy } from '../adm/policy/policy.api'
 import { useEventStream } from '../common/gen/useEventStream'
 import { notificationApi } from '../api/notification'
 import { messageApi } from '../api/message'
 import type { Noti } from '../api/notification'
+import './gen.css'
 
 type MenuItem = Required<MenuProps>['items'][number]
+
+/** 헤더 높이(px). gen.css의 --gen-header-h와 반드시 같아야 한다 — 모든 화면에서 이 값만큼 콘텐츠를
+ *  끌어올려 히어로가 헤더 뒤로 들어간다(둘이 어긋나면 히어로 위에 흰 띠가 생긴다). */
+const HEADER_H = 72
 
 /** 데스크톱 헤더용 커스텀 nav 노드(아이콘↑/라벨↓). */
 type NavNode = { key: string; label: string; iconKey: string; dest?: string; children?: NavNode[] }
@@ -102,6 +109,29 @@ function labelMap(list: MenuVO[]): Map<string, string> {
 }
 
 /**
+ * 경로 → 상위 메뉴명 체인(자기 이름 포함). 헤드 밴드의 위치 내비가 쓴다.
+ * 예: 고객센터 > FAQ. 부모가 그룹(MENU04)이라 목적지가 없어도 이름은 남긴다.
+ */
+function crumbMap(list: MenuVO[]): Map<string, string[]> {
+  const byId = new Map<string, MenuVO>()
+  list.forEach((m) => byId.set(m.rowId!, m))
+  const map = new Map<string, string[]>()
+  list.forEach((m) => {
+    const t = targetOf(m)
+    if (!t) return
+    const chain: string[] = []
+    let cur: MenuVO | undefined = m
+    // 부모를 따라 올라가며 이름을 쌓는다(순환 데이터에도 멈추도록 깊이 제한)
+    for (let i = 0; cur && i < 5; i++) {
+      chain.unshift(cur.menuName ?? '')
+      cur = cur.pMenuId ? byId.get(cur.pMenuId) : undefined
+    }
+    map.set(t, chain.filter(Boolean))
+  })
+  return map
+}
+
+/**
  * 사용자(gen) 공통 레이아웃 — 동적 메뉴(menu area=GEN) + conn_cd 기반 라우팅.
  * 페이지관리에서 만든 콘텐츠를 메뉴(연결유형=페이지)로 연결하면 코드 수정 없이 노출됨(GenPageView).
  * 데스크톱=수평 메뉴, 모바일(md 미만)=햄버거+Drawer. 사이트명/문서제목은 환경설정(config.title) 연동.
@@ -114,6 +144,7 @@ export default function GenLayout() {
   const [items, setItems] = useState<MenuItem[]>([])
   const [nav, setNav] = useState<NavNode[]>([])
   const [labels, setLabels] = useState<Map<string, string>>(new Map())
+  const [crumbs, setCrumbs] = useState<Map<string, string[]>>(new Map())  // 헤드 위치 내비용
   const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
@@ -125,6 +156,10 @@ export default function GenLayout() {
   const [notiOpen, setNotiOpen] = useState(false)
   const [policies, setPolicies] = useState<Policy[]>([])            // 푸터 약관 링크
   const [viewPolicyId, setViewPolicyId] = useState<string | undefined>()
+  // 확장설정 site.footer-text. 조회 전·실패 시엔 기존 문구를 그대로 쓴다(푸터가 비지 않게)
+  const [footerTemplate, setFooterTemplate] = useState('© {year} {title}. All rights reserved.')
+  const [solid, setSolid] = useState(false)   // 스크롤로 헤더가 유리면으로 굳었는지
+  const [showTop, setShowTop] = useState(false)
   const loggedIn = !!tokenStore.get() // 비로그인(게스트)도 /gen 접근 가능 — 메뉴는 GUEST 권한그룹 기준
   const { warningOpen, remainingSec, extend, logoutNow } = useIdleLogout(loggedIn ? idleMinutes : 0)
 
@@ -135,11 +170,20 @@ export default function GenLayout() {
         setItems(buildItems(list))
         setNav(toNav(list))
         setLabels(labelMap(list))
+        setCrumbs(crumbMap(list))
       })
       .catch(() => {
         /* 메뉴 미시드 시 빈 메뉴 */
       })
     policyApi.publicList().then(setPolicies).catch(() => setPolicies([]))
+    // 공개 확장설정의 푸터 문구. 조회 실패·미설정이면 기본 문구로 둔다
+    pubConfigItemApi
+      .list()
+      .then((rows) => {
+        const found = rows.find((r) => r.configKey === 'site.footer-text')
+        if (found) setFooterTemplate(found.value ?? '')
+      })
+      .catch(() => {})
     configApi
       .view()
       .then((c) => {
@@ -178,6 +222,26 @@ export default function GenLayout() {
     const id = window.setInterval(tick, 30000)
     return () => window.clearInterval(id)
   }, [loggedIn, streamed, refreshBadges])
+
+  /*
+    스크롤 위치 → 헤더 굳힘 / TOP 버튼 노출.
+    메인 최상단에서만 헤더가 투명(.is-hero)이고, 조금이라도 내리면 원래 유리면으로 돌아온다 —
+    히어로를 벗어나면 글자색 기준이 바뀌어 투명 헤더가 읽히지 않기 때문이다.
+  */
+  useEffect(() => {
+    const onScroll = () => {
+      setSolid(window.scrollY > 40)
+      setShowTop(window.scrollY > 500)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // 경로가 바뀌면 맨 위로(메뉴 이동 후 스크롤이 중간에 남는 것 방지)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [location.pathname])
 
   const openNoti = async (open: boolean) => {
     setNotiOpen(open)
@@ -245,21 +309,40 @@ export default function GenLayout() {
     : nav
   const displayItems: MenuItem[] = loggedIn ? [...items, { key: '/gen/myhobby', label: '나의 취미' }] : items
 
+  /*
+    ★ 모든 화면의 최상단이 어두운 비주얼(메인=히어로, 하위=헤드 밴드)이므로 헤더는 그 위에
+    투명하게 떠 있고, 스크롤하면 클래스가 떨어져 index.css의 유리면 헤더로 돌아온다.
+    하위 페이지만 흰 헤더로 두면 메인과 톤이 갈려 사이트가 두 개처럼 보인다.
+  */
+  const headerClass = solid ? 'gen-header' : 'gen-header is-hero'
+  const footerText = footerTemplate
+    .replaceAll('{year}', String(new Date().getFullYear()))
+    .replaceAll('{title}', siteTitle)
+
   return (
     <ConfigProvider theme={genTheme}>
       <Layout style={{ minHeight: '100vh', backgroundColor: gen.pageBg, backgroundImage: `url(${hobbyPattern})`, backgroundAttachment: 'fixed' }}>
         {/* 배경은 .gen-header(반투명+blur)가 담당 — 인라인 background를 주면 불투명해져 유리면이 사라진다 */}
-        <Layout.Header className="gen-header" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', height: 72, paddingInline: 22, columnGap: 18, position: 'sticky', top: 0, zIndex: 20 }}>
+        {/*
+          ★ 그리드 열을 `auto minmax(0,1fr) auto`로 둔다. 예전엔 `1fr auto 1fr`로 중앙 열을
+          콘텐츠 폭에 맞춰 "뷰포트 정중앙"에 두려 했는데, 로그인 시 항목이 늘면(내 피드·모집·공지·
+          고객센터·나의 취미 + 검색 + 버튼 4개) 1280px에서도 중앙 내비가 우측 컨트롤과
+          **159px 겹쳤다**(실측). 이제 좌·우가 자기 폭을 갖고 내비는 남은 공간 안에서 가운데 정렬된다.
+        */}
+        <Layout.Header className={headerClass} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', height: HEADER_H, paddingInline: 22, columnGap: 14, position: 'sticky', top: 0, zIndex: 20 }}>
           {/* 좌: 로고(모바일은 햄버거 포함) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'start', minWidth: 0 }}>
             {isMobile && (
               <Button aria-label="메뉴 열기" onClick={() => setDrawerOpen(true)}>☰</Button>
             )}
+            {/* 투명 헤더(히어로 위)에서는 로고 이미지 대신 사이트명 텍스트를 흰색으로 — CSS가 전환한다.
+                업로드 로고는 흰 배경 기준이라 어두운 히어로 위에서 안 보인다. */}
             <img src={logoSrc} alt={siteTitle} style={{ height: 38, cursor: 'pointer' }} onClick={() => navigate('/gen')} />
+            <span className="gen-logo-text" onClick={() => navigate('/gen')}>{siteTitle}</span>
           </div>
 
-          {/* 중: 메뉴 — 그리드 가운데 열(auto)이라 좌우 요소 폭과 무관하게 항상 뷰포트 정중앙. 데스크톱만 렌더 */}
-          <nav className="gen-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          {/* 중: 메뉴 — 남은 공간 안에서 가운데 정렬(넘치면 줄바꿈 없이 좁아진다). 데스크톱만 렌더 */}
+          <nav className="gen-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 0 }}>
             {!isMobile && displayNav.map((n) => {
               const active = n.dest
                 ? location.pathname === n.dest
@@ -306,8 +389,8 @@ export default function GenLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'end', minWidth: 0 }}>
             {!isMobile && (
               <Input.Search
-                placeholder="취미·모집·글 검색" allowClear
-                style={{ width: 190 }}
+                placeholder="검색" allowClear
+                style={{ width: 150 }}
                 onSearch={(v) => { const q = v.trim(); if (q) navigate(`/gen/search?q=${encodeURIComponent(q)}`) }}
               />
             )}
@@ -344,19 +427,29 @@ export default function GenLayout() {
           <Menu mode="inline" selectedKeys={[location.pathname]} items={displayItems} onClick={onMenuClick} />
         </Drawer>
 
-        <Layout.Content style={{ margin: 16 }}>
+        {/*
+          ★ 모든 화면을 헤더 높이만큼 끌어올린다 — 헤더가 최상단 비주얼(히어로·헤드 밴드) 위에
+          떠 있어야 하는데, sticky 헤더는 레이아웃 공간을 차지하므로 안 끌어올리면 비주얼 위에
+          흰 띠가 남는다. 그만큼의 여백은 밴드가 padding-top으로, 헤드 없는 화면은
+          `.gen-page:first-child`가 책임진다(gen.css).
+        */}
+        <Layout.Content style={{ margin: 0, marginTop: -HEADER_H }}>
+          <CrumbProvider value={crumbs}>
           <Routes>
             <Route index element={<GenMain />} />
             <Route path="page/:pageId" element={<GenPageView />} />
             {genScreens.map((s) => (
               <Route key={s.path} path={s.path.replace(/^\/gen\/?/, '')} element={s.element} />
             ))}
-            <Route path="*" element={<NotFound />} />
+            {/* 없는 주소 안내도 셸 안에 둔다 — Content 여백이 0이라 그냥 두면 헤더에 붙는다 */}
+            <Route path="*" element={<PageBody narrow><NotFound /></PageBody>} />
           </Routes>
+          </CrumbProvider>
         </Layout.Content>
 
         <Layout.Footer style={{ background: gen.headerBg, borderTop: '1px solid rgba(108,78,227,.12)', padding: '30px 24px 24px' }}>
-          <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          {/* 푸터도 본문과 같은 폭 컨테이너를 쓴다 — 폭이 다르면 줄이 어긋나 보인다 */}
+          <div className="gen-wfix" style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <img src={logoSrc} alt={siteTitle} style={{ height: 28, cursor: 'pointer' }} onClick={() => navigate('/gen')} />
               <div style={{ fontSize: 13, color: '#8078A8', marginTop: 10 }}>취미로 만나는 사람들 — 함께할 사람을 찾아보세요 💜</div>
@@ -372,8 +465,9 @@ export default function GenLayout() {
                 ))}
             </nav>
           </div>
-          <div style={{ maxWidth: 1080, margin: '20px auto 0', paddingTop: 16, borderTop: '1px dashed rgba(108,78,227,.18)', display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', fontSize: 12.5, color: '#9A93B8' }}>
-            <span>© {new Date().getFullYear()} {siteTitle}. All rights reserved.</span>
+          <div className="gen-wfix" style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed rgba(108,78,227,.18)', display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', fontSize: 12.5, color: '#9A93B8' }}>
+            {/* 저작권 줄은 확장설정(site.footer-text)에서 온다. 비우면 줄을 감춘다 */}
+            {footerText.trim() && <span style={{ whiteSpace: 'pre-line' }}>{footerText}</span>}
             {/* 약관·개인정보처리방침은 상시 열람할 수 있어야 한다(가입 동의 항목과 같은 문서를 그대로 노출) */}
             <Space size={12} wrap>
               {policies.map((p) => (
@@ -386,6 +480,16 @@ export default function GenLayout() {
           </div>
         </Layout.Footer>
       </Layout>
+
+      <button
+        type="button"
+        className={`gen-top-btn${showTop ? ' is-show' : ''}`}
+        aria-label="맨 위로"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        ↑
+      </button>
+
       <Modal
         open={warningOpen}
         title="자동 로그아웃 안내"

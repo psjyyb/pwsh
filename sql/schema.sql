@@ -224,6 +224,48 @@ COMMENT ON COLUMN config.maint_message IS '점검 안내 메시지(사용자에�
 COMMENT ON COLUMN config.title IS '사이트 타이틀';
 COMMENT ON COLUMN config.menu_version IS '메뉴 캐시 버전';
 
+-- ============================ 확장 설정(키-값) ============================
+-- 위 config는 '항상 쓰는 정책값'이다(로그인 잠금·비번 만료 등). 매퍼가 스칼라 서브쿼리로
+-- 직접 읽고 INTEGER 타입 검증도 DB가 해주므로 그대로 둔다.
+--
+-- 이 테이블은 그 밖의 설정을 담는다. 목적은 **설정 항목을 늘릴 때 코드를 건드리지 않는 것**이다.
+-- 지금까지는 항목 하나 추가에 컬럼 + VO 필드 + 매퍼 select/update + 화면 Form.Item 이 전부 필요했다.
+-- 여기에 행 하나만 넣으면 관리자 화면이 name/input_type/group_cd/sort_no 를 보고 자동으로 그려준다.
+--
+-- ⚠ 값은 전부 문자열이다 — DB가 타입을 검증해주지 않으므로 input_type 으로 화면 입력을 제한하고
+--    읽는 쪽(ConfigItemService.getInt 등)이 변환에 실패하면 기본값으로 떨어진다.
+--    로그인 잠금처럼 틀린 값이 곧 장애가 되는 정책값을 여기 옮기지 않는 이유가 이것이다.
+CREATE TABLE config_item (
+    config_key  VARCHAR(50)  NOT NULL,
+    value       VARCHAR(500),
+    input_type  VARCHAR(10)  NOT NULL DEFAULT 'TEXT',
+    name        VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    group_cd    VARCHAR(20),
+    sort_no     INTEGER      DEFAULT 0,
+    public_yn   VARCHAR(1)   NOT NULL DEFAULT 'N',
+    use_yn      VARCHAR(1)   NOT NULL DEFAULT 'Y',
+    reg_id      VARCHAR(30)  NOT NULL,
+    upd_id      VARCHAR(30)  NOT NULL,
+    reg_dt      TIMESTAMP    NOT NULL,
+    upd_dt      TIMESTAMP    NOT NULL,
+    reg_ip      VARCHAR(45)  NOT NULL,
+    upd_ip      VARCHAR(45)  NOT NULL,
+    CONSTRAINT pk_config_item PRIMARY KEY (config_key)
+);
+COMMENT ON TABLE  config_item IS '확장 설정(키-값). 항목 추가 시 코드 수정 없이 행만 넣으면 화면이 자동 생성된다';
+COMMENT ON COLUMN config_item.config_key IS '설정 키(점 표기 권장 — 예: site.footer-text). PK';
+COMMENT ON COLUMN config_item.value IS '설정 값(문자열 저장. 읽는 쪽이 타입 변환)';
+COMMENT ON COLUMN config_item.input_type IS '화면 입력 유형 — TEXT/TEXTAREA/NUMBER/YN';
+COMMENT ON COLUMN config_item.name IS '화면에 표시할 항목명';
+COMMENT ON COLUMN config_item.description IS '화면 도움말(입력칸 아래 안내)';
+COMMENT ON COLUMN config_item.group_cd IS '화면 묶음(같은 값끼리 한 카드에 모인다). NULL이면 기타';
+COMMENT ON COLUMN config_item.sort_no IS '그룹 안 표시 순서';
+-- ★ 기본값이 'N'인 이유: 확장 설정을 통째로 공개하면 나중에 추가된 내부용 값까지 비로그인에게 새어나간다.
+--   사용자 화면(푸터 문구 등)에 필요한 항목만 'Y'로 열고, 공개 조회 API는 이 플래그로 걸러낸다.
+COMMENT ON COLUMN config_item.public_yn IS '비로그인 공개 여부(Y/N) — Y만 /api/pub/configitem 으로 내려간다';
+COMMENT ON COLUMN config_item.use_yn IS '사용여부(Y/N). N이면 화면에 안 보이고 조회도 기본값으로 떨어진다';
+
 -- ============================ 이벤트(행위) 로그 ============================
 -- 로그인/등록/수정/삭제 행위를 자동 기록(EventLogAspect + 로그인 핸들러). append-only.
 CREATE TABLE event_log (

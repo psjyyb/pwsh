@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, ConfigProvider, Form, Input, message } from 'antd'
+import { Alert, Button, Card, ConfigProvider, Form, Input, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../api/auth'
 import { configApi } from '../adm/config/config.api'
+import { pubConfigItemApi } from '../adm/configitem/configitem.api'
 import { tokenStore, isAdmin } from './token'
 import { genTheme } from '../gen/theme'
 import defaultLogo from '../assets/logo.svg'
@@ -11,12 +12,18 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
+  const [notice, setNotice] = useState('')
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
 
   useEffect(() => {
     configApi.view().then((c) => {
       if (c.title) setSiteTitle(c.title)
       setLogoFileId(c.logoFileId ?? undefined)
+    }).catch(() => {})
+    // 확장설정 site.login-notice — 점검 예고·공지 등을 로그인 화면에 띄운다(비어 있으면 미표시)
+    pubConfigItemApi.list().then((rows) => {
+      const found = rows.find((r) => r.configKey === 'site.login-notice')
+      if (found?.value?.trim()) setNotice(found.value)
     }).catch(() => {})
   }, [])
 
@@ -52,6 +59,11 @@ export default function LoginPage() {
           />
           <div style={{ color: '#888', fontSize: 13 }}>반가워요 💜 로그인</div>
         </div>
+
+        {/* 확장설정 site.login-notice — 비어 있으면 렌더하지 않는다 */}
+        {notice && (
+          <Alert type="info" showIcon style={{ marginBottom: 16, whiteSpace: 'pre-line' }} message={notice} />
+        )}
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
           <Form.Item name="memberId" label="아이디" rules={[{ required: true, message: '아이디를 입력하세요.' }]}>

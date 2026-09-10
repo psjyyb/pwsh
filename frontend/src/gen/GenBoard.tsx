@@ -5,6 +5,7 @@ import { boardApi } from '../adm/board/board.api'
 import type { Board } from '../adm/board/board.api'
 import StandardBoard from './boards/StandardBoard'
 import FaqBoard from './boards/FaqBoard'
+import { PageBody } from '../common/gen/components/PageShell'
 
 /**
  * 사용자 게시판 진입점(/gen/board/:boardId) — 게시판 유형(type_cd)에 따라 스킨 분기.
@@ -28,15 +29,17 @@ export default function GenBoard() {
   }, [boardId])
 
   if (status === 'loading') {
-    return <div style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" /></div>
+    return <PageBody><div style={{ textAlign: 'center', padding: '60px 0' }}><Spin size="large" /></div></PageBody>
   }
   if (status === 'error' || !board) {
     return (
-      <Result
-        status="warning"
-        title="게시판을 불러올 수 없습니다."
-        subTitle="접근 권한이 없거나 존재하지 않는 게시판입니다."
-      />
+      <PageBody>
+        <Result
+          status="warning"
+          title="게시판을 불러올 수 없습니다."
+          subTitle="접근 권한이 없거나 존재하지 않는 게시판입니다."
+        />
+      </PageBody>
     )
   }
 

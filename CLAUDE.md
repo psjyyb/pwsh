@@ -30,6 +30,14 @@
 3. `frontend/src/adm/{name}/`: `{Name}ListPage.tsx`(**폴더당 정확히 1개**, `~Page.tsx`로 끝, `export default`) · `{name}.api.ts`(`createCrudApi` + `{NAME}_LIST_URL` export).
 4. **메뉴 등록**만 하면 사이드바·탭·라우팅·렌더 자동(하드코딩 레지스트리 없음): 메뉴관리에서 연결유형=`URL`, 주소 `/adm/{name}`, 아이콘 선택. 권한은 권한그룹관리에서. (원리: `admScreens.tsx`의 `import.meta.glob('./*/*Page.tsx')`)
 
+## ★ 사용자(gen) 화면 디자인 규약
+- **새 gen 화면은 공통 셸을 쓴다** — `common/gen/components/PageShell.tsx`의 `PageHead`(전체폭 헤드 밴드: 분류 eyebrow → 제목 → 설명 → 우측 액션) + `PageBody`(본문 폭). 화면 제목을 `Card title`로 내지 않는다(헤드와 중복).
+- **`maxWidth`를 직접 쓰지 않는다.** 본문 폭은 `PageBody`의 `narrow`로만 고른다 — 기본(1080, 목록·카드 그리드) / `narrow`(900, 읽기 위주). 예전에 화면마다 720~1000이 섞여 폭이 튀었다.
+- 색·라운드·그림자·폰트는 `index.css`의 `--gen-*` 토큰만 쓴다(하드코딩 금지). 랜딩 전용 클래스는 `gen/gen.css`에 있고, **`index.css`가 이미 정의한 클래스(`.gen-header`·`.gen-card`·`.gen-h2`·`.gen-eyebrow`·`.gen-tile*`)를 재정의하지 않는다** — 재정의하면 다른 화면이 함께 깨진다. 헤더만 예외로 수정자(`.is-hero`)를 얹는다.
+- 메인 히어로/섹션 연출은 `gen/main/`(`HeroSection`·`StatsSection`·`NewsSection`)과 `Reveal`·`useCountUp`. **연출 장치는 브라우저 기능에 기대지 않는다** — IntersectionObserver·rAF가 콜백을 주지 않는 환경을 실측했고, 그때도 콘텐츠와 숫자는 보여야 한다(스크롤 위치 판정 + 타이머 안전망).
+- `gen.css`의 `--gen-header-h`와 `GenLayout`의 `HEADER_H`는 **같은 값**이어야 한다(어긋나면 메인 히어로 위에 흰 띠가 생긴다).
+- 사용자 화면 문구·구성 중 운영자가 바꿀 것은 **확장설정**(`config_item`, 관리자 > 시스템관리 > 확장설정)에 키를 추가한다 — 코드 수정 없이 값만 바꾼다. 비로그인 화면이 읽어야 하면 `public_yn='Y'`.
+
 ## 인증 / 인가
 - **JWT 무상태**. 사용자별 토큰 버전으로 **단일세션(last-wins)** + 로그아웃/비번변경/강제로그아웃 시 즉시 무효화(필터가 매 요청 대조).
 - **RBAC 3계층 ADMIN/MEMBER/GUEST**(비로그인=GUEST). ① 메뉴 노출=메뉴 조회 시 권한 필터 ② 관리 API=`PermissionInterceptor`(`/api/adm/**`를 메뉴 URL 권한으로. 사용자 콘텐츠 API는 예외 목록으로 통과시키고 서비스가 인가) ③ 콘텐츠 딥링크=`GenAccessGuard` ④ 소유자=`SecurityUtil.assertOwnerOrAdmin`.

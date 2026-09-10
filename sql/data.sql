@@ -121,6 +121,28 @@ INSERT INTO code (code_id, p_code_id, name, sort_no, use_yn, reg_id, upd_id, reg
 INSERT INTO config (fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins, del_log_days, acc_ip_yn, maint_yn, maint_message, title, menu_version)
 VALUES (5, 5, 90, 30, 365, 'N', 'N', '서비스 점검 중입니다. 잠시 후 다시 이용해 주세요.', '취만사', 1);
 
+-- ============================ 확장 설정 (config_item, 키-값) ============================
+-- 항목을 늘릴 때 코드를 건드리지 않으려고 만든 테이블이다. 여기 행을 추가하면
+-- 관리자 화면(시스템관리 > 확장설정)이 name·input_type·group_cd·sort_no를 보고 자동으로 그린다.
+-- ★ 실제로 읽히는 항목만 넣는다 — 쓰는 코드가 없는 키를 넣어두면 화면에는 보이지만 아무 효과가 없다.
+-- public_yn='Y'는 비로그인 화면이 읽어야 하는 항목만(그 외는 관리자만 조회).
+INSERT INTO config_item (config_key, value, input_type, name, description, group_cd, sort_no, public_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
+('site.footer-text', '© {year} {title}. All rights reserved.', 'TEXT', '사용자 사이트 푸터',
+ '{year}=올해, {title}=사이트 타이틀로 치환됩니다. 비우면 저작권 줄을 표시하지 않습니다.',
+ 'SITE', 1, 'Y', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('site.login-notice', '', 'TEXTAREA', '로그인 화면 안내문구',
+ '로그인 화면 상단에 표시됩니다(점검 예고·공지 등). 비우면 표시하지 않습니다.',
+ 'SITE', 2, 'Y', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+-- ★ 메인 소식 게시판은 '비로그인도 볼 수 있는' 게시판이어야 한다. 권한이 없으면 섹션이 조용히 사라진다.
+--   기본값 1(공지사항)은 GEN 메뉴 21로 GUEST 권한이 열려 있어 비로그인도 읽는다.
+--   갤러리(board 3)는 GEN 메뉴가 없어 비회원 403이므로 메인에 쓰지 않는다.
+('main.news-board-id', '1', 'NUMBER', '메인 소식 게시판',
+ '메인 화면의 소식 목록에 표시할 게시판 ID(게시판 설정에서 확인). 비로그인 공개 게시판이어야 하며, 비우면 소식 영역을 표시하지 않습니다.',
+ 'MAIN', 1, 'Y', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('main.hero-badge', '취미로 만나는 사람들', 'TEXT', '메인 히어로 상단 배지',
+ '히어로 첫 화면 상단의 작은 문구입니다. 비우면 배지를 표시하지 않습니다.',
+ 'MAIN', 2, 'Y', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+
 -- ============================ 관리자 권한그룹 (auth_group) ============================
 INSERT INTO auth_group (auth_group_id, name, description, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
 VALUES ('ADMIN', '관리자', '전체 메뉴/기능 권한', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
@@ -137,6 +159,7 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 ( 6,  1, 'ADM', '약관관리',       5, 'MENU01', 0, '/adm/policy',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 7,  1, 'ADM', '환경설정',       6, 'MENU01', 0, '/adm/config',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (49,  1, 'ADM', '접속IP관리',     7, 'MENU01', 0, '/adm/accessip',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(51,  1, 'ADM', '확장설정',       8, 'MENU01', 0, '/adm/configitem', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 8,  0, 'ADM', '회원관리',       3, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 9,  8, 'ADM', '사용자관리',     1, 'MENU01', 0, '/adm/member',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (13,  8, 'ADM', '권한그룹관리',   2, 'MENU01', 0, '/adm/authgroup',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -192,6 +215,8 @@ UPDATE menu SET icon = CASE
     -- ★ 아래 '%/log%'가 '/adm/loginsession'도 잡으므로 반드시 그 앞에 둔다
     WHEN link_url LIKE '%/loginsession%' THEN 'clock'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'
+    -- ★ '%/config%'가 '/adm/configitem'도 잡으므로 반드시 그 앞에 둔다
+    WHEN link_url LIKE '%/configitem%' THEN 'list'
     WHEN link_url LIKE '%/config%'  THEN 'setting'
     WHEN link_url LIKE '%/accessip%' THEN 'shield'
     WHEN link_url LIKE '%/banword%' THEN 'tag'

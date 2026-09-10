@@ -19,6 +19,7 @@ import PlaceMap from '../../common/gen/components/PlaceMap'
 import PlacePicker from '../../common/gen/components/PlacePicker'
 import { bookmarkApi } from '../../api/bookmark'
 import { downloadIcs, safeFileName } from '../../common/util/ics'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 type Mode = 'list' | 'view' | 'write'
 interface Category { hobbyId: string; name: string }
@@ -386,10 +387,15 @@ export default function RecruitPage() {
       { title: '주최자', width: 150, render: (_, r) => <MemberAvatar fileId={r.regProfileFileId} name={r.regName || '-'} handle={r.regHandle} size={24} /> },
     ]
     return (
-      <Card
-        title="모집"
-        extra={loggedIn ? <Button type="primary" onClick={() => openWrite()}>모집 등록</Button> : null}
-      >
+      <>
+        <PageHead
+          eyebrow="모집"
+          title="지금 함께할 사람들"
+          lead="모임을 열고 신청을 받고, 확정된 사람들끼리 단체 대화까지 이어집니다."
+          right={loggedIn ? <Button type="primary" onClick={() => openWrite()}>모집 등록</Button> : undefined}
+        />
+        <PageBody>
+        <Card>
         <Space wrap style={{ marginBottom: 12 }}>
           <Select
             allowClear placeholder="취미 전체" style={{ width: 140 }} value={filterCat}
@@ -465,7 +471,9 @@ export default function RecruitPage() {
             }}
           />
         )}
-      </Card>
+        </Card>
+        </PageBody>
+      </>
     )
   }
 
@@ -486,10 +494,13 @@ export default function RecruitPage() {
     // 단체 대화 자격: 주최자 본인(mineYn) 또는 수락된 참여자. admin은 owner지만 멤버는 아니다(사적 대화).
     const chatMember = recruit.mineYn === 'Y' || myApply?.applyCd === 'APPLY02'
     return (
-      <Card
-        title={recruit.title}
-        extra={
-          <Space>
+      <>
+        <PageHead
+          eyebrow="모집"
+          title={recruit.title}
+          lead={[recruit.hobbyName ?? catName(recruit.hobbyId), recruit.meetDt].filter(Boolean).join(' · ') || undefined}
+          right={
+            <Space wrap>
             {owner && (
               <>
                 {/* 정기 모임: 같은 조건으로 일정만 바꿔 새 모집을 연다(참여자·대화는 복제되지 않음) */}
@@ -519,9 +530,11 @@ export default function RecruitPage() {
               <Button onClick={addToCalendar}>📅 캘린더에 추가</Button>
             )}
             <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
-          </Space>
-        }
-      >
+            </Space>
+          }
+        />
+        <PageBody>
+        <Card>
         <Descriptions bordered column={2} size="small">
           <Descriptions.Item label="취미">{recruit.hobbyName ?? catName(recruit.hobbyId) ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="상태">{statusTag(recruit.statusCd, recruit.statusName)}</Descriptions.Item>
@@ -552,7 +565,7 @@ export default function RecruitPage() {
 
         {/* 참여 신청 영역(비주최자) */}
         {!owner && (
-          <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--gen-line)', paddingTop: 12 }}>
             {!loggedIn ? (
               <span style={{ color: '#888' }}>로그인 후 참여 신청할 수 있습니다.</span>
             ) : myApply ? (
@@ -598,7 +611,7 @@ export default function RecruitPage() {
 
         {/* 신청자 목록(주최자·관리자) */}
         {owner && (
-          <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--gen-line)', paddingTop: 12 }}>
             <b>신청자 {applies.length}명</b>
             {hasRoomButClosed && (
               <div style={{ marginTop: 6, color: '#d46b08' }}>
@@ -704,21 +717,28 @@ export default function RecruitPage() {
             </Form.Item>
           </Form>
         </Modal>
-      </Card>
+        </Card>
+        </PageBody>
+      </>
     )
   }
 
   // ===== 작성/수정 =====
   return (
-    <Card
-      title={editKey ? '모집 수정' : '모집 등록'}
-      extra={
-        <Space>
-          <Button onClick={() => setMode('list')}>목록</Button>
-          <Button type="primary" onClick={save}>저장</Button>
-        </Space>
-      }
-    >
+    <>
+      <PageHead
+        eyebrow="모집"
+        title={editKey ? '모집 수정' : '모집 등록'}
+        lead="일정·지역·인원을 정하면 신청을 받을 수 있습니다."
+        right={
+          <Space>
+            <Button onClick={() => setMode('list')}>목록</Button>
+            <Button type="primary" onClick={save}>저장</Button>
+          </Space>
+        }
+      />
+      <PageBody narrow>
+      <Card>
       <Form form={form} layout="vertical" style={{ maxWidth: 640 }}>
         <Form.Item name="hobbyId" label="취미" rules={[{ required: true, message: '취미를 선택하세요.' }]}>
           <Select
@@ -751,6 +771,8 @@ export default function RecruitPage() {
           <Input.TextArea autoSize={{ minRows: 4, maxRows: 12 }} placeholder="모임 소개, 준비물, 진행 방식 등" />
         </Form.Item>
       </Form>
-    </Card>
+      </Card>
+      </PageBody>
+    </>
   )
 }

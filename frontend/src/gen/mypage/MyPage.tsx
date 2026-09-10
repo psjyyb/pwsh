@@ -26,6 +26,7 @@ import { followApi } from '../../api/follow'
 import type { Follow } from '../../api/follow'
 import type { Block } from '../../api/block'
 import { gen } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /**
  * 마이페이지 — 내 정보(닉네임/비번변경)·내 글·내 모집·내 신청. (담은 취미는 '나의 취미' 탭)
@@ -215,10 +216,15 @@ export default function MyPage() {
 
   if (!loggedIn) {
     return (
-      <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center', borderRadius: 20 }}>
-        <p>로그인 후 이용할 수 있습니다.</p>
-        <Button type="primary" onClick={() => navigate('/login')} style={{ borderRadius: 14, fontWeight: 700 }}>로그인</Button>
-      </Card>
+      <>
+        <PageHead eyebrow="MY" title="마이페이지" lead="내 활동과 모임 일정을 한곳에서 봅니다." />
+        <PageBody narrow>
+          <Card style={{ textAlign: 'center' }}>
+            <p>로그인 후 이용할 수 있습니다.</p>
+            <Button type="primary" onClick={() => navigate('/login')}>로그인</Button>
+          </Card>
+        </PageBody>
+      </>
     )
   }
 
@@ -338,45 +344,50 @@ export default function MyPage() {
   ]
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* 프로필 헤더 */}
-      <div style={{ background: gen.heroTint, borderRadius: 24, padding: '24px 26px', display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
+    <>
+      {/* 헤드 밴드(공통 셸) — 프로필 사진은 media(클릭하면 교체), 계정 액션은 right */}
+      <PageHead
+        eyebrow="MY"
+        title={nickname || '회원'}
+        media={
           <div onClick={() => fileRef.current?.click()} title="프로필 사진 변경"
-            style={{ width: 64, height: 64, borderRadius: '50%', background: gen.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, cursor: 'pointer', overflow: 'hidden', opacity: uploading ? 0.6 : 1 }}>
+            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: uploading ? 0.6 : 1 }}>
             {profileFileId
-              ? <img src={`/api/pub/image/${profileFileId}`} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={`/api/pub/image/${profileFileId}`} alt="프로필" />
               : (nickname || memberId || '?').slice(0, 1)}
+            <input ref={fileRef} type="file" accept="image/*" hidden
+              onChange={(e) => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) uploadPhoto(f) }} />
           </div>
-          <div onClick={() => fileRef.current?.click()} aria-hidden
-            style={{ position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, cursor: 'pointer' }}>📷</div>
-          <input ref={fileRef} type="file" accept="image/*" hidden
-            onChange={(e) => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) uploadPhoto(f) }} />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: gen.heroText }}>{nickname || '회원'}</div>
-          <div style={{ color: '#8078A8', fontSize: 13, marginTop: 2 }}>
+        }
+        lead={
+          <>
             @{memberId}
+            {' · '}<a onClick={() => fileRef.current?.click()}>사진 변경</a>
             {profileFileId && <> · <a onClick={removePhoto}>사진 삭제</a></>}
-          </div>
-          {/* 활동 배지 — 참석·주최·후기에서 파생(공개 프로필과 같은 기준) */}
-          {myBadges.length > 0 && (
-            <Space size={5} style={{ marginTop: 8 }} wrap>
-              {myBadges.map((b) => (
-                <Tooltip key={b.key} title={b.desc}>
-                  <Tag color={b.color} style={{ fontWeight: 600, cursor: 'default' }}>{b.label}</Tag>
-                </Tooltip>
-              ))}
-            </Space>
-          )}
-        </div>
-        <Space style={{ marginLeft: 'auto' }} wrap>
-          <Button onClick={() => navigate('/gen/myhobby')} type="primary" ghost style={{ borderRadius: 12, fontWeight: 600 }}>♥ 나의 취미</Button>
-          <Button onClick={() => { setNickInput(nickname); setNickOpen(true) }} style={{ borderRadius: 12, fontWeight: 600 }}>닉네임 변경</Button>
-          <Button onClick={() => { pwForm.resetFields(); setPwOpen(true) }} style={{ borderRadius: 12, fontWeight: 600 }}>비밀번호 변경</Button>
-        </Space>
-      </div>
+          </>
+        }
+        right={
+          <Space wrap>
+            <Button onClick={() => navigate('/gen/myhobby')} type="primary" ghost>♥ 나의 취미</Button>
+            <Button onClick={() => { setNickInput(nickname); setNickOpen(true) }}>닉네임 변경</Button>
+            <Button onClick={() => { pwForm.resetFields(); setPwOpen(true) }}>비밀번호 변경</Button>
+          </Space>
+        }
+      >
+        {/* 활동 배지 — 참석·주최·후기에서 파생(공개 프로필과 같은 기준) */}
+        {myBadges.length > 0 && (
+          <Space size={5} style={{ marginTop: 8 }} wrap>
+            {myBadges.map((b) => (
+              <Tooltip key={b.key} title={b.desc}>
+                <Tag color={b.color} style={{ fontWeight: 600, cursor: 'default' }}>{b.label}</Tag>
+              </Tooltip>
+            ))}
+          </Space>
+        )}
+      </PageHead>
 
+      <PageBody narrow>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* 내 모임 일정 — 목록(다가오는 것만) / 캘린더(지난 달도 조회) 전환 */}
       <Card
         style={{ borderRadius: 18 }} title={cardTitle('📅', '내 모임 일정', schedule.length)}
@@ -574,6 +585,8 @@ export default function MyPage() {
       <div style={{ textAlign: 'center', marginTop: 4 }}>
         <Button type="text" danger onClick={() => { setWithdrawPw(''); setWithdrawOpen(true) }}>회원 탈퇴</Button>
       </div>
+      </div>
+      </PageBody>
 
       {/* 후기 작성 */}
       <Modal
@@ -622,6 +635,6 @@ export default function MyPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </>
   )
 }

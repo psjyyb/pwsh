@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { searchApi } from '../../api/search'
 import type { SearchResult } from '../../api/search'
 import { gen } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /**
  * 스니펫에서 검색어만 강조. dangerouslySetInnerHTML을 쓰지 않고 조각으로 나눠 렌더한다
@@ -43,18 +44,21 @@ export default function SearchPage() {
     searchApi.all(q).then(setData).catch(() => setData(null)).finally(() => setLoading(false))
   }, [q])
 
-  const rowStyle = { padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid #f0f0f0' } as const
+  const rowStyle = { padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid var(--gen-line)' } as const
   const total = data ? data.hobbies.length + data.recruits.length + data.posts.length : 0
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div>
-        <div style={{ fontSize: 13, color: gen.primary, fontWeight: 700 }}>🔍 통합 검색</div>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: gen.heroText, margin: '4px 0 0' }}>
-          {q ? <>‘{q}’ 검색 결과</> : '검색어를 입력하세요'}
-        </h2>
-      </div>
-
+    <>
+      <PageHead
+        eyebrow="검색"
+        title={q ? <>‘{q}’ 검색 결과</> : '검색어를 입력하세요'}
+        lead="취미·모집·게시글을 한 번에 찾습니다."
+        right={q && total > 0
+          ? <span className="gen-nums" style={{ fontSize: 13, fontWeight: 600, color: 'var(--gen-ink-soft)' }}>결과 {total}건</span>
+          : undefined}
+      />
+      <PageBody narrow>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div>
       ) : !q ? null : total === 0 ? (
@@ -104,6 +108,8 @@ export default function SearchPage() {
           )}
         </>
       )}
-    </div>
+      </div>
+      </PageBody>
+    </>
   )
 }

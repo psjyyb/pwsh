@@ -7,6 +7,7 @@ import type { Conversation, Message } from '../../api/message'
 import { recruitApi } from '../recruit/recruit.api'
 import { useEventStream } from '../../common/gen/useEventStream'
 import { gen } from '../theme'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 /** SSE가 끊겼을 때만 쓰는 폴백 폴링 주기(ms). 푸시가 살아있으면 폴링하지 않는다. */
 const POLL_MS = 5000
@@ -159,9 +160,12 @@ export default function MessagePage() {
   const otherName = current?.otherName || withId
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+    <>
+      <PageHead eyebrow="쪽지" title="쪽지" lead="회원과 1:1로 주고받은 대화입니다." />
+      <PageBody>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
       {/* 대화 목록 */}
-      <Card title="쪽지" size="small" style={{ flex: '1 1 300px', minWidth: 280 }}>
+      <Card title="대화 목록" size="small" style={{ flex: '1 1 300px', minWidth: 280 }}>
         {convLoading && convs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
         ) : convs.length === 0 ? (
@@ -241,6 +245,8 @@ export default function MessagePage() {
           </>
         )}
       </Card>
-    </div>
+      </div>
+      </PageBody>
+    </>
   )
 }

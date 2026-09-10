@@ -166,11 +166,13 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 76px;
+  /* 폭을 고정하지 않는다 — 로그인 시 항목이 5개로 늘면 76px 고정이 우측 컨트롤을 밀어 겹쳤다 */
+  min-width: 0;
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 9px 18px;
+  padding: 9px 12px;
+  white-space: nowrap;
   border-radius: 16px;
   color: var(--gen-ink-soft);
   font-weight: 600;

@@ -27,6 +27,7 @@ import { POST_LIST_URL, postApi } from '../../adm/post/post.api'
 import type { Post } from '../../adm/post/post.api'
 import { commentApi } from '../../adm/post/comment.api'
 import type { Comment } from '../../adm/post/comment.api'
+import { PageBody, PageHead } from '../../common/gen/components/PageShell'
 
 type Mode = 'list' | 'view' | 'write'
 const FILE_TYPE = 'POST' // 첨부파일
@@ -365,9 +366,9 @@ export default function StandardBoard({ board }: { board: Board }) {
             <div
               key={r.rowId}
               onClick={() => openView(r.rowId!)}
-              style={{ cursor: 'pointer', border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}
+              style={{ cursor: 'pointer', border: '1px solid var(--gen-line)', borderRadius: 6, overflow: 'hidden' }}
             >
-              <div style={{ height: 140, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ height: 140, background: 'var(--gen-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {r.fileId ? (
                   <img src={`/api/pub/image/${r.fileId}`} alt={r.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
@@ -402,12 +403,18 @@ export default function StandardBoard({ board }: { board: Board }) {
     ]
 
     return (
-      <Card
-        title={board.boardName ?? '게시판'}
-        extra={meId
-          ? <Button type="primary" onClick={openWrite}>글쓰기</Button>
-          : <Button onClick={() => navigate('/login')}>로그인하고 글쓰기</Button>}
-      >
+      <>
+        {/* 제목·설명·글쓰기는 헤드 밴드가 맡는다(모든 사용자 화면 공통 셸) */}
+        <PageHead
+          eyebrow="게시판"
+          title={board.boardName ?? '게시판'}
+          lead={board.description}
+          right={meId
+            ? <Button type="primary" onClick={openWrite}>글쓰기</Button>
+            : <Button onClick={() => navigate('/login')}>로그인하고 글쓰기</Button>}
+        />
+        <PageBody>
+        <Card>
         {search}
         {isGallery ? (
           <>
@@ -451,28 +458,35 @@ export default function StandardBoard({ board }: { board: Board }) {
             </div>
           </>
         )}
-      </Card>
+        </Card>
+        </PageBody>
+      </>
     )
   }
 
   // ===== 상세 =====
   if (mode === 'view' && post) {
     return (
-      <Card
-        title={post.title}
-        extra={
-          <Space>
-            {!isGallery && !isQna && <Button onClick={openReply}>답글</Button>}
-            {canEdit(post.mineYn) && <Button onClick={openEdit}>수정</Button>}
-            {canEdit(post.mineYn) && (
-              <Popconfirm title="삭제하시겠습니까?" onConfirm={removePost} okText="삭제" cancelText="취소">
-                <Button danger>삭제</Button>
-              </Popconfirm>
-            )}
-            <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
-          </Space>
-        }
-      >
+      <>
+        {/* 게시판 이름을 분류(eyebrow)로, 글 제목을 화면 제목으로 — 어느 게시판의 글인지 항상 보인다 */}
+        <PageHead
+          eyebrow={board.boardName ?? '게시판'}
+          title={post.title}
+          right={
+            <Space wrap>
+              {!isGallery && !isQna && <Button onClick={openReply}>답글</Button>}
+              {canEdit(post.mineYn) && <Button onClick={openEdit}>수정</Button>}
+              {canEdit(post.mineYn) && (
+                <Popconfirm title="삭제하시겠습니까?" onConfirm={removePost} okText="삭제" cancelText="취소">
+                  <Button danger>삭제</Button>
+                </Popconfirm>
+              )}
+              <Button onClick={() => { setMode('list'); loadList(pageNo) }}>목록</Button>
+            </Space>
+          }
+        />
+        <PageBody>
+        <Card>
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <MemberAvatar fileId={post.regProfileFileId} name={post.regName || '-'} handle={post.regHandle} size={24} />
           <span>· {post.regDt} · 조회 {post.viewCnt}</span>
@@ -481,7 +495,7 @@ export default function StandardBoard({ board }: { board: Board }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16, marginBottom: 16 }}>
             {viewGallery.map((g) => (
               <figure key={g.fileId} style={{ margin: 0 }}>
-                <img src={`/api/pub/image/${g.fileId}`} alt={g.description ?? ''} style={{ width: '100%', borderRadius: 6, display: 'block', border: '1px solid #eee' }} />
+                <img src={`/api/pub/image/${g.fileId}`} alt={g.description ?? ''} style={{ width: '100%', borderRadius: 6, display: 'block', border: '1px solid var(--gen-line)' }} />
                 {g.description && <figcaption style={{ marginTop: 6, color: '#555', fontSize: 13, textAlign: 'center' }}>{g.description}</figcaption>}
               </figure>
             ))}
@@ -512,7 +526,7 @@ export default function StandardBoard({ board }: { board: Board }) {
         </div>
 
         {viewFiles.length > 0 && (
-          <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 8 }}>
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--gen-line)', paddingTop: 8 }}>
             <b>첨부파일</b>
             <ul style={{ margin: '6px 0' }}>
               {viewFiles.map((f) => (
@@ -524,12 +538,12 @@ export default function StandardBoard({ board }: { board: Board }) {
           </div>
         )}
 
-        <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 12 }}>
+        <div style={{ marginTop: 20, borderTop: '1px solid var(--gen-line)', paddingTop: 12 }}>
           <b>{isQna ? `답변 ${comments.length}` : `댓글 ${comments.length}`}</b>
           {comments.map((c) => {
             const isReply = Number(c.pCommentId) > 0
             return (
-            <div key={c.rowId} style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5', marginLeft: isReply ? 24 : 0 }}>
+            <div key={c.rowId} style={{ padding: '8px 0', borderBottom: '1px solid var(--gen-line)', marginLeft: isReply ? 24 : 0 }}>
               <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {isReply && <span style={{ color: '#bbb' }}>↳</span>}
                 <MemberAvatar fileId={c.regProfileFileId} name={c.regName || '-'} handle={c.regHandle} size={18} />
@@ -601,26 +615,32 @@ export default function StandardBoard({ board }: { board: Board }) {
               </Space.Compact>
             </>
           ) : (
-            <div style={{ marginTop: 10, padding: '10px 12px', background: '#fafafa', borderRadius: 8, textAlign: 'center', color: '#888', fontSize: 13 }}>
+            <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--gen-surface-2)', borderRadius: 8, textAlign: 'center', color: '#888', fontSize: 13 }}>
               댓글을 쓰려면 로그인이 필요합니다. <a onClick={() => navigate('/login')}>로그인</a>
             </div>
           )}
         </div>
-      </Card>
+        </Card>
+        </PageBody>
+      </>
     )
   }
 
   // ===== 작성/수정 =====
   return (
-    <Card
-      title={editKey ? '글 수정' : replyTo ? '답글 작성' : '글 작성'}
-      extra={
-        <Space>
-          <Button onClick={() => setMode('list')}>목록</Button>
-          <Button type="primary" onClick={savePost}>저장</Button>
-        </Space>
-      }
-    >
+    <>
+      <PageHead
+        eyebrow={board.boardName ?? '게시판'}
+        title={editKey ? '글 수정' : replyTo ? '답글 작성' : '글 작성'}
+        right={
+          <Space>
+            <Button onClick={() => setMode('list')}>목록</Button>
+            <Button type="primary" onClick={savePost}>저장</Button>
+          </Space>
+        }
+      />
+      <PageBody>
+      <Card>
       <Form form={form} layout="vertical" initialValues={{ noticeYn: 'N', secretYn: false }}>
         <Form.Item name="title" label="제목" rules={[{ required: true, message: '제목을 입력하세요.' }]}>
           <Input />
@@ -675,6 +695,8 @@ export default function StandardBoard({ board }: { board: Board }) {
           </Form.Item>
         )}
       </Form>
-    </Card>
+      </Card>
+      </PageBody>
+    </>
   )
 }

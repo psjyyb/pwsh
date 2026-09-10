@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="configItemDAO">
+
+    <!--
+      화면용 전체 목록. group_cd → sort_no 순으로 정렬해 내려주면 프론트가 그 순서대로
+      그룹별 카드를 그린다(정렬 기준을 화면에 두지 않아야 항목 추가가 데이터만으로 끝난다).
+    -->
+    <select id="selectList" parameterType="configItemVO" resultType="configItemVO">
+        SELECT config_key AS row_id, config_key, value, input_type, name, description,
+               group_cd, sort_no::TEXT AS sort_no, public_yn, use_yn
+        FROM config_item
+        WHERE use_yn = 'Y'
+        ORDER BY COALESCE(group_cd, 'ZZZ'), sort_no, config_key
+    </select>
+
+    <!--
+      공개 조회 — 사용자 화면(푸터 문구·메인 구성)이 쓴다. public_yn='Y'만 내려간다.
+      정의 메타(description·group_cd 등)는 공개할 이유가 없어 키/값/입력유형만 준다.
+    -->
+    <select id="selectListPublic" parameterType="configItemVO" resultType="configItemVO">
+        SELECT config_key AS row_id, config_key, value, input_type
+        FROM config_item
+        WHERE use_yn = 'Y' AND public_yn = 'Y'
+        ORDER BY config_key
+    </select>
+
+    <!-- 값 하나 조회(서비스의 타입별 getter가 사용). 없거나 미사용이면 null → 호출부 기본값 -->
+    <select id="selectValue" parameterType="configItemVO" resultType="string">
+        SELECT value FROM config_item WHERE config_key = #{configKey} AND use_yn = 'Y'
+    </select>
+
+    <!-- 캐시 적재용 — 활성 항목 전부를 키/값으로 -->
+    <select id="selectAllValues" parameterType="configItemVO" resultType="configItemVO">
+        SELECT config_key, value FROM config_item WHERE use_yn = 'Y'
+    </select>
+
+    <!--
+      값만 갱신한다. 항목 정의(name·input_type·group_cd 등)는 화면에서 못 바꾼다 —
+      정의는 개발자가 data.sql로 넣는 것이고, 운영자는 값만 만지는 것이 이 테이블의 역할 분담이다.
+    -->
+    <update id="updateValue" parameterType="configItemVO">
+        UPDATE config_item
+        SET value = #{value}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE config_key = #{configKey} AND use_yn = 'Y'
+    </update>
+
+</mapper>

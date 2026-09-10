@@ -4,6 +4,7 @@ import { Card, Spin } from 'antd'
 import { pageApi } from '../adm/page/page.api'
 import type { Page } from '../adm/page/page.api'
 import SafeHtml from '../common/SafeHtml'
+import { PageBody, PageHead } from '../common/gen/components/PageShell'
 
 /**
  * 범용 페이지 뷰어 — 메뉴(conn_cd=페이지)의 conn_id(page_id)로 page를 조회해 본문(HTML) 렌더.
@@ -24,13 +25,19 @@ export default function GenPageView() {
       .finally(() => setLoading(false))
   }, [pageId])
 
-  if (loading) return <Spin style={{ display: 'block', margin: '80px auto' }} />
-  if (!page) return <Card>페이지를 찾을 수 없습니다.</Card>
+  if (loading) return <PageBody narrow><Spin style={{ display: 'block', margin: '60px auto' }} /></PageBody>
+  if (!page) return <PageBody narrow><Card>페이지를 찾을 수 없습니다.</Card></PageBody>
 
   return (
-    <Card title={page.title}>
-      {/* 페이지관리(에디터) 작성 HTML — DOMPurify 새니타이즈 후 렌더 */}
-      <SafeHtml html={page.content ?? ''} />
-    </Card>
+    <>
+      {/* 제목은 헤드 밴드가 맡는다 — 아래 Card에 다시 title을 주면 제목이 두 번 나온다 */}
+      <PageHead eyebrow="안내" title={page.title} />
+      <PageBody narrow>
+        <Card>
+          {/* 페이지관리(에디터) 작성 HTML — DOMPurify 새니타이즈 후 렌더 */}
+          <SafeHtml html={page.content ?? ''} />
+        </Card>
+      </PageBody>
+    </>
   )
 }

@@ -7,7 +7,7 @@ plugins {
 
 group = 'com.pwsh'
 // 프론트(frontend/package.json)와 같은 값을 유지한다 — 한쪽만 올리면 어느 버전이 배포됐는지 추적이 깨진다.
-version = '0.5.0'
+version = '0.6.0'
 description = 'pwsh'
 
 // ★ 이 프로젝트는 직접 만든 CMS(framework 저장소)를 복사해 만든 파생 서비스다.
@@ -15,7 +15,7 @@ description = 'pwsh'
 //   둘은 따로 움직인다 — pwsh 기능만 추가하면 version만 오르고, CMS를 따라가면 cmsVersion만 오른다.
 //   CMS의 최신 버전과 버전별 적용 방법(DDL 포함)은 framework 저장소의 CHANGELOG.md를 본다.
 //   현재: 메시지 소스(CMS 1.1.5)까지 흡수.
-ext.cmsVersion = '1.1.5'
+ext.cmsVersion = '1.1.8'
 
 java {
 	toolchain {

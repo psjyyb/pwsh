@@ -1,0 +1,654 @@
+/* ============================================================================
+   사용자(GEN) 랜딩 스타일 — 메인 히어로·섹션·스크롤 연출 전용
+   ----------------------------------------------------------------------------
+   AntD 컴포넌트로는 만들기 어려운 화면(풀스크린 히어로·대형 타이포·스크롤 연출)이라
+   이 영역만 CSS를 직접 쓴다. 관리자(adm)는 AntD 그대로 두고 건드리지 않는다.
+
+   ★ 이 파일은 index.css를 덮지 않는다 — 색·라운드·그림자·폰트 토큰은 전부 index.css의
+     --gen-* 를 그대로 쓰고, 여기서는 **랜딩에만 필요한 클래스**만 새로 정의한다.
+     그래서 index.css가 이미 정의한 .gen-header / .gen-card / .gen-h2 / .gen-eyebrow /
+     .gen-tile* 은 재정의하지 않는다(재정의하면 게시판·마이페이지 등 다른 화면이 함께 깨진다).
+     헤더만 예외로 **수정자 클래스(.is-hero)** 를 얹어 히어로 위에서만 투명해지게 한다.
+
+   ★ 외부 라이브러리를 쓰지 않는다 — 슬라이더는 CSS scroll-snap, 등장 연출은 스크롤 위치
+     판정(Reveal), 숫자 증가는 rAF+타이머(useCountUp)로 직접 구현했다.
+   ========================================================================== */
+
+:root {
+  /* 헤더 높이 — GenLayout의 Layout.Header height(72)와 반드시 같아야 한다.
+     메인에서 콘텐츠를 이 높이만큼 끌어올려 히어로가 헤더 뒤로 들어가기 때문이다. */
+  --gen-header-h: 72px;
+
+  /* 히어로 어두운 배경 — 잉크(#211b3d)와 같은 퍼플 계열로 맞춰 브랜드에서 벗어나지 않게 */
+  --gen-hero-dark: #1a1240;
+  --gen-hero-dark-2: #2e1f70;
+
+  --gen-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 랜딩 콘텐츠 폭 — 다른 화면(도감·목록)과 같은 폭을 써야 줄이 맞는다 */
+.gen-wfix {
+  width: 100%;
+  max-width: var(--gen-w-wide);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ── 스크롤 등장 연출 (Reveal 컴포넌트가 자기 요소를 관찰해 is-in을 붙인다) ──
+   prefers-reduced-motion 사용자에겐 연출을 끄고 바로 보여준다(접근성). */
+.gen-reveal {
+  opacity: 0;
+  transition: opacity 0.7s var(--gen-ease), transform 0.7s var(--gen-ease);
+  will-change: opacity, transform;
+}
+.gen-reveal.is-up { transform: translate3d(0, 24px, 0); }
+.gen-reveal.is-left { transform: translate3d(-28px, 0, 0); }
+.gen-reveal.is-right { transform: translate3d(28px, 0, 0); }
+.gen-reveal.is-fade { transform: none; }
+.gen-reveal.is-in {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .gen-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ============================ 헤더(히어로 위) ============================ */
+/* 기본 .gen-header(반투명 유리면)는 index.css에 있다. 메인 최상단에서만 이 수정자가 붙어
+   투명해지고, 스크롤하면 클래스가 떨어져 원래 유리면으로 돌아온다.
+   ★ 로고 이미지는 흰 배경 기준이라 어두운 히어로 위에서 안 보인다 → 사이트명 텍스트로 바꾼다
+     (어두운 배경용 로고를 따로 두면 설정이 하나 늘어난다). */
+.gen-header.is-hero {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom-color: transparent;
+}
+.gen-header.is-hero img {
+  display: none;
+}
+.gen-logo-text {
+  display: none;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gen-header.is-hero .gen-logo-text {
+  display: inline;
+}
+/* 내비 라벨·활성바도 어두운 배경 기준으로 뒤집는다(퍼플 잉크는 어두운 배경에서 안 읽힌다) */
+.gen-header.is-hero .gen-nav-btn {
+  color: rgba(255, 255, 255, 0.82);
+}
+.gen-header.is-hero .gen-nav-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+.gen-header.is-hero .gen-nav-btn.is-active {
+  color: #fff;
+}
+.gen-header.is-hero .gen-nav-btn.is-active .gen-nav-bar {
+  background: #fff;
+}
+
+/* ============================ 히어로 ============================ */
+.gen-hero {
+  position: relative;
+  height: 100vh;
+  min-height: 600px;
+  overflow: hidden;
+  background: var(--gen-hero-dark);
+}
+/* 슬라이드는 가로 스크롤 + scroll-snap으로 넘긴다(라이브러리 없이 관성/정렬 확보) */
+.gen-hero-track {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.gen-hero-track::-webkit-scrollbar {
+  display: none;
+}
+.gen-hero-slide {
+  position: relative;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+}
+/* 배경 이미지가 없어도 화면이 비지 않도록 그라디언트를 기본값으로 둔다 */
+.gen-hero-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 120% at 15% 15%, var(--gen-hero-dark-2) 0%, var(--gen-hero-dark) 55%, #0d0922 100%);
+}
+.gen-hero-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gen-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(13, 9, 34, 0.74) 0%, rgba(13, 9, 34, 0.38) 60%, rgba(13, 9, 34, 0.15) 100%);
+}
+.gen-hero-txt {
+  position: relative;
+  z-index: 2;
+  color: #fff;
+  padding-top: var(--gen-header-h);
+}
+.gen-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.gen-hero-txt h2 {
+  font-size: clamp(30px, 4.6vw, 58px);
+  line-height: 1.24;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0 0 18px;
+  color: #fff;
+}
+.gen-hero-txt p {
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0 0 30px;
+  max-width: 600px;
+  /* 슬라이드 문구의 줄바꿈(\n)을 그대로 살린다 — 문장을 의도한 지점에서 끊기 위함 */
+  white-space: pre-line;
+}
+/* 강조 단어 — 퍼플 그라디언트 글자 */
+.gen-point {
+  background: linear-gradient(90deg, #b9a5ff, #7c5cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.gen-hero-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.gen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.25s var(--gen-ease), filter 0.25s, background 0.25s, color 0.25s;
+  appearance: none;
+  font-family: inherit;
+}
+.gen-btn:hover {
+  transform: translateY(-2px);
+}
+.gen-btn-primary {
+  background: var(--gen-primary);
+  color: #fff;
+}
+.gen-btn-primary:hover {
+  filter: brightness(1.12);
+}
+.gen-btn-line {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #fff;
+}
+.gen-btn-line:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* 히어로 하단 컨트롤 — 현재/전체, 이전·다음, 자동재생 토글 */
+.gen-hero-ctrl {
+  position: absolute;
+  right: 32px;
+  bottom: 40px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+}
+.gen-hero-count {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+.gen-hero-count b {
+  font-size: 18px;
+}
+.gen-hero-ctrl button {
+  appearance: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.25s;
+}
+.gen-hero-ctrl button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+/* 슬라이드 위치 표시 바 */
+.gen-hero-dots {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.gen-hero-dots span {
+  flex: 1;
+  background: transparent;
+  transition: background 0.3s;
+}
+.gen-hero-dots span.is-on {
+  background: #b9a5ff;
+}
+/* 아래로 스크롤하라는 힌트 — 첫 화면이 꽉 차 있어 스크롤 가능함이 안 보인다 */
+.gen-hero-scroll {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  z-index: 3;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  animation: gen-hero-bob 2s ease-in-out infinite;
+}
+@keyframes gen-hero-bob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gen-hero-scroll { animation: none; }
+}
+
+/* ============================ 랜딩 섹션 ============================ */
+.gen-section {
+  padding: 96px 0;
+  /* 히어로 CTA가 #collection·#recruit로 스크롤한다. sticky 헤더가 레이아웃 위에 떠 있으므로
+     이 여유가 없으면 이동 직후 섹션 제목이 헤더 뒤에 가려진다. */
+  scroll-margin-top: var(--gen-header-h);
+}
+.gen-section.is-sub {
+  background: var(--gen-surface-2);
+}
+/* 섹션 제목 — index.css의 .gen-h1/.gen-h2(목록·카드용 크기)와 별개로 랜딩용 큰 제목이 필요하다 */
+.gen-sec-title {
+  font-size: clamp(26px, 3.2vw, 42px);
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--gen-ink);
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.gen-lead {
+  font-size: clamp(14.5px, 1.1vw, 17px);
+  line-height: 1.75;
+  color: var(--gen-ink-soft);
+  margin: 0;
+}
+
+/* ============================ 하위 페이지 공통 셸 ============================ */
+/* 메인만 랜딩처럼 보이고 나머지 화면은 제각각이면 사이트가 두 개처럼 보인다. 그래서 모든
+   사용자 화면이 같은 셸을 쓴다 — 전체폭 헤드 밴드(분류·제목·설명·액션) + 같은 폭의 본문.
+   ★ 페이지마다 maxWidth를 직접 쓰지 않는다(720·860·900·960·1000이 섞여 있어 화면을 옮길 때마다
+     본문 폭이 흔들렸다). 폭은 .gen-wfix(넓게)와 .gen-wfix.is-narrow(읽기 위주)만 쓴다. */
+/* ★ 하위 페이지 상단도 메인 히어로와 같은 언어를 쓴다 — 어두운 비주얼 밴드 + 흰 큰 제목.
+   밴드 위에 헤더가 투명하게 떠 있고(GenLayout이 콘텐츠를 헤더 높이만큼 끌어올린다),
+   내용은 밴드 하단에 정렬한다. 전에는 옅은 퍼플 띠였는데, 메인 첫 화면과 톤이 달라
+   화면을 옮길 때 사이트가 두 개처럼 보였다. */
+.gen-page-head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: clamp(250px, 32vh, 340px);
+  /* 위쪽은 떠 있는 헤더에 가리므로 그만큼 확보한다(헤더 높이 + 여백) */
+  padding: calc(var(--gen-header-h) + 34px) 0 26px;
+  background: radial-gradient(120% 130% at 12% 10%, var(--gen-hero-dark-2) 0%, var(--gen-hero-dark) 58%, #0d0922 100%);
+  color: #fff;
+  overflow: hidden;
+}
+/* 텍스트 가독성 오버레이 — 히어로와 같은 방향(좌측이 진하게) */
+.gen-page-head::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(13, 9, 34, 0.5) 0%, rgba(13, 9, 34, 0.12) 70%);
+  pointer-events: none;
+}
+.gen-page-head > * {
+  position: relative;
+  z-index: 1;
+}
+.gen-page-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+/* 헤드 좌측 비주얼(취미 썸네일·프로필 사진 등) — 어두운 배경 위라 흰 테두리로 띄운다 */
+.gen-page-head-media {
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 800;
+  color: #fff;
+}
+.gen-page-head-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gen-page-head .gen-eyebrow {
+  color: #b9a5ff;
+}
+/* 분류 라벨 뒤 짧은 액센트 선 — 라벨이 제목에 붙어 보이지 않게 끊어준다 */
+.gen-page-head .gen-eyebrow::after {
+  content: '';
+  display: inline-block;
+  width: 32px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.55;
+  vertical-align: middle;
+  margin-left: 10px;
+}
+.gen-page-head .gen-sec-title {
+  color: #fff;
+  font-size: clamp(26px, 2.9vw, 40px);
+  margin-bottom: 10px;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.3);
+}
+.gen-page-head .gen-lead {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+}
+/* 어두운 밴드 안의 링크·보조 문구(‘사진 변경’ 등)는 퍼플 잉크로는 안 읽힌다 */
+.gen-page-head a {
+  color: #d9ccff;
+}
+.gen-page-head a:hover {
+  color: #fff;
+}
+
+/* ── 위치 내비 — 밴드 하단, 얇은 구분선 위에 현재 위치를 남긴다 ── */
+.gen-crumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+}
+.gen-crumb li {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gen-crumb li + li::before {
+  content: '›';
+  opacity: 0.55;
+}
+.gen-crumb li:last-child {
+  color: #fff;
+  font-weight: 600;
+}
+.gen-crumb button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.gen-crumb button:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* 헤드 아래 본문 */
+.gen-page {
+  padding: 28px 0 72px;
+}
+/* 헤드가 없는 화면(권한 없음·없는 주소·로딩)은 떠 있는 헤더 아래로 내려야 한다 —
+   콘텐츠를 헤더 높이만큼 끌어올린 상태이므로 이 여백이 없으면 헤더에 가린다 */
+.gen-page:first-child {
+  padding-top: calc(var(--gen-header-h) + 28px);
+}
+.gen-wfix.is-narrow {
+  max-width: var(--gen-w-page);
+}
+
+/* ── 통계 패널 ── */
+.gen-stat-nums {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin: 40px 0 0;
+  padding: 30px 34px;
+  background: var(--gen-surface);
+  border: 1px solid var(--gen-line);
+  border-radius: var(--gen-r-xl);
+  box-shadow: var(--gen-shadow-md);
+}
+.gen-stat-nums li {
+  list-style: none;
+}
+.gen-stat-nums .label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--gen-ink-faint);
+  margin-bottom: 6px;
+}
+.gen-stat-nums .num {
+  font-size: clamp(26px, 2.6vw, 38px);
+  font-weight: 800;
+  color: var(--gen-ink);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.gen-stat-nums .num i {
+  font-style: normal;
+  color: var(--gen-primary);
+}
+
+/* ── 흰 카드 위의 칩 ──
+   .gen-tile-chip은 '컬러 타일 위'용이라 흰 반투명 배경 + 흰 글자다. 그 칩을 흰 카드(모집·베스트·
+   최근 글)에 그대로 쓰면 흰 글자가 흰 배경에 얹혀 **읽히지 않는다**(기존 메인의 실제 문제였다).
+   흰 배경에서는 이 수정자로 퍼플 톤을 쓴다. */
+.gen-tile-chip.is-soft {
+  background: var(--gen-primary-soft);
+  color: var(--gen-primary);
+}
+
+/* ── 소식 목록(2단: 제목 + 목록) ── */
+.gen-news {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 48px;
+  align-items: start;
+}
+.gen-news-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--gen-line);
+}
+.gen-news-list li {
+  list-style: none;
+  border-bottom: 1px solid var(--gen-line);
+}
+.gen-news-list button {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 19px 6px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--gen-ink);
+  transition: padding 0.3s var(--gen-ease), color 0.3s;
+}
+.gen-news-list button:hover {
+  padding-left: 14px;
+  color: var(--gen-primary);
+}
+.gen-news-subj {
+  font-size: 16px;
+  font-weight: 600;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gen-news-date {
+  font-size: 13.5px;
+  color: var(--gen-ink-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.gen-news-empty {
+  padding: 19px 6px;
+  color: var(--gen-ink-faint);
+  font-size: 14.5px;
+}
+
+/* ── 더보기 버튼 줄 ── */
+.gen-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+}
+.gen-more-btn {
+  appearance: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 13px 38px;
+  border-radius: 999px;
+  border: 1px solid var(--gen-ink);
+  background: none;
+  color: var(--gen-ink);
+  cursor: pointer;
+  transition: background 0.28s, color 0.28s;
+}
+.gen-more-btn:hover {
+  background: var(--gen-ink);
+  color: #fff;
+}
+
+/* ── TOP 버튼 ── */
+.gen-top-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 90;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--gen-primary);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: var(--gen-shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.3s, visibility 0.3s, transform 0.3s var(--gen-ease), filter 0.25s;
+}
+.gen-top-btn.is-show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.gen-top-btn:hover {
+  filter: brightness(1.12);
+}
+
+/* ============================ 반응형 ============================ */
+@media (max-width: 1024px) {
+  .gen-news {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .gen-stat-nums {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .gen-section {
+    padding: 64px 0;
+  }
+  .gen-hero-ctrl {
+    right: 16px;
+    bottom: 26px;
+  }
+  .gen-hero-scroll {
+    display: none;
+  }
+  .gen-stat-nums {
+    padding: 22px 20px;
+  }
+}
