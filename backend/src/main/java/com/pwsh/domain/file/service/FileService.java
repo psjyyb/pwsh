@@ -137,8 +137,9 @@ public class FileService {
         }
         for (FileVO r : refs) {
             String loc = r.getFileType();
-            if ("POPUP".equals(loc) || "LOGO".equals(loc) || (loc != null && loc.startsWith("HOBBY"))) {
-                return; // 공개 콘텐츠(팝업·로고·취미 대표이미지·취미 본문이미지는 비로그인에도 노출)
+            if ("POPUP".equals(loc) || "LOGO".equals(loc) || "BANNER".equals(loc)
+                    || (loc != null && loc.startsWith("HOBBY"))) {
+                return; // 공개 콘텐츠(팝업·로고·메인 배너·취미 대표이미지·취미 본문이미지는 비로그인에도 노출)
             }
             if (loc != null && loc.startsWith("POST") && genAccessGuard.canAccessPost(r.getMapKey())) {
                 return;

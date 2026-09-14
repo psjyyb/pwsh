@@ -162,7 +162,10 @@
   letter-spacing: -0.01em;
 }
 .gen-hero-txt h2 {
-  font-size: clamp(30px, 4.6vw, 58px);
+  /* ★ 한국어는 기본 규칙에서 글자 단위로 줄바꿈된다 — 좁은 화면에서 마지막 한 글자만 다음 줄로
+     떨어지는 것을 CMS에서 실측했다. keep-all이면 어절 단위로 끊긴다. */
+  word-break: keep-all;
+  font-size: clamp(27px, 4.6vw, 58px);
   line-height: 1.24;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -311,7 +314,9 @@
 }
 /* 섹션 제목 — index.css의 .gen-h1/.gen-h2(목록·카드용 크기)와 별개로 랜딩용 큰 제목이 필요하다 */
 .gen-sec-title {
-  font-size: clamp(26px, 3.2vw, 42px);
+  /* 큰 제목은 한 글자만 떨어지지 않게 어절 단위로 끊는다(히어로 h2와 같은 이유) */
+  word-break: keep-all;
+  font-size: clamp(24px, 3.2vw, 42px);
   line-height: 1.25;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -650,5 +655,17 @@
   }
   .gen-stat-nums {
     padding: 22px 20px;
+  }
+  /* 헤드 밴드가 좁은 화면에서 화면의 1/3을 먹는다 — 본문이 먼저 보여야 한다(CMS에서 실측) */
+  .gen-page-head {
+    min-height: 190px;
+    padding: calc(var(--gen-header-h) + 18px) 0 16px;
+  }
+  .gen-crumb {
+    margin-top: 16px;
+    padding-top: 10px;
+  }
+  .gen-page {
+    padding: 22px 0 56px;
   }
 }

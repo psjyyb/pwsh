@@ -160,6 +160,7 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 ( 7,  1, 'ADM', '환경설정',       6, 'MENU01', 0, '/adm/config',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (49,  1, 'ADM', '접속IP관리',     7, 'MENU01', 0, '/adm/accessip',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (51,  1, 'ADM', '확장설정',       8, 'MENU01', 0, '/adm/configitem', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(52,  1, 'ADM', '배너관리',       9, 'MENU01', 0, '/adm/banner',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 8,  0, 'ADM', '회원관리',       3, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 9,  8, 'ADM', '사용자관리',     1, 'MENU01', 0, '/adm/member',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (13,  8, 'ADM', '권한그룹관리',   2, 'MENU01', 0, '/adm/authgroup',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -220,6 +221,7 @@ UPDATE menu SET icon = CASE
     WHEN link_url LIKE '%/config%'  THEN 'setting'
     WHEN link_url LIKE '%/accessip%' THEN 'shield'
     WHEN link_url LIKE '%/banword%' THEN 'tag'
+    WHEN link_url LIKE '%/banner%'  THEN 'image'
     WHEN link_url LIKE '%/report%'  THEN 'flag'
     WHEN link_url LIKE '%/dashboard%' THEN 'grid'
     ELSE icon END
@@ -352,6 +354,26 @@ INSERT INTO hobby (hobby_id, name, summary, intro, guide, difficulty_cd, equipme
  '<h3>이렇게 시작하세요</h3><ol><li>라켓은 가볍고(85g 내외) 유연한 입문용으로 고릅니다.</li><li>손목이 아니라 팔 전체로 스윙하는 하이클리어부터 배웁니다.</li><li>실내 코트용 논마킹 운동화를 신어야 미끄러지지 않습니다.</li><li>동네 배드민턴 클럽은 대체로 초보를 환영합니다. 혼자보다 훨씬 빠르게 늡니다.</li></ol>',
  'HOBBYLV01', '라켓, 셔틀콕, 실내용 운동화, 그립테이프', '라켓 5~15만원 / 체육관 대여 시간당 5천~1만원', 26, 15, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 SELECT setval(pg_get_serial_sequence('hobby', 'hobby_id'), (SELECT MAX(hobby_id) FROM hobby));
+
+-- ============================ 메인 히어로 배너 (banner) ============================
+-- 관리자 > 시스템관리 > 배너관리에서 바꾼다. title의 [[...]]는 강조 구간, \n은 줄바꿈(HTML 아님).
+-- 버튼 주소가 '#id'면 메인 안의 그 섹션으로 스크롤한다. E'' 는 \n을 실제 개행으로 저장하기 위함.
+INSERT INTO banner (banner_id, title, description, btn1_label, btn1_url, btn2_label, btn2_url, sort_no, use_yn,
+    reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
+(1, E'관심사가 같은 사람들과\n[[취미로 만나요]]',
+    E'등산부터 보드게임까지, 취미 도감에서 마음에 드는 것을 고르세요.\n같은 취미를 가진 사람들의 이야기가 기다리고 있습니다.',
+    '취미 도감 보기', '#collection', '모집 둘러보기', '/gen/recruit', 1, 'Y',
+    'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(2, E'혼자 하던 취미,\n이제 [[함께]]',
+    E'모임을 열고 신청을 받고, 확정된 사람들끼리 단체 대화까지.\n약속을 잡는 과정이 한 화면에서 끝납니다.',
+    '모집 둘러보기', '/gen/recruit', '지금 뭐가 열렸나', '#recruit', 2, 'Y',
+    'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+-- 로그인한 사람에게는 '회원가입'이 의미 없으므로 프론트가 '/signup' 버튼을 '내 피드 보기'로 바꿔 그린다.
+(3, E'참여가 쌓이면\n[[내 기록]]이 됩니다',
+    E'참석 기록과 후기, 활동 배지로 취미 이력이 남습니다.\n다음 일정은 마이페이지 캘린더에서 한눈에 보세요.',
+    '회원가입', '/signup', NULL, NULL, 3, 'Y',
+    'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+SELECT setval(pg_get_serial_sequence('banner', 'banner_id'), (SELECT MAX(banner_id) FROM banner));
 
 -- ============================ 약관 (policy) ============================
 -- 가입 화면의 필수 동의 항목이자 푸터에 노출되는 문서. req_yn='Y' 인 약관은 동의 없이는 가입이 거부된다.

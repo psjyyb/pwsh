@@ -101,6 +101,7 @@ public class SecurityConfig {
                                 "/api/adm/policy/selectPolicyListPublic.do",
                                 "/api/adm/policy/selectPolicyView.do",
                                 "/api/adm/popup/selectPopupListMain.do",
+                                "/api/adm/banner/selectBannerListMain.do",
                                 "/api/adm/recruit/selectRecruitList.do",
                                 "/api/adm/recruit/selectRecruitView.do",
                                 "/api/adm/hobby/selectHobbyList.do",

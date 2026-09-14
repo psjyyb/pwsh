@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="bannerDAO">
+
+    <select id="selectList" parameterType="bannerVO" resultType="bannerVO">
+        SELECT banner_id::TEXT AS row_id, title, description, btn1_label, btn1_url, btn2_label, btn2_url,
+               start_dt, end_dt, sort_no, use_yn,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = banner.banner_id AND r.file_type = 'BANNER'
+                 ORDER BY r.sort_no LIMIT 1) AS file_id
+        FROM banner
+        WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND title LIKE '%' || #{filterKeyword} || '%'
+        </if>
+        ORDER BY sort_no, banner_id
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="bannerVO" resultType="int">
+        SELECT COUNT(*) FROM banner WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
+    </select>
+
+    <!--
+      사용자 메인 노출용: 사용중 + 오늘이 노출기간 내(기간 미설정은 항상 노출) + 순서.
+      기간 판정을 조회 시점에 하므로 별도 배치가 없다(팝업과 같은 규칙).
+    -->
+    <select id="selectMainList" parameterType="bannerVO" resultType="bannerVO">
+        SELECT banner_id::TEXT AS row_id, title, description, btn1_label, btn1_url, btn2_label, btn2_url,
+               sort_no,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = banner.banner_id AND r.file_type = 'BANNER'
+                 ORDER BY r.sort_no LIMIT 1) AS file_id
+        FROM banner
+        WHERE use_yn = 'Y'
+          AND (start_dt IS NULL OR start_dt = '' OR start_dt &lt;= TO_CHAR(NOW(), 'YYYY-MM-DD'))
+          AND (end_dt   IS NULL OR end_dt   = '' OR end_dt   &gt;= TO_CHAR(NOW(), 'YYYY-MM-DD'))
+        ORDER BY sort_no, banner_id
+    </select>
+
+    <select id="selectView" parameterType="bannerVO" resultType="bannerVO">
+        SELECT banner_id::TEXT AS row_id, title, description, btn1_label, btn1_url, btn2_label, btn2_url,
+               start_dt, end_dt, sort_no, use_yn,
+               (SELECT r.file_id FROM file_ref r
+                 JOIN file tf ON tf.file_id = r.file_id AND tf.use_yn = 'Y'
+                 WHERE r.map_key = banner.banner_id AND r.file_type = 'BANNER'
+                 ORDER BY r.sort_no LIMIT 1) AS file_id
+        FROM banner WHERE banner_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="bannerVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="banner_id">
+        INSERT INTO banner (title, description, btn1_label, btn1_url, btn2_label, btn2_url,
+            start_dt, end_dt, sort_no, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{title}, #{description}, #{btn1Label}, #{btn1Url}, #{btn2Label}, #{btn2Url},
+            #{startDt}, #{endDt},
+            -- 마지막(사용중) 순서+1 자동 부여 — 등록할 때마다 순서를 묻지 않는다
+            COALESCE(NULLIF(#{sortNo}, '')::integer, (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM banner WHERE use_yn = 'Y')),
+            'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="bannerVO">
+        UPDATE banner SET
+            title = #{title}, description = #{description},
+            btn1_label = #{btn1Label}, btn1_url = #{btn1Url},
+            btn2_label = #{btn2Label}, btn2_url = #{btn2Url},
+            start_dt = #{startDt}, end_dt = #{endDt},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE banner_id = #{rowId}::integer
+    </update>
+
+    <!-- 순서 교환용: 인접 배너 (UP=바로 위, 그 외=바로 아래) -->
+    <select id="selectAdjacentSort" parameterType="bannerVO" resultType="bannerVO">
+        SELECT banner_id::TEXT AS row_id, sort_no
+        FROM banner
+        WHERE use_yn = 'Y'
+        <choose>
+            <when test="direction == 'UP'">
+                AND sort_no &lt; #{sortNo}::integer ORDER BY sort_no DESC
+            </when>
+            <otherwise>
+                AND sort_no &gt; #{sortNo}::integer ORDER BY sort_no ASC
+            </otherwise>
+        </choose>
+        LIMIT 1
+    </select>
+
+    <update id="updatesort" parameterType="bannerVO">
+        UPDATE banner SET
+            sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE banner_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="bannerVO">
+        UPDATE banner SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE banner_id = #{rowId}::integer
+    </update>
+
+    <!-- 삭제 후 순서 당김: 지운 행보다 큰 순서를 -1 -->
+    <update id="shiftSortAfterDelete" parameterType="bannerVO">
+        UPDATE banner SET sort_no = sort_no - 1, upd_dt = NOW()
+        WHERE use_yn = 'Y'
+          AND sort_no > (SELECT sort_no FROM banner WHERE banner_id = #{rowId}::integer)
+    </update>
+
+</mapper>

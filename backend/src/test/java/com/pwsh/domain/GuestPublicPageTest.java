@@ -35,6 +35,9 @@ class GuestPublicPageTest extends IntegrationTest {
     void layoutApisOpenToGuest() throws Exception {
         assertThat(post("/api/adm/menu/selectMenuListTree.do", "{\"area\":\"GEN\"}", null).statusCode()).isEqualTo(200);
         assertThat(post("/api/adm/config/selectConfigView.do", "{}", null).statusCode()).isEqualTo(200);
+        assertThat(post("/api/adm/popup/selectPopupListMain.do", "{}", null).statusCode()).isEqualTo(200);
+        // 배너가 막히면 히어로가 비어 메인 최상단이 통째로 사라진다
+        assertThat(post("/api/adm/banner/selectBannerListMain.do", "{}", null).statusCode()).isEqualTo(200);
     }
 
     @Test

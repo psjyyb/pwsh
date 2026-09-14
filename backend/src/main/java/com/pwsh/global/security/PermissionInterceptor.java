@@ -36,6 +36,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/policy/selectPolicyListPublic.do",
             "/policy/selectPolicyView.do",
             "/popup/selectPopupListMain.do",
+            "/banner/selectBannerListMain.do",
             "/board/selectBoardView.do",
             "/board/selectBoardListCombo.do",
             "/hobby/selectHobbyList.do",

@@ -9,6 +9,7 @@ import { popupApi } from '../adm/popup/popup.api'
 import type { Popup } from '../adm/popup/popup.api'
 import { hobbyApi, memberHobbyApi } from '../adm/hobby/hobby.api'
 import { pubConfigItemApi } from '../adm/configitem/configitem.api'
+import { configApi } from '../adm/config/config.api'
 import { tokenStore } from '../auth/token'
 import { POST_LIST_URL } from '../adm/post/post.api'
 import type { Post } from '../adm/post/post.api'
@@ -138,6 +139,7 @@ export default function GenMain() {
   const [best, setBest] = useState<Post[]>([]) // 이번 주 베스트(참여도 상위)
   const [newsBoardId, setNewsBoardId] = useState('')
   const [heroBadge, setHeroBadge] = useState('')
+  const [siteTitle, setSiteTitle] = useState('') // 등록된 배너가 없을 때 히어로에 대신 띄운다
   const loggedIn = !!tokenStore.get()
   const [myIds, setMyIds] = useState<Set<string>>(new Set()) // 내가 담은 취미 id
 
@@ -147,6 +149,7 @@ export default function GenMain() {
     recruitApi.list({ statusCd: STATUS_OPEN, pageNo: 1, pageSize: 4 })
       .then((r) => { setRecruits(r.list); setRecruitTotal(Number(r.totalCount) || 0) }).catch(() => {})
     apiPost<Post[]>('/adm/post/selectPostListWeeklyBest.do', {}).then(setBest).catch(() => {})
+    configApi.view().then((c) => { if (c.title) setSiteTitle(c.title) }).catch(() => {})
     // 공개 확장설정 — 실패하면 히어로 배지·소식 섹션만 빠지고 나머지는 그대로 나온다
     pubConfigItemApi.list()
       .then((rows) => {
@@ -203,7 +206,7 @@ export default function GenMain() {
 
   return (
     <>
-      <HeroSection badge={heroBadge} loggedIn={loggedIn} onNavigate={go} />
+      <HeroSection badge={heroBadge} siteTitle={siteTitle} loggedIn={loggedIn} onNavigate={go} />
 
       <StatsSection
         hobbyCount={categories.length}

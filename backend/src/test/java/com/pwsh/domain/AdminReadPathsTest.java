@@ -26,6 +26,7 @@ class AdminReadPathsTest extends IntegrationTest {
         assertOk("/api/adm/menu/selectMenuList.do");
         assertOk("/api/adm/member/selectMemberList.do");
         assertOk("/api/adm/popup/selectPopupList.do");
+        assertOk("/api/adm/banner/selectBannerList.do");
         assertOk("/api/adm/policy/selectPolicyList.do");
         assertOk("/api/adm/page/selectPageList.do");
         assertOk("/api/adm/config/selectConfigView.do");

@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.2 · CMS 1.2.1` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.3 · CMS 1.2.2` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,45 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.3 (CMS 1.2.2) — 배너 관리 흡수(메인 히어로 DB화) + 모바일 레이아웃 보정
+
+### 배너 관리
+
+메인 첫 화면의 슬라이드 3장이 `HeroSection.tsx`의 **코드 상수**였다. 문구 한 줄 고치는 데
+빌드·배포가 필요했고, 실서비스로 갈수록 그게 병목이 된다. CMS 1.2.2의 `banner` 도메인을
+그대로 흡수하고, 기존 문구를 그대로 초기 배너 3건으로 옮겼다(보이는 화면은 그대로다).
+
+- 백엔드 `domain/banner/` · 매퍼 `mapper/banner/Banner_SQL.xml` · 관리화면 `adm/banner/`.
+  관리자 > 시스템관리 > **배너관리**에서 제목·설명·버튼·배경이미지·노출기간·순서를 관리한다.
+- 제목의 `[[...]]`=강조(그라디언트), 줄바꿈=그대로 표시. **HTML이 아니라 마커다** —
+  저장값을 HTML로 렌더하면 배너 등록 권한이 곧 XSS 권한이 된다.
+- 공개 경로 `/api/adm/banner/selectBannerListMain.do`를 `SecurityConfig` permitAll과
+  `PermissionInterceptor.EXEMPT_SUFFIX`에 **둘 다** 넣었다. `FileService.assertServable`도
+  `BANNER` 매핑을 공개로 취급한다(아니면 배경 이미지만 403).
+
+**pwsh 고유 처리 두 가지** (CMS 원본에는 없다)
+
+- 버튼 주소가 `#id`면 라우팅 대신 메인 안의 그 섹션으로 스크롤한다(`#collection`·`#recruit`).
+  기존 CTA 동작을 그대로 유지하려고 DB 값으로 표현할 수 있게 둔 것이다.
+- **로그인 상태에서는 `/signup` 버튼을 '내 피드 보기'(`/gen/feed`)로 바꿔 그린다.**
+  이미 가입한 사람에게 회원가입 버튼은 의미가 없는데, 이 분기는 배너 내용으로 표현할 수 없다 →
+  `HeroSection`에서만 처리한다(주석으로 이유를 남겼다).
+
+**테스트**: `BannerTest`(6) — 게스트 조회 허용/관리 목록 401, 기간 지난·예정 배너 제외,
+순서 자동부여 + UP/DOWN 교환, 수정·삭제, 제목 필수, 삭제 시 배경 이미지 `use_yn='N'` 전파.
+`GuestPublicPageTest`·`AdminReadPathsTest`에 배너 엔드포인트 추가. 전체 **112개 통과**.
+
+**DB** — `sql/schema.sql`의 `banner` 테이블 생성 + 관리자 메뉴(`/adm/banner`, 아이콘 `image`) 등록.
+`sql/data.sql`에 초기 배너 3건 시드. 자세한 DDL은 framework 저장소 CHANGELOG 1.2.2 참고.
+
+### 모바일 레이아웃 보정
+
+- 큰 제목의 한국어가 글자 단위로 끊겨 마지막 한 글자만 다음 줄로 떨어졌다 →
+  `.gen-hero-txt h2`·`.gen-sec-title`에 `word-break: keep-all`(어절 단위).
+- 좁은 화면에서 헤드 밴드가 과하게 높았다 → `.gen-page-head` 최소높이·패딩 축소.
 
 ---
 
