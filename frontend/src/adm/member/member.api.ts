@@ -8,6 +8,8 @@ export interface Member {
   password?: string
   typeCd?: string
   memberName: string
+  nickname?: string | null // 표시명(사용자 화면 작성자 표기, 유일)
+  handle?: string          // 공개 식별자(조회 전용, DB가 자동 발급)
   phone?: string | null
   email?: string | null
   genderCd?: string | null

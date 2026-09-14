@@ -122,6 +122,9 @@
     <update id="updateInfo" parameterType="memberVO">
         UPDATE member SET
             type_cd = #{typeCd}, gender_cd = #{genderCd}, status_cd = #{statusCd},
+            <!-- 표시명(닉네임) — 관리자도 고칠 수 있어야 한다(사칭·부적절 닉네임 대응).
+                 빈 값이면 기존 값을 유지한다: 관리자 화면이 이 필드를 안 보내도 닉네임이 지워지면 안 된다 -->
+            nickname = COALESCE(NULLIF(#{nickname}, ''), nickname),
             name = ENCODE(ENCRYPT(CONVERT_TO(#{memberName},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
             phone   = ENCODE(ENCRYPT(CONVERT_TO(#{phone},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
             email   = ENCODE(ENCRYPT(CONVERT_TO(#{email},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),

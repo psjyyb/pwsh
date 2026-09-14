@@ -42,7 +42,7 @@
 - **JWT 무상태**. 사용자별 토큰 버전으로 **단일세션(last-wins)** + 로그아웃/비번변경/강제로그아웃 시 즉시 무효화(필터가 매 요청 대조).
 - **RBAC 3계층 ADMIN/MEMBER/GUEST**(비로그인=GUEST). ① 메뉴 노출=메뉴 조회 시 권한 필터 ② 관리 API=`PermissionInterceptor`(`/api/adm/**`를 메뉴 URL 권한으로. 사용자 콘텐츠 API는 예외 목록으로 통과시키고 서비스가 인가) ③ 콘텐츠 딥링크=`GenAccessGuard` ④ 소유자=`SecurityUtil.assertOwnerOrAdmin`.
 - 비번 BCrypt·복잡도 `PasswordPolicy`(8~64자). 계정(admin/user)은 `DataInitializer`가 기동 시 생성. 개인정보(이름·연락처 등)는 pgcrypto AES(`#{cryptoKey}`).
-- **공개 식별자**: 클라이언트에 로그인 ID를 내려보내지 않는다. 회원 지목은 12자리 `handle`, 본인 판정은 서버가 계산한 `mineYn`.
+- **공개 식별자**: 클라이언트에 로그인 ID를 내려보내지 않는다. 회원 지목은 12자리 `handle`, 본인 판정은 서버가 계산한 `mineYn`(판정용 `viewerId`는 **서비스가 세팅** — 클라이언트 값 신뢰 금지). 표시는 닉네임. 서버 인가에 `reg_id`가 필요한 상세 조회는 매퍼에서 뽑되 **응답 직전 서비스가 지운다**(`setRegId(null)`) — 지우는 코드를 빼면 유출된다(회귀 방지 `PublicIdentityTest`). 관리자(adm) 화면은 로그인 ID를 그대로 쓴다. **표시명(닉네임)은 필수** — 비면 사용자 화면에서 작성자가 빈칸이 된다(셀프가입·관리자 등록 모두).
 
 ## 파일 / 실시간 / 브랜딩
 - 모든 파일 참조는 **매핑 테이블 경유만**(엔티티에 직접 파일 ID 컬럼을 두지 않는다). 용도 코드(POST/POST_IMG/POST_EDITOR/POPUP/LOGO)로 구분.

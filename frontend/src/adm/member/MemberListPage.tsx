@@ -72,6 +72,8 @@ export default function MemberListPage() {
   const columns: TableColumnsType<Member> = [
     { title: '아이디', dataIndex: 'memberId', width: 140 },
     { title: '이름', dataIndex: 'memberName' },
+    // 표시명(닉네임) — 사용자 화면의 작성자 표기. 비면 게시글·모집에서 작성자가 빈칸이 된다
+    { title: '표시명', dataIndex: 'nickname', width: 130, render: (v) => v || '-' },
     { title: '회원유형', width: 100, render: (_, r) => r.memberTypeName ?? r.typeCd },
     { title: '계정상태', width: 90, render: (_, r) => r.statusCdName ?? r.statusCd },
     { title: '사용', dataIndex: 'useYn', width: 60 },
@@ -188,7 +190,14 @@ export default function MemberListPage() {
           <Form.Item name="memberName" label="이름" rules={[{ required: true, message: '이름을 입력하세요.' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="typeCd" label="회원유형">
+          <Form.Item
+          name="nickname" label="표시명"
+          rules={[{ required: true, message: '표시명을 입력하세요.' }]}
+          extra="사용자 화면의 작성자 표기(닉네임). 중복될 수 없습니다."
+        >
+          <Input maxLength={30} />
+        </Form.Item>
+        <Form.Item name="typeCd" label="회원유형">
             <CodeSelect pCodeId="MEM00" placeholder="회원유형 선택" />
           </Form.Item>
           <Form.Item name="statusCd" label="계정상태">

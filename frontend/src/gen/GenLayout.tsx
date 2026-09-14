@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, ConfigProvider, Dropdown, Drawer, Grid, Input, Layout, Menu, Modal, Popover, Space } from 'antd'
+import { Badge, Button, ConfigProvider, Dropdown, Drawer, Grid, Layout, Menu, Modal, Popover, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { genTheme, gen } from './theme'
@@ -324,12 +324,13 @@ export default function GenLayout() {
       <Layout style={{ minHeight: '100vh', backgroundColor: gen.pageBg, backgroundImage: `url(${hobbyPattern})`, backgroundAttachment: 'fixed' }}>
         {/* 배경은 .gen-header(반투명+blur)가 담당 — 인라인 background를 주면 불투명해져 유리면이 사라진다 */}
         {/*
-          ★ 그리드 열을 `auto minmax(0,1fr) auto`로 둔다. 예전엔 `1fr auto 1fr`로 중앙 열을
-          콘텐츠 폭에 맞춰 "뷰포트 정중앙"에 두려 했는데, 로그인 시 항목이 늘면(내 피드·모집·공지·
-          고객센터·나의 취미 + 검색 + 버튼 4개) 1280px에서도 중앙 내비가 우측 컨트롤과
-          **159px 겹쳤다**(실측). 이제 좌·우가 자기 폭을 갖고 내비는 남은 공간 안에서 가운데 정렬된다.
+          ★ 그리드 열을 `minmax(0,1fr) auto minmax(0,1fr)`로 둔다 — 좌·우가 같은 몫을 가지므로
+          가운데 열(내비)이 **뷰포트 정중앙**에 온다. 이게 성립하려면 좌·우 콘텐츠가 그 몫 안에
+          들어와야 한다: 예전엔 우측에 검색창+버튼 4개가 늘어서 폭이 443px까지 커졌고, 그 바람에
+          `1fr auto 1fr`에서는 내비와 겹치고(159px) `auto 1fr auto`에서는 내비가 왼쪽으로 밀렸다.
+          지금은 우측을 아이콘+계정 드롭다운으로 접어 폭을 줄였다(아래 우측 블록 주석 참고).
         */}
-        <Layout.Header className={headerClass} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', height: HEADER_H, paddingInline: 22, columnGap: 14, position: 'sticky', top: 0, zIndex: 20 }}>
+        <Layout.Header className={headerClass} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', height: HEADER_H, paddingInline: 22, columnGap: 14, position: 'sticky', top: 0, zIndex: 20 }}>
           {/* 좌: 로고(모바일은 햄버거 포함) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'start', minWidth: 0 }}>
             {isMobile && (
@@ -385,14 +386,18 @@ export default function GenLayout() {
             })}
           </nav>
 
-          {/* 우: 검색 + 컨트롤(알림/마이페이지/로그인 등) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifySelf: 'end', minWidth: 0 }}>
+          {/*
+            우: 검색 + 알림·쪽지 + 계정.
+            ★ 폭을 좁게 유지해야 가운데 내비가 실제로 화면 중앙에 온다 — 좌·우가 같은 폭(1fr)일 때만
+              가운데 열이 뷰포트 정중앙이기 때문이다. 예전엔 여기에 검색창(150) + 버튼 4개(≈300)가
+              늘어서 있어서 좌우 폭 차이가 400px 가까이 났고, 내비가 왼쪽으로 밀렸다(실측).
+              그래서 검색은 아이콘, 마이페이지·관리자·로그아웃은 계정 드롭다운으로 접었다.
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifySelf: 'end', minWidth: 0 }}>
             {!isMobile && (
-              <Input.Search
-                placeholder="검색" allowClear
-                style={{ width: 150 }}
-                onSearch={(v) => { const q = v.trim(); if (q) navigate(`/gen/search?q=${encodeURIComponent(q)}`) }}
-              />
+              <Button shape="circle" aria-label="검색" onClick={() => navigate('/gen/search')}>
+                <MenuGlyph name="search" size={16} />
+              </Button>
             )}
             <Space size={8}>
               {loggedIn ? (
@@ -405,9 +410,22 @@ export default function GenLayout() {
                   <Badge count={msgUnread} size="small">
                     <Button shape="circle" aria-label="쪽지" onClick={() => navigate('/gen/message')}>✉️</Button>
                   </Badge>
-                  <Button onClick={() => navigate('/gen/mypage')}>마이페이지</Button>
-                  {isAdmin() && <Button onClick={() => navigate('/adm/dashboard')}>관리자 페이지</Button>}
-                  <Button onClick={logout}>로그아웃</Button>
+                  {/* 계정 메뉴 — 마이페이지·관리자·로그아웃을 한 버튼으로 접는다(헤더 폭 확보) */}
+                  <Dropdown
+                    placement="bottomRight"
+                    menu={{
+                      items: [
+                        { key: 'mypage', label: '마이페이지', onClick: () => navigate('/gen/mypage') },
+                        ...(isAdmin()
+                          ? [{ key: 'adm', label: '관리자 페이지', onClick: () => navigate('/adm/dashboard') }]
+                          : []),
+                        { type: 'divider' as const },
+                        { key: 'logout', label: '로그아웃', onClick: logout },
+                      ],
+                    }}
+                  >
+                    <Button aria-label="계정 메뉴">내 계정 ▾</Button>
+                  </Dropdown>
                 </>
               ) : (
                 <Button type="primary" onClick={() => navigate('/login')} style={{ borderRadius: 14, fontWeight: 700 }}>로그인</Button>

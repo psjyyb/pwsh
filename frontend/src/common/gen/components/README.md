@@ -9,5 +9,17 @@
 
 영역 스타일 차이는 컴포넌트 복제 대신 `gen/theme.ts`(ConfigProvider 테마)로 처리한다.
 
-> 현재: `MemberAvatar`(닉네임·프로필 사진 + 프로필 링크), `ReportAction`(신고 버튼).
-> (참고: 문서 제목은 `common/hooks/useDocumentTitle` 훅이 `[페이지명 | 사이트명]`으로 자동 설정 — 사이트명은 환경설정 값.)
+현재 들어 있는 것:
+
+| 컴포넌트 | 역할 |
+|---|---|
+| `PageShell` (`PageHead`·`PageBody`·`CrumbProvider`) | **모든 사용자 화면의 공통 셸** — 어두운 비주얼 밴드(분류·제목·설명·액션·위치내비) + 본문 폭. 새 gen 화면은 반드시 이걸 쓴다(CLAUDE.md의 gen 디자인 규약). |
+| `MemberAvatar` | 닉네임·프로필 사진 + 프로필 링크(공개 식별자 handle로 이동) |
+| `MentionText` | 본문·댓글의 `@닉네임`을 프로필 링크로 |
+| `ReportAction` | 신고 버튼(글·댓글·모집 공용) |
+| `PolicyViewModal` | 약관 전문 보기(가입 동의 문서와 같은 내용) |
+| `PlacePicker` · `PlaceMap` | 모임 장소 선택(지도) · 표시 |
+
+같은 폴더 밖: `common/gen/useEventStream.ts`(SSE 구독 훅 — 알림·쪽지 배지, 단체 대화).
+
+(참고: 문서 제목은 `common/hooks/useDocumentTitle` 훅이 `[페이지명 | 사이트명]`으로 자동 설정 — 사이트명은 환경설정 값.)

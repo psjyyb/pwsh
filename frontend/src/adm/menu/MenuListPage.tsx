@@ -7,7 +7,7 @@ import SplitLayout from '../../common/adm/components/SplitLayout'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import PagePickerModal from '../../common/adm/components/PagePickerModal'
 import BoardPickerModal from '../../common/adm/components/BoardPickerModal'
-import MenuGlyph, { MENU_ICON_KEYS } from '../../common/adm/components/MenuGlyph'
+import IconPicker from '../../common/adm/components/IconPicker'
 import { runWithMessage } from '../../common/util/action'
 import { menuApi } from './menu.api'
 import type { Menu } from './menu.api'
@@ -222,21 +222,9 @@ export default function MenuListPage() {
               <Input disabled />
             </Form.Item>
           )}
+          {/* 아이콘이 수십 개라 드롭다운 한 줄씩 훑는 대신 검색 가능한 그리드(IconPicker)로 고른다 */}
           <Form.Item name="icon" label="아이콘 (사이드바 표시, 선택)">
-            <Select
-              allowClear
-              placeholder="아이콘 선택"
-              optionLabelProp="label"
-              options={MENU_ICON_KEYS.map((k) => ({
-                value: k,
-                label: (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <MenuGlyph name={k} size={16} />
-                    {k}
-                  </span>
-                ),
-              }))}
-            />
+            <IconPicker />
           </Form.Item>
           <Form.Item name="description" label="설명">
             <Input />
