@@ -40,6 +40,16 @@ spring:
         transport:
           protocol: smtp
 
+# 메일 발송
+#  - enabled: false면 실제 SMTP 전송을 하지 않고 이력만 SKIP으로 남긴다(개발·테스트 기본값).
+#    운영에서 true로 켠다. 계정 미설정 상태로 켜면 발송이 FAIL로 남는다(조용히 삼키지 않는다).
+#  - log.retention-days: 이력 보존기간. 본문에 인증번호가 남으므로 무한 보관하지 않는다. 0이면 정리 안 함.
+mail:
+  enabled: ${MAIL_ENABLED:false}
+  log:
+    retention-days: 90
+    cron: "0 30 4 * * *"  # 매일 새벽 4시 30분(파일 GC 4시와 겹치지 않게)
+
 # 파일 업로드 저장 경로 (기본: 실행 디렉터리의 uploads. 운영은 환경변수 FILE_UPLOAD_DIR)
 file:
   upload-dir: ${FILE_UPLOAD_DIR:uploads}

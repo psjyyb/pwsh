@@ -4,12 +4,10 @@ import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
-import jakarta.mail.internet.MimeMessage;
+import com.pwsh.domain.mail.service.MailService;
 import java.security.SecureRandom;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 이메일 인증코드 발급·검증·발송. 가입 이메일 인증(SIGNUP)과 비밀번호 재설정(RESET) 공용.
  * 6자리 숫자 코드, 유효기간 {@value #TTL_MIN}분, 검증 성공 시 삭제(소비).
- * 발신 SMTP 계정은 환경변수(MAIL_USERNAME/MAIL_PASSWORD)로만 주입한다.
+ *
+ * <p>메일 본문·제목은 여기 있지 않다 — {@link MailService}가 {@code mail_template}에서 꺼내 쓴다
+ * (문구를 고치려고 배포하지 않기 위함). 발송 결과는 {@code mail_log}에 그대로 남는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,10 +32,7 @@ public class EmailVerifyService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final CommonDAO commonDAO;
-    private final JavaMailSender mailSender;
-
-    @Value("${spring.mail.username:}")
-    private String mailFrom;
+    private final MailService mailService;
 
     /**
      * 코드 발급 + 메일 발송. target=식별키(가입:이메일, 재설정:member_id), toEmail=수신 이메일.
@@ -43,11 +40,6 @@ public class EmailVerifyService {
      */
     @Transactional
     public void issue(String target, String purpose, String toEmail) {
-        if (mailFrom == null || mailFrom.isBlank()) {
-            // 발신 계정 미설정 → 실제 발송 불가(모킹 금지). 운영자가 환경변수 설정해야 함.
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    Messages.get("error.email.notConfigured"));
-        }
         EmailVerificationVO throttleKey = new EmailVerificationVO();
         throttleKey.setTarget(target);
         throttleKey.setPurpose(purpose);
@@ -107,61 +99,18 @@ public class EmailVerifyService {
         commonDAO.delete("emailVerifyDAO.deleteByTarget", vo);
     }
 
+    /**
+     * 인증 메일 발송. 실패하면 예외를 던져 코드 발급까지 롤백한다 —
+     * 사용자가 받지 못한 코드를 유효한 것처럼 남겨두면 "인증번호가 안 온다"가 계속 반복된다.
+     * (발송 이력 자체는 독립 트랜잭션이라 롤백돼도 mail_log에 남는다.)
+     */
     private void sendCodeMail(String to, String code, String purpose) {
-        boolean signup = "SIGNUP".equals(purpose);
-        String subject = signup ? "[취만사] 회원가입 인증번호" : "[취만사] 비밀번호 재설정 인증번호";
-        String title = signup ? "회원가입 인증번호" : "비밀번호 재설정 인증번호";
-        String html = buildHtml(title, code);
-        try {
-            // HTML 메일 → MimeMessage(+MimeMessageHelper). 평문 SimpleMailMessage로는 스타일 불가.
-            MimeMessage mime = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mime, false, "UTF-8");
-            helper.setFrom(mailFrom);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(html, true); // true = HTML 본문
-            mailSender.send(mime);
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    Messages.get("error.email.sendFailed"));
+        String templateCd = "SIGNUP".equals(purpose) ? "SIGNUP_CODE" : "RESET_CODE";
+        boolean sent = mailService.send(templateCd, to,
+                Map.of("code", code, "ttl", String.valueOf(TTL_MIN)));
+        if (!sent) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, Messages.get("error.email.sendFailed"));
         }
     }
 
-    /**
-     * 인증번호 안내 HTML 본문. 이메일 클라이언트 호환을 위해 table 레이아웃 + 인라인 스타일만 사용.
-     * (String.format은 CSS의 width:100% 등 %와 충돌하므로 replace로 치환)
-     */
-    private String buildHtml(String title, String code) {
-        return HTML_TEMPLATE
-                .replace("%TITLE%", title)
-                .replace("%CODE%", code)
-                .replace("%TTL%", String.valueOf(TTL_MIN));
-    }
-
-    private static final String HTML_TEMPLATE = ""
-        + "<div style=\"margin:0;padding:0;background:#f4f2fb;\">"
-        + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f4f2fb;padding:24px 0;\"><tr><td align=\"center\">"
-        + "<table role=\"presentation\" width=\"480\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:480px;max-width:480px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;box-shadow:0 6px 24px rgba(80,60,160,.12);\">"
-        // header
-        + "<tr><td style=\"background:#8B72F5;padding:22px 28px;text-align:center;\">"
-        + "<span style=\"color:#ffffff;font-size:20px;font-weight:700;\">&#128274; 인증번호 발송</span></td></tr>"
-        // body
-        + "<tr><td style=\"padding:32px 32px 8px 32px;color:#333333;font-size:14px;line-height:1.7;\">"
-        + "안녕하세요, <b>취만사</b>입니다.<br/>요청하신 <b>%TITLE%</b>를 안내해 드립니다.</td></tr>"
-        // code box
-        + "<tr><td style=\"padding:16px 32px;\">"
-        + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:2px dashed #B9A6F7;border-radius:12px;background:#faf9ff;\"><tr><td style=\"padding:22px;text-align:center;\">"
-        + "<div style=\"color:#999999;font-size:13px;margin-bottom:10px;\">인증번호</div>"
-        + "<div style=\"color:#6a4df4;font-size:34px;font-weight:800;letter-spacing:8px;\">%CODE%</div></td></tr></table></td></tr>"
-        // instruction
-        + "<tr><td style=\"padding:8px 32px;color:#555555;font-size:13px;line-height:1.7;\">"
-        + "위 인증번호를 화면의 인증번호 입력란에 입력해 주세요.</td></tr>"
-        // warning
-        + "<tr><td style=\"padding:12px 32px 26px 32px;\">"
-        + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#fff8e1;border-radius:8px;\"><tr><td style=\"padding:14px 16px;color:#8a6d1b;font-size:12.5px;line-height:1.7;\">"
-        + "&#9888; 본 인증번호는 발송 후 <b>%TTL%분간</b> 유효합니다.<br/>본인이 요청하지 않은 경우, 이 메일을 무시하셔도 됩니다.</td></tr></table></td></tr>"
-        // footer
-        + "<tr><td style=\"background:#f4f2fb;padding:18px 32px;text-align:center;color:#aaaaaa;font-size:11.5px;line-height:1.6;\">"
-        + "본 메일은 발신전용입니다.<br/>COPYRIGHT &copy; 2026 취만사 (People Who Share Hobbies). ALL RIGHTS RESERVED.</td></tr>"
-        + "</table></td></tr></table></div>";
 }

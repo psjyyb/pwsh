@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  메일 발송 이력(append-only). 수신자 주소는 개인정보라 member.email과 같은 방식으로
+  pgcrypto AES(HEX)로 넣고 조회할 때 복호화한다 — 평문으로 두면 로그 한 번 유출에 주소록이 통째로 샌다.
+-->
+<mapper namespace="mailLogDAO">
+
+    <select id="selectList" parameterType="mailLogVO" resultType="mailLogVO">
+        SELECT l.mail_log_id::TEXT AS row_id, l.template_cd,
+               CONVERT_FROM(DECRYPT(DECODE(l.to_email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') AS to_email,
+               l.subject, l.status_cd, c.name AS status_name, l.error_msg, l.reg_id,
+               TO_CHAR(l.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt
+        FROM mail_log l
+        LEFT JOIN code c ON c.code_id = l.status_cd AND c.p_code_id = 'MAIL00'
+        <where>
+            <if test="statusCd != null and statusCd != ''">AND l.status_cd = #{statusCd}</if>
+            <if test="templateCd != null and templateCd != ''">AND l.template_cd = #{templateCd}</if>
+            <if test="filterKeyword != null and filterKeyword != ''">
+                AND (l.subject LIKE '%' || #{filterKeyword} || '%'
+                     OR CONVERT_FROM(DECRYPT(DECODE(l.to_email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')
+                        LIKE '%' || #{filterKeyword} || '%')
+            </if>
+        </where>
+        ORDER BY l.mail_log_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="mailLogVO" resultType="int">
+        SELECT COUNT(*) FROM mail_log l
+        <where>
+            <if test="statusCd != null and statusCd != ''">AND l.status_cd = #{statusCd}</if>
+            <if test="templateCd != null and templateCd != ''">AND l.template_cd = #{templateCd}</if>
+            <if test="filterKeyword != null and filterKeyword != ''">
+                AND (l.subject LIKE '%' || #{filterKeyword} || '%'
+                     OR CONVERT_FROM(DECRYPT(DECODE(l.to_email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')
+                        LIKE '%' || #{filterKeyword} || '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="selectView" parameterType="mailLogVO" resultType="mailLogVO">
+        SELECT l.mail_log_id::TEXT AS row_id, l.template_cd,
+               CONVERT_FROM(DECRYPT(DECODE(l.to_email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8') AS to_email,
+               l.subject, l.content, l.status_cd, c.name AS status_name, l.error_msg, l.reg_id,
+               TO_CHAR(l.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt
+        FROM mail_log l
+        LEFT JOIN code c ON c.code_id = l.status_cd AND c.p_code_id = 'MAIL00'
+        WHERE l.mail_log_id = #{rowId}::integer
+    </select>
+
+    <insert id="insert" parameterType="mailLogVO">
+        INSERT INTO mail_log (template_cd, to_email, subject, content, status_cd, error_msg, reg_id, reg_dt, reg_ip)
+        VALUES (#{templateCd},
+            ENCODE(ENCRYPT(CONVERT_TO(#{toEmail},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX'),
+            #{subject}, #{content}, #{statusCd}, #{errorMsg}, #{regId}, NOW(), #{regIp})
+    </insert>
+
+    <!-- 보존기간 지난 이력 삭제(본문에 인증번호 등이 남으므로 무한 보관하지 않는다) -->
+    <delete id="deleteExpired" parameterType="map">
+        DELETE FROM mail_log WHERE reg_dt &lt; NOW() - (#{days} || ' days')::INTERVAL
+    </delete>
+
+</mapper>

@@ -54,6 +54,7 @@
   - ★ 공개 화면이 부르는 조회 API는 `SecurityConfig` permitAll에 넣어야 한다. 하나라도 빠지면 401 → 프론트 인터셉터가 로그인 화면으로 보내 **화면 전체를 못 본다**(회귀 방지: `GuestPublicPageTest`).
 - **실시간(SSE)**: `RealtimeService`가 사용자별 연결을 들고 "새 게 있다"는 이벤트 이름만 푸시한다(본문 없음 — 인가는 조회 API 한 곳에만). 프론트는 `useEventStream`(fetch POST + Authorization 헤더, 자동 재연결), 끊기면 폴링으로 대체. 단일 JVM 한정.
 - **로고**: 환경설정에서 업로드, 미설정 시 `frontend/src/assets/logo.svg`. **메뉴 아이콘**: 메뉴에 저장된 아이콘 키 → 프론트 `MenuGlyph` 레지스트리.
+- **메일**: 발송 창구는 `MailService.send(templateCd, toEmail, vars)` 하나다 — `JavaMailSender`를 도메인에서 직접 부르면 그 발송만 `mail_log`에 안 남는다. 문구는 코드가 아니라 `mail_template` 행(관리자 > 시스템관리 > 메일템플릿). 지금 발송되는 곳은 `EmailVerifyService`(`SIGNUP_CODE`·`RESET_CODE`)뿐이다. 본문의 `{{키}}` 치환 값은 **HTML 이스케이프 후 삽입**하고, ⚠ 수신자 주소는 암호화 저장, ⚠ 본문은 `mail.log.retention-days`(90일) 뒤 스케줄러가 지운다. `mail.enabled=false`(기본)면 전송 없이 `SKIP` 이력만 남는다. 저장된 HTML은 **`sandbox` iframe으로만 렌더**한다.
 
 ## 실행 / 검증
 - Backend: `cd backend && ./gradlew bootRun` (dev 설정 `application-dev.yml`, 운영은 env `DB_URL`·`JWT_SECRET` 등).

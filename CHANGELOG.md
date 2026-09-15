@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.3 · CMS 1.2.2` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.4 · CMS 1.2.3` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,43 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.4 (CMS 1.2.3) — 메일 템플릿·발송 이력 흡수 + 인증 메일을 그 위로 이전
+
+CMS 1.2.3의 메일 기반(`MailService` + `mail_template` + `mail_log`)을 흡수하고,
+**이미 있던 인증 메일 발송을 그 위로 옮겼다**. 옮기지 않으면 이 서비스에서 실제로 나가는
+유일한 메일이 이력에 안 남는다.
+
+### 흡수한 것
+
+- `domain/mail/`(VO 2 · `MailService` · 컨트롤러 2) · 매퍼 2 · 관리화면 2
+  (시스템관리 > **메일템플릿**, 로그관리 > **메일발송이력**).
+- `mail.enabled`(기본 false) · `mail.log.retention-days`(90일) 설정 추가.
+- 발송 결과 공통코드 `MAIL00`(SUCCESS/FAIL/SKIP).
+
+### 인증 메일 이전 (`EmailVerifyService`)
+
+- `JavaMailSender`를 직접 부르던 코드와 **자바 상수로 박혀 있던 HTML 본문(약 30줄)을 걷어내고**
+  `mailService.send("SIGNUP_CODE" | "RESET_CODE", 수신자, {code, ttl})` 한 줄로 바꿨다.
+  디자인은 그대로 옮겨 `mail_template` 시드 2건이 됐다 — 이제 문구·디자인을 관리화면에서 고친다.
+- 발송 실패는 **예외를 던져 코드 발급까지 롤백**한다. 사용자가 받지 못한 코드를 유효한 것처럼
+  남겨두면 "인증번호가 안 온다"가 계속 반복된다. (이력은 독립 트랜잭션이라 롤백돼도 남는다.)
+- `error.email.notConfigured` 메시지는 쓰는 곳이 없어져 제거했다(미설정은 `MailService`가
+  `FAIL` 이력으로 처리한다).
+
+### pwsh 고유 주의
+
+⚠ 코드 `SUCCESS`/`FAIL`/`SKIP`은 `code.code_id`가 전역 유일이라 기존 코드와 겹치면 안 된다
+(현재 충돌 없음 — `APPLY00`·`RECRUIT00` 등과 값이 다르다).
+
+**테스트**: `MailTest`(10) — CMS 9건 + **가입 인증 메일이 템플릿·이력을 탄다**(제목이 시드
+템플릿과 일치하고 `{{code}}`·`{{ttl}}`이 실제 값으로 치환됐는지). 전체 **122개 통과**.
+
+**DB** — framework 저장소 CHANGELOG 1.2.3의 DDL을 그대로 적용하고, 템플릿 시드는
+이 저장소 `sql/data.sql`의 `SIGNUP_CODE`·`RESET_CODE` 2건을 쓴다(CMS의 WELCOME/NOTICE 대신).
+메뉴는 `메일템플릿`(시스템관리, `mail`) · `메일발송이력`(로그관리, `send`).
 
 ---
 

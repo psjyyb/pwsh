@@ -24,6 +24,7 @@ INSERT INTO code (code_id, p_code_id, name, sort_no, use_yn, reg_id, upd_id, reg
 ('REPORT00',   'ROOT', '신고사유',    12, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('AREA00',     'ROOT', '지역(시도)',  13, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('ATTEND00',   'ROOT', '참석결과',    14, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('MAIL00',     'ROOT', '메일발송결과', 15, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 
 -- ── 회원유형 (member.type_cd) ──
 ('MEM01', 'MEM00', '사용자', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -115,7 +116,12 @@ INSERT INTO code (code_id, p_code_id, name, sort_no, use_yn, reg_id, upd_id, reg
 ('HOBBYLV01', 'HOBBYLV00', '입문', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('HOBBYLV02', 'HOBBYLV00', '초급', 2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('HOBBYLV03', 'HOBBYLV00', '중급', 3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-('HOBBYLV04', 'HOBBYLV00', '고급', 4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+('HOBBYLV04', 'HOBBYLV00', '고급', 4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 메일 발송 결과 (mail_log.status_cd) ──
+('SUCCESS', 'MAIL00', '발송성공', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FAIL',    'MAIL00', '발송실패', 2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('SKIP',    'MAIL00', '미발송',   3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- ============================ 환경설정 (config, 단일 행) ============================
 INSERT INTO config (fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins, del_log_days, acc_ip_yn, maint_yn, maint_message, title, menu_version)
@@ -161,12 +167,14 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 (49,  1, 'ADM', '접속IP관리',     7, 'MENU01', 0, '/adm/accessip',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (51,  1, 'ADM', '확장설정',       8, 'MENU01', 0, '/adm/configitem', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (52,  1, 'ADM', '배너관리',       9, 'MENU01', 0, '/adm/banner',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(53,  1, 'ADM', '메일템플릿',    10, 'MENU01', 0, '/adm/mailtemplate', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 8,  0, 'ADM', '회원관리',       3, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ( 9,  8, 'ADM', '사용자관리',     1, 'MENU01', 0, '/adm/member',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (13,  8, 'ADM', '권한그룹관리',   2, 'MENU01', 0, '/adm/authgroup',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (50,  8, 'ADM', '접속세션',       3, 'MENU01', 0, '/adm/loginsession', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (10,  0, 'ADM', '로그관리',       4, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (12, 10, 'ADM', '활동로그',       1, 'MENU01', 0, '/adm/eventlog',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(54, 10, 'ADM', '메일발송이력',   2, 'MENU01', 0, '/adm/maillog',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 -- 게시판 관리 그룹: 게시판 설정(관리화면 URL) + 게시판별 관리(연결유형=게시판 → /adm/post/{conn_id})
 --   ※ 취미 게시판은 여기에 메뉴로 넣지 않는다 — 취미 등록 시 게시판이 자동 생성돼(HobbyService)
 --     취미가 늘 때마다 메뉴를 손대야 하기 때문. 게시판 설정 목록의 '글 관리'로 진입한다.
@@ -213,6 +221,9 @@ UPDATE menu SET icon = CASE
     WHEN link_url LIKE '%/popup%'   THEN 'popup'
     WHEN link_url LIKE '%/policy%'  THEN 'policy'
     WHEN link_url LIKE '%/file%'    THEN 'file'
+    -- ★ 아래 '%/log%'가 '/adm/maillog'도 잡으므로 메일 두 줄을 반드시 그 앞에 둔다
+    WHEN link_url LIKE '%/mailtemplate%' THEN 'mail'
+    WHEN link_url LIKE '%/maillog%' THEN 'send'
     -- ★ 아래 '%/log%'가 '/adm/loginsession'도 잡으므로 반드시 그 앞에 둔다
     WHEN link_url LIKE '%/loginsession%' THEN 'clock'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'
@@ -374,6 +385,45 @@ INSERT INTO banner (banner_id, title, description, btn1_label, btn1_url, btn2_la
     '회원가입', '/signup', NULL, NULL, 3, 'Y',
     'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 SELECT setval(pg_get_serial_sequence('banner', 'banner_id'), (SELECT MAX(banner_id) FROM banner));
+
+-- ============================ 메일 템플릿 (mail_template) ============================
+-- ★ 실제로 발송되는 것만 넣는다 — 쓰는 코드가 없는 템플릿은 화면에만 보이고 아무 효과가 없다.
+--   지금 발송되는 곳: EmailVerifyService(가입 인증 SIGNUP_CODE / 비밀번호 재설정 RESET_CODE).
+-- 문구·디자인은 관리자 > 시스템관리 > 메일템플릿에서 바꾼다(배포 불필요).
+-- 메일 클라이언트 호환을 위해 table 레이아웃 + 인라인 스타일만 쓴다(외부 CSS·flex는 깨진다).
+INSERT INTO mail_template (mail_template_id, template_cd, name, subject, content, variables, use_yn,
+    reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip) VALUES
+(1, 'SIGNUP_CODE', '가입 인증번호', '[취만사] 회원가입 인증번호',
+ '<div style="margin:0;padding:0;background:#f4f2fb;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2fb;padding:24px 0;"><tr><td align="center">'
+ || '<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="width:480px;max-width:480px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Malgun Gothic,Apple SD Gothic Neo,Arial,sans-serif;box-shadow:0 6px 24px rgba(80,60,160,.12);">'
+ || '<tr><td style="background:#8B72F5;padding:22px 28px;text-align:center;"><span style="color:#ffffff;font-size:20px;font-weight:700;">&#128274; 인증번호 발송</span></td></tr>'
+ || '<tr><td style="padding:32px 32px 8px 32px;color:#333333;font-size:14px;line-height:1.7;">안녕하세요, <b>취만사</b>입니다.<br/>요청하신 <b>회원가입 인증번호</b>를 안내해 드립니다.</td></tr>'
+ || '<tr><td style="padding:16px 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px dashed #B9A6F7;border-radius:12px;background:#faf9ff;"><tr><td style="padding:22px;text-align:center;">'
+ || '<div style="color:#999999;font-size:13px;margin-bottom:10px;">인증번호</div>'
+ || '<div style="color:#6a4df4;font-size:34px;font-weight:800;letter-spacing:8px;">{{code}}</div></td></tr></table></td></tr>'
+ || '<tr><td style="padding:8px 32px;color:#555555;font-size:13px;line-height:1.7;">위 인증번호를 화면의 인증번호 입력란에 입력해 주세요.</td></tr>'
+ || '<tr><td style="padding:12px 32px 26px 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border-radius:8px;"><tr><td style="padding:14px 16px;color:#8a6d1b;font-size:12.5px;line-height:1.7;">'
+ || '&#9888; 본 인증번호는 발송 후 <b>{{ttl}}분간</b> 유효합니다.<br/>본인이 요청하지 않은 경우, 이 메일을 무시하셔도 됩니다.</td></tr></table></td></tr>'
+ || '<tr><td style="background:#f4f2fb;padding:18px 32px;text-align:center;color:#aaaaaa;font-size:11.5px;line-height:1.6;">본 메일은 발신전용입니다.<br/>COPYRIGHT &copy; 2026 취만사 (People Who Share Hobbies). ALL RIGHTS RESERVED.</td></tr>'
+ || '</table></td></tr></table></div>',
+ '{{code}} 6자리 인증번호 / {{ttl}} 유효기간(분)', 'Y',
+ 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(2, 'RESET_CODE', '비밀번호 재설정 인증번호', '[취만사] 비밀번호 재설정 인증번호',
+ '<div style="margin:0;padding:0;background:#f4f2fb;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2fb;padding:24px 0;"><tr><td align="center">'
+ || '<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="width:480px;max-width:480px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Malgun Gothic,Apple SD Gothic Neo,Arial,sans-serif;box-shadow:0 6px 24px rgba(80,60,160,.12);">'
+ || '<tr><td style="background:#8B72F5;padding:22px 28px;text-align:center;"><span style="color:#ffffff;font-size:20px;font-weight:700;">&#128274; 인증번호 발송</span></td></tr>'
+ || '<tr><td style="padding:32px 32px 8px 32px;color:#333333;font-size:14px;line-height:1.7;">안녕하세요, <b>취만사</b>입니다.<br/>요청하신 <b>비밀번호 재설정 인증번호</b>를 안내해 드립니다.</td></tr>'
+ || '<tr><td style="padding:16px 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px dashed #B9A6F7;border-radius:12px;background:#faf9ff;"><tr><td style="padding:22px;text-align:center;">'
+ || '<div style="color:#999999;font-size:13px;margin-bottom:10px;">인증번호</div>'
+ || '<div style="color:#6a4df4;font-size:34px;font-weight:800;letter-spacing:8px;">{{code}}</div></td></tr></table></td></tr>'
+ || '<tr><td style="padding:8px 32px;color:#555555;font-size:13px;line-height:1.7;">위 인증번호를 화면의 인증번호 입력란에 입력해 주세요.</td></tr>'
+ || '<tr><td style="padding:12px 32px 26px 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border-radius:8px;"><tr><td style="padding:14px 16px;color:#8a6d1b;font-size:12.5px;line-height:1.7;">'
+ || '&#9888; 본 인증번호는 발송 후 <b>{{ttl}}분간</b> 유효합니다.<br/>본인이 요청하지 않은 경우, 이 메일을 무시하셔도 됩니다.</td></tr></table></td></tr>'
+ || '<tr><td style="background:#f4f2fb;padding:18px 32px;text-align:center;color:#aaaaaa;font-size:11.5px;line-height:1.6;">본 메일은 발신전용입니다.<br/>COPYRIGHT &copy; 2026 취만사 (People Who Share Hobbies). ALL RIGHTS RESERVED.</td></tr>'
+ || '</table></td></tr></table></div>',
+ '{{code}} 6자리 인증번호 / {{ttl}} 유효기간(분)', 'Y',
+ 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+SELECT setval(pg_get_serial_sequence('mail_template', 'mail_template_id'), (SELECT MAX(mail_template_id) FROM mail_template));
 
 -- ============================ 약관 (policy) ============================
 -- 가입 화면의 필수 동의 항목이자 푸터에 노출되는 문서. req_yn='Y' 인 약관은 동의 없이는 가입이 거부된다.

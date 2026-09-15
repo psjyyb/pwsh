@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mailTemplateDAO">
+
+    <select id="selectList" parameterType="mailTemplateVO" resultType="mailTemplateVO">
+        SELECT mail_template_id::TEXT AS row_id, template_cd, name, subject, variables, use_yn, upd_dt
+        FROM mail_template
+        WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (name LIKE '%' || #{filterKeyword} || '%' OR template_cd LIKE '%' || #{filterKeyword} || '%')
+        </if>
+        ORDER BY template_cd
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="mailTemplateVO" resultType="int">
+        SELECT COUNT(*) FROM mail_template WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (name LIKE '%' || #{filterKeyword} || '%' OR template_cd LIKE '%' || #{filterKeyword} || '%')
+        </if>
+    </select>
+
+    <select id="selectView" parameterType="mailTemplateVO" resultType="mailTemplateVO">
+        SELECT mail_template_id::TEXT AS row_id, template_cd, name, subject, content, variables, use_yn
+        FROM mail_template WHERE mail_template_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 발송 지점이 쓰는 조회: 코드로 사용중인 템플릿 1건. 유니크 인덱스가 중복을 막는다 -->
+    <select id="selectByCode" parameterType="mailTemplateVO" resultType="mailTemplateVO">
+        SELECT mail_template_id::TEXT AS row_id, template_cd, name, subject, content
+        FROM mail_template WHERE template_cd = #{templateCd} AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="mailTemplateVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="mail_template_id">
+        INSERT INTO mail_template (template_cd, name, subject, content, variables, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{templateCd}, #{name}, #{subject}, #{content}, #{variables}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="mailTemplateVO">
+        UPDATE mail_template SET
+            template_cd = #{templateCd}, name = #{name}, subject = #{subject},
+            content = #{content}, variables = #{variables},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE mail_template_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="mailTemplateVO">
+        UPDATE mail_template SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE mail_template_id = #{rowId}::integer
+    </update>
+
+</mapper>
