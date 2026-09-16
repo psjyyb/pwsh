@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  개인정보 접근 로그(append-only). update/delete 구문을 일부러 두지 않는다 —
+  고쳐 쓸 수 있는 접근기록은 기록으로서 쓸모가 없다.
+  ★ 이 매퍼에는 DECRYPT를 쓰지 않는다. 접근기록 조회가 다시 개인정보 조회로 잡혀
+    자기 자신을 기록하는 고리가 생긴다(target_ids는 이미 복호화된 회원 ID 문자열이다).
+-->
+<mapper namespace="privacylogDAO">
+
+    <select id="selectList" parameterType="privacylogVO" resultType="privacylogVO">
+        SELECT privacy_log_id::TEXT AS row_id, member_id, request_uri, sql_ids, target_ids,
+               access_cnt, device_type,
+               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, reg_ip
+        FROM privacy_log
+        <where>
+            <if test="memberId != null and memberId != ''">AND member_id = #{memberId}</if>
+            <if test="filterKeyword != null and filterKeyword != ''">
+                AND (member_id LIKE '%' || #{filterKeyword} || '%'
+                     OR target_ids LIKE '%' || #{filterKeyword} || '%'
+                     OR request_uri LIKE '%' || #{filterKeyword} || '%')
+            </if>
+        </where>
+        ORDER BY privacy_log_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="privacylogVO" resultType="int">
+        SELECT COUNT(*) FROM privacy_log
+        <where>
+            <if test="memberId != null and memberId != ''">AND member_id = #{memberId}</if>
+            <if test="filterKeyword != null and filterKeyword != ''">
+                AND (member_id LIKE '%' || #{filterKeyword} || '%'
+                     OR target_ids LIKE '%' || #{filterKeyword} || '%'
+                     OR request_uri LIKE '%' || #{filterKeyword} || '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="selectView" parameterType="privacylogVO" resultType="privacylogVO">
+        SELECT privacy_log_id::TEXT AS row_id, member_id, request_uri, sql_ids, target_ids,
+               access_cnt, device_type, user_agent,
+               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, reg_ip
+        FROM privacy_log WHERE privacy_log_id = #{rowId}::integer
+    </select>
+
+    <insert id="insert" parameterType="privacylogVO">
+        INSERT INTO privacy_log (member_id, request_uri, sql_ids, target_ids, access_cnt,
+            device_type, user_agent, reg_dt, reg_ip)
+        VALUES (#{memberId}, #{requestUri}, #{sqlIds}, #{targetIds},
+            COALESCE(NULLIF(#{accessCnt}, '')::integer, 0),
+            #{deviceType}, #{userAgent}, NOW(), #{regIp})
+    </insert>
+
+</mapper>

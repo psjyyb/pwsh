@@ -175,6 +175,7 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 (10,  0, 'ADM', '로그관리',       4, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (12, 10, 'ADM', '활동로그',       1, 'MENU01', 0, '/adm/eventlog',  'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (54, 10, 'ADM', '메일발송이력',   2, 'MENU01', 0, '/adm/maillog',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(55, 10, 'ADM', '개인정보 접근로그', 3, 'MENU01', 0, '/adm/privacylog', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 -- 게시판 관리 그룹: 게시판 설정(관리화면 URL) + 게시판별 관리(연결유형=게시판 → /adm/post/{conn_id})
 --   ※ 취미 게시판은 여기에 메뉴로 넣지 않는다 — 취미 등록 시 게시판이 자동 생성돼(HobbyService)
 --     취미가 늘 때마다 메뉴를 손대야 하기 때문. 게시판 설정 목록의 '글 관리'로 진입한다.
@@ -224,6 +225,7 @@ UPDATE menu SET icon = CASE
     -- ★ 아래 '%/log%'가 '/adm/maillog'도 잡으므로 메일 두 줄을 반드시 그 앞에 둔다
     WHEN link_url LIKE '%/mailtemplate%' THEN 'mail'
     WHEN link_url LIKE '%/maillog%' THEN 'send'
+    WHEN link_url LIKE '%/privacylog%' THEN 'lock'
     -- ★ 아래 '%/log%'가 '/adm/loginsession'도 잡으므로 반드시 그 앞에 둔다
     WHEN link_url LIKE '%/loginsession%' THEN 'clock'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'
