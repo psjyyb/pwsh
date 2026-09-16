@@ -50,6 +50,7 @@ function iconFor(m: MenuVO): string {
   if (nm.includes('문의')) return 'mail'
   if (m.connCd === 'MENU02') return 'board'
   if (m.connCd === 'MENU03') return 'page'
+  if (m.connCd === 'MENU05') return 'edit'
   return 'grid'
 }
 
@@ -71,10 +72,14 @@ function toNav(list: MenuVO[]): NavNode[] {
   return build('0')
 }
 
-/** conn_cd별 이동 경로. 페이지→/gen/page/{connId}, URL→link_url, 게시판→/gen/board/{connId}, 그룹→없음 */
+/**
+ * conn_cd별 이동 경로. 페이지→/gen/page/{connId}, URL→link_url, 게시판→/gen/board/{connId},
+ * 폼(신청·민원·설문)→/gen/form/{connId}, 그룹→없음
+ */
 function targetOf(m: MenuVO): string | null {
   if (m.connCd === 'MENU03') return m.connId ? `/gen/page/${m.connId}` : null
   if (m.connCd === 'MENU02') return m.connId ? `/gen/board/${m.connId}` : null
+  if (m.connCd === 'MENU05') return m.connId ? `/gen/form/${m.connId}` : null
   if (m.connCd === 'MENU01') return m.linkUrl || null
   return null
 }

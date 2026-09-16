@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  폼 응답. 개인정보 문항의 답만 value_enc(pgcrypto AES, HEX)에 들어간다.
+  ★ 값 조회에서 복호화 구문은 hasPrivacy가 Y일 때만 붙인다 — 항상 붙이면 개인정보가 하나도 없는
+    설문을 열어도 개인정보 접근기록이 쌓여 그 기록이 무의미해진다(탐지 기준이 실행 SQL의 DECRYPT다).
+  ⚠ 조건을 test="hasPrivacy == 'Y'"로 쓰면 안 된다. OGNL은 한 글자 작은따옴표를 char로 읽어
+    문자열과 숫자 비교를 시도하다 NumberFormatException(500)이 난다(실측). "Y".equals(...)로 쓴다.
+    두 글자 이상(예: direction == 'UP')은 문자열로 읽혀 문제가 없다 — 그래서 눈에 잘 안 띈다.
+-->
+<mapper namespace="formAnswerDAO">
+
+    <sql id="listCond">
+        AND a.use_yn = 'Y'
+        <if test="formId != null and formId != ''">AND a.form_id = #{formId}::integer</if>
+        <if test="statusCd != null and statusCd != ''">AND a.status_cd = #{statusCd}</if>
+        <if test="memberId != null and memberId != ''">AND a.member_id = #{memberId}</if>
+    </sql>
+
+    <select id="selectList" parameterType="formAnswerVO" resultType="formAnswerVO">
+        SELECT a.form_answer_id::TEXT AS row_id, a.form_id::TEXT AS form_id, f.title AS form_title,
+               a.member_id, a.status_cd, sc.name AS status_name,
+               TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, a.reg_ip
+        FROM form_answer a
+        JOIN form f ON f.form_id = a.form_id
+        LEFT JOIN code sc ON sc.code_id = a.status_cd AND sc.p_code_id = 'ANSWER00'
+        WHERE 1 = 1
+        <include refid="listCond" />
+        ORDER BY a.form_answer_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="formAnswerVO" resultType="int">
+        SELECT COUNT(*) FROM form_answer a WHERE 1 = 1
+        <include refid="listCond" />
+    </select>
+
+    <select id="selectView" parameterType="formAnswerVO" resultType="formAnswerVO">
+        SELECT a.form_answer_id::TEXT AS row_id, a.form_id::TEXT AS form_id, f.title AS form_title,
+               a.member_id, a.status_cd, sc.name AS status_name, a.admin_memo,
+               TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, a.reg_ip
+        FROM form_answer a
+        JOIN form f ON f.form_id = a.form_id
+        LEFT JOIN code sc ON sc.code_id = a.status_cd AND sc.p_code_id = 'ANSWER00'
+        WHERE a.form_answer_id = #{rowId}::integer AND a.use_yn = 'Y'
+    </select>
+
+    <!-- 1인 1회 제한 검사(로그인 제출에만 적용 — 비로그인은 제출자를 특정할 수 없다) -->
+    <select id="selectCountByMember" parameterType="formAnswerVO" resultType="int">
+        SELECT COUNT(*) FROM form_answer
+        WHERE form_id = #{formId}::integer AND member_id = #{memberId} AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="formAnswerVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="form_answer_id">
+        INSERT INTO form_answer (form_id, member_id, status_cd, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{formId}::integer, #{memberId}, 'ANSWER01', 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="updateStatus" parameterType="formAnswerVO">
+        UPDATE form_answer SET
+            status_cd = #{statusCd}, admin_memo = #{adminMemo},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_answer_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="formAnswerVO">
+        UPDATE form_answer SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_answer_id = #{rowId}::integer
+    </update>
+
+    <!-- ===== 문항별 값 ===== -->
+
+    <insert id="insertValue" parameterType="map">
+        INSERT INTO form_answer_value (form_answer_id, form_field_id, value, value_enc)
+        VALUES (#{answerId}::integer, #{fieldId}::integer, #{value},
+            <choose>
+                <when test="enc != null and enc != ''">
+                    ENCODE(ENCRYPT(CONVERT_TO(#{enc},'UTF8'),#{cryptoKey}::BYTEA,'AES'),'HEX')
+                </when>
+                <otherwise>NULL</otherwise>
+            </choose>)
+    </insert>
+
+    <!-- 응답 1건의 문항별 값(상세 화면). hasPrivacy='Y'일 때만 복호화 구문이 붙는다 -->
+    <select id="selectValues" parameterType="formAnswerVO" resultType="map">
+        SELECT v.form_field_id::TEXT AS "fieldId",
+        <choose>
+            <when test='"Y".equals(hasPrivacy)'>
+               CASE WHEN v.value_enc IS NULL THEN v.value
+                    ELSE CONVERT_FROM(DECRYPT(DECODE(v.value_enc,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')
+               END AS "value"
+            </when>
+            <otherwise>v.value AS "value"</otherwise>
+        </choose>
+        FROM form_answer_value v
+        WHERE v.form_answer_id = #{rowId}::integer
+    </select>
+
+    <!-- 내려받기용: 폼의 모든 응답 × 문항 값을 한 번에. 개인정보 문항이 있으면 복호화가 붙는다 -->
+    <select id="selectValuesByForm" parameterType="formAnswerVO" resultType="map">
+        SELECT v.form_answer_id::TEXT AS "answerId", v.form_field_id::TEXT AS "fieldId",
+        <choose>
+            <when test='"Y".equals(hasPrivacy)'>
+               CASE WHEN v.value_enc IS NULL THEN v.value
+                    ELSE CONVERT_FROM(DECRYPT(DECODE(v.value_enc,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')
+               END AS "value"
+            </when>
+            <otherwise>v.value AS "value"</otherwise>
+        </choose>
+        FROM form_answer_value v
+        JOIN form_answer a ON a.form_answer_id = v.form_answer_id AND a.use_yn = 'Y'
+        WHERE a.form_id = #{formId}::integer
+        ORDER BY v.form_answer_id DESC
+    </select>
+
+    <!--
+      통계용: 개인정보가 아닌 문항의 평문 값만 읽는다.
+      이름·연락처를 집계할 이유가 없고, 복호화를 끼우면 통계를 볼 때마다 개인정보 접근기록이 쌓인다.
+    -->
+    <select id="selectStatValues" parameterType="formAnswerVO" resultType="map">
+        SELECT v.form_field_id::TEXT AS "fieldId", v.value AS "value"
+        FROM form_answer_value v
+        JOIN form_answer a ON a.form_answer_id = v.form_answer_id AND a.use_yn = 'Y'
+        JOIN form_field ff ON ff.form_field_id = v.form_field_id AND ff.privacy_yn = 'N'
+        WHERE a.form_id = #{formId}::integer
+    </select>
+
+    <delete id="deleteValues" parameterType="formAnswerVO">
+        DELETE FROM form_answer_value WHERE form_answer_id = #{rowId}::integer
+    </delete>
+
+</mapper>

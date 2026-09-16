@@ -36,6 +36,8 @@ class AdminReadPathsTest extends IntegrationTest {
         assertOk("/api/adm/mailtemplate/selectMailTemplateList.do");
         assertOk("/api/adm/maillog/selectMailLogList.do");
         assertOk("/api/adm/privacylog/selectPrivacylogList.do");
+        assertOk("/api/adm/form/selectFormList.do");
+        assertOk("/api/adm/formanswer/selectFormAnswerList.do");
     }
 
     @Test

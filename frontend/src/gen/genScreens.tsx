@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import GenMain from './GenMain'
 import GenBoard from './GenBoard'
+import GenFormView from './GenFormView'
 import RecruitPage from './recruit/RecruitPage'
 import GenHobby from './hobby/GenHobby'
 import MyPage from './mypage/MyPage'
@@ -34,6 +35,7 @@ export const genScreens: GenScreen[] = [
   { path: '/gen/member/:memberId', label: '회원 프로필', element: <MemberProfilePage /> },
   { path: '/gen/message', label: '쪽지', element: <MessagePage /> },
   { path: '/gen/mypage', label: '마이페이지', element: <MyPage /> },
+  { path: '/gen/form/:formId', label: '신청·설문', element: <GenFormView /> },
 ]
 
 export const GEN_DEFAULT_PATH = '/gen'

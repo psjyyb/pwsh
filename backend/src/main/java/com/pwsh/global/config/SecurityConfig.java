@@ -102,6 +102,10 @@ public class SecurityConfig {
                                 "/api/adm/policy/selectPolicyView.do",
                                 "/api/adm/popup/selectPopupListMain.do",
                                 "/api/adm/banner/selectBannerListMain.do",
+                                // 폼(신청·민원·설문): 비로그인 제출을 허용하는 폼이 있다.
+                                // 열람 가부·로그인 필요·기간·중복은 FormService가 다시 본다.
+                                "/api/adm/form/selectFormView.do",
+                                "/api/adm/formanswer/insertFormAnswer.do",
                                 "/api/adm/recruit/selectRecruitList.do",
                                 "/api/adm/recruit/selectRecruitView.do",
                                 "/api/adm/hobby/selectHobbyList.do",

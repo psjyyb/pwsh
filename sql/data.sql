@@ -25,6 +25,9 @@ INSERT INTO code (code_id, p_code_id, name, sort_no, use_yn, reg_id, upd_id, reg
 ('AREA00',     'ROOT', '지역(시도)',  13, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('ATTEND00',   'ROOT', '참석결과',    14, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('MAIL00',     'ROOT', '메일발송결과', 15, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FORM00',     'ROOT', '폼유형',      16, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD00',    'ROOT', '문항유형',    17, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ANSWER00',   'ROOT', '응답처리상태', 18, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 
 -- ── 회원유형 (member.type_cd) ──
 ('MEM01', 'MEM00', '사용자', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
@@ -121,7 +124,31 @@ INSERT INTO code (code_id, p_code_id, name, sort_no, use_yn, reg_id, upd_id, reg
 -- ── 메일 발송 결과 (mail_log.status_cd) ──
 ('SUCCESS', 'MAIL00', '발송성공', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 ('FAIL',    'MAIL00', '발송실패', 2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-('SKIP',    'MAIL00', '미발송',   3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+('SKIP',    'MAIL00', '미발송',   3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 폼 유형 (form.type_cd) ──
+('FORM01', 'FORM00', '신청', 1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FORM02', 'FORM00', '민원', 2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FORM03', 'FORM00', '설문', 3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 문항 유형 (form_field.field_cd). 선택지(options)를 쓰는 것은 FIELD03/04/05 ──
+('FIELD01', 'FIELD00', '단답',     1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD02', 'FIELD00', '장문',     2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD03', 'FIELD00', '단일선택', 3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD04', 'FIELD00', '다중선택', 4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD05', 'FIELD00', '드롭다운', 5, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD06', 'FIELD00', '날짜',     6, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD07', 'FIELD00', '숫자',     7, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('FIELD08', 'FIELD00', '이메일',   8, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 응답 처리상태 (form_answer.status_cd). 설문은 접수 그대로 둔다 ──
+('ANSWER01', 'ANSWER00', '접수',   1, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ANSWER02', 'ANSWER00', '처리중', 2, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ANSWER03', 'ANSWER00', '완료',   3, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+('ANSWER04', 'ANSWER00', '반려',   4, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+
+-- ── 메뉴 연결유형 추가: 폼(신청·민원·설문) ──
+('MENU05', 'MENU00', '폼(신청/설문)', 5, 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- ============================ 환경설정 (config, 단일 행) ============================
 INSERT INTO config (fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins, del_log_days, acc_ip_yn, maint_yn, maint_message, title, menu_version)
@@ -190,7 +217,10 @@ INSERT INTO menu (menu_id, p_menu_id, area, name, sort_no, conn_cd, conn_id, lin
 (45, 46, 'ADM', '모집 관리',      2, 'MENU01', 0, '/adm/recruit',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (43,  0, 'ADM', '커뮤니티 관리',  7, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
 (42, 43, 'ADM', '신고관리',       1, 'MENU01', 0, '/adm/report',    'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
-(48, 43, 'ADM', '금칙어관리',     2, 'MENU01', 0, '/adm/banword',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
+(48, 43, 'ADM', '금칙어관리',     2, 'MENU01', 0, '/adm/banword',   'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(56,  0, 'ADM', '폼 관리',        8, 'MENU04', 0, NULL,             'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(57, 56, 'ADM', '폼 설정',        1, 'MENU01', 0, '/adm/form',      'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1'),
+(58, 56, 'ADM', '응답 관리',      2, 'MENU01', 0, '/adm/formanswer', 'N', 'Y', 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1');
 
 -- 사용자(GEN) 메뉴 — 취미 커뮤니티(도감 중심).
 --  · 취미는 상단 메뉴가 아니라 메인(도감 카드) → 취미 허브(/gen/hobby/{id})로 진입 → 게시판/모집/레벨.
@@ -226,6 +256,9 @@ UPDATE menu SET icon = CASE
     WHEN link_url LIKE '%/mailtemplate%' THEN 'mail'
     WHEN link_url LIKE '%/maillog%' THEN 'send'
     WHEN link_url LIKE '%/privacylog%' THEN 'lock'
+    -- ★ '%/form%'이 '/adm/formanswer'도 잡으므로 응답관리를 먼저 둔다
+    WHEN link_url LIKE '%/formanswer%' THEN 'check'
+    WHEN link_url LIKE '%/form%'    THEN 'edit'
     -- ★ 아래 '%/log%'가 '/adm/loginsession'도 잡으므로 반드시 그 앞에 둔다
     WHEN link_url LIKE '%/loginsession%' THEN 'clock'
     WHEN link_url LIKE '%/eventlog%' OR link_url LIKE '%/log%' THEN 'log'

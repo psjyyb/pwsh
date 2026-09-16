@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="formFieldDAO">
+
+    <select id="selectListByForm" parameterType="formFieldVO" resultType="formFieldVO">
+        SELECT f.form_field_id::TEXT AS row_id, f.form_id::TEXT AS form_id, f.label,
+               f.field_cd, fc.name AS field_name, f.options, f.placeholder,
+               f.required_yn, f.privacy_yn, f.sort_no
+        FROM form_field f
+        LEFT JOIN code fc ON fc.code_id = f.field_cd AND fc.p_code_id = 'FIELD00'
+        WHERE f.form_id = #{formId}::integer AND f.use_yn = 'Y'
+        ORDER BY f.sort_no, f.form_field_id
+    </select>
+
+    <insert id="insert" parameterType="formFieldVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="form_field_id">
+        INSERT INTO form_field (form_id, label, field_cd, options, placeholder,
+            required_yn, privacy_yn, sort_no, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{formId}::integer, #{label}, #{fieldCd}, #{options}, #{placeholder},
+            COALESCE(NULLIF(#{requiredYn}, ''), 'N'), COALESCE(NULLIF(#{privacyYn}, ''), 'N'),
+            COALESCE(NULLIF(#{sortNo}, '')::integer, 0), 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="formFieldVO">
+        UPDATE form_field SET
+            label = #{label}, field_cd = #{fieldCd}, options = #{options}, placeholder = #{placeholder},
+            required_yn = COALESCE(NULLIF(#{requiredYn}, ''), 'N'),
+            privacy_yn = COALESCE(NULLIF(#{privacyYn}, ''), 'N'),
+            sort_no = COALESCE(NULLIF(#{sortNo}, '')::integer, 0),
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_field_id = #{rowId}::integer
+    </update>
+
+    <!--
+      화면에서 지운 문항 비활성화. 남겨 둔 문항 ID는 keepIds로 받는다.
+      ★ 물리 삭제하지 않는 이유: 이미 들어온 응답(form_answer_value)이 문항 ID로 붙어 있어,
+        지우면 과거 응답이 "어느 문항의 답인지 모르는 값"이 된다.
+    -->
+    <update id="deactivateRemoved" parameterType="map">
+        UPDATE form_field SET use_yn = 'N', upd_dt = NOW()
+        WHERE form_id = #{formId}::integer AND use_yn = 'Y'
+        <if test="keepIds != null and keepIds.size() > 0">
+            AND form_field_id NOT IN
+            <foreach collection="keepIds" item="id" open="(" separator="," close=")">#{id}::integer</foreach>
+        </if>
+    </update>
+
+</mapper>

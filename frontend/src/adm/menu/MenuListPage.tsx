@@ -13,6 +13,7 @@ import { menuApi } from './menu.api'
 import type { Menu } from './menu.api'
 import { pageApi } from '../page/page.api'
 import { boardApi } from '../board/board.api'
+import { formApi } from '../form/form.api'
 
 /** 플랫 메뉴 → p_menu_id 기준 계층 트리(최상위=-1) */
 function buildTree(list: Menu[]): Menu[] {
@@ -81,6 +82,14 @@ export default function MenuListPage() {
   const [pagePickerOpen, setPagePickerOpen] = useState(false)
   const [postPickerOpen, setPostPickerOpen] = useState(false)
   const [connTitle, setConnTitle] = useState('') // 연결 대상(페이지/게시판) 표시용 이름
+  const [formOptions, setFormOptions] = useState<{ value: string; label: string }[]>([])
+
+  // 연결유형 '폼'에서 고를 목록. 폼이 없으면 빈 드롭다운이 나오는 게 정상이다
+  useEffect(() => {
+    formApi.combo()
+      .then((list) => setFormOptions(list.map((f) => ({ value: f.rowId!, label: f.title! }))))
+      .catch(() => {})
+  }, [])
 
   const move = (row: Menu, dir: 'UP' | 'DOWN') =>
     runWithMessage(() => menuApi.moveSort(row.rowId!, dir), '순서를 변경했습니다.', reload)
@@ -204,6 +213,18 @@ export default function MenuListPage() {
                 {connTitle && <span style={{ color: '#555' }}>{connTitle}</span>}
                 <Button onClick={() => setPostPickerOpen(true)}>게시판 선택</Button>
               </Space>
+            </Form.Item>
+          )}
+          {/* 폼은 개수가 많지 않아 별도 피커 없이 드롭다운으로 고른다 */}
+          {connCd === 'MENU05' && (
+            <Form.Item name="connId" label="연결 폼" rules={[{ required: true, message: '폼을 선택하세요.' }]}>
+              <Select
+                style={{ width: 320 }}
+                placeholder="폼 선택"
+                options={formOptions}
+                showSearch
+                optionFilterProp="label"
+              />
             </Form.Item>
           )}
           {connCd === 'MENU03' && (

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="formDAO">
+
+    <select id="selectList" parameterType="formVO" resultType="formVO">
+        SELECT f.form_id::TEXT AS row_id, f.title, f.type_cd, tc.name AS type_name,
+               f.start_dt, f.end_dt, f.login_yn, f.multi_yn, f.use_yn,
+               (SELECT COUNT(*) FROM form_answer a WHERE a.form_id = f.form_id AND a.use_yn = 'Y')::TEXT AS answer_cnt
+        FROM form f
+        LEFT JOIN code tc ON tc.code_id = f.type_cd AND tc.p_code_id = 'FORM00'
+        WHERE f.use_yn = 'Y'
+        <if test="typeCd != null and typeCd != ''">AND f.type_cd = #{typeCd}</if>
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND f.title LIKE '%' || #{filterKeyword} || '%'
+        </if>
+        ORDER BY f.form_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="formVO" resultType="int">
+        SELECT COUNT(*) FROM form WHERE use_yn = 'Y'
+        <if test="typeCd != null and typeCd != ''">AND type_cd = #{typeCd}</if>
+        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
+    </select>
+
+    <!-- 메뉴 연결(MENU05) 피커용 콤보 -->
+    <select id="selectListCombo" parameterType="formVO" resultType="formVO">
+        SELECT form_id::TEXT AS row_id, title, type_cd
+        FROM form WHERE use_yn = 'Y' ORDER BY title
+    </select>
+
+    <select id="selectView" parameterType="formVO" resultType="formVO">
+        SELECT f.form_id::TEXT AS row_id, f.title, f.description, f.type_cd, tc.name AS type_name,
+               f.start_dt, f.end_dt, f.login_yn, f.multi_yn, f.done_message, f.use_yn
+        FROM form f
+        LEFT JOIN code tc ON tc.code_id = f.type_cd AND tc.p_code_id = 'FORM00'
+        WHERE f.form_id = #{rowId}::integer AND f.use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="formVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="form_id">
+        INSERT INTO form (title, description, type_cd, start_dt, end_dt, login_yn, multi_yn, done_message, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{title}, #{description}, #{typeCd}, #{startDt}, #{endDt},
+            COALESCE(NULLIF(#{loginYn}, ''), 'Y'), COALESCE(NULLIF(#{multiYn}, ''), 'N'), #{doneMessage}, 'Y',
+            #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="formVO">
+        UPDATE form SET
+            title = #{title}, description = #{description}, type_cd = #{typeCd},
+            start_dt = #{startDt}, end_dt = #{endDt},
+            login_yn = COALESCE(NULLIF(#{loginYn}, ''), 'Y'),
+            multi_yn = COALESCE(NULLIF(#{multiYn}, ''), 'N'),
+            done_message = #{doneMessage},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="formVO">
+        UPDATE form SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_id = #{rowId}::integer
+    </update>
+
+    <!-- 폼을 지우면 그 폼의 문항·응답도 같이 내린다(응답만 남으면 어느 문항의 답인지 알 수 없다) -->
+    <update id="deleteFieldsByForm" parameterType="formVO">
+        UPDATE form_field SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_id = #{rowId}::integer
+    </update>
+
+    <update id="deleteAnswersByForm" parameterType="formVO">
+        UPDATE form_answer SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE form_id = #{rowId}::integer
+    </update>
+
+</mapper>

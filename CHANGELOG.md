@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.5 · CMS 1.2.4` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.6 · CMS 1.2.5` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,35 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.6 (CMS 1.2.5) — 폼(신청·민원·설문) 흡수
+
+CMS 1.2.5를 그대로 흡수했다(수정 없음). 신청서·민원접수·설문을 한 엔진으로 만들고, 문항을 DB에
+정의해 사용자 화면을 자동 생성한다. 관리자 **폼 관리 > 폼 설정 / 응답 관리**.
+
+- 테이블 4개(`form`·`form_field`·`form_answer`·`form_answer_value`), 문항 유형 8종,
+  문항별 집계 + CSV 내려받기.
+- 사용자 노출은 **메뉴 연결유형 `MENU05`(폼)** + `conn_id=form_id` → `/gen/form/{form_id}`.
+  `GenLayout.targetOf`에 분기를 넣고 `genScreens`에 `/gen/form/:formId`를 등록했다.
+  메뉴관리의 연결유형에 '폼' 선택이 생겼다(드롭다운으로 폼을 고른다).
+- `SecurityConfig` permitAll + `PermissionInterceptor.EXEMPT_SUFFIX`에
+  `selectFormView.do`·`insertFormAnswer.do`를 **둘 다** 넣었다(비로그인 제출 허용 폼 때문).
+
+### 이 서비스에서 쓸 만한 자리
+
+취미 모임 신청서(오프라인 행사 참가 신청), 운영 문의·신고 외 민원 접수, 모임 후 만족도 설문 등이
+코드 수정 없이 만들어진다. 개인정보 문항(`privacy_yn='Y'`)은 답이 암호화 저장되고 **조회가
+개인정보 접근로그(0.6.5)에 남는다** — 참가 신청서에 연락처를 받는 경우가 여기 해당한다.
+
+⚠ 폼은 **메뉴에 걸어야 사용자가 열 수 있다**(`GenAccessGuard.checkForm`이 메뉴 권한으로 판정).
+만들어 놓고 메뉴를 안 만들면 관리자만 보인다 — 의도된 동작이지만 처음엔 "왜 안 보이지"가 된다.
+
+**테스트**: `FormTest`(12, CMS와 동일). 전체 **142개 통과**.
+
+**DB** — framework 저장소 CHANGELOG 1.2.5의 DDL을 그대로 적용한다. 이 저장소는 코드 그룹
+정렬번호가 16~18이고, 관리자 메뉴는 `폼 관리`(menu_id 56) 아래 `폼 설정`(57) · `응답 관리`(58)다.
 
 ---
 

@@ -46,6 +46,11 @@ public class GenAccessGuard {
         checkContent("MENU03", pageId);
     }
 
+    /** 폼(MENU05) 접근 인가. formId = form PK */
+    public void checkForm(String formId) {
+        checkContent("MENU05", formId);
+    }
+
     /** 댓글 접근 인가: 게시글(postId)이 속한 게시판 권한으로 판정. 없으면 403. */
     public void checkPost(String postId) {
         if (postId == null || postId.isEmpty()) {

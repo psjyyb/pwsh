@@ -37,6 +37,9 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/policy/selectPolicyView.do",
             "/popup/selectPopupListMain.do",
             "/banner/selectBannerListMain.do",
+            // 폼 조회·제출은 사용자 화면의 콘텐츠다(메뉴 권한은 GenAccessGuard가 폼 단위로 본다)
+            "/form/selectFormView.do",
+            "/formanswer/insertFormAnswer.do",
             "/board/selectBoardView.do",
             "/board/selectBoardListCombo.do",
             "/hobby/selectHobbyList.do",
