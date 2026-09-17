@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.6 · CMS 1.2.5` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.7 · CMS 1.2.6` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,48 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.7 (CMS 1.2.6) — DB 마이그레이션(Flyway) 흡수
+
+CMS 1.2.6을 흡수했다. **앱이 뜨면서 `db/migration`의 미적용 마이그레이션만 자동 실행**하고
+적용 이력을 `flyway_schema_history`에 남긴다. 더 이상 dev·운영 DB에 DDL을 손으로 넣지 않는다.
+
+- `V1__baseline_schema.sql`(1,158줄) · `V2__baseline_data.sql`(461줄) — 도입 시점 스냅샷.
+  **CMS 테이블과 pwsh 고유 테이블이 모두 들어 있다.**
+- test 프로파일은 `spring.sql.init`을 끄고 Flyway `clean → migrate`로 바꿨다(`TestFlywayConfig`).
+  전체 테스트가 매번 실제 마이그레이션을 실행하므로 마이그레이션이 깨지면 여기서 먼저 드러난다.
+- `sql/schema.sql`·`sql/data.sql`은 더 이상 실행되지 않는다(참고용 스냅샷 표시를 달았다).
+  `backend/src/test/resources/test-reset.sql`도 쓰이지 않는다.
+
+### ★ 번호 규칙 — 파생 프로젝트의 핵심
+
+CMS와 pwsh가 같은 번호를 쓰면 충돌한다. 대역을 나눈다.
+
+| 대역 | 용도 |
+|---|---|
+| `V1`·`V2` | **이 저장소의 베이스라인** (CMS+pwsh 전체) |
+| `V3` ~ `V999` | CMS에서 가져오는 마이그레이션 |
+| `V1001` ~ | pwsh 고유 기능 |
+
+⚠ **CMS의 `V1`·`V2`(베이스라인)는 가져오지 않는다** — 이 저장소의 V1·V2가 이미 그 시점을 포함한다.
+CMS는 **V3부터** 복사한다.
+⚠ 베이스라인보다 낮은 번호를 쓰면 `baseline-version: 2` 때문에 **조용히 건너뛴다**(실행되지 않는다).
+
+### ⚠ 빌드 의존성 두 개 다 필요
+
+`spring-boot-flyway`(Boot 4는 자동설정이 모듈로 분리) + `flyway-database-postgresql`(Flyway 10부터
+DB 지원 분리). core만 넣으면 **에러 없이 마이그레이션이 실행되지 않는다.**
+
+### 검증
+
+| | 결과 |
+|---|---|
+| pwsh_test | `clean` → V1(1,118ms) + V2(79ms), **142개 테스트 0 실패** (89초) |
+| pwsh(dev) | `Successfully baselined schema with version: 2` → `No migration necessary`, 데이터 그대로(member 2 / recruit 17 / hobby 15) |
+
+**DB** — 별도 실행할 SQL 없음. 앱을 띄우면 baseline이 잡힌다.
 
 ---
 

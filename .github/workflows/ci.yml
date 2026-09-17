@@ -20,7 +20,7 @@ jobs:
           POSTGRES_PASSWORD: qwer1234
         ports:
           - 5432:5432
-        # pgcrypto 확장은 schema.sql이 생성(공식 postgres 이미지는 contrib 포함, postgres 유저=슈퍼유저)
+        # pgcrypto 확장은 마이그레이션 V1이 생성(공식 postgres 이미지는 contrib 포함, postgres 유저=슈퍼유저)
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -35,7 +35,7 @@ jobs:
           java-version: '17'
       - name: Run backend tests
         working-directory: backend
-        # 프로파일 test는 spring.sql.init로 ../sql/schema.sql·data.sql을 서비스 DB에 로드(작업 디렉터리=backend).
+        # 프로파일 test는 Flyway가 db/migration을 clean → migrate 로 적용한다(sql/ 폴더를 읽지 않는다).
         env:
           TEST_DB_URL: jdbc:postgresql://localhost:5432/pwsh_test
           TEST_DB_USERNAME: postgres

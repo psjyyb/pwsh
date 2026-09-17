@@ -24,8 +24,16 @@
 - **VO**: `BaseVO` 상속(`rowId`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
 - **매퍼**: `resultType`=VO, PK는 문자열로 캐스팅해 VO의 `rowId`로 받는다. `${}` 절대 금지(전부 `#{}`). 논리삭제 플래그로 항상 필터. 등록/수정 이력 값은 `AuditInterceptor`가 자동 세팅.
 
+## ★ DB 마이그레이션 (Flyway)
+- **스키마의 단일 출처는 `backend/src/main/resources/db/migration`이다.** dev·운영·테스트 모두 앱 기동 시 Flyway가 미적용분만 실행한다 — psql로 DDL을 손으로 넣지 않는다.
+- ★ **번호 대역**: `V1`·`V2`=이 저장소 베이스라인(CMS+pwsh 전체) / `V3`~`V999`=CMS에서 가져온 것 / `V1001`~=pwsh 고유. **CMS의 V1·V2는 가져오지 않는다**(이미 포함돼 있다). 베이스라인보다 낮은 번호는 `baseline-version: 2` 때문에 **조용히 건너뛴다**.
+- ★ **이미 적용된 마이그레이션은 절대 고치지 않는다.** 체크섬이 달라지면 기동이 막힌다. 잘못됐으면 되돌리는 마이그레이션을 새로 추가한다.
+- DDL과 그에 딸린 시드(공통코드·메뉴)를 **한 파일에** 넣는다.
+- `sql/schema.sql`·`sql/data.sql`은 **더 이상 실행되지 않는 참고용 스냅샷**이다. 여기를 고쳐도 아무 효과가 없다.
+- 테스트는 매 실행 `clean → migrate`(`TestFlywayConfig`). `clean`은 test 프로파일에서만 열려 있다 — 운영에서 켜면 DB를 통째로 날린다.
+
 ## ★ 새 도메인 추가 순서
-1. `sql/schema.sql`에 테이블 1개(자동증가 PK + 등록/수정 이력 + 논리삭제 플래그 — 기존 테이블 형태를 그대로 따른다), 필요 시 `data.sql`에 시드. 자주 조회하는 컬럼엔 인덱스.
+1. `db/migration/V1001+__{name}.sql`에 테이블 1개(자동증가 PK + 등록/수정 이력 + 논리삭제 플래그 — 기존 테이블 형태를 그대로 따른다) + 필요한 시드. 자주 조회하는 컬럼엔 인덱스.
 2. `backend/.../domain/{name}/`: `service/{Name}VO`(BaseVO 상속) · `web/{Name}Controller`(5메서드) · `service/{Name}Service`(`@Service`) · `resources/mapper/{name}/{Name}_SQL.xml`(namespace `{name}DAO`).
 3. `frontend/src/adm/{name}/`: `{Name}ListPage.tsx`(**폴더당 정확히 1개**, `~Page.tsx`로 끝, `export default`) · `{name}.api.ts`(`createCrudApi` + `{NAME}_LIST_URL` export).
 4. **메뉴 등록**만 하면 사이드바·탭·라우팅·렌더 자동(하드코딩 레지스트리 없음): 메뉴관리에서 연결유형=`URL`, 주소 `/adm/{name}`, 아이콘 선택. 권한은 권한그룹관리에서. (원리: `admScreens.tsx`의 `import.meta.glob('./*/*Page.tsx')`)

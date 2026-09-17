@@ -13,6 +13,18 @@ spring:
   profiles:
     active: dev
 
+  # DB 마이그레이션 — 스키마의 단일 출처는 db/migration의 SQL 파일이다.
+  # 기동할 때 flyway_schema_history를 보고 미적용분만 실행한다(수동 DDL 실행 불필요).
+  #  - baseline-on-migrate: 테이블이 이미 있는 기존 DB에서 이력 테이블만 만들고 시작한다.
+  #  - baseline-version 2: V1(스키마)·V2(기초데이터)는 "이미 적용됨"으로 표시하고 건너뛴다.
+  #    빈 DB에는 적용되지 않아 V1·V2가 정상 실행된다.
+  #  ★ 이미 적용된 마이그레이션 파일은 고치지 않는다. 체크섬이 달라지면 기동이 막힌다.
+  #  ★ 번호 규칙: CMS에서 가져오는 것은 V3~V999, pwsh 고유는 V1001~ (충돌 방지)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 2
   # 응답 JSON에서 null 필드 제외 (BaseVO의 페이징/검색 등 미사용 필드가 응답에 노출되지 않도록)
   jackson:
     default-property-inclusion: non_null

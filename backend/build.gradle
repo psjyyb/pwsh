@@ -7,7 +7,7 @@ plugins {
 
 group = 'com.pwsh'
 // 프론트(frontend/package.json)와 같은 값을 유지한다 — 한쪽만 올리면 어느 버전이 배포됐는지 추적이 깨진다.
-version = '0.6.6'
+version = '0.6.7'
 description = 'pwsh'
 
 // ★ 이 프로젝트는 직접 만든 CMS(framework 저장소)를 복사해 만든 파생 서비스다.
@@ -15,7 +15,7 @@ description = 'pwsh'
 //   둘은 따로 움직인다 — pwsh 기능만 추가하면 version만 오르고, CMS를 따라가면 cmsVersion만 오른다.
 //   CMS의 최신 버전과 버전별 적용 방법(DDL 포함)은 framework 저장소의 CHANGELOG.md를 본다.
 //   현재: 메뉴 아이콘 피커(CMS 1.2.1)까지 흡수.
-ext.cmsVersion = '1.2.5'
+ext.cmsVersion = '1.2.6'
 
 java {
 	toolchain {
@@ -64,6 +64,15 @@ dependencies {
 
 	// --- DB ---
 	runtimeOnly 'org.postgresql:postgresql'
+
+	// --- DB 마이그레이션(Flyway) ---
+	// 스키마 변경을 db/migration의 SQL 파일로 관리하고, 기동 시 미적용분만 자동 실행한다.
+	// ★ Boot 4는 기술별 자동설정이 모듈로 쪼개져 있다 — spring-boot-flyway를 넣어야
+	//   Flyway 자동설정이 붙는다(flyway-core만 넣으면 마이그레이션이 조용히 실행되지 않는다).
+	// ★ flyway-database-postgresql도 함께 넣는다 — Flyway 10부터 DB별 지원이 분리돼
+	//   빠지면 "Unsupported Database: PostgreSQL"로 기동이 실패한다. 버전은 Boot BOM이 관리.
+	implementation 'org.springframework.boot:spring-boot-flyway'
+	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
 	// --- Lombok ---
 	compileOnly 'org.projectlombok:lombok'
