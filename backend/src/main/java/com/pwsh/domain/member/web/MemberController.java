@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 사용자 관리 — 컨트롤러는 매핑·입력검증만, 로직은 {@link MemberService}.
  * selectMemberList{variant}: ''=목록 / AuthGroup=사용자의 권한그룹ID 목록
  * updateMember{variant}: ''=정보수정 / Password=비번변경 / AuthGroup=권한그룹 매핑 저장 / ForceLogout=강제 로그아웃
+ *                       / Status=제재(정지·해제) / Restore=휴면 해제 / Destroy=개인정보 즉시 파기
  */
 @RestController
 @RequestMapping("/api/adm/member")
@@ -72,6 +73,12 @@ public class MemberController {
             Validate.required(searchVO.getMemberId(), "사용자");
             Validate.required(searchVO.getStatusCd(), "상태");
             memberService.updateStatus(searchVO);
+        } else if ("Restore".equals(variant)) {
+            Validate.required(searchVO.getMemberId(), "사용자");
+            memberService.restoreDormant(searchVO);
+        } else if ("Destroy".equals(variant)) {
+            Validate.required(searchVO.getMemberId(), "사용자");
+            memberService.destroyNow(searchVO);
         } else if (StringUtil.isEmpty(variant)) {
             Validate.required(searchVO.getMemberName(), "이름");
             Validate.required(searchVO.getTypeCd(), "회원유형");

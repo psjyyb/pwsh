@@ -20,6 +20,9 @@ export interface Member {
   statusCdName?: string // 계정상태명(목록 표시, 조회 전용)
   followerCnt?: string // 팔로워 수(상세 조회 계산값)
   followingCnt?: string // 팔로잉 수(상세 조회 계산값)
+  dormantDt?: string // 휴면 전환 시각(조회 전용)
+  withdrawDt?: string // 탈퇴 시각(조회 전용)
+  destroyDt?: string // 개인정보 파기 시각. 값이 있으면 이미 파기된 계정(조회 전용)
   // 폼 전용(등록/수정 UI) — 서버로는 password만 사용
   changePw?: boolean
   memberPwConfirm?: string
@@ -41,6 +44,10 @@ export const memberApi = {
   /** 제재: 정지(STATUS03)/해제(STATUS01) — 정지 시 세션 즉시 무효화 (update{variant=Status}) */
   changeStatus: (memberId: string, statusCd: 'STATUS01' | 'STATUS03') =>
     apiPost<void>('/adm/member/updateMemberStatus.do', { memberId, statusCd }),
+  /** 휴면 해제 — 상태를 정상으로 되돌리고 마지막 접속을 지금으로 당긴다(즉시 재휴면 방지) */
+  restore: (memberId: string) => apiPost<void>('/adm/member/updateMemberRestore.do', { memberId }),
+  /** 개인정보 즉시 파기 — 보존기간을 기다리지 않고 지금 비운다. 되돌릴 수 없다 */
+  destroy: (memberId: string) => apiPost<void>('/adm/member/updateMemberDestroy.do', { memberId }),
 }
 
 export const MEMBER_LIST_URL = memberApi.listUrl

@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.7 · CMS 1.2.6` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.8 · CMS 1.2.7` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -22,6 +22,49 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
 
 ---
+
+## 0.6.8 (CMS 1.2.7) — 회원 라이프사이클 (휴면 전환 · 개인정보 파기) 흡수
+
+CMS 1.2.7을 흡수했다. 탈퇴가 `use_yn='N'`(논리삭제)뿐이라 **개인정보가 영구히 남아 있었고**,
+장기 미접속 계정도 정상 상태로 계속 살아 있었다. 둘 다 배치로 정리한다.
+
+- 계정상태 **`STATUS04 휴면`** 추가. `last_login_dt`(NULL이면 `reg_dt`) 기준 `config.dormant_days` 경과 시 전환.
+- 전환 즉시 토큰·세션을 끊는다(`invalidateToken`, 사유 `DORMANT`). 휴면 계정은 로그인·토큰 재발급 모두 차단.
+- ★ 해제 시 `last_login_dt`를 지금으로 당긴다 — 안 당기면 다음 배치에서 곧바로 재휴면된다.
+- 전환 `dormant_notify_days`일 전 안내메일(`DORMANT_NOTICE`). 대상은 **하루치만** 뽑는다.
+- 탈퇴 시 `withdraw_dt`를 찍고, `destroy_days` 경과 시 개인정보 컬럼을 비운다.
+  **본인 탈퇴(`AuthService.withdraw`)와 관리자 삭제가 같은 `memberDAO.delete`를 쓰므로 양쪽 다 찍힌다.**
+- 배치 순서는 **안내 → 전환 → 파기**(`member.lifecycle.cron`, 기본 매일 03:00).
+- 설정: `config.dormant_days`(365) · `dormant_notify_days`(30) · `destroy_days`(30). 0이면 그 기능을 끈다.
+  안내메일 링크는 `site.login-url`(운영은 env `SITE_LOGIN_URL`).
+
+### ⚠ CMS와 다르게 옮긴 곳 (이 서비스 사정)
+
+CMS 원문 그대로 옮기면 깨지는 부분이 셋 있었다.
+
+1. **`nickname`은 NULL이 아니라 `'탈퇴한 회원'`으로 바꾼다.**
+   CMS는 파기할 때 nickname을 비우지만, 이 서비스는 게시글·댓글·모집의 작성자를
+   `(SELECT u.nickname FROM member u WHERE u.member_id = X.reg_id)`로만 표기한다 —
+   비우면 **과거 글의 작성자가 전부 빈칸**이 된다. 사용자가 고른 문자열은 사라지므로 파기 목적은 지켜진다.
+2. **파기하면 `use_yn='N'`까지 내린다.**
+   `'탈퇴한 회원'`이 둘 이상 생기는데 `ux_member_nickname`이 `use_yn='Y'`에만 걸린 부분 유니크
+   인덱스라, 계정을 살려 두면 **두 번째 즉시 파기가 유니크 위반으로 터진다.**
+   (CMS에는 nickname 유니크 인덱스가 없어 드러나지 않는 차이다.) 개인정보가 사라진 계정을
+   살려 둘 이유도 없으므로 `destroyNow`는 세션도 함께 끊는다.
+3. **`profile_file_id`도 NULL로 비운다** — 얼굴 사진도 개인정보다.
+   참조가 끊기면 기존 고아 파일 GC(A 케이스)가 알아서 회수한다(별도 삭제 코드 불필요).
+4. `MEMBER_RESTORE` 코드는 **이미 있다**(관리자 정지해제). 휴면 해제도 같은 "정상으로 되돌린다"
+   행위라 새로 넣지 않고 이름만 `정지·휴면 해제`로 넓혔다 — 새로 INSERT 하면 PK 중복으로 기동이 막힌다.
+5. `ALTER TABLE member ALTER COLUMN name DROP NOT NULL`은 이 저장소에선 **no-op**이다
+   (셀프가입 때문에 이미 NULL 허용). CMS와 diff를 뜰 때 빠진 줄로 보이지 않도록 그대로 남겼다.
+
+### 테스트
+
+`MemberLifecycleTest`(10) — CMS의 9개 + **'탈퇴한 회원' 중복 파기** 1개.
+**mutation 검증**: nickname을 NULL로 → 2건 실패, `use_yn='N'`을 빼면 → 1건 실패(확인 완료).
+전체 **152개 통과**.
+
+**DB** — `V3__member_lifecycle.sql`(CMS 대역). **실행할 SQL이 없다** — 앱을 띄우면 Flyway가 적용한다.
 
 ## 0.6.7 (CMS 1.2.6) — DB 마이그레이션(Flyway) 흡수
 

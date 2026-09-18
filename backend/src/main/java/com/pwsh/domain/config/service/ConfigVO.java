@@ -14,6 +14,12 @@ public class ConfigVO extends BaseVO {
     private String passwordExpireDays;
     private String sessionExpireMins;
     private String delLogDays;
+    /** 미접속 휴면 전환일(0이면 휴면 전환 안 함) */
+    private String dormantDays;
+    /** 휴면 전환 며칠 전 안내메일(0이면 안 보냄) */
+    private String dormantNotifyDays;
+    /** 탈퇴 후 개인정보 보존일(0이면 즉시 파기) */
+    private String destroyDays;
     private String accIpYn;
     private String maintYn;
     private String maintMessage;

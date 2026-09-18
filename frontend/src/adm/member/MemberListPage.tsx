@@ -69,6 +69,29 @@ export default function MemberListPage() {
     }
   }
 
+  /** 휴면 해제 — 상태 복귀 + 마지막 접속 당김(다음 배치에서 바로 재휴면되지 않게) */
+  const restoreDormant = async () => {
+    try {
+      await memberApi.restore(selectedKey!)
+      message.success('휴면을 해제했습니다.')
+      reload()
+      openRow(selectedKey!)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '휴면 해제에 실패했습니다.')
+    }
+  }
+
+  /** 개인정보 즉시 파기 — 되돌릴 수 없다. 계정도 함께 비활성화된다 */
+  const destroyNow = async () => {
+    try {
+      await memberApi.destroy(selectedKey!)
+      message.success('개인정보를 파기했습니다.')
+      reload()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '파기에 실패했습니다.')
+    }
+  }
+
   const columns: TableColumnsType<Member> = [
     { title: '아이디', dataIndex: 'memberId', width: 140 },
     { title: '이름', dataIndex: 'memberName' },
@@ -135,6 +158,29 @@ export default function MemberListPage() {
               <Button danger disabled={!isEdit}>계정 정지</Button>
             </Popconfirm>
           )}
+          {/* 휴면 계정일 때만 보인다 — 평소엔 버튼이 늘어나기만 하고 쓸 일이 없다 */}
+          {isEdit && form.getFieldValue('statusCd') === 'STATUS04' && (
+            <Popconfirm
+              title="휴면 해제"
+              description="계정을 정상으로 되돌리고 마지막 접속일을 오늘로 당깁니다."
+              onConfirm={restoreDormant}
+              okText="해제"
+              cancelText="취소"
+            >
+              <Button>휴면 해제</Button>
+            </Popconfirm>
+          )}
+          <Popconfirm
+            title="개인정보 즉시 파기"
+            description="이름·연락처·이메일·생년·프로필 사진을 지우고 계정을 비활성화합니다. 되돌릴 수 없습니다."
+            onConfirm={destroyNow}
+            okText="파기"
+            cancelText="취소"
+            okButtonProps={{ danger: true }}
+            disabled={!isEdit}
+          >
+            <Button danger disabled={!isEdit}>즉시 파기</Button>
+          </Popconfirm>
           <Button onClick={openNew}>신규</Button>
           <Button type="primary" onClick={saveMember} disabled={mode === 'none'}>저장</Button>
           <Popconfirm title="삭제하시겠습니까?" onConfirm={remove} okText="삭제" cancelText="취소" disabled={!isEdit}>

@@ -7,9 +7,14 @@ import com.pwsh.common.message.Messages;
 import com.pwsh.common.event.SessionEndReason;
 import com.pwsh.common.event.SessionInvalidatedEvent;
 import com.pwsh.domain.eventlog.service.EventLogService;
+import com.pwsh.domain.mail.service.MailService;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 사용자 업무 로직. 컨트롤러는 매핑·입력검증만, 로직(ID중복·BCrypt·매핑 저장)은 여기(단일 @Service).
  * 비밀번호 복잡도 검증(PasswordPolicy)은 컨트롤러 진입부(인코딩 전 원문 검사).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberService {
@@ -25,7 +31,12 @@ public class MemberService {
     private final CommonDAO commonDAO;
     private final PasswordEncoder passwordEncoder;
     private final EventLogService eventLogService;
+    private final MailService mailService;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** 휴면 안내 메일의 로그인 링크. 사이트 주소는 배포 환경마다 달라 설정으로 받는다 */
+    @Value("${site.login-url:/}")
+    private String loginUrl;
 
     /**
      * 발급된 토큰 전부 무효화 — <b>토큰을 죽이는 유일한 창구</b>.
@@ -132,5 +143,122 @@ public class MemberService {
             }
         }
         eventLogService.write("MEMBER_AUTH_GROUP", "member", vo.getMemberId());
+    }
+
+    // ===== 회원 라이프사이클 (휴면 · 파기) =====
+
+    /**
+     * 장기 미접속 계정을 휴면으로 전환한다. 전환 즉시 발급된 토큰을 무효화하고 접속 세션도 닫는다 —
+     * 안 그러면 "휴면인데 아직 로그인된 채로 돌아다니는" 계정이 남는다.
+     *
+     * @return 전환 건수
+     */
+    @Transactional
+    public int sweepDormant() {
+        List<MemberVO> targets = commonDAO.selectList("memberDAO.selectDormantTargets", new MemberVO());
+        int changed = 0;
+        for (MemberVO target : targets) {
+            MemberVO p = new MemberVO();
+            p.setMemberId(target.getMemberId());
+            if (commonDAO.update("memberDAO.updateDormant", p) == 0) {
+                continue; // 그 사이 상태가 바뀐 계정(로그인 등) — 건너뛴다
+            }
+            invalidateToken(target.getMemberId(), SessionEndReason.DORMANT);
+            eventLogService.write("MEMBER_DORMANT", "member", target.getMemberId());
+            changed++;
+        }
+        return changed;
+    }
+
+    /**
+     * 휴면 전환 예정 안내 메일. 발송 실패해도 계속 진행한다 —
+     * 한 명의 주소가 잘못돼 배치가 멈추면 나머지가 통지 없이 휴면이 된다(실패는 mail_log에 남는다).
+     *
+     * @return 발송 시도 건수
+     */
+    public int notifyDormantSoon() {
+        List<MemberVO> targets = commonDAO.selectList("memberDAO.selectDormantNotifyTargets", new MemberVO());
+        String siteTitle = configTitle();
+        for (MemberVO target : targets) {
+            if (target.getEmail() == null || target.getEmail().isBlank()) {
+                continue; // 보낼 주소가 없으면 통지할 방법이 없다
+            }
+            mailService.send("DORMANT_NOTICE", target.getEmail(), Map.of(
+                    "siteTitle", siteTitle,
+                    "memberName", displayName(target),
+                    "dormantDt", target.getDormantDt() == null ? "" : target.getDormantDt(),
+                    "loginUrl", loginUrl));
+        }
+        return targets.size();
+    }
+
+    /** 휴면 해제(관리자). 마지막 접속을 지금으로 당겨 다음 배치에서 곧바로 다시 휴면이 되지 않게 한다. */
+    @Transactional
+    public void restoreDormant(MemberVO vo) {
+        if (commonDAO.update("memberDAO.updateRestore", vo) == 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "휴면 상태인 계정만 해제할 수 있습니다.");
+        }
+        // 정지 해제와 같은 "정상으로 되돌린다" 행위라 코드를 공유한다(code MEMBER_RESTORE)
+        eventLogService.write("MEMBER_RESTORE", "member", vo.getMemberId());
+    }
+
+    /**
+     * 탈퇴 후 보존기간이 지난 계정의 <b>개인정보 컬럼만</b> 비운다.
+     *
+     * <p>행은 남긴다 — {@code post.reg_id}·{@code comment.reg_id}·{@code recruit.reg_id}가 회원 ID로
+     * 붙어 있어 행을 지우면 과거 게시글·모집의 작성자가 깨진다. 파기 사실은 event_log에 남는다.
+     *
+     * @return 파기 건수
+     */
+    @Transactional
+    public int sweepDestroy() {
+        List<MemberVO> targets = commonDAO.selectList("memberDAO.selectDestroyTargets", new MemberVO());
+        int changed = 0;
+        for (MemberVO target : targets) {
+            MemberVO p = new MemberVO();
+            p.setMemberId(target.getMemberId());
+            if (commonDAO.update("memberDAO.updateDestroy", p) == 0) {
+                continue;
+            }
+            eventLogService.write("MEMBER_DESTROY", "member", target.getMemberId());
+            changed++;
+        }
+        return changed;
+    }
+
+    /** 즉시 파기(관리자) — 보존기간을 기다리지 않고 지금 비운다(정보주체 요청 등). */
+    @Transactional
+    public void destroyNow(MemberVO vo) {
+        if (commonDAO.update("memberDAO.updateDestroy", vo) == 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 파기되었거나 없는 계정입니다.");
+        }
+        // 계정이 use_yn='N'으로 내려가므로 살아 있던 세션도 같이 끊는다
+        invalidateToken(vo.getMemberId(), SessionEndReason.WITHDRAW);
+        eventLogService.write("MEMBER_DESTROY", "member", vo.getMemberId());
+    }
+
+    /** 매일 새벽 — 안내 먼저, 그다음 전환·파기. 순서가 바뀌면 통지 없이 휴면이 되는 계정이 생긴다. */
+    @Scheduled(cron = "${member.lifecycle.cron:0 0 3 * * *}")
+    public void scheduledLifecycle() {
+        int notified = notifyDormantSoon();
+        int dormant = sweepDormant();
+        int destroyed = sweepDestroy();
+        if (notified + dormant + destroyed > 0) {
+            log.info("회원 라이프사이클: 휴면예정 안내 {}건, 휴면 전환 {}건, 개인정보 파기 {}건",
+                    notified, dormant, destroyed);
+        }
+    }
+
+    /** 안내메일 수신자 표기 — 이 서비스의 표시명은 닉네임이다(이름은 선택 입력이라 비어 있을 수 있다). */
+    private String displayName(MemberVO vo) {
+        if (vo.getNickname() != null && !vo.getNickname().isBlank()) {
+            return vo.getNickname();
+        }
+        return vo.getMemberName() == null || vo.getMemberName().isBlank() ? vo.getMemberId() : vo.getMemberName();
+    }
+
+    private String configTitle() {
+        String title = commonDAO.selectOne("configDAO.selectTitle", new MemberVO());
+        return title == null ? "" : title;
     }
 }

@@ -44,11 +44,16 @@ public class AuthService {
     private final ApplicationEventPublisher eventPublisher;
 
     public TokenResponse login(LoginRequest request) {
-        // 계정 상태 사전 점검: 정지=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
+        // 계정 상태 사전 점검: 정지·휴면=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
         MemberVO pre = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(request.memberId()));
         if (pre != null) {
             if ("STATUS03".equals(pre.getStatusCd())) {
                 throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
+            }
+            // 휴면은 비밀번호가 맞아도 막는다. 해제는 관리자를 거친다 —
+            // 셀프 해제는 본인 인증 수단이 필요한데, 지금 이메일 인증은 가입·비번재설정 전용이다.
+            if ("STATUS04".equals(pre.getStatusCd())) {
+                throw new BusinessException(ErrorCode.ACCOUNT_DORMANT);
             }
             if ("STATUS02".equals(pre.getStatusCd())) {
                 if ("Y".equals(pre.getLockActive())) {
@@ -367,9 +372,12 @@ public class AuthService {
         if (user == null || !"Y".equals(user.getUseYn())) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
-        // 정지/잠금 계정은 유효한 refresh 토큰을 갖고 있어도 재발급 차단(로그인과 동일 기준)
+        // 정지/휴면/잠금 계정은 유효한 refresh 토큰을 갖고 있어도 재발급 차단(로그인과 동일 기준)
         if ("STATUS03".equals(user.getStatusCd())) {
             throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
+        }
+        if ("STATUS04".equals(user.getStatusCd())) {
+            throw new BusinessException(ErrorCode.ACCOUNT_DORMANT);
         }
         if ("STATUS02".equals(user.getStatusCd()) && "Y".equals(user.getLockActive())) {
             throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);

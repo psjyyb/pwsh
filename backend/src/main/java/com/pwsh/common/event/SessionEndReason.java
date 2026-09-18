@@ -19,6 +19,8 @@ public final class SessionEndReason {
     public static final String RELOGIN = "RELOGIN";
     /** 비밀번호 변경·관리자 리셋·비밀번호 재설정 */
     public static final String PWCHANGE = "PWCHANGE";
+    /** 장기 미접속 휴면 전환(배치) */
+    public static final String DORMANT = "DORMANT";
 
     // ↓ 이 서비스에만 있는 사유(CMS 틀에는 탈퇴·계정정지 기능이 없다)
     /** 셀프 탈퇴 */

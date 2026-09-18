@@ -38,6 +38,14 @@ public class MemberVO extends BaseVO {
     private String failLockMins; // 잠금 시간(분, config)
     private String lockRemainMin; // 잠금 잔여 시간(분, 계산값)
 
+    // 라이프사이클(휴면·탈퇴·파기)
+    private String lastLoginDt;
+    /** 휴면 전환 시각. 안내메일에서는 "전환 예정일"로도 쓴다(조회 시 계산) */
+    private String dormantDt;
+    private String withdrawDt;
+    /** 개인정보 파기 시각. 값이 있으면 이미 파기된 계정이다 */
+    private String destroyDt;
+
     // 권한그룹 매핑(auth_member)용
     private String followerCnt;  // 팔로워 수(상세 조회 계산값 — 어뷰징 판단 참고)
     private String followingCnt; // 팔로잉 수(상세 조회 계산값)

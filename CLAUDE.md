@@ -46,6 +46,19 @@
 - `gen.css`의 `--gen-header-h`와 `GenLayout`의 `HEADER_H`는 **같은 값**이어야 한다(어긋나면 메인 히어로 위에 흰 띠가 생긴다).
 - 사용자 화면 문구·구성 중 운영자가 바꿀 것은 **확장설정**(`config_item`, 관리자 > 시스템관리 > 확장설정)에 키를 추가한다 — 코드 수정 없이 값만 바꾼다. 비로그인 화면이 읽어야 하면 `public_yn='Y'`.
 
+## 회원 라이프사이클 (휴면 · 파기)
+- **휴면**: `last_login_dt`(없으면 `reg_dt`) 기준 `config.dormant_days` 경과 → `STATUS04`. 전환 시 `invalidateToken`으로 **토큰·세션을 즉시 끊는다**. 로그인·토큰 재발급 모두 차단(`ACCOUNT_DORMANT`).
+- ★ **해제 시 `last_login_dt`를 지금으로 당긴다.** 안 당기면 다음 배치에서 곧바로 재휴면된다. 해제는 관리자만(`updateMemberRestore.do`).
+- 사전 통지는 메일 템플릿 `DORMANT_NOTICE`. ★ 대상을 **하루치만** 뽑는다 — 범위로 뽑으면 전환될 때까지 매일 같은 메일이 나간다.
+- **파기**: 탈퇴 시 `withdraw_dt`를 찍고(`memberDAO.delete` — 관리자 삭제와 셀프 탈퇴가 공유), `config.destroy_days` 경과 시 **개인정보 컬럼만 비운다**.
+  - ⚠ **행은 지우지 않는다** — `post.reg_id`·`comment.reg_id`·`recruit.reg_id`가 회원 ID로 붙어 있어 지우면 과거 글·모집의 작성자가 깨진다.
+  - ⚠ **`nickname`은 NULL이 아니라 `'탈퇴한 회원'`** — 작성자 표기가 닉네임 서브쿼리라 비우면 과거 글이 빈칸이 된다(CMS 원문과 다른 부분).
+  - ⚠ **파기하면 `use_yn='N'`까지 내린다** — `ux_member_nickname`이 `use_yn='Y'`에만 걸린 부분 유니크 인덱스라, 살려 두면 두 번째 파기가 유니크 위반으로 터진다.
+  - ⚠ **`member_id`·`handle`은 남긴다** — handle은 사용자 화면의 작성자 지목 키라 비우면 유니크 제약과 링크가 함께 깨진다.
+  - `profile_file_id`는 NULL로 비운다(얼굴 사진도 개인정보). 참조가 끊기면 고아 파일 GC가 회수한다.
+- 배치 순서는 **안내 → 전환 → 파기**(`member.lifecycle.cron`). 바뀌면 통지 없이 휴면이 되는 계정이 생긴다.
+- 정책값(`dormant_days`·`dormant_notify_days`·`destroy_days`)은 `config` 테이블이다. 0이면 그 기능을 끈다.
+
 ## 인증 / 인가
 - **JWT 무상태**. 사용자별 토큰 버전으로 **단일세션(last-wins)** + 로그아웃/비번변경/강제로그아웃 시 즉시 무효화(필터가 매 요청 대조).
 - **RBAC 3계층 ADMIN/MEMBER/GUEST**(비로그인=GUEST). ① 메뉴 노출=메뉴 조회 시 권한 필터 ② 관리 API=`PermissionInterceptor`(`/api/adm/**`를 메뉴 URL 권한으로. 사용자 콘텐츠 API는 예외 목록으로 통과시키고 서비스가 인가) ③ 콘텐츠 딥링크=`GenAccessGuard` ④ 소유자=`SecurityUtil.assertOwnerOrAdmin`.

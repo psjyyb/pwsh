@@ -26,6 +26,7 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A004", "만료된 토큰입니다."),
     ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "A005", "로그인 실패가 반복되어 계정이 잠겼습니다. 잠시 후 다시 시도하세요."),
     ACCOUNT_SUSPENDED(HttpStatus.UNAUTHORIZED, "A006", "정지된 계정입니다. 관리자에게 문의하세요."),
+    ACCOUNT_DORMANT(HttpStatus.UNAUTHORIZED, "A008", "장기 미접속으로 휴면 전환된 계정입니다. 관리자에게 문의하세요."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A007", "아이디 또는 비밀번호가 일치하지 않습니다.");
 
     private final HttpStatus status;

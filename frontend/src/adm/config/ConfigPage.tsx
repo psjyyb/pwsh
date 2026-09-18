@@ -85,6 +85,15 @@ export default function ConfigPage() {
         <Form.Item name="delLogDays" label="로그 보관 수">
           <NumberInput />
         </Form.Item>
+        <Form.Item name="dormantDays" label="휴면 전환 일수" extra="마지막 접속 후 이 기간이 지나면 휴면으로 바뀝니다. 0이면 전환하지 않습니다.">
+          <NumberInput />
+        </Form.Item>
+        <Form.Item name="dormantNotifyDays" label="휴면 전환 사전 안내(일)" extra="전환 며칠 전에 안내메일을 보낼지. 0이면 보내지 않습니다.">
+          <NumberInput />
+        </Form.Item>
+        <Form.Item name="destroyDays" label="탈퇴 후 개인정보 보존일" extra="이 기간이 지나면 이름·연락처·이메일·생년·프로필 사진을 지웁니다(게시글·모집의 작성자 연결은 유지).">
+          <NumberInput />
+        </Form.Item>
         <Button type="primary" htmlType="submit" loading={loading}>
           저장
         </Button>
