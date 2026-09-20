@@ -56,6 +56,9 @@
   - ⚠ **파기하면 `use_yn='N'`까지 내린다** — `ux_member_nickname`이 `use_yn='Y'`에만 걸린 부분 유니크 인덱스라, 살려 두면 두 번째 파기가 유니크 위반으로 터진다.
   - ⚠ **`member_id`·`handle`은 남긴다** — handle은 사용자 화면의 작성자 지목 키라 비우면 유니크 제약과 링크가 함께 깨진다.
   - `profile_file_id`는 NULL로 비운다(얼굴 사진도 개인정보). 참조가 끊기면 고아 파일 GC가 회수한다.
+  - 파기 시 세션 종료 사유는 `DESTROY`(셀프 탈퇴 `WITHDRAW`와 구분).
+- ⚠ **휴면은 배치·해제버튼 말고 두 경로로 더 드나든다** — 상세 폼의 계정상태(`updateInfo`)와 제재 토글(`updateStatus`). 세 곳 모두 나올 때 `dormant_dt` 비우고 `last_login_dt` 당기고, 들어갈 때 `dormant_dt` 찍고 세션을 끊어야 한다. 한 곳만 빠져도 그 경로로 푼 계정이 다음 배치에서 곧바로 재휴면된다.
+- 직전 상태 조회는 `selectStatusCd`를 쓴다 — `selectByMemberId`는 개인정보를 복호화해서, 그걸 쓰면 정보수정 한 번마다 개인정보 접근로그가 쌓인다.
 - 배치 순서는 **안내 → 전환 → 파기**(`member.lifecycle.cron`). 바뀌면 통지 없이 휴면이 되는 계정이 생긴다.
 - 정책값(`dormant_days`·`dormant_notify_days`·`destroy_days`)은 `config` 테이블이다. 0이면 그 기능을 끈다.
 

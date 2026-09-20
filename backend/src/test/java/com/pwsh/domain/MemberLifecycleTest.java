@@ -29,6 +29,7 @@ class MemberLifecycleTest extends IntegrationTest {
     @AfterEach
     void cleanup() {
         jdbc.update("DELETE FROM auth_member WHERE member_id LIKE 'zzlc%'");
+        jdbc.update("DELETE FROM login_session WHERE member_id LIKE 'zzlc%'");
         jdbc.update("DELETE FROM member WHERE member_id LIKE 'zzlc%'");
         jdbc.update("DELETE FROM mail_log WHERE template_cd = 'DORMANT_NOTICE'");
         jdbc.update("UPDATE config SET dormant_days = 365, dormant_notify_days = 30, destroy_days = 30");
@@ -199,6 +200,82 @@ class MemberLifecycleTest extends IntegrationTest {
         // 부분 유니크 인덱스(ux_member_nickname)가 use_yn='Y'만 걸리므로 계정을 내려야 두 번째가 통과한다
         assertThat(post("/api/adm/member/updateMemberDestroy.do",
                 "{\"memberId\":\"zzlcb\"}", admin).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("즉시 파기는 접속 중이던 세션을 '개인정보 파기' 사유로 끊는다")
+    void destroyNowEndsSessionWithDestroyReason() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        createMember(admin, "zzlcd");
+        accessToken("zzlcd", PW); // 접속 세션 생성
+        int verBefore = tokenVer("zzlcd");
+
+        assertThat(post("/api/adm/member/updateMemberDestroy.do",
+                "{\"memberId\":\"zzlcd\"}", admin).statusCode()).isEqualTo(200);
+
+        // JWT 필터는 상태가 아니라 token_ver로 판정한다 — 안 올리면 기존 토큰이 만료까지 살아 있다
+        assertThat(tokenVer("zzlcd")).as("파기는 발급된 토큰을 무효화해야 한다").isGreaterThan(verBefore);
+        assertThat(jdbc.queryForObject(
+                "SELECT end_reason FROM login_session WHERE member_id = 'zzlcd'"
+                        + " ORDER BY login_session_id DESC LIMIT 1", String.class))
+                .as("접속이력에 탈퇴가 아니라 파기로 남아야 구분이 된다").isEqualTo("DESTROY");
+    }
+
+    @Test
+    @DisplayName("사용자 폼에서 휴면을 정상으로 바꿔도 다음 배치에서 다시 휴면이 되지 않는다")
+    void formStatusChangeOutOfDormantDoesNotRelapse() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        createMember(admin, "zzlce");
+        backdateLogin("zzlce", 400);
+        memberService.sweepDormant();
+        assertThat(statusOf("zzlce")).isEqualTo("STATUS04");
+
+        // 휴면해제 버튼이 아니라 상세 폼의 계정상태 항목으로 되돌리는 경로
+        assertThat(post("/api/adm/member/updateMember.do",
+                "{\"rowId\":\"zzlce\",\"memberName\":\"테스트\",\"typeCd\":\"MEM01\","
+                        + "\"statusCd\":\"STATUS01\"}", admin).statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject(
+                "SELECT dormant_dt IS NULL FROM member WHERE member_id = 'zzlce'", Boolean.class)).isTrue();
+
+        memberService.sweepDormant();
+
+        assertThat(statusOf("zzlce")).as("폼으로 되돌린 계정이 곧바로 재휴면되면 안 된다").isEqualTo("STATUS01");
+    }
+
+    @Test
+    @DisplayName("사용자 폼에서 휴면으로 바꾸면 전환 시각이 찍히고 세션이 끊긴다")
+    void formStatusChangeIntoDormantKillsSession() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        createMember(admin, "zzlcf");
+        int verBefore = tokenVer("zzlcf");
+
+        assertThat(post("/api/adm/member/updateMember.do",
+                "{\"rowId\":\"zzlcf\",\"memberName\":\"테스트\",\"typeCd\":\"MEM01\","
+                        + "\"statusCd\":\"STATUS04\"}", admin).statusCode()).isEqualTo(200);
+
+        assertThat(jdbc.queryForObject(
+                "SELECT dormant_dt IS NOT NULL FROM member WHERE member_id = 'zzlcf'", Boolean.class)).isTrue();
+        assertThat(tokenVer("zzlcf")).as("폼으로 휴면 전환해도 배치와 똑같이 토큰을 끊어야 한다")
+                .isGreaterThan(verBefore);
+        assertThat(login("zzlcf", PW).statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    @DisplayName("제재 해제로 휴면을 풀어도 다음 배치에서 다시 휴면이 되지 않는다")
+    void sanctionReleaseFromDormantDoesNotRelapse() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        createMember(admin, "zzlcg");
+        backdateLogin("zzlcg", 400);
+        memberService.sweepDormant();
+        assertThat(statusOf("zzlcg")).isEqualTo("STATUS04");
+
+        // 이 서비스에만 있는 경로 — 제재 토글(updateStatus)로도 STATUS01이 될 수 있다
+        assertThat(post("/api/adm/member/updateMemberStatus.do",
+                "{\"memberId\":\"zzlcg\",\"statusCd\":\"STATUS01\"}", admin).statusCode()).isEqualTo(200);
+
+        memberService.sweepDormant();
+
+        assertThat(statusOf("zzlcg")).as("제재 해제로 푼 계정이 곧바로 재휴면되면 안 된다").isEqualTo("STATUS01");
     }
 
     @Test

@@ -118,10 +118,19 @@
         )
     </insert>
 
-    <!-- 정보 수정 (비밀번호 제외) -->
+    <!--
+      정보 수정 (비밀번호 제외).
+      ★ 계정상태를 폼에서 직접 바꾸는 경로이기도 하다 — 휴면(STATUS04)이 배치·해제버튼 말고 여기로도
+        드나들 수 있으므로 라이프사이클 필드를 여기서도 맞춘다. 안 맞추면
+        "휴면에서 정상으로 돌려놨는데 다음 배치에서 곧바로 다시 휴면이 되는" 상태가 된다.
+      ★ SET 안의 status_cd(오른쪽)는 PostgreSQL 규칙상 갱신 전 값이다 — 즉 "직전 상태"로 판정된다.
+    -->
     <update id="updateInfo" parameterType="memberVO">
         UPDATE member SET
             type_cd = #{typeCd}, gender_cd = #{genderCd}, status_cd = #{statusCd},
+            dormant_dt = CASE WHEN #{statusCd} = 'STATUS04' THEN COALESCE(dormant_dt, NOW()) ELSE NULL END,
+            last_login_dt = CASE WHEN status_cd = 'STATUS04' AND #{statusCd} &lt;&gt; 'STATUS04'
+                                 THEN NOW() ELSE last_login_dt END,
             <!-- 표시명(닉네임) — 관리자도 고칠 수 있어야 한다(사칭·부적절 닉네임 대응).
                  빈 값이면 기존 값을 유지한다: 관리자 화면이 이 필드를 안 보내도 닉네임이 지워지면 안 된다 -->
             nickname = COALESCE(NULLIF(#{nickname}, ''), nickname),
@@ -183,15 +192,27 @@
         FROM member WHERE handle = #{handle} AND use_yn = 'Y'
     </select>
 
-    <!-- 관리자 제재: 정지(STATUS03)/해제(STATUS01). 해제 시 실패횟수·잠금시간도 초기화 -->
+    <!--
+      관리자 제재: 정지(STATUS03)/해제(STATUS01). 해제 시 실패횟수·잠금시간도 초기화.
+      ★ 이 경로로도 휴면(STATUS04)에서 빠져나올 수 있다(휴면 계정에 정지→해제를 걸면 STATUS01이 된다).
+        그때 last_login_dt를 당기지 않으면 다음 배치에서 곧바로 다시 휴면이 된다.
+        여기로는 STATUS04가 될 수 없으므로(서비스가 두 값만 허용) dormant_dt는 무조건 비운다.
+    -->
     <update id="updateStatus" parameterType="memberVO">
         UPDATE member
            SET status_cd = #{statusCd},
                fail_cnt = CASE WHEN #{statusCd} = 'STATUS01' THEN 0 ELSE fail_cnt END,
                lock_until_dt = CASE WHEN #{statusCd} = 'STATUS01' THEN NULL ELSE lock_until_dt END,
+               dormant_dt = NULL,
+               last_login_dt = CASE WHEN status_cd = 'STATUS04' THEN NOW() ELSE last_login_dt END,
                upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
          WHERE member_id = #{memberId}
     </update>
+
+    <!-- 상태만 뽑는다 — selectByMemberId는 개인정보를 복호화해서, 정보수정마다 개인정보 접근로그가 쌓인다 -->
+    <select id="selectStatusCd" parameterType="memberVO" resultType="string">
+        SELECT status_cd FROM member WHERE member_id = #{memberId}
+    </select>
 
     <!-- 비밀번호 만료 연장(변경 강제 대신 "나중에" → 만료일만 재형성, last_upd_dt는 유지) -->
     <update id="extendPwExpire" parameterType="memberVO">

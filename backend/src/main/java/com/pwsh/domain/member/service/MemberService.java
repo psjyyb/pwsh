@@ -89,9 +89,23 @@ public class MemberService {
         invalidateToken(vo.getRowId(), SessionEndReason.PWCHANGE); // updatePw는 rowId(=member_id) 기준
     }
 
-    /** 정보 수정(비번 제외) */
+    /**
+     * 정보 수정(비번 제외).
+     *
+     * <p>이 화면의 계정상태 항목으로 <b>휴면(STATUS04)에 직접 드나들 수 있다.</b> 그래서 배치·해제버튼과
+     * 같은 뒤처리를 여기서도 해야 한다 — 휴면으로 들어가면 토큰·세션을 끊는다(안 그러면 "휴면인데 아직
+     * 로그인된 채로 돌아다니는" 계정이 남는다). 나오는 쪽의 {@code last_login_dt}·{@code dormant_dt}
+     * 정리는 매퍼가 한다.
+     */
+    @Transactional
     public void updateInfo(MemberVO vo) {
+        MemberVO param = new MemberVO();
+        param.setMemberId(vo.getRowId());
+        String before = commonDAO.selectOne("memberDAO.selectStatusCd", param);
         commonDAO.update("memberDAO.updateInfo", vo);
+        if ("STATUS04".equals(vo.getStatusCd()) && !"STATUS04".equals(before)) {
+            invalidateToken(vo.getRowId(), SessionEndReason.DORMANT);
+        }
     }
 
     /** 삭제(논리, 탈퇴) — 사용자의 권한그룹 매핑(auth_member)도 정리(고아 방지) */
@@ -232,8 +246,9 @@ public class MemberService {
         if (commonDAO.update("memberDAO.updateDestroy", vo) == 0) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 파기되었거나 없는 계정입니다.");
         }
-        // 계정이 use_yn='N'으로 내려가므로 살아 있던 세션도 같이 끊는다
-        invalidateToken(vo.getMemberId(), SessionEndReason.WITHDRAW);
+        // 계정이 use_yn='N'으로 내려가므로 살아 있던 세션도 같이 끊는다.
+        // JWT 필터는 상태가 아니라 token_ver로 판정해서, 안 끊으면 기존 access 토큰이 만료까지 산다.
+        invalidateToken(vo.getMemberId(), SessionEndReason.DESTROY);
         eventLogService.write("MEMBER_DESTROY", "member", vo.getMemberId());
     }
 

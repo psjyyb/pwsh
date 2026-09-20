@@ -13,6 +13,7 @@ const END_REASON_LABEL: Record<string, string> = {
   RELOGIN: '다른 기기 로그인',
   PWCHANGE: '비밀번호 변경',
   DORMANT: '휴면 전환',
+  DESTROY: '개인정보 파기',
 }
 
 /**

@@ -21,6 +21,8 @@ public final class SessionEndReason {
     public static final String PWCHANGE = "PWCHANGE";
     /** 장기 미접속 휴면 전환(배치) */
     public static final String DORMANT = "DORMANT";
+    /** 개인정보 파기(계정 비활성화가 따라온다) */
+    public static final String DESTROY = "DESTROY";
 
     // ↓ 이 서비스에만 있는 사유(CMS 틀에는 탈퇴·계정정지 기능이 없다)
     /** 셀프 탈퇴 */
