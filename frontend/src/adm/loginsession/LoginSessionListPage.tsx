@@ -6,7 +6,12 @@ import SearchBar from '../../common/adm/components/SearchBar'
 import { LOGINSESSION_LIST_URL, loginSessionApi } from './loginsession.api'
 import type { LoginSession } from './loginsession.api'
 
-/** end_reason 코드 → 표시 문구. 서버 상수(LoginSessionService.END_*)와 짝을 맞춘다. */
+/**
+ * end_reason 코드 → 표시 문구.
+ *
+ * ★ 서버의 `SessionEndReason` 상수와 1:1로 맞춘다. 빠진 코드는 영문 코드가 그대로 화면에 나온다
+ * (아래 render의 `?? r.endReason` 폴백) — 에러가 아니라 조용히 못생겨지는 쪽이라 놓치기 쉽다.
+ */
 const END_REASON_LABEL: Record<string, string> = {
   LOGOUT: '로그아웃',
   FORCE: '관리자 강제종료',
@@ -14,6 +19,9 @@ const END_REASON_LABEL: Record<string, string> = {
   PWCHANGE: '비밀번호 변경',
   DORMANT: '휴면 전환',
   DESTROY: '개인정보 파기',
+  // ↓ 이 서비스에만 있는 사유(CMS 틀에는 탈퇴·계정정지 기능이 없다)
+  WITHDRAW: '회원 탈퇴',
+  SUSPEND: '관리자 계정정지',
 }
 
 /**
