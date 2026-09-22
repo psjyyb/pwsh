@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Space, Upload, message } from 'antd'
 import type { UploadProps } from 'antd'
 import { fileApi } from '../../../api/file'
+import MediaPickerModal from './MediaPickerModal'
 
 interface Props {
   /** 이미지 file_id (Form.Item 연동) */
@@ -13,9 +14,13 @@ interface Props {
  * 단일 이미지 업로드 — 선택 즉시 업로드해 file_id를 onChange로 전달, 썸네일 미리보기.
  * 엔티티(예: 팝업)의 file_id 컬럼에 그대로 저장.
  *   <Form.Item name="fileId"><ImageUpload /></Form.Item>
+ *
+ * <p>새로 올리는 것 말고 <b>미디어 라이브러리에 담아둔 이미지를 고르는</b> 길도 같이 준다.
+ * 같은 배너 이미지를 쓸 때마다 다시 올려서 똑같은 파일이 쌓이는 걸 막는다.
  */
 export default function ImageUpload({ value, onChange }: Props) {
   const [preview, setPreview] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // 기존 값(file_id) 있으면 서버에서 미리보기 로드
   useEffect(() => {
@@ -66,8 +71,10 @@ export default function ImageUpload({ value, onChange }: Props) {
         <Upload {...uploadProps}>
           <Button>{value ? '이미지 변경' : '이미지 선택'}</Button>
         </Upload>
+        <Button onClick={() => setPickerOpen(true)}>라이브러리에서 선택</Button>
         {value && <Button danger onClick={() => onChange?.('')}>제거</Button>}
       </Space>
+      <MediaPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={(fid) => onChange?.(fid)} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Input, Select, Space } from 'antd'
+import { Button, DatePicker, Input, Select, Space } from 'antd'
+import dayjs from 'dayjs'
 import CodeSelect from './CodeSelect'
 
 /**
@@ -29,6 +30,11 @@ export type SearchField =
       defaultValue?: string
     }
   | { type: 'code'; name: string; placeholder?: string; pCodeId: string; width?: number }
+  /**
+   * 기간(시작~종료). 한 필드가 파라미터 두 개(fromName·toName)를 만든다 —
+   * 값은 저장 포맷 YYYY-MM-DD 문자열이고, 비우면 빈 문자열이라 백엔드가 조건을 무시한다.
+   */
+  | { type: 'daterange'; name: string; fromName: string; toName: string; width?: number }
   /**
    * "검색 대상 선택 + 검색어" 조합. 드롭다운으로 검색할 컬럼을 바꿔가며 하나의 검색어로 조회.
    * conditions.value = 백엔드 filterField 분기값(예: 'access_contents','reg_id').
@@ -71,7 +77,10 @@ export default function SearchBar({ fields, onSearch, onCreate, createText = '�
       if (f.type === 'keyword') cleared[f.name ?? 'filterKeyword'] = ''
       // 기본값이 선언된 select는 빈값이 아니라 그 기본값으로 되돌린다(진입 직후 상태 = 초기화 상태)
       else if (f.type === 'select' && f.defaultValue !== undefined) cleared[f.name] = f.defaultValue
-      else cleared[f.name] = ''
+      else if (f.type === 'daterange') {
+        cleared[f.fromName] = ''
+        cleared[f.toName] = ''
+      } else cleared[f.name] = ''
     })
     setValues(cleared)
     onSearch(cleared)
@@ -100,6 +109,26 @@ export default function SearchBar({ fields, onSearch, onCreate, createText = '�
             onPressEnter={doSearch}
           />
         </Space.Compact>
+      )
+    }
+    if (f.type === 'daterange') {
+      const from = values[f.fromName] ?? ''
+      const to = values[f.toName] ?? ''
+      return (
+        <DatePicker.RangePicker
+          key={f.name}
+          size="large"
+          format="YYYY-MM-DD"
+          style={{ width: f.width ?? 260 }}
+          value={[from ? dayjs(from) : null, to ? dayjs(to) : null]}
+          onChange={(range) =>
+            setValues((prev) => ({
+              ...prev,
+              [f.fromName]: range?.[0] ? range[0].format('YYYY-MM-DD') : '',
+              [f.toName]: range?.[1] ? range[1].format('YYYY-MM-DD') : '',
+            }))
+          }
+        />
       )
     }
     const val = values[f.name] ?? ''
@@ -144,7 +173,8 @@ export default function SearchBar({ fields, onSearch, onCreate, createText = '�
   }
 
   // 선택(드롭다운) 조건을 앞에, 검색어 입력(text/keyword)을 검색 버튼 쪽(뒤)에 배치
-  const isSelectType = (f: SearchField) => f.type === 'select' || f.type === 'code'
+  const isSelectType = (f: SearchField) =>
+    f.type === 'select' || f.type === 'code' || f.type === 'daterange'
   const orderedFields = [...fields.filter(isSelectType), ...fields.filter((f) => !isSelectType(f))]
 
   return (

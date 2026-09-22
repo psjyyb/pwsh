@@ -10,22 +10,94 @@
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
-    <select id="selectList" parameterType="fileVO" resultType="fileVO">
-        SELECT file_id, original_name, ext, size, description, reg_id,
-               TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, use_yn
-        FROM file
-        WHERE use_yn = 'Y'
+    <!--
+      미디어 라이브러리 목록 필터. 조건이 두 매퍼(목록·건수)에 중복되면 언젠가 한쪽만 고쳐
+      "목록은 3건인데 페이징은 50건"이 되므로 sql 조각 하나로 묶는다.
+      ★ 이미지 판정은 확장자로 한다 — file 테이블에 MIME이 없다(업로드 시 시그니처로 검사하고 버린다).
+      ★ '쓰이는 중' 판정에 member.profile_file_id를 반드시 포함한다. 프로필 사진만 file_ref를 안 거치고
+        직접 참조라서, 빼면 프로필 사진이 전부 '미사용'으로 보이고 지워진다.
+    -->
+    <sql id="listWhere">
+        WHERE f.use_yn = 'Y'
         <if test="filterKeyword != null and filterKeyword != ''">
-            AND original_name LIKE '%' || #{filterKeyword} || '%'
+            AND f.original_name LIKE '%' || #{filterKeyword} || '%'
         </if>
-        ORDER BY file_id DESC
+        <if test='"IMAGE".equals(filterExtGroup)'>
+            AND LOWER(f.ext) IN ('jpg','jpeg','png','gif','webp','bmp','svg')
+        </if>
+        <if test='"ETC".equals(filterExtGroup)'>
+            AND (f.ext IS NULL OR LOWER(f.ext) NOT IN ('jpg','jpeg','png','gif','webp','bmp','svg'))
+        </if>
+        <if test='"Y".equals(filterLibrary)'>
+            AND EXISTS (SELECT 1 FROM file_ref r WHERE r.file_id = f.file_id AND r.file_type = 'LIBRARY')
+        </if>
+        <if test='"USED".equals(filterUsed)'>
+            AND (EXISTS (SELECT 1 FROM file_ref r WHERE r.file_id = f.file_id AND r.file_type &lt;&gt; 'LIBRARY')
+                 OR EXISTS (SELECT 1 FROM member m WHERE m.profile_file_id = f.file_id))
+        </if>
+        <if test='"UNUSED".equals(filterUsed)'>
+            AND NOT EXISTS (SELECT 1 FROM file_ref r WHERE r.file_id = f.file_id AND r.file_type &lt;&gt; 'LIBRARY')
+            AND NOT EXISTS (SELECT 1 FROM member m WHERE m.profile_file_id = f.file_id)
+        </if>
+        <if test="filterFrom != null and filterFrom != ''">
+            AND f.reg_dt &gt;= #{filterFrom}::date
+        </if>
+        <!-- 종료일은 그날 하루를 포함해야 한다 — date 캐스팅만 하면 00:00이라 당일 업로드가 빠진다 -->
+        <if test="filterTo != null and filterTo != ''">
+            AND f.reg_dt &lt; (#{filterTo}::date + INTERVAL '1 day')
+        </if>
+    </sql>
+
+    <select id="selectList" parameterType="fileVO" resultType="fileVO">
+        SELECT f.file_id, f.original_name, f.ext, f.size, f.description, f.reg_id,
+               TO_CHAR(f.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, f.use_yn,
+               ((SELECT COUNT(*) FROM file_ref r
+                  WHERE r.file_id = f.file_id AND r.file_type &lt;&gt; 'LIBRARY')
+                + (SELECT COUNT(*) FROM member m WHERE m.profile_file_id = f.file_id))::TEXT AS ref_cnt,
+               CASE WHEN EXISTS (SELECT 1 FROM file_ref r
+                                  WHERE r.file_id = f.file_id AND r.file_type = 'LIBRARY')
+                    THEN 'Y' ELSE 'N' END AS library_yn
+        FROM file f
+        <include refid="listWhere"/>
+        ORDER BY f.file_id DESC
         LIMIT #{pageSize} OFFSET #{offset}
     </select>
 
     <select id="selectListTotalCount" parameterType="fileVO" resultType="int">
-        SELECT COUNT(*) FROM file WHERE use_yn = 'Y'
-        <if test="filterKeyword != null and filterKeyword != ''">AND original_name LIKE '%' || #{filterKeyword} || '%'</if>
+        SELECT COUNT(*) FROM file f
+        <include refid="listWhere"/>
     </select>
+
+    <!--
+      파일 하나의 사용처. "지워도 되는 파일인가"를 사람이 판단하려면 개수가 아니라 어디인지가 필요하다.
+      대상 이름은 게시글(제목)·프로필(닉네임)만 붙인다 — 팝업·배너·로고는 map_key가 그 도메인 PK라
+      조인이 도메인마다 달라지고, 화면에서 용도명(POPUP 등)만으로 충분히 식별된다.
+      ★ 프로필은 file_ref에 없으므로 UNION으로 따로 끌어온다(이 저장소만의 직접 참조 예외).
+    -->
+    <select id="selectRefsDetail" parameterType="fileVO" resultType="fileVO">
+        SELECT r.file_type, r.map_key::TEXT AS map_key,
+               CASE WHEN r.file_type LIKE 'POST%'
+                    THEN (SELECT p.title FROM post p WHERE p.post_id = r.map_key)
+                    END AS target_name
+        FROM file_ref r
+        WHERE r.file_id = #{fileId}::integer AND r.file_type &lt;&gt; 'LIBRARY'
+        UNION ALL
+        SELECT 'PROFILE' AS file_type, NULL AS map_key, m.nickname AS target_name
+        FROM member m
+        WHERE m.profile_file_id = #{fileId}::integer
+        ORDER BY file_type, map_key
+    </select>
+
+    <!-- 라이브러리 담기 — map_key=0 고정. PK가 (map_key, file_id)라 중복 담기는 조용히 무시된다 -->
+    <insert id="insertLibraryRef" parameterType="fileVO">
+        INSERT INTO file_ref (map_key, file_id, file_type, sort_no)
+        VALUES (0, #{fileId}::integer, 'LIBRARY', 0)
+        ON CONFLICT (map_key, file_id) DO NOTHING
+    </insert>
+
+    <delete id="deleteLibraryRef" parameterType="fileVO">
+        DELETE FROM file_ref WHERE file_id = #{fileId}::integer AND file_type = 'LIBRARY'
+    </delete>
 
     <select id="selectView" parameterType="fileVO" resultType="fileVO">
         SELECT file_id, path, stored_name, original_name, size, ext, description, use_yn
@@ -48,7 +120,10 @@
     </delete>
 
     <!-- [삭제 전파] 엔티티 soft-delete 시 그 엔티티가 참조하는 파일들을 file.use_yn='N'으로.
-         map_key + 해당 엔티티의 file_type 목록으로 특정(map_key 다형성 방지). upd_dt=삭제시점 → GC 유예 기준. -->
+         map_key + 해당 엔티티의 file_type 목록으로 특정(map_key 다형성 방지). upd_dt=삭제시점 → GC 유예 기준.
+         ★ 라이브러리에 담긴 파일은 제외한다. 라이브러리 이미지를 글에 붙였다가 그 글을 지우면
+           원본까지 use_yn='N'이 되고 보존기간 뒤 GC(C케이스)가 지워버린다 — 다른 글에서 쓰던 것까지 깨진다.
+           라이브러리 파일은 라이브러리 화면에서만 지운다. -->
     <update id="deactivateFilesByOwner" parameterType="map">
         UPDATE file SET use_yn = 'N', upd_dt = NOW()
         WHERE use_yn = 'Y' AND file_id IN (
@@ -56,6 +131,9 @@
             WHERE map_key = #{mapKey}::integer
               AND file_type IN
               <foreach item="loc" collection="locs" open="(" separator="," close=")">#{loc}</foreach>
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM file_ref lr WHERE lr.file_id = file.file_id AND lr.file_type = 'LIBRARY'
         )
     </update>
 

@@ -148,9 +148,53 @@ public class FileService {
         throw new BusinessException(ErrorCode.ACCESS_DENIED);
     }
 
-    /** 삭제(논리) */
+    /**
+     * 삭제(논리).
+     *
+     * <p>라이브러리 매핑도 같이 끊는다 — 안 끊으면 "지웠는데 라이브러리 목록엔 남아 있고,
+     * LIBRARY 참조 때문에 GC도 못 지우는" 파일이 된다.
+     */
+    @Transactional
     public void delete(FileVO vo) {
+        commonDAO.delete("fileDAO.deleteLibraryRef", vo);
         commonDAO.delete("fileDAO.delete", vo);
+    }
+
+    // ===== 미디어 라이브러리 =====
+
+    /**
+     * 라이브러리 업로드 — 저장 후 곧바로 LIBRARY 매핑을 건다.
+     *
+     * <p>★ 매핑을 안 걸면 GC의 A케이스(매핑 없는 업로드를 유예시간 뒤 삭제)에 걸려
+     * <b>다음 새벽에 사라진다.</b> 라이브러리는 "아직 아무 데도 안 쓰는 파일을 보관하는 곳"이라
+     * 이 매핑이 곧 존재 근거다.
+     */
+    @Transactional
+    public List<FileVO> uploadLibrary(MultipartFile[] files) {
+        List<FileVO> stored = upload(files);
+        for (FileVO f : stored) {
+            commonDAO.insert("fileDAO.insertLibraryRef", f);
+            f.setLibraryYn("Y");
+        }
+        return stored;
+    }
+
+    /** 이미 올라간 파일을 라이브러리에 담거나 뺀다(게시글 첨부로 올린 이미지를 재활용하는 경우 등). */
+    @Transactional
+    public void setLibrary(FileVO vo, boolean add) {
+        if (add) {
+            commonDAO.insert("fileDAO.insertLibraryRef", vo);
+            return;
+        }
+        commonDAO.delete("fileDAO.deleteLibraryRef", vo);
+    }
+
+    /**
+     * 이 파일을 쓰는 곳 목록(용도·대상). 지워도 되는지 사람이 판단하는 근거다.
+     * 프로필 사진(member 직접 참조)도 함께 나온다 — 빠지면 '미사용'으로 보여 지워진다.
+     */
+    public List<FileVO> selectRefs(FileVO vo) {
+        return commonDAO.selectList("fileDAO.selectRefsDetail", vo);
     }
 
     /** 엔티티(map_key+file_type)에 연결된 파일 목록 */

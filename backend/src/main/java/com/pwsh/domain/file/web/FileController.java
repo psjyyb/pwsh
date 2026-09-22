@@ -5,6 +5,7 @@ import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
 import com.pwsh.common.response.ApiResponse;
 import com.pwsh.common.util.PageUtil;
+import com.pwsh.common.util.Validate;
 import com.pwsh.domain.file.service.FileService;
 import com.pwsh.domain.file.service.FileVO;
 import com.pwsh.global.security.SecurityUtil;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,8 +27,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 파일 업로드/다운로드/삭제 + 엔티티 매핑(file_ref) + 고아 정리 — 컨트롤러는 매핑만, 로직은 {@link FileService}.
+ * 파일 업로드/다운로드/삭제 + 엔티티 매핑(file_ref) + 고아 정리 + 미디어 라이브러리 —
+ * 컨트롤러는 매핑만, 로직은 {@link FileService}.
  * 표준 CRUD 틀에 안 맞는 특수 컨트롤러(멀티파트 업로드·바이너리 다운로드·유지보수 gc).
+ *
+ * <p>⚠ 이 도메인은 {@code PermissionInterceptor}의 메뉴권한 검사에서 통째로 면제돼 있다
+ * (게시판 첨부 때문에 일반 회원도 업로드·다운로드를 해야 한다). 그래서 <b>관리 기능은
+ * 반드시 {@link #requireAdmin()}을 직접 불러야 한다</b> — 빠뜨리면 로그인만 하면 다 열린다.
  */
 @RestController
 @RequestMapping("/api/adm/file")
@@ -63,15 +70,41 @@ public class FileController {
         return ApiResponse.ok(Map.of("url", "/api/pub/image/" + vo.getFileId()));
     }
 
-    /** 목록(파일 관리 화면, 관리자 전용) */
-    @RequestMapping("/selectFileList.do")
-    public ApiResponse<Map<String, Object>> selectList(@RequestBody(required = false) FileVO searchVO) {
+    /** 라이브러리 업로드(관리자 전용) — 엔티티에 안 붙어도 보관되도록 LIBRARY 매핑까지 건다 */
+    @RequestMapping("/uploadLibrary.do")
+    public ApiResponse<List<FileVO>> uploadLibrary(@RequestParam("files") MultipartFile[] files) {
+        requireAdmin();
+        return ApiResponse.ok(fileService.uploadLibrary(files));
+    }
+
+    /**
+     * 목록 계열(관리자 전용). ''=미디어 라이브러리 목록 / Ref=파일 1건의 사용처 목록.
+     */
+    @RequestMapping("/selectFileList{variant}.do")
+    public ApiResponse<?> selectList(@PathVariable(name = "variant", required = false) String variant,
+                                     @RequestBody(required = false) FileVO searchVO) {
         requireAdmin();
         FileVO vo = searchVO == null ? new FileVO() : searchVO;
+        if ("Ref".equals(variant)) {
+            Validate.required(vo.getFileId(), "파일");
+            return ApiResponse.ok(fileService.selectRefs(vo));
+        }
         int totalCount = fileService.selectListTotalCount(vo);
         return ApiResponse.ok(Map.of(
                 "list", fileService.selectList(vo), "totalCount", totalCount,
                 "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
+    }
+
+    /** 수정 계열(관리자 전용). Library=라이브러리 담기/빼기(useYn='Y'면 담기) */
+    @RequestMapping("/updateFile{variant}.do")
+    public ApiResponse<Void> update(@PathVariable(name = "variant", required = false) String variant,
+                                    @RequestBody FileVO searchVO) {
+        requireAdmin();
+        if ("Library".equals(variant)) {
+            Validate.required(searchVO.getFileId(), "파일");
+            fileService.setLibrary(searchVO, "Y".equals(searchVO.getUseYn()));
+        }
+        return ApiResponse.ok();
     }
 
     /** 다운로드 (인증 필요 → 프론트는 axios blob로 호출) */
