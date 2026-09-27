@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Empty, Spin, Tag } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { searchApi } from '../../api/search'
+import { SEARCH_PREVIEW_SIZE, searchApi } from '../../api/search'
 import type { SearchResult } from '../../api/search'
 import { gen } from '../theme'
 import { PageBody, PageHead } from '../../common/gen/components/PageShell'
@@ -45,7 +45,16 @@ export default function SearchPage() {
   }, [q])
 
   const rowStyle = { padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid var(--gen-line)' } as const
-  const total = data ? data.hobbies.length + data.recruits.length + data.posts.length : 0
+  // ★ 건수는 배열 길이가 아니라 서버가 센 값을 쓴다 — 목록은 유형별 10건까지만 온다
+  const total = data ? data.hobbyCount + data.recruitCount + data.postCount + data.pageCount : 0
+
+  /** 10건을 넘겨 잘린 유형에만 붙는 안내 — 안 붙이면 "왜 10개뿐이지?"가 된다 */
+  const more = (count: number) =>
+    count > SEARCH_PREVIEW_SIZE ? (
+      <div style={{ padding: '8px 14px', fontSize: 12, color: '#999', borderTop: '1px solid var(--gen-line)' }}>
+        상위 {SEARCH_PREVIEW_SIZE}건만 표시했습니다. 검색어를 더 구체적으로 입력해 보세요.
+      </div>
+    ) : null
 
   return (
     <>
@@ -66,7 +75,7 @@ export default function SearchPage() {
       ) : (
         <>
           {data!.hobbies.length > 0 && (
-            <Card title={`취미 (${data!.hobbies.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
+            <Card title={`취미 (${data!.hobbyCount})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.hobbies.map((h) => (
                 <div key={h.rowId} style={rowStyle} onClick={() => navigate(`/gen/hobby/${h.rowId}`)}>
                   <span style={{ fontWeight: 600 }}>{h.hobbyName}</span>
@@ -74,10 +83,11 @@ export default function SearchPage() {
                   {h.summary && <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{h.summary}</div>}
                 </div>
               ))}
+              {more(data!.hobbyCount)}
             </Card>
           )}
           {data!.recruits.length > 0 && (
-            <Card title={`모집 (${data!.recruits.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
+            <Card title={`모집 (${data!.recruitCount})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.recruits.map((r) => (
                 <div key={r.rowId} style={rowStyle} onClick={() => navigate(`/gen/recruit/${r.rowId}`)}>
                   <Tag color="cyan">{r.hobbyName}</Tag>
@@ -87,10 +97,11 @@ export default function SearchPage() {
                   </span>
                 </div>
               ))}
+              {more(data!.recruitCount)}
             </Card>
           )}
           {data!.posts.length > 0 && (
-            <Card title={`게시글 (${data!.posts.length})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
+            <Card title={`게시글 (${data!.postCount})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
               {data!.posts.map((p) => (
                 <div key={p.rowId} style={rowStyle} onClick={() => navigate(`/gen/board/${p.boardId}?post=${p.rowId}`)}>
                   <Tag>{p.boardName}</Tag>
@@ -104,6 +115,24 @@ export default function SearchPage() {
                   )}
                 </div>
               ))}
+              {more(data!.postCount)}
+            </Card>
+          )}
+          {/* 안내페이지 — 메뉴에 연결되고 열람 권한이 있는 것만 서버가 내려준다 */}
+          {data!.pages.length > 0 && (
+            <Card title={`안내 (${data!.pageCount})`} styles={{ body: { padding: 0 } }} style={{ borderRadius: 16 }}>
+              {data!.pages.map((g) => (
+                <div key={g.rowId} style={rowStyle} onClick={() => navigate(`/gen/page/${g.rowId}`)}>
+                  <Tag color="geekblue">안내</Tag>
+                  <span style={{ fontWeight: 600 }}>{g.title}</span>
+                  {g.searchSnippet && (
+                    <div style={{ fontSize: 13, color: gen.inkSoft, marginTop: 4, lineHeight: 1.5 }}>
+                      {highlight(g.searchSnippet, q)}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {more(data!.pageCount)}
             </Card>
           )}
         </>

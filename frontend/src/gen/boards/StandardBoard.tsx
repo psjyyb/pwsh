@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Card, Checkbox, Empty, Form, Input, Popconfirm, Space, Spin, Table, Tag, message } from 'antd'
+import { Button, Card, Checkbox, Empty, Form, Input, Popconfirm, Select, Space, Spin, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiPost } from '../../api/http'
@@ -34,6 +34,15 @@ const FILE_TYPE = 'POST' // 첨부파일
 const IMG_LOC = 'POST_IMG' // 갤러리 사진(캡션 포함)
 const EDITOR_LOC = 'POST_EDITOR' // 본문 에디터 삽입 이미지(고아 추적용)
 
+/** 검색 대상 — 값은 서버 postDAO.listSearch의 filterField 분기와 짝을 맞춘다 */
+const DEFAULT_FIELD = 'title'
+const SEARCH_FIELDS = [
+  { value: 'title', label: '제목' },
+  { value: 'content', label: '본문' },
+  { value: 'both', label: '제목+본문' },
+  { value: 'writer', label: '작성자' },
+]
+
 /**
  * 표준 게시판 스킨 — 일반(BOARD01)/갤러리(004)/1:1문의(003) 공용.
  * 유형별 차이: 갤러리=카드목록+대표이미지, 1:1=비밀글 강제+답변상태(댓글=답변).
@@ -50,6 +59,7 @@ export default function StandardBoard({ board }: { board: Board }) {
   const [total, setTotal] = useState(0)
   const [pageNo, setPageNo] = useState(1)
   const [keyword, setKeyword] = useState('')
+  const [field, setField] = useState(DEFAULT_FIELD) // 검색 대상(제목/본문/제목+본문/작성자)
   const [loading, setLoading] = useState(false)
 
   const [post, setPost] = useState<Post | null>(null)
@@ -90,11 +100,13 @@ export default function StandardBoard({ board }: { board: Board }) {
   const noticeWatch = Form.useWatch('noticeYn', form)
 
   const loadList = useCallback(
-    async (p = 1, kw = keyword) => {
+    async (p = 1, kw = keyword, fd = field) => {
       if (!boardId) return
       setLoading(true)
       try {
-        const res = await apiPost<ListResult<Post>>(POST_LIST_URL, { boardId, pageNo: p, pageSize, filterKeyword: kw })
+        const res = await apiPost<ListResult<Post>>(POST_LIST_URL, {
+          boardId, pageNo: p, pageSize, filterKeyword: kw, filterField: fd,
+        })
         setRows(res.list)
         setTotal(res.totalCount)
         setPageNo(p)
@@ -104,7 +116,7 @@ export default function StandardBoard({ board }: { board: Board }) {
         setLoading(false)
       }
     },
-    [boardId, pageSize, keyword],
+    [boardId, pageSize, keyword, field],
   )
 
   useEffect(() => {
@@ -352,9 +364,21 @@ export default function StandardBoard({ board }: { board: Board }) {
   // ===== 목록 =====
   if (mode === 'list') {
     const search = (
-      <Space style={{ marginBottom: 12 }}>
-        <Input.Search placeholder="제목 검색" allowClear style={{ width: 260 }} onSearch={(v) => { setKeyword(v); loadList(1, v) }} />
-      </Space>
+      <Space.Compact style={{ marginBottom: 12 }}>
+        {/* 대상 선택 → 서버의 filterField. 값이 없으면 제목만 찾는다(기존 동작) */}
+        <Select
+          value={field}
+          onChange={(v) => { setField(v); loadList(1, keyword, v) }}
+          style={{ width: 120 }}
+          options={SEARCH_FIELDS}
+        />
+        <Input.Search
+          placeholder="검색어"
+          allowClear
+          style={{ width: 260 }}
+          onSearch={(v) => { setKeyword(v); loadList(1, v) }}
+        />
+      </Space.Compact>
     )
     // 갤러리: 카드 그리드
     const galleryBody =

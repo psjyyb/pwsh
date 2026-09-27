@@ -2,6 +2,39 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="postDAO">
 
+    <!--
+      게시판 목록 검색 조건. filterField로 대상을 고른다 — 빈 값/미지정은 기존 동작(제목)을 유지한다.
+      ★ 두 매퍼(목록·건수)에 같은 조건이 중복되면 언젠가 한쪽만 고쳐
+        "목록은 3건인데 페이징은 50건"이 되므로 조각 하나로 묶는다.
+      ★ filterKeyword는 PostService가 LIKE 특수문자를 이스케이프해 넣는다 → ESCAPE '\' 필수.
+        안 하면 '%' 한 글자 검색이 게시판 전체 조회가 된다.
+      ★ 본문은 HTML이라 태그를 지운 평문으로 찾는다 — 안 그러면 'div'·'span' 같은 말이 전부 걸린다.
+        (정규식의 '<'는 XML에서 &lt; 로 써야 한다.)
+      ★ 작성자 검색은 닉네임 기준이다. 로그인 ID로 찾게 하면 계정 존재 여부를 확인하는 통로가 된다.
+    -->
+    <sql id="listSearch">
+        <if test="filterKeyword != null and filterKeyword != ''">
+            <choose>
+                <when test='"content".equals(filterField)'>
+                    AND regexp_replace(COALESCE(content, ''), '&lt;[^>]*>', ' ', 'g')
+                        ILIKE '%' || #{filterKeyword} || '%' ESCAPE '\'
+                </when>
+                <when test='"both".equals(filterField)'>
+                    AND (title ILIKE '%' || #{filterKeyword} || '%' ESCAPE '\'
+                         OR regexp_replace(COALESCE(content, ''), '&lt;[^>]*>', ' ', 'g')
+                            ILIKE '%' || #{filterKeyword} || '%' ESCAPE '\')
+                </when>
+                <when test='"writer".equals(filterField)'>
+                    AND EXISTS (SELECT 1 FROM member u WHERE u.member_id = post.reg_id
+                                 AND u.nickname ILIKE '%' || #{filterKeyword} || '%' ESCAPE '\')
+                </when>
+                <otherwise>
+                    AND title ILIKE '%' || #{filterKeyword} || '%' ESCAPE '\'
+                </otherwise>
+            </choose>
+        </if>
+    </sql>
+
     <!-- 목록: 원글(공지 상단 고정 후 최신순)을 페이지 단위로 뽑고, 각 원글의 답글(스레드)을 재귀로 이어붙여 반환.
          페이징은 원글 기준(totalCount=원글 수). depth=들여쓰기 레벨(0=원글). 답글은 원글 바로 아래 path 순으로 정렬. -->
     <select id="selectList" parameterType="postVO" resultType="postVO">
@@ -17,7 +50,7 @@
                   SELECT 1 FROM member_block ub
                   WHERE ub.member_id = #{viewerId} AND ub.blocked_id = post.reg_id
               )
-            <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
+            <include refid="listSearch"/>
             ORDER BY notice_eff DESC, post_id DESC
             LIMIT #{pageSize} OFFSET #{offset}
         ),
@@ -101,7 +134,7 @@
     <select id="selectListTotalCount" parameterType="postVO" resultType="int">
         SELECT COUNT(*) FROM post
         WHERE use_yn = 'Y' AND p_post_id = 0 AND board_id = #{boardId}::integer
-        <if test="filterKeyword != null and filterKeyword != ''">AND title LIKE '%' || #{filterKeyword} || '%'</if>
+        <include refid="listSearch"/>
           <!-- 목록(selectList)과 동일한 차단 필터 — 총건수/페이징이 어긋나지 않도록 -->
           AND NOT EXISTS (
               SELECT 1 FROM member_block ub

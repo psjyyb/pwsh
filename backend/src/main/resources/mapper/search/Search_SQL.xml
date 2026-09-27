@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
-  통합 검색(공개 엔드포인트). 키워드는 서비스에서 LIKE 특수문자(% _ \)를 이스케이프하므로
-  모든 LIKE에 ESCAPE '\' 를 명시한다.
+  통합 검색(공개 엔드포인트).
 
-  성능 메모: 부분일치(LIKE '%키워드%')는 인덱스를 타지 못해 대상 테이블을 훑는다.
+  ★ 키워드는 두 가지로 받는다.
+      keywordLike — LIKE 특수문자(% _ \)를 이스케이프한 값. 모든 ILIKE는 ESCAPE '\' 를 명시한다.
+      keyword     — 원문. 스니펫 위치 계산(POSITION)에 쓴다.
+    하나로 합치면 안 된다 — 이스케이프한 값으로 POSITION을 하면 '50%' 같은 검색어에서
+    위치를 못 찾아 스니펫이 조용히 사라진다.
+
+  ★ 검색은 "권한 우회 통로"가 되기 쉽다. 목록·상세는 GenAccessGuard가 막아도, 검색이 제목·본문
+    일부를 그대로 보여주면 열람 불가 콘텐츠가 새어 나간다. 게시글·페이지는 대상을 먼저 좁힌다.
+
+  성능 메모: 부분일치(ILIKE '%키워드%')는 인덱스를 타지 못해 대상 테이블을 훑는다.
   현재 데이터 규모(글 수십~수백 건)에서는 문제되지 않지만, 글이 수만 건을 넘으면
   tsvector 컬럼 + GIN 인덱스(전문검색)로 바꿔야 한다. 그때는 DDL이 필요하다.
 -->
@@ -17,10 +25,17 @@
         FROM hobby h
         LEFT JOIN code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         WHERE h.use_yn = 'Y'
-          AND (h.name LIKE '%' || #{keyword} || '%' ESCAPE '\'
-               OR h.summary LIKE '%' || #{keyword} || '%' ESCAPE '\')
+          AND (h.name ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               OR h.summary ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
         ORDER BY h.sort_no, h.hobby_id
-        LIMIT 10
+        LIMIT #{previewSize}
+    </select>
+
+    <select id="searchHobbiesCount" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM hobby h
+        WHERE h.use_yn = 'Y'
+          AND (h.name ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               OR h.summary ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
     </select>
 
     <!-- 모집: 모임명·설명 부분일치 -->
@@ -31,45 +46,125 @@
         LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
         LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
         WHERE r.use_yn = 'Y'
-          AND (r.title LIKE '%' || #{keyword} || '%' ESCAPE '\'
-               OR r.content LIKE '%' || #{keyword} || '%' ESCAPE '\')
+          AND (r.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               OR r.content ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
         ORDER BY r.recruit_id DESC
-        LIMIT 10
+        LIMIT #{previewSize}
+    </select>
+
+    <select id="searchRecruitsCount" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM recruit r
+        WHERE r.use_yn = 'Y'
+          AND (r.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               OR r.content ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
     </select>
 
     <!--
-      게시글: 취미 연결 게시판의 비밀글 아닌 원글만.
-      이 범위는 GenAccessGuard.checkBoard의 isHobbyBoard 규칙과 동일하다
-      (취미 게시판 = 커뮤니티 공개, 메뉴 권한 무관) → 검색이 열람 불가 콘텐츠를 노출하지 않는다.
-      ※ GEN 메뉴 GUEST 권한으로 한 번 더 좁히면 안 된다 — 취미 게시판엔 GEN 메뉴가 없어서 결과가 0이 됨.
+      게시글이 검색에 걸려도 되는 범위.
+      ★ 두 갈래다 — 이 서비스는 게시판이 두 종류이기 때문이다.
+        ① 취미 게시판: 커뮤니티 공개라 GEN 메뉴가 없다(GenAccessGuard.checkBoard의 isHobbyBoard 규칙).
+           여기를 GEN 메뉴 권한으로 좁히면 결과가 통째로 0이 된다.
+        ② 그 밖의 게시판(공지사항 등): CMS 규칙대로 GEN 메뉴 + 그룹 권한으로 판정한다.
+           ①만 보면 공지사항이 검색에 영원히 안 걸린다(CMS 1.2.10 흡수 전 상태가 그랬다).
+      관리자는 콘텐츠 관리를 위해 통과한다.
     -->
+    <sql id="postScope">
+        <if test='!"Y".equals(adminYn)'>
+            AND (
+                EXISTS (SELECT 1 FROM hobby h WHERE h.board_id = p.board_id AND h.use_yn = 'Y')
+                OR EXISTS (
+                    SELECT 1 FROM menu m
+                    JOIN auth a ON a.menu_id = m.menu_id AND a.type = 'GRP'
+                               AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+                    <if test="memberId != null and memberId != ''">
+                        JOIN auth_member au ON au.auth_group_id = a.conn_id AND au.use_yn = 'Y'
+                                           AND au.member_id = #{memberId}
+                    </if>
+                    WHERE m.area = 'GEN' AND m.use_yn = 'Y'
+                      AND m.conn_cd = 'MENU02' AND m.conn_id = p.board_id
+                    <if test="memberId == null or memberId == ''">AND a.conn_id = 'GUEST'</if>
+                )
+            )
+        </if>
+    </sql>
+
+    <!--
+      ⚠ 비밀글(secret_yn='Y')은 제외한다 — 작성자·관리자만 보는 글이라 제목만 떠도 유출이다.
+      본문은 HTML이라 태그를 지운 평문으로 매칭·스니펫을 만든다
+      (정규식의 '<'는 XML에서 &lt; 로 써야 한다 — 그대로 두면 매퍼 파싱이 깨진다).
+    -->
+    <sql id="postHit">
+        FROM post p
+        WHERE p.use_yn = 'Y' AND p.p_post_id = 0 AND p.secret_yn = 'N'
+          AND (p.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               OR regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g')
+                  ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+        <include refid="postScope"/>
+    </sql>
+
     <select id="searchPosts" parameterType="map" resultType="postVO">
-        WITH hit AS (
-            SELECT b.post_id, b.board_id, b.title, b.reg_id, b.reg_dt,
-                   <!-- 본문에서 HTML 태그를 지운 평문(스니펫·본문매칭 판정에 함께 쓴다).
-                        정규식의 '<'는 XML에서 &lt; 로 써야 한다(그대로 두면 매퍼 파싱이 깨진다). -->
-                   regexp_replace(COALESCE(b.content, ''), '&lt;[^>]*>', ' ', 'g') AS plain,
-                   (b.title LIKE '%' || #{keyword} || '%' ESCAPE '\') AS title_hit
-            FROM post b
-            WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N'
-              AND EXISTS (SELECT 1 FROM hobby h WHERE h.board_id = b.board_id AND h.use_yn = 'Y')
-        )
-        SELECT hit.post_id::TEXT AS row_id, hit.board_id, hit.title,
-               (SELECT u.nickname FROM member u WHERE u.member_id = hit.reg_id) AS reg_name,
-               bi.name AS board_name,
-               TO_CHAR(hit.reg_dt, 'YYYY-MM-DD') AS reg_dt,
-               -- 본문에서 찾았을 때만 스니펫: 매칭 지점 앞 20자부터 100자를 잘라 문맥을 보여준다
-               CASE WHEN NOT hit.title_hit AND POSITION(#{keyword} IN hit.plain) > 0
-                    THEN BTRIM(SUBSTRING(hit.plain
-                                FROM GREATEST(1, POSITION(#{keyword} IN hit.plain) - 20)
-                                FOR 100))
-               END AS search_snippet
-        FROM hit
-        LEFT JOIN board bi ON bi.board_id = hit.board_id
-        WHERE hit.title_hit OR hit.plain LIKE '%' || #{keyword} || '%' ESCAPE '\'
+        SELECT p.post_id::TEXT AS row_id, p.board_id, p.title,
+               (SELECT u.nickname FROM member u WHERE u.member_id = p.reg_id) AS reg_name,
+               (SELECT b.name FROM board b WHERE b.board_id = p.board_id) AS board_name,
+               TO_CHAR(p.reg_dt, 'YYYY-MM-DD') AS reg_dt,
+               -- 본문에서 찾았을 때만 스니펫: 매칭 지점 앞 20자부터 120자를 잘라 문맥을 보여준다
+               CASE WHEN p.title NOT ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+                    THEN BTRIM(SUBSTRING(regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g')
+                         FROM GREATEST(1, POSITION(LOWER(#{keyword}) IN
+                                LOWER(regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g'))) - 20)
+                         FOR 120))
+                    END AS search_snippet
+        <include refid="postHit"/>
         -- 제목에서 찾은 글을 본문에서만 찾은 글보다 앞에(간단한 관련도 정렬)
-        ORDER BY hit.title_hit DESC, hit.post_id DESC
-        LIMIT 10
+        ORDER BY (p.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\') DESC, p.post_id DESC
+        LIMIT #{previewSize}
+    </select>
+
+    <select id="searchPostsCount" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        <include refid="postHit"/>
+    </select>
+
+    <!-- 일반페이지(안내 페이지): GEN 메뉴 + 그룹 권한으로 판정. 관리자는 통과. -->
+    <sql id="pageHit">
+        FROM page g
+        WHERE g.use_yn = 'Y'
+          AND (g.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               OR regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g')
+                  ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+        <if test='!"Y".equals(adminYn)'>
+            AND EXISTS (
+                SELECT 1 FROM menu m
+                JOIN auth a ON a.menu_id = m.menu_id AND a.type = 'GRP'
+                           AND a.menu_yn = 'Y' AND a.use_yn = 'Y'
+                <if test="memberId != null and memberId != ''">
+                    JOIN auth_member au ON au.auth_group_id = a.conn_id AND au.use_yn = 'Y'
+                                       AND au.member_id = #{memberId}
+                </if>
+                WHERE m.area = 'GEN' AND m.use_yn = 'Y'
+                  AND m.conn_cd = 'MENU03' AND m.conn_id = g.page_id
+                <if test="memberId == null or memberId == ''">AND a.conn_id = 'GUEST'</if>
+            )
+        </if>
+    </sql>
+
+    <select id="searchPages" parameterType="map" resultType="pageVO">
+        SELECT g.page_id::TEXT AS row_id, g.title,
+               TO_CHAR(g.reg_dt, 'YYYY-MM-DD') AS reg_dt,
+               CASE WHEN g.title NOT ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+                    THEN BTRIM(SUBSTRING(regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g')
+                         FROM GREATEST(1, POSITION(LOWER(#{keyword}) IN
+                                LOWER(regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g'))) - 20)
+                         FOR 120))
+                    END AS search_snippet
+        <include refid="pageHit"/>
+        ORDER BY (g.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\') DESC, g.page_id DESC
+        LIMIT #{previewSize}
+    </select>
+
+    <select id="searchPagesCount" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        <include refid="pageHit"/>
     </select>
 
 </mapper>
