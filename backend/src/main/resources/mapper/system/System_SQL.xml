@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  시스템 상태 · 설정 백업 조회. 전부 읽기 전용이다.
+
+  ★ flyway_schema_history는 Flyway가 만드는 테이블이라 이 프로젝트의 마이그레이션에는 없다.
+    수동 구축 DB처럼 없을 수도 있으므로 호출부(SystemService)가 실패를 삼킨다.
+-->
+<mapper namespace="systemDAO">
+
+    <select id="selectDbSize" parameterType="map" resultType="string">
+        SELECT pg_size_pretty(pg_database_size(current_database()))
+    </select>
+
+    <select id="selectDbVersion" parameterType="map" resultType="string">
+        SELECT split_part(version(), ',', 1)
+    </select>
+
+    <!-- 적용된 마이그레이션 최근 10건(최신순). 배포 사고에서 가장 먼저 봐야 하는 값이다 -->
+    <select id="selectMigrations" parameterType="map" resultType="map">
+        SELECT version, description, success,
+               execution_time AS "executionTime",
+               TO_CHAR(installed_on, 'YYYY-MM-DD HH24:MI:SS') AS "installedOn"
+        FROM flyway_schema_history
+        ORDER BY installed_rank DESC
+        LIMIT 10
+    </select>
+
+    <!-- ===== 설정 스냅샷(백업) — 운영자가 화면에서 채운 값만. 운영 데이터는 담지 않는다 ===== -->
+
+    <select id="selectBackupCodes" parameterType="map" resultType="map">
+        SELECT code_id AS "codeId", p_code_id AS "pCodeId", name, sort_no AS "sortNo", use_yn AS "useYn"
+        FROM code
+        ORDER BY p_code_id, sort_no, code_id
+    </select>
+
+    <select id="selectBackupMenus" parameterType="map" resultType="map">
+        SELECT menu_id AS "menuId", p_menu_id AS "pMenuId", area, name, sort_no AS "sortNo",
+               conn_cd AS "connCd", conn_id AS "connId", link_url AS "linkUrl",
+               target_yn AS "targetYn", icon, use_yn AS "useYn"
+        FROM menu
+        ORDER BY area, p_menu_id, sort_no
+    </select>
+
+    <select id="selectBackupConfigItems" parameterType="map" resultType="map">
+        SELECT config_key AS "configKey", value, input_type AS "inputType", name, description,
+               group_cd AS "groupCd", sort_no AS "sortNo", public_yn AS "publicYn", use_yn AS "useYn"
+        FROM config_item
+        ORDER BY group_cd, sort_no, config_key
+    </select>
+
+</mapper>

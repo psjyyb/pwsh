@@ -7,15 +7,15 @@ plugins {
 
 group = 'com.pwsh'
 // 프론트(frontend/package.json)와 같은 값을 유지한다 — 한쪽만 올리면 어느 버전이 배포됐는지 추적이 깨진다.
-version = '0.6.11'
+version = '0.6.12'
 description = 'pwsh'
 
 // ★ 이 프로젝트는 직접 만든 CMS(framework 저장소)를 복사해 만든 파생 서비스다.
 //   위 version은 pwsh 자체 버전이고, 아래 cmsVersion은 "바탕 CMS의 어느 버전까지 흡수했는지"다.
 //   둘은 따로 움직인다 — pwsh 기능만 추가하면 version만 오르고, CMS를 따라가면 cmsVersion만 오른다.
 //   CMS의 최신 버전과 버전별 적용 방법(DDL 포함)은 framework 저장소의 CHANGELOG.md를 본다.
-//   현재: 통합검색 보강(CMS 1.2.10)까지 흡수.
-ext.cmsVersion = '1.2.10'
+//   현재: 시스템 상태·캐시(CMS 1.2.11)까지 흡수.
+ext.cmsVersion = '1.2.11'
 
 java {
 	toolchain {
@@ -51,6 +51,12 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	// 메일 발송(이메일 인증코드). SMTP 계정은 환경변수(MAIL_USERNAME/MAIL_PASSWORD)로 주입.
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+	// --- 캐시(Caffeine) ---
+	// 자주 읽고 거의 안 바뀌는 조회(공통코드 콤보 등)를 메모리에 둔다. 단일 JVM 한정 —
+	// 서버를 여러 대로 늘리면 각자 캐시를 들고 있으므로 무효화가 자기 인스턴스에만 걸린다.
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'com.github.ben-manes.caffeine:caffeine'
 	// AOP(행위 로그 EventLogAspect). spring-aop는 web 전이 의존, aspectjweaver 추가 시 Boot가 자동활성화.
 	implementation 'org.aspectj:aspectjweaver'
 

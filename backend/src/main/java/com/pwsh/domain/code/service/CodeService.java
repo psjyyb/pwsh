@@ -1,10 +1,13 @@
 package com.pwsh.domain.code.service;
 
 import com.pwsh.common.CommonDAO;
+import com.pwsh.global.config.CacheConfig;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +38,16 @@ public class CodeService {
         return commonDAO.selectList("codeDAO.selectTree", vo);
     }
 
-    /** 콤보/셀렉트용: pCodeId 하위의 사용중 코드 정렬순 (useCodes/CodeSelect가 사용) */
+    /**
+     * 콤보/셀렉트용: pCodeId 하위의 사용중 코드 정렬순 (useCodes/CodeSelect가 사용).
+     *
+     * <p>화면 대부분이 매 요청 부르는데 내용은 거의 안 바뀌고 <b>누가 읽든 결과가 같아</b> 캐시한다.
+     * 키는 pCodeId — 값이 없으면 캐시를 태우지 않는다(콤보 용도가 아니다).
+     * ★ 아래 변경 메서드들의 {@code @CacheEvict}와 짝이다. 하나라도 빠지면 코드를 고쳐도
+     * 화면에 반영되지 않고, 서버를 재시작해야 고쳐지는 것처럼 보인다.
+     */
+    @Cacheable(cacheNames = CacheConfig.CODE_COMBO, key = "#vo.PCodeId",
+            condition = "#vo.PCodeId != null && #vo.PCodeId != ''")
     public List<CodeVO> selectComboList(CodeVO vo) {
         return commonDAO.selectList("codeDAO.selectComboList", vo);
     }
@@ -82,10 +94,15 @@ public class CodeService {
         return res;
     }
 
+    // ↓ 코드가 바뀌면 콤보 캐시를 통째로 비운다. 바뀐 pCodeId만 골라 비우면 될 것 같지만,
+    //   부모를 옮기는 수정은 이전 부모의 목록도 바뀌므로 한쪽만 비우면 옛 값이 남는다.
+
+    @CacheEvict(cacheNames = CacheConfig.CODE_COMBO, allEntries = true)
     public void insert(CodeVO vo) {
         commonDAO.insert("codeDAO.insert", vo);
     }
 
+    @CacheEvict(cacheNames = CacheConfig.CODE_COMBO, allEntries = true)
     public void update(CodeVO vo) {
         commonDAO.update("codeDAO.update", vo);
     }
@@ -94,6 +111,7 @@ public class CodeService {
      * 같은 부모 내 인접 코드와 sortNo 교환(위로/아래로). 끝이면 무시.
      * unique(부모, sortNo) 회피: 임시값(-1) 3단계 교환. 원자성 위해 트랜잭션.
      */
+    @CacheEvict(cacheNames = CacheConfig.CODE_COMBO, allEntries = true)
     @Transactional
     public void swapSort(CodeVO vo) {
         CodeVO cur = commonDAO.selectOne("codeDAO.selectView", vo); // rowId → pCodeId, sortNo
@@ -118,6 +136,7 @@ public class CodeService {
     }
 
     /** 삭제(논리) + 같은 부모 내 뒤 순서 당김 */
+    @CacheEvict(cacheNames = CacheConfig.CODE_COMBO, allEntries = true)
     @Transactional
     public void delete(CodeVO vo) {
         commonDAO.delete("codeDAO.delete", vo);

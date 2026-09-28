@@ -31,6 +31,12 @@ public class RealtimeService {
     /** memberId → 그 사용자의 열린 연결들(탭 여러 개 가능) */
     private final Map<String, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
+    /** 지금 붙어 있는 연결 수 / 사용자 수 — 시스템 상태 화면이 읽는다(단일 JVM 기준). */
+    public int[] connectionStats() {
+        int conns = emitters.values().stream().mapToInt(Set::size).sum();
+        return new int[] {conns, emitters.size()};
+    }
+
     /** 연결 등록. 완료·타임아웃·오류 시 스스로 정리한다. */
     public SseEmitter subscribe(String memberId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
