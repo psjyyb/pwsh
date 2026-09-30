@@ -13,8 +13,9 @@
 ```
 pwsh/
 ├─ backend/    Spring Boot REST API (MyBatis, JWT)
+│  └─ src/main/resources/db/migration/   DB 스키마·기초데이터 (Flyway, 단일 출처)
 ├─ frontend/   React SPA (adm=관리자 / gen=사용자 영역)
-└─ sql/        DB 스크립트 (schema.sql, data.sql)
+└─ sql/        sample-data.sql (샘플 데이터, 실행은 선택)
 ```
 
 ## 개발 환경
@@ -25,13 +26,11 @@ pwsh/
 
 ## 실행 방법
 ### 1. DB 준비
+빈 데이터베이스만 만들면 된다. **스키마·기초데이터는 앱이 기동할 때 Flyway가 만든다**
+(`backend/src/main/resources/db/migration`). psql로 스크립트를 따로 돌리지 않는다 —
+손으로 넣으면 Flyway 이력과 어긋나 이후 마이그레이션이 막힌다.
 ```powershell
-# DB 생성
 psql -U postgres -c "CREATE DATABASE pwsh ENCODING 'UTF8';"
-# 스키마 + 초기데이터 (UTF-8 필수)
-$env:PGCLIENTENCODING='UTF8'
-psql -U postgres -d pwsh -f sql/schema.sql
-psql -U postgres -d pwsh -f sql/data.sql
 ```
 ### 2. Backend 실행
 ```powershell

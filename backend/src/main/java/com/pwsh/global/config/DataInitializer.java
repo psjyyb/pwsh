@@ -23,7 +23,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         createIfAbsent("admin", "admin1234!", "MEM02", "관리자", "관리자");
-        // 샘플 일반 사용자(권한그룹 예시용). 권한그룹/메뉴 매핑은 data.sql에서 시드.
+        // 샘플 일반 사용자(권한그룹 예시용). 권한그룹/메뉴 매핑은 마이그레이션(V2 기초데이터)에서 시드.
         createIfAbsent("user", "user1234!", "MEM01", "일반사용자", "회원1");
     }
 

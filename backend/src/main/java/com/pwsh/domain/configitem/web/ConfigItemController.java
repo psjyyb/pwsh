@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 확장 설정 관리 — 컨트롤러는 매핑·입력검증만, 로직은 {@link ConfigItemService}.
  *
- * <p>항목 <b>정의</b>(키·항목명·입력유형)는 개발자가 data.sql로 넣고, 화면에서는 <b>값만</b> 바꾼다.
+ * <p>항목 <b>정의</b>(키·항목명·입력유형)는 개발자가 마이그레이션(db/migration)으로 넣고, 화면에서는 <b>값만</b> 바꾼다.
  * 그래서 insert/delete 엔드포인트를 두지 않는다 — 운영자가 키를 임의로 만들면
  * 그 키를 읽는 코드가 없어 아무 효과가 없는 설정이 쌓인다.
  */

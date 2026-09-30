@@ -37,7 +37,7 @@ class MenuIconTest extends IntegrationTest {
      * 없는 키를 넣으면 예외도 경고도 없이 기본 아이콘(grid)으로 조용히 표시돼 한참 모른다.
      *
      * <p>아래 목록은 {@code frontend/src/common/adm/components/MenuGlyph.tsx}의 키와 같아야 한다.
-     * data.sql의 아이콘 CASE에 새 키를 추가하면 이 테스트가 먼저 실패한다 →
+     * 마이그레이션(기초데이터)의 아이콘 CASE에 새 키를 추가하면 이 테스트가 먼저 실패한다 →
      * 그때 MenuGlyph에 아이콘을 추가하고 이 목록에도 넣는다.
      */
     private static final List<String> REGISTERED_ICON_KEYS = List.of(

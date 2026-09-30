@@ -12,7 +12,7 @@
 ## 스택 / 구조
 - **Backend**: Spring Boot 4.1 · Java 17 · MyBatis · Spring Security + JWT · PostgreSQL. 패키지 `com.pwsh`.
 - **Frontend**: React 18 · TypeScript · Vite · AntD 5 · axios · React Router. `adm`(관리자)/`gen`(사용자) 영역 분리.
-- `backend/` · `frontend/` · `sql/`(schema.sql·data.sql)
+- `backend/` · `frontend/`. DB 스키마·기초데이터는 `backend/src/main/resources/db/migration`(Flyway) 하나뿐이다. `sql/`엔 선택 실행용 `sample-data.sql`만 남아 있다.
 
 ## ★ 백엔드 도메인 패턴 (반드시 준수)
 - **레이어**: Controller(매핑·입력검증만) → **단일 `@Service`**(로직+`@Transactional`, 인터페이스/Impl 분리 없음) → `CommonDAO`(MyBatis).
@@ -29,7 +29,7 @@
 - ★ **번호 대역**: `V1`·`V2`=이 저장소 베이스라인(CMS+pwsh 전체) / `V3`~`V999`=CMS에서 가져온 것 / `V1001`~=pwsh 고유. **CMS의 V1·V2는 가져오지 않는다**(이미 포함돼 있다). 베이스라인보다 낮은 번호는 `baseline-version: 2` 때문에 **조용히 건너뛴다**.
 - ★ **이미 적용된 마이그레이션은 절대 고치지 않는다.** 체크섬이 달라지면 기동이 막힌다. 잘못됐으면 되돌리는 마이그레이션을 새로 추가한다.
 - DDL과 그에 딸린 시드(공통코드·메뉴)를 **한 파일에** 넣는다.
-- `sql/schema.sql`·`sql/data.sql`은 **더 이상 실행되지 않는 참고용 스냅샷**이다. 여기를 고쳐도 아무 효과가 없다.
+- ⚠ 예전에 있던 `sql/schema.sql`·`sql/data.sql`·`test-reset.sql`은 **삭제했다**(CMS 1.2.12 흡수). 실행되지 않는데 남아 있으면 그걸 고치는 실수가 나온다. 과거 CHANGELOG가 "data.sql 참고"라고 적은 내용은 전부 `V2__baseline_data.sql`에 있다.
 - 테스트는 매 실행 `clean → migrate`(`TestFlywayConfig`). `clean`은 test 프로파일에서만 열려 있다 — 운영에서 켜면 DB를 통째로 날린다.
 
 ## ★ 새 도메인 추가 순서
@@ -104,7 +104,9 @@
   - ★ 공개 화면이 부르는 조회 API는 `SecurityConfig` permitAll에 넣어야 한다. 하나라도 빠지면 401 → 프론트 인터셉터가 로그인 화면으로 보내 **화면 전체를 못 본다**(회귀 방지: `GuestPublicPageTest`).
 - **실시간(SSE)**: `RealtimeService`가 사용자별 연결을 들고 "새 게 있다"는 이벤트 이름만 푸시한다(본문 없음 — 인가는 조회 API 한 곳에만). 프론트는 `useEventStream`(fetch POST + Authorization 헤더, 자동 재연결), 끊기면 폴링으로 대체. 단일 JVM 한정.
 - **로고**: 환경설정에서 업로드, 미설정 시 `frontend/src/assets/logo.svg`. **메뉴 아이콘**: 메뉴에 저장된 아이콘 키 → 프론트 `MenuGlyph` 레지스트리.
-- **폼(신청·민원·설문)**: 한 엔진이다(`form.type_cd`로만 구분). 관리자 > 폼 관리 > 폼 설정에서 문항을 만들고, 메뉴관리에서 연결유형 `MENU05`(폼)로 고르면 `/gen/form/{form_id}`로 노출된다 — **새 신청서·설문에 코드를 고치지 않는다**. ⚠ 메뉴에 안 걸면 관리자만 보인다(`GenAccessGuard.checkForm`). 개인정보 문항은 `privacy_yn='Y'`로 표시하면 답이 `value_enc`에 암호화 저장되고 조회가 접근로그에 남는다 — `value`와 `value_enc`를 한 컬럼에 섞지 않는다(섞으면 개인정보 없는 설문도 접근기록이 쌓인다). 기간·로그인·1인1회·필수·선택지 검증은 **서버가 다시 한다**. 문항을 빼면 비활성화만(과거 응답이 붙어 있다). ⚠ MyBatis 동적 SQL에서 한 글자 비교에 작은따옴표 금지(`test="x == 'Y'"` → OGNL이 char로 읽어 500) — `"Y".equals(x)`로 쓴다.
+- **폼(신청·민원·설문)**: 한 엔진이다(`form.type_cd`로만 구분). 관리자 > 폼 관리 > 폼 설정에서 문항을 만들고, 메뉴관리에서 연결유형 `MENU05`(폼)로 고르면 `/gen/form/{form_id}`로 노출된다 — **새 신청서·설문에 코드를 고치지 않는다**. ⚠ 메뉴에 안 걸면 관리자만 보인다(`GenAccessGuard.checkForm`). 개인정보 문항은 `privacy_yn='Y'`로 표시하면 답이 `value_enc`에 암호화 저장되고 조회가 접근로그에 남는다 — `value`와 `value_enc`를 한 컬럼에 섞지 않는다(섞으면 개인정보 없는 설문도 접근기록이 쌓인다). 기간·로그인·1인1회·필수·선택지 검증은 **서버가 다시 한다**. 문항을 빼면 비활성화만(과거 응답이 붙어 있다).
+  - **파일첨부 문항(`FIELD09`)**: 답은 `value`에 파일 ID 목록(줄바꿈 구분), 파일은 `file_ref`(`map_key=form_answer_id`, `file_type='FORM'`)에 붙는다. ★ 제출 시 **"내가 올린 파일인지" 확인**(IDOR 차단)하고 **매핑을 만들며**, 응답 삭제 시 **비활성화**한다 — 하나라도 빠지면 남의 파일이 붙거나, 서류가 새벽에 사라지거나, 디스크에 영구히 남는다. ⚠ 파일 문항이 있으면 `login_yn='Y'`여야 한다(업로드가 인증을 요구). ⚠ **첨부 열람은 개인정보 접근로그에 안 남는다**(파일은 암호화 컬럼이 아니라 복호화 탐지에 안 걸린다).
+  - ⚠ MyBatis 동적 SQL에서 한 글자 비교에 작은따옴표 금지(`test="x == 'Y'"` → OGNL이 char로 읽어 500) — `"Y".equals(x)`로 쓴다.
 - **개인정보 접근 로그**: 개인정보를 복호화해 읽으면 `privacy_log`에 자동으로 남는다(요청 1건 = 1행, 로그관리 > 개인정보 접근로그). 실행 SQL의 `DECRYPT(`를 보고 탐지하므로 **개인정보는 반드시 pgcrypto 컬럼으로 둔다** — 평문 컬럼에 담으면 기록에 안 잡힌다. 지금 복호화하는 곳은 `memberDAO`·`loginSessionDAO`·`mailLogDAO`(전부 관리자 화면). 본인 조회·비로그인 요청은 남기지 않고, ⚠ **자동 삭제하지 않는다**(법정 최소 보존기간). ⚠ `email_verification.target`은 가입 인증 중 이메일을 평문으로 들고 있어 이 기록 대상이 아니다.
 - **메일**: 발송 창구는 `MailService.send(templateCd, toEmail, vars)` 하나다 — `JavaMailSender`를 도메인에서 직접 부르면 그 발송만 `mail_log`에 안 남는다. 문구는 코드가 아니라 `mail_template` 행(관리자 > 시스템관리 > 메일템플릿). 지금 발송되는 곳은 `EmailVerifyService`(`SIGNUP_CODE`·`RESET_CODE`)뿐이다. 본문의 `{{키}}` 치환 값은 **HTML 이스케이프 후 삽입**하고, ⚠ 수신자 주소는 암호화 저장, ⚠ 본문은 `mail.log.retention-days`(90일) 뒤 스케줄러가 지운다. `mail.enabled=false`(기본)면 전송 없이 `SKIP` 이력만 남는다. 저장된 HTML은 **`sandbox` iframe으로만 렌더**한다.
 

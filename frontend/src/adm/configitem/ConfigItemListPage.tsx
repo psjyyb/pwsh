@@ -19,7 +19,7 @@ const YN_OPTIONS = [
  * 확장 설정 — 항목이 늘어도 이 화면은 그대로다.
  *
  * 서버가 준 정의(name·inputType·groupCd·sortNo)만 보고 입력칸을 만든다.
- * 그래서 설정 항목 추가가 data.sql 한 줄로 끝난다 — 이 파일을 고칠 일이 없다.
+ * 그래서 설정 항목 추가가 마이그레이션 한 줄로 끝난다 — 이 파일을 고칠 일이 없다.
  */
 export default function ConfigItemListPage() {
   const [form] = Form.useForm()

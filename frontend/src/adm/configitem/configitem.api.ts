@@ -17,7 +17,7 @@ const BASE = '/adm/configitem'
 export const CONFIGITEM_LIST_URL = `${BASE}/selectConfigItemList.do`
 
 /**
- * 항목 정의는 개발자가 data.sql로 넣고 화면에서는 값만 바꾼다 → 등록/삭제 API가 없다.
+ * 항목 정의는 개발자가 마이그레이션(db/migration)으로 넣고 화면에서는 값만 바꾼다 → 등록/삭제 API가 없다.
  * (운영자가 키를 임의로 만들면 그 키를 읽는 코드가 없어 효과 없는 설정만 쌓인다)
  */
 export const configItemApi = {

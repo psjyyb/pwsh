@@ -154,10 +154,23 @@
         SELECT COUNT(*) FROM member WHERE use_yn = 'Y' AND profile_file_id = #{fileId}::integer
     </select>
 
-    <!-- 이 파일이 해당 사용자가 업로드한 파일인지(프로필 지정 IDOR 차단용) -->
+    <!--
+      이 파일이 해당 사용자가 업로드한 파일인지(프로필 지정 IDOR 차단용).
+      폼 첨부처럼 "아직 어디에도 안 붙은 파일을 제출과 함께 매핑"하는 흐름도 같이 쓴다 —
+      확인하지 않으면 남의 file_id를 본문에 끼워 넣어 자기 응답에 매핑시킬 수 있다.
+    -->
     <select id="countOwnedFileByMember" parameterType="map" resultType="int">
         SELECT COUNT(*) FROM file
         WHERE use_yn = 'Y' AND file_id = #{fileId}::integer AND reg_id = #{memberId}
+    </select>
+
+    <!-- 엔티티에 매핑된 파일 메타(다운로드 목록용). map_key + file_type으로 특정 -->
+    <select id="selectFilesByOwner" parameterType="map" resultType="fileVO">
+        SELECT f.file_id, f.original_name, f.ext, f.size
+        FROM file_ref r
+        JOIN file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
+        WHERE r.map_key = #{mapKey}::integer AND r.file_type = #{fileType}
+        ORDER BY r.sort_no, f.file_id
     </select>
 
     <!-- 이 파일을 아직 참조하는 file_ref 매핑 수. 모든 파일참조는 file_ref로 통일되므로 이것만 보면 됨. 0이면 물리삭제 안전 -->

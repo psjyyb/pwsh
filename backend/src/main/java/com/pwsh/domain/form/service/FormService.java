@@ -28,7 +28,12 @@ public class FormService {
 
     /** 선택지를 쓰는 문항 유형(단일선택/다중선택/드롭다운) */
     private static final List<String> CHOICE_FIELDS = List.of("FIELD03", "FIELD04", "FIELD05");
-    /** 다중선택 문항의 답 구분자 — 값 안에 줄바꿈이 들어갈 수 없는 유형이라 안전하다 */
+    /** 파일첨부 문항. 답은 업로드된 파일 ID 목록이다 */
+    private static final String FILE_FIELD = "FIELD09";
+    /** 폼 응답에 붙는 첨부의 용도 코드(file_ref.file_type). map_key는 form_answer_id */
+    private static final String FILE_TYPE = "FORM";
+    /** 다중선택 문항의 답 구분자 — 값 안에 줄바꿈이 들어갈 수 없는 유형이라 안전하다.
+     *  파일첨부의 파일 ID 목록도 같은 구분자를 쓴다(숫자라 줄바꿈이 들어갈 수 없다) */
     private static final String MULTI_SEP = "\n";
 
     private final CommonDAO commonDAO;
@@ -88,6 +93,7 @@ public class FormService {
      * 물리 삭제하면 과거 응답이 "어느 문항의 답인지 모르는 값"이 된다.
      */
     private void saveFields(FormVO vo) {
+        assertFileFieldAllowed(vo);
         List<FormFieldVO> fields = vo.getFields() == null ? List.of() : vo.getFields();
         List<String> keepIds = new ArrayList<>();
         int sort = 1;
@@ -110,6 +116,13 @@ public class FormService {
 
     /** 선택형이 아닌 문항에 남아 있는 선택지는 지운다(유형을 바꿔도 옛 선택지가 따라다니지 않도록). */
     private void normalizeOptions(FormFieldVO f) {
+        if (FILE_FIELD.equals(f.getFieldCd())) {
+            f.setOptions(null);
+            // ⚠ 파일첨부에 개인정보 표시를 켤 수 없다. 답으로 저장되는 값은 파일 ID라 암호화해도 의미가 없고,
+            //    켜 두면 "개인정보로 보호되고 있다"는 오해만 남는다. 파일 내용 자체는 암호화 대상이 아니다.
+            f.setPrivacyYn("N");
+            return;
+        }
         if (!CHOICE_FIELDS.contains(f.getFieldCd())) {
             f.setOptions(null);
             return;
@@ -117,6 +130,23 @@ public class FormService {
         if (optionsOf(f).isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "선택형 문항에는 선택지가 필요합니다: " + f.getLabel());
+        }
+    }
+
+    /**
+     * 파일첨부 문항이 있으면 <b>로그인 필수</b>여야 한다.
+     *
+     * <p>업로드 엔드포인트({@code /api/adm/file/upload.do})가 인증을 요구하기 때문이다 —
+     * 비로그인 폼에 파일 문항을 두면 신청자가 파일을 고를 수는 있어도 업로드가 401로 막혀
+     * <b>제출 직전에야 실패한다</b>. 저장 시점에 막아 그 상황 자체를 없앤다.
+     * (비로그인 업로드를 열어주는 선택지도 있지만, 익명 파일 업로드는 악용 통로가 된다.)
+     */
+    private void assertFileFieldAllowed(FormVO vo) {
+        List<FormFieldVO> fields = vo.getFields() == null ? List.of() : vo.getFields();
+        boolean hasFile = fields.stream().anyMatch(f -> FILE_FIELD.equals(f.getFieldCd()));
+        if (hasFile && "N".equals(vo.getLoginYn())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "파일첨부 문항이 있는 폼은 '로그인 필요'로 설정해야 합니다.");
         }
     }
 
@@ -148,6 +178,11 @@ public class FormService {
         answer.setHasPrivacy(hasPrivacyField(answer.getFormId()) ? "Y" : "N");
         List<Map<String, Object>> rows = commonDAO.selectList("formAnswerDAO.selectValues", answer);
         answer.setValues(toValueMap(rows, "fieldId"));
+        // 첨부 파일명 — 값에는 파일 ID만 있어서 화면이 "3, 4"를 보여주게 된다. 내려받으려면 메타가 필요하다
+        Map<String, Object> p = new HashMap<>();
+        p.put("mapKey", answer.getRowId());
+        p.put("fileType", FILE_TYPE);
+        answer.setFiles(commonDAO.selectList("fileDAO.selectFilesByOwner", p));
         return answer;
     }
 
@@ -185,6 +220,9 @@ public class FormService {
             if (value == null) {
                 continue;
             }
+            if (FILE_FIELD.equals(f.getFieldCd())) {
+                value = attachFiles(vo.getRowId(), memberId, f, value);
+            }
             Map<String, Object> p = new HashMap<>();
             p.put("answerId", vo.getRowId());
             p.put("fieldId", f.getRowId());
@@ -196,6 +234,41 @@ public class FormService {
             commonDAO.insert("formAnswerDAO.insertValue", p);
         }
         return vo.getRowId();
+    }
+
+    /**
+     * 파일첨부 답 처리 — 올라와 있는 파일을 이 응답에 매핑하고, 정리된 파일 ID 목록을 돌려준다.
+     *
+     * <p>★ <b>내가 올린 파일인지 반드시 확인한다.</b> 답으로 오는 건 파일 ID 숫자뿐이라,
+     * 확인하지 않으면 남의 파일 ID를 적어 내 응답에 붙일 수 있다(순차 ID 추측 = IDOR).
+     * 관리자는 응답 상세에서 그 파일을 내려받을 수 있으므로 곧바로 유출이 된다.
+     *
+     * <p>매핑을 만드는 또 하나의 이유는 <b>고아 파일 GC</b>다. file_ref에 안 붙은 업로드는
+     * 유예시간이 지나면 새벽 배치가 지운다 — 매핑을 안 걸면 제출한 서류가 다음 날 사라진다.
+     */
+    private String attachFiles(String answerId, String memberId, FormFieldVO f, String value) {
+        List<String> fileIds = Arrays.stream(value.split(MULTI_SEP))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        List<String> kept = new ArrayList<>();
+        int sort = 0;
+        for (String fileId : fileIds) {
+            Map<String, Object> own = new HashMap<>();
+            own.put("fileId", fileId);
+            own.put("memberId", memberId);
+            Integer mine = commonDAO.selectOne("fileDAO.countOwnedFileByMember", own);
+            if (mine == null || mine == 0) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT,
+                        f.getLabel() + ": 첨부할 수 없는 파일입니다.");
+            }
+            com.pwsh.domain.file.service.FileVO ref = new com.pwsh.domain.file.service.FileVO();
+            ref.setMapKey(answerId);
+            ref.setFileId(fileId);
+            ref.setFileType(FILE_TYPE);
+            ref.setSortNo(String.valueOf(sort++));
+            commonDAO.insert("fileDAO.insertRfile", ref);
+            kept.add(fileId);
+        }
+        return String.join(MULTI_SEP, kept);
     }
 
     /** 접수 기간 검사. 비어 있으면 제한 없음(팝업·배너와 같은 규칙). */
@@ -251,10 +324,18 @@ public class FormService {
         commonDAO.update("formAnswerDAO.updateStatus", vo);
     }
 
+    /**
+     * 응답 삭제(논리) + 값 제거 + <b>첨부 비활성화</b>.
+     *
+     * <p>★ 파일 전파를 빼먹으면 고아 파일 GC에 걸리지 않아 서류가 디스크에 영구히 남는다
+     * (CLAUDE.md의 삭제 전파 규칙). 컴파일러가 못 잡는 실수다.
+     */
     @Transactional
     public void deleteAnswer(FormAnswerVO vo) {
         commonDAO.delete("formAnswerDAO.delete", vo);
         commonDAO.delete("formAnswerDAO.deleteValues", vo);
+        commonDAO.update("fileDAO.deactivateFilesByOwner",
+                Map.of("mapKey", vo.getRowId(), "locs", List.of(FILE_TYPE)));
     }
 
     // ===== 집계 / 내려받기 =====
@@ -278,7 +359,8 @@ public class FormService {
 
         List<Map<String, Object>> out = new ArrayList<>();
         for (FormFieldVO f : selectFields(formId)) {
-            if ("Y".equals(f.getPrivacyYn())) {
+            // 파일첨부는 값이 파일 ID라 세어 봐야 의미가 없다(선택지도 없다)
+            if ("Y".equals(f.getPrivacyYn()) || FILE_FIELD.equals(f.getFieldCd())) {
                 continue;
             }
             List<String> answers = byField.getOrDefault(f.getRowId(), List.of());

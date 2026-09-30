@@ -95,7 +95,7 @@ export default function IconPicker({
                   }}
                 >
                   <MenuGlyph name={k} size={22} />
-                  {/* 키를 함께 보여준다 — 저장되는 값이 무엇인지 알아야 data.sql·문서와 맞출 수 있다 */}
+                  {/* 키를 함께 보여준다 — 저장되는 값이 무엇인지 알아야 마이그레이션·문서와 맞출 수 있다 */}
                   <span style={{ fontSize: 11, color: '#888', wordBreak: 'break-all', lineHeight: 1.2 }}>{k}</span>
                 </button>
               )

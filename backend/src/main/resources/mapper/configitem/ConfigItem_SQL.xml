@@ -37,7 +37,7 @@
 
     <!--
       값만 갱신한다. 항목 정의(name·input_type·group_cd 등)는 화면에서 못 바꾼다 —
-      정의는 개발자가 data.sql로 넣는 것이고, 운영자는 값만 만지는 것이 이 테이블의 역할 분담이다.
+      정의는 개발자가 마이그레이션(db/migration)으로 넣는 것이고, 운영자는 값만 만지는 것이 이 테이블의 역할 분담이다.
     -->
     <update id="updateValue" parameterType="configItemVO">
         UPDATE config_item

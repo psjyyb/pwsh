@@ -5,6 +5,7 @@ import { PageBody, PageHead } from '../common/gen/components/PageShell'
 import { CHOICE_FIELDS, formApi } from '../adm/form/form.api'
 import type { Form, FormField } from '../adm/form/form.api'
 import { formAnswerApi } from '../adm/formanswer/formanswer.api'
+import FormFileField from './FormFileField'
 
 /** 선택지 문자열 → 목록 */
 const optionsOf = (f: FormField) =>
@@ -99,6 +100,10 @@ export default function GenFormView() {
         return <Input type="number" style={{ width: 200 }} placeholder={f.placeholder} value={v} onChange={(e) => set(e.target.value)} />
       case 'FIELD08':
         return <Input type="email" placeholder={f.placeholder ?? 'name@example.com'} value={v} onChange={(e) => set(e.target.value)} />
+      // 파일첨부: 고르는 즉시 업로드하고 값에는 파일 ID만 담는다(제출 시 서버가 응답에 매핑한다).
+      // 업로드가 인증을 요구하므로 이 문항이 있는 폼은 저장할 때 '로그인 필요'로 강제된다.
+      case 'FIELD09':
+        return <FormFileField value={v} onChange={set} />
       default:
         return <Input placeholder={f.placeholder} value={v} onChange={(e) => set(e.target.value)} />
     }

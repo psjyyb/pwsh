@@ -32,7 +32,7 @@ class ConfigItemTest extends IntegrationTest {
         configItemService.evict();
     }
 
-    /** 테스트용 항목 정의를 직접 심는다 — 정의는 개발자가 data.sql로 넣는 것이라 API가 없다. */
+    /** 테스트용 항목 정의를 직접 심는다 — 정의는 개발자가 마이그레이션으로 넣는 것이라 API가 없다. */
     private void seed(String key, String value, String inputType, String groupCd, int sortNo, String publicYn) {
         jdbc.update("INSERT INTO config_item (config_key, value, input_type, name, description, group_cd, sort_no,"
                         + " public_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)"

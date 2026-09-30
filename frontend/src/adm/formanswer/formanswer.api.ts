@@ -1,4 +1,5 @@
 import { apiPost } from '../../api/http'
+import type { FileMeta } from '../../api/file'
 import type { FormField } from '../form/form.api'
 
 /** 폼 응답(제출 1회 = 1행) */
@@ -14,6 +15,8 @@ export interface FormAnswer {
   regIp?: string
   /** 문항ID → 답 */
   values?: Record<string, string>
+  /** 이 응답에 붙은 첨부 메타(상세 조회에만). 값에는 ID만 있어 파일명·내려받기에 필요 */
+  files?: FileMeta[]
 }
 
 /** 문항별 집계. 선택형이면 options에 선택지별 응답 수 */

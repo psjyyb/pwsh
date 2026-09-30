@@ -5,6 +5,7 @@ import { useList } from '../../common/hooks/useList'
 import SplitLayout from '../../common/adm/components/SplitLayout'
 import CodeSelect from '../../common/adm/components/CodeSelect'
 import { runWithMessage } from '../../common/util/action'
+import { fileApi } from '../../api/file'
 import { formApi } from '../form/form.api'
 import type { Form, FormField } from '../form/form.api'
 import { FORM_ANSWER_LIST_URL, formAnswerApi } from './formanswer.api'
@@ -18,6 +19,27 @@ const STATUS_COLOR: Record<string, string> = {
 function csvCell(v: string): string {
   const s = v ?? ''
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/**
+ * 파일첨부 문항의 값을 파일명 + 내려받기로 보여준다.
+ *
+ * <p>응답에 붙은 파일 메타(`answer.files`)는 이 응답 전체 것이라, 문항이 둘 이상이면
+ * 그 문항의 값(파일 ID 목록)으로 한 번 더 걸러야 한다.
+ */
+function AnswerFiles({ answer, fieldValue }: { answer: FormAnswer; fieldValue?: string }) {
+  const ids = (fieldValue ?? '').split('\n').filter(Boolean)
+  const mine = (answer.files ?? []).filter((f) => ids.includes(String(f.fileId)))
+  if (mine.length === 0) return <span>-</span>
+  return (
+    <Space direction="vertical" size={2}>
+      {mine.map((f) => (
+        <a key={f.fileId} onClick={() => fileApi.download(f.fileId!, f.originalName ?? 'file')}>
+          {f.originalName}
+        </a>
+      ))}
+    </Space>
+  )
 }
 
 /**
@@ -200,7 +222,12 @@ export default function FormAnswerListPage() {
             <Descriptions.Item label="제출일시">{selected.regDt}</Descriptions.Item>
             {fields.map((f) => (
               <Descriptions.Item key={f.rowId} label={f.label}>
-                <span style={{ whiteSpace: 'pre-line' }}>{selected.values?.[f.rowId!] || '-'}</span>
+                {/* 파일첨부는 값이 파일 ID라 그대로 보여주면 "3, 4"가 된다 — 파일명 + 내려받기로 바꾼다 */}
+                {f.fieldCd === 'FIELD09' ? (
+                  <AnswerFiles answer={selected} fieldValue={selected.values?.[f.rowId!]} />
+                ) : (
+                  <span style={{ whiteSpace: 'pre-line' }}>{selected.values?.[f.rowId!] || '-'}</span>
+                )}
                 {f.privacyYn === 'Y' && <Tag color="orange" style={{ marginLeft: 6 }}>개인정보</Tag>}
               </Descriptions.Item>
             ))}

@@ -1,6 +1,8 @@
 package com.pwsh.domain.form.service;
 
 import com.pwsh.common.BaseVO;
+import com.pwsh.domain.file.service.FileVO;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -25,6 +27,12 @@ public class FormAnswerVO extends BaseVO {
 
     /** 문항ID → 답. 제출 요청과 상세 응답 양쪽에 쓴다 */
     private Map<String, String> values;
+
+    /**
+     * 이 응답에 붙은 첨부 파일 메타(조회 전용).
+     * 값(values)에는 파일 ID만 들어 있어서, 화면이 파일명을 보여주고 내려받으려면 따로 필요하다.
+     */
+    private List<FileVO> files;
 
     /**
      * 이 폼에 개인정보 문항이 있는지("Y"/"N") — 매퍼가 복호화 구문을 넣을지 결정한다.
