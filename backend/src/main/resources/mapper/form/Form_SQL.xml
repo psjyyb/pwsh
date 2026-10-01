@@ -31,17 +31,19 @@
 
     <select id="selectView" parameterType="formVO" resultType="formVO">
         SELECT f.form_id::TEXT AS row_id, f.title, f.description, f.type_cd, tc.name AS type_name,
-               f.start_dt, f.end_dt, f.login_yn, f.multi_yn, f.done_message, f.use_yn
+               f.start_dt, f.end_dt, f.login_yn, f.multi_yn, f.done_message, f.result_mail_yn, f.use_yn
         FROM form f
         LEFT JOIN code tc ON tc.code_id = f.type_cd AND tc.p_code_id = 'FORM00'
         WHERE f.form_id = #{rowId}::integer AND f.use_yn = 'Y'
     </select>
 
     <insert id="insert" parameterType="formVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="form_id">
-        INSERT INTO form (title, description, type_cd, start_dt, end_dt, login_yn, multi_yn, done_message, use_yn,
+        INSERT INTO form (title, description, type_cd, start_dt, end_dt, login_yn, multi_yn, done_message,
+            result_mail_yn, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{title}, #{description}, #{typeCd}, #{startDt}, #{endDt},
-            COALESCE(NULLIF(#{loginYn}, ''), 'Y'), COALESCE(NULLIF(#{multiYn}, ''), 'N'), #{doneMessage}, 'Y',
+            COALESCE(NULLIF(#{loginYn}, ''), 'Y'), COALESCE(NULLIF(#{multiYn}, ''), 'N'), #{doneMessage},
+            COALESCE(NULLIF(#{resultMailYn}, ''), 'N'), 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
@@ -52,6 +54,7 @@
             login_yn = COALESCE(NULLIF(#{loginYn}, ''), 'Y'),
             multi_yn = COALESCE(NULLIF(#{multiYn}, ''), 'N'),
             done_message = #{doneMessage},
+            result_mail_yn = COALESCE(NULLIF(#{resultMailYn}, ''), 'N'),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE form_id = #{rowId}::integer
     </update>

@@ -27,6 +27,8 @@ public class FormVO extends BaseVO {
     /** 같은 사람의 중복 제출 허용(N이면 1인 1회) */
     private String multiYn;
     private String doneMessage;
+    /** 처리상태를 바꿀 때 신청자에게 결과 메일을 보낼지(Y/N). 설문은 보통 끈다 */
+    private String resultMailYn;
     /** 응답 수(목록 표시용) */
     private String answerCnt;
 

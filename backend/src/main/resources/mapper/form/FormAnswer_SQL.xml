@@ -131,4 +131,27 @@
         DELETE FROM form_answer_value WHERE form_answer_id = #{rowId}::integer
     </delete>
 
+    <!--
+      결과 메일 수신자.
+      ★ 두 갈래다 — 로그인 제출이면 회원 이메일, 비로그인 제출이면 폼의 이메일 문항(FIELD08) 답.
+        비로그인 폼도 허용하는 구조라 회원 이메일만 보면 그 신청 건은 영영 통지가 안 간다.
+      ★ 둘 다 pgcrypto 컬럼이라 복호화가 걸린다 → 이 조회는 개인정보 접근로그에 남는다.
+        신청자 이메일을 실제로 쓰는 행위이므로 남는 것이 맞다.
+      ★ 이메일 문항이 개인정보 표시가 꺼져 있으면 답이 value(평문)에 있으므로 둘 다 본다.
+    -->
+    <select id="selectNotifyEmail" parameterType="formAnswerVO" resultType="string">
+        SELECT COALESCE(
+            (SELECT CONVERT_FROM(DECRYPT(DECODE(u.email,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8')
+             FROM member u WHERE u.member_id = a.member_id AND u.email IS NOT NULL),
+            (SELECT COALESCE(v.value,
+                        CONVERT_FROM(DECRYPT(DECODE(v.value_enc,'HEX'),#{cryptoKey}::BYTEA,'AES'),'UTF8'))
+             FROM form_answer_value v
+             JOIN form_field ff ON ff.form_field_id = v.form_field_id AND ff.field_cd = 'FIELD08'
+             WHERE v.form_answer_id = a.form_answer_id
+               AND (v.value IS NOT NULL OR v.value_enc IS NOT NULL)
+             ORDER BY ff.sort_no LIMIT 1))
+        FROM form_answer a
+        WHERE a.form_answer_id = #{rowId}::integer
+    </select>
+
 </mapper>

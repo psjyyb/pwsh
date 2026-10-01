@@ -27,6 +27,8 @@ export interface Form {
   loginYn?: string
   multiYn?: string
   doneMessage?: string
+  /** 처리상태 변경 시 신청자에게 결과 메일 발송(Y/N). 설문은 보통 N */
+  resultMailYn?: string
   answerCnt?: string
   useYn?: string
   fields?: FormField[]

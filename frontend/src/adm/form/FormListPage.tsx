@@ -187,7 +187,7 @@ export default function FormListPage() {
         <div style={{ color: '#999', padding: '24px 0', textAlign: 'center' }}>행을 선택하거나 [신규]를 누르세요.</div>
       ) : (
         <>
-          <Form form={form} layout="vertical" initialValues={{ typeCd: 'FORM01', loginYn: 'Y', multiYn: 'N' }}>
+          <Form form={form} layout="vertical" initialValues={{ typeCd: 'FORM01', loginYn: 'Y', multiYn: 'N', resultMailYn: 'N' }}>
             <Form.Item name="title" label="폼 제목" rules={[{ required: true, message: '제목을 입력하세요.' }]}>
               <Input />
             </Form.Item>
@@ -210,6 +210,14 @@ export default function FormListPage() {
                 <YnSelect />
               </Form.Item>
               <Form.Item name="multiYn" label="중복 제출 허용" extra="N이면 1인 1회(로그인 제출 기준)">
+                <YnSelect />
+              </Form.Item>
+              {/* 설문은 보통 끈다 — 응답자에게 알릴 결과가 없다 */}
+              <Form.Item
+                name="resultMailYn"
+                label="결과 메일 발송"
+                extra="처리상태를 바꾸면 신청자에게 메일로 알립니다(수신 주소: 회원 이메일 또는 이메일 문항)"
+              >
                 <YnSelect />
               </Form.Item>
             </Space>

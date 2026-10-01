@@ -3,6 +3,7 @@ package com.pwsh.domain.form.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.time.LocalDate;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>세 용도를 한 엔진으로 두는 이유: "문항을 정의하고 → 답을 받고 → 모아 본다"가 똑같다.
  * 따로 만들면 화면·매퍼·검증이 세 벌이 되고, 문항 유형을 하나 늘릴 때마다 세 곳을 고쳐야 한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FormService {
@@ -38,6 +41,7 @@ public class FormService {
 
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
+    private final MailService mailService;
 
     // ===== 폼 정의 =====
 
@@ -319,9 +323,55 @@ public class FormService {
         }
     }
 
+    /**
+     * 처리상태·담당자 메모 변경. 폼이 결과 메일을 켜 뒀으면 신청자에게 통지한다.
+     *
+     * <p>★ <b>메일 실패가 상태 변경을 되돌리면 안 된다.</b> 주소가 잘못됐거나 SMTP가 죽었다고
+     * 해서 "처리했다"는 사실까지 사라지면, 관리자는 처리했는데 화면은 그대로인 상태가 된다.
+     * 발송 결과는 {@code mail_log}에 남으므로 실패해도 추적할 수 있다.
+     */
     @Transactional
     public void updateAnswerStatus(FormAnswerVO vo) {
         commonDAO.update("formAnswerDAO.updateStatus", vo);
+        notifyResult(vo);
+    }
+
+    /**
+     * 결과 메일 발송. 조용히 넘어가는 경우가 여럿이라 로그를 남긴다 —
+     * "메일이 왜 안 왔지"를 나중에 추적할 수 있어야 한다.
+     */
+    private void notifyResult(FormAnswerVO vo) {
+        FormAnswerVO answer = commonDAO.selectOne("formAnswerDAO.selectView", vo);
+        if (answer == null) {
+            return;
+        }
+        FormVO key = new FormVO();
+        key.setRowId(answer.getFormId());
+        FormVO form = commonDAO.selectOne("formDAO.selectView", key);
+        if (form == null || !"Y".equals(form.getResultMailYn())) {
+            return; // 설문 등 결과 통지가 필요 없는 폼
+        }
+        // ★ 이 조회는 개인정보(이메일)를 복호화하므로 접근로그에 남는다 — 실제로 쓰는 행위라 맞다.
+        String to = commonDAO.selectOne("formAnswerDAO.selectNotifyEmail", vo);
+        if (to == null || to.isBlank()) {
+            log.info("[Form] 결과 메일 건너뜀(수신 주소 없음): answerId={}", vo.getRowId());
+            return;
+        }
+        mailService.send("FORM_RESULT", to, Map.of(
+                "siteTitle", configTitle(),
+                "formTitle", nullToEmpty(answer.getFormTitle()),
+                "statusName", nullToEmpty(answer.getStatusName()),
+                "adminMemo", nullToEmpty(vo.getAdminMemo()),
+                "regDt", nullToEmpty(answer.getRegDt())));
+    }
+
+    private String configTitle() {
+        String title = commonDAO.selectOne("configDAO.selectTitle", new FormVO());
+        return title == null ? "" : title;
+    }
+
+    private String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
 
     /**
