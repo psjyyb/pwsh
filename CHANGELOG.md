@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.14 · CMS 1.2.13` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.15 · CMS 1.2.14` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,37 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.15 (CMS 1.2.14) — 마이그레이션 파일 합치기 흡수 (V3~V7 → V3)
+
+CMS 1.2.14를 흡수했다. 코드값 한 줄, 메뉴 한 줄짜리 변경이 파일을 하나씩 차지해 **다섯 개가
+쌓였다.** `V3__member_lifecycle` · `V4__media_library` · `V5__system_status` ·
+`V6__form_file_field` · `V7__form_result_mail`을 **`V3__cms_1_2_7_to_1_2_13.sql` 하나로 합쳤다.**
+내용과 순서는 그대로다.
+
+### 합쳐도 되는 이유 — "만든 뒤"가 아니라 "적용된 뒤"가 기준이다
+
+Flyway는 **적용된** 파일의 체크섬만 저장한다. 합치기 전 실제로 확인했다:
+
+```
+pwsh dev  : V2(baseline)만 적용      ← V3~V7 미적용
+pwsh test : 매 실행 clean → migrate  ← 상관없음
+```
+
+합친 뒤 테스트 DB에서 `3 | cms 1 2 7 to 1 2 13 | true`로 적용되는 것까지 확인했다.
+구문 수도 맞춰 봤다 — 원본 5개 합계 ALTER 8 · INSERT 9 · CREATE INDEX 5 = 합친 파일과 동일.
+
+⚠ **한 곳이라도 적용돼 있으면 그 DB는 다음 기동에서 막힌다**(`checksum mismatch`).
+dev·테스트만 보지 말고 백업본·다른 PC의 DB까지 봐야 한다.
+
+### 번호 대역 규칙은 그대로
+
+`V1`·`V2`=이 저장소 베이스라인 / `V3`~`V999`=CMS에서 가져온 것 / `V1001`~=pwsh 고유.
+CMS 흡수분이 `V3` 하나로 모였을 뿐이라 규칙이 깨지지 않는다 — 다음 CMS 흡수는 `V4`부터다.
+
+**테스트** — 기존 **193개 통과**(마이그레이션이 깨지면 테스트가 먼저 실패한다).
 
 ---
 
@@ -48,7 +79,8 @@ CMS 1.2.13을 흡수했다. 접수·처리는 되는데 **신청자에게 알릴
 `FormResultMailTest`(4) — CMS와 동일. **mutation 검증 2건**: 발송 토글 무시 → 1건 실패 /
 이메일 문항 폴백 제거 → 2건 실패(확인 완료). 전체 **193개 통과**.
 
-**DB** — `V7__form_result_mail.sql`(`form.result_mail_yn` + `FORM_RESULT` 템플릿).
+**DB** — `form.result_mail_yn` + `FORM_RESULT` 템플릿.
+(원래 `V7__form_result_mail.sql`이었으나 미적용 상태에서 `V3__cms_1_2_7_to_1_2_13.sql`로 합쳤다.)
 
 ---
 
@@ -85,7 +117,8 @@ CMS 1.2.12를 흡수했다.
 
 `FormFileFieldTest`(6) — CMS와 동일. 전체 **189개 통과**.
 
-**DB** — `V6__form_file_field.sql`(코드 FIELD09 + `file_ref` 복합 인덱스). 스키마 변경 없음.
+**DB** — 코드 FIELD09 + `file_ref` 복합 인덱스. 스키마 변경 없음.
+(원래 `V6__form_file_field.sql`이었으나 미적용 상태에서 `V3__cms_1_2_7_to_1_2_13.sql`로 합쳤다.)
 
 ---
 
@@ -122,7 +155,8 @@ CMS 1.2.11을 흡수했다. "지금 어느 버전이 떠 있나, 마이그레이
 **mutation 검증 2건**: `@CacheEvict` 제거 → 1건 실패 / `requireAdmin()` 제거 → 1건 실패(확인 완료).
 전체 **183개 통과**.
 
-**DB** — `V5__system_status.sql`(메뉴·권한 시드). 스키마 변경 없음.
+**DB** — 메뉴·권한 시드. 스키마 변경 없음.
+(원래 `V5__system_status.sql`이었으나 미적용 상태에서 `V3__cms_1_2_7_to_1_2_13.sql`로 합쳤다.)
 
 ---
 
@@ -215,7 +249,8 @@ CMS 1.2.9를 흡수했다. 업로드된 파일을 **볼 방법이 없었고**, �
 **mutation 검증 2건**: 사용처에서 PROFILE 제거 → 1건 실패 / '미사용' 필터에서 프로필 제외 제거
 → 1건 실패(확인 완료). 전체 **164개 통과**.
 
-**DB** — `V4__media_library.sql`(메뉴·권한 시드 + 인덱스 2개). 실행할 SQL 없음 — 앱을 띄우면 Flyway가 적용한다.
+**DB** — 메뉴·권한 시드 + 인덱스 2개. 실행할 SQL 없음 — 앱을 띄우면 Flyway가 적용한다.
+(원래 `V4__media_library.sql`이었으나 미적용 상태에서 `V3__cms_1_2_7_to_1_2_13.sql`로 합쳤다.)
 
 ---
 
@@ -296,7 +331,8 @@ CMS 원문 그대로 옮기면 깨지는 부분이 셋 있었다.
 **mutation 검증**: nickname을 NULL로 → 2건 실패, `use_yn='N'`을 빼면 → 1건 실패(확인 완료).
 전체 **152개 통과**.
 
-**DB** — `V3__member_lifecycle.sql`(CMS 대역). **실행할 SQL이 없다** — 앱을 띄우면 Flyway가 적용한다.
+**DB** — CMS 대역. **실행할 SQL이 없다** — 앱을 띄우면 Flyway가 적용한다.
+(원래 `V3__member_lifecycle.sql`이었으나 미적용 상태에서 `V3__cms_1_2_7_to_1_2_13.sql`로 합쳤다.)
 
 ## 0.6.7 (CMS 1.2.6) — DB 마이그레이션(Flyway) 흡수
 
