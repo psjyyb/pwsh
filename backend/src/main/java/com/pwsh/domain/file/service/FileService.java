@@ -7,11 +7,13 @@ import com.pwsh.common.message.Messages;
 import com.pwsh.common.util.AfterCommit;
 import com.pwsh.global.file.FileSignature;
 import com.pwsh.global.file.FileStorage;
+import com.pwsh.global.log.PrivacyAccessCollector;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -109,6 +111,28 @@ public class FileService {
     /** 저장 파일 리소스 로드(다운로드·공개 이미지 서빙용) */
     public Resource loadResource(FileVO meta) {
         return fileStorage.load(meta.getPath(), meta.getStoredName());
+    }
+
+    /**
+     * 폼 첨부를 실제로 읽었으면 개인정보 접근기록에 남긴다.
+     *
+     * <p>★ <b>이 기록만 수동이다.</b> 나머지 개인정보 접근은 실행 SQL의 {@code DECRYPT}를 보고
+     * 자동 탐지하는데, 첨부 파일은 암호화 컬럼이 아니라 그 그물에 <b>통째로 걸리지 않는다</b>.
+     * 신청서에 주민등록등본 같은 서류를 받는 순간 "누가 언제 열람했는지"가 필요해지므로,
+     * 파일을 내려주는 지점에서 직접 넣는다.
+     *
+     * <p>버퍼에 넣기만 한다 — 실제 INSERT는 요청이 끝난 뒤 {@code PrivacyLogFlushInterceptor}가 한다.
+     * 그래야 업무 트랜잭션이 롤백돼도 기록이 남고, 요청 1건이 기록 1건이 된다.
+     *
+     * <p>폼 첨부가 아니면 아무것도 하지 않는다 — 게시판 첨부·로고·배너·취미 이미지·프로필 사진까지
+     * 남기면 정작 봐야 할 서류 열람이 묻힌다.
+     */
+    public void recordFormAttachmentAccess(FileVO file) {
+        List<String> owners = commonDAO.selectList("fileDAO.selectFormAnswerOwnersByFile", file);
+        if (owners.isEmpty()) {
+            return;
+        }
+        PrivacyAccessCollector.add("fileDAO.downloadFormAttachment", new LinkedHashSet<>(owners), owners.size());
     }
 
     /**

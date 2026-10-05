@@ -117,6 +117,8 @@ public class FileController {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.file.notFound"));
         }
         fileService.assertServable(file); // 첨부는 소속 게시판 접근권자만 다운로드(IDOR 차단)
+        // 폼 첨부(신청 서류)는 개인정보라 열람 사실을 남긴다 — 파일은 DECRYPT 자동탐지에 안 걸린다
+        fileService.recordFormAttachmentAccess(file);
         Resource resource = fileService.loadResource(file);
         String encoded = URLEncoder.encode(file.getOriginalName(), StandardCharsets.UTF_8).replace("+", "%20");
         return ResponseEntity.ok()

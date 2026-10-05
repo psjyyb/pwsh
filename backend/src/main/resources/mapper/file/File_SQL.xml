@@ -164,6 +164,24 @@
         WHERE use_yn = 'Y' AND file_id = #{fileId}::integer AND reg_id = #{memberId}
     </select>
 
+    <!--
+      이 파일이 붙어 있는 폼 응답의 신청자(개인정보 접근로그의 '정보주체').
+
+      ★ 폼 첨부는 신청자가 올린 <b>서류</b>라 개인정보가 담긴다. 그런데 개인정보 접근로그는
+        실행 SQL의 DECRYPT를 보고 탐지하므로, 파일은 암호화 컬럼이 아니라 <b>통째로 빠진다</b>.
+        그래서 다운로드 시점에 직접 기록한다(FileService.recordFormAttachmentAccess).
+      ★ 용도가 FORM인 매핑만 본다 — map_key가 다형적이라(게시글이면 post_id, 취미면 hobby_id)
+        거르지 않으면 다른 용도의 map_key가 응답 번호와 겹칠 때 엉뚱한 사람 서류를 봤다고 기록된다.
+      ★ 비로그인 제출이면 member_id가 없다 — 그때는 응답 번호로 대상을 특정한다.
+        빈 값으로 두면 접근기록이 "(대상 불명)"이 되어 누구 서류를 봤는지 알 수 없다.
+    -->
+    <select id="selectFormAnswerOwnersByFile" parameterType="fileVO" resultType="string">
+        SELECT COALESCE(a.member_id, '응답#' || a.form_answer_id)
+        FROM file_ref r
+        JOIN form_answer a ON a.form_answer_id = r.map_key
+        WHERE r.file_id = #{fileId}::integer AND r.file_type = 'FORM'
+    </select>
+
     <!-- 엔티티에 매핑된 파일 메타(다운로드 목록용). map_key + file_type으로 특정 -->
     <select id="selectFilesByOwner" parameterType="map" resultType="fileVO">
         SELECT f.file_id, f.original_name, f.ext, f.size

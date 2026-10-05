@@ -42,6 +42,8 @@ public class PubImageController {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.image.notImage"));
         }
         fileService.assertServable(file); // 순차 id 열거(IDOR) 차단 — 연결 콘텐츠 접근권으로 서빙 가부 판정
+        // 폼 첨부가 이미지면 이 경로로도 열람된다(관리자만 통과) — 다운로드와 같이 기록한다
+        fileService.recordFormAttachmentAccess(file);
         Resource resource = fileService.loadResource(file);
         return ResponseEntity.ok()
                 .contentType(contentType(ext))
