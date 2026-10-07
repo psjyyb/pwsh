@@ -127,6 +127,20 @@
         WHERE a.form_id = #{formId}::integer
     </select>
 
+    <!--
+      내려받기용: 이 폼 응답들에 붙은 첨부의 원본 파일명(파일첨부 문항 값을 ID → 이름으로 바꾸는 데 쓴다).
+      ★ 용도가 FORM인 매핑만 본다 — file_ref.map_key가 다형적이라 거르지 않으면
+        다른 용도의 map_key가 응답 번호와 겹칠 때 엉뚱한 파일이 섞인다.
+      정리된(use_yn='N') 파일도 이름은 남아 있으므로 file 조인에 use_yn 조건을 걸지 않는다.
+    -->
+    <select id="selectFileNamesByForm" parameterType="formAnswerVO" resultType="map">
+        SELECT f.file_id::TEXT AS "fileId", f.original_name AS "name"
+        FROM file_ref r
+        JOIN form_answer a ON a.form_answer_id = r.map_key AND a.use_yn = 'Y'
+        JOIN file f ON f.file_id = r.file_id
+        WHERE r.file_type = 'FORM' AND a.form_id = #{formId}::integer
+    </select>
+
     <delete id="deleteValues" parameterType="formAnswerVO">
         DELETE FROM form_answer_value WHERE form_answer_id = #{rowId}::integer
     </delete>

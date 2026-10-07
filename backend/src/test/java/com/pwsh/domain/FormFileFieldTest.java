@@ -144,6 +144,47 @@ class FormFileFieldTest extends IntegrationTest {
         assertThat(fieldIds).doesNotContain(ids[1]);
     }
 
+    @Test
+    @DisplayName("내려받기에서는 파일첨부 값이 ID가 아니라 파일명으로 나간다")
+    void exportShowsFileNames() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        String[] ids = newFormWithFileField(admin, "ZZ첨부 내보내기");
+        String a = upload(admin, "zzff-export-a.png");
+        String b = upload(admin, "zzff-export-b.png");
+        String answerId = submit(admin, ids[0], ids[1], a + "\\n" + b);
+
+        String body = post("/api/adm/formanswer/selectFormAnswerListExport.do",
+                "{\"formId\":\"" + ids[0] + "\"}", admin).body();
+        String exported = JsonPath.read(body, "$.data.list[0].values['" + ids[1] + "']");
+
+        // ID 그대로면 엑셀에 "12 / 13"이 찍혀 무슨 서류인지 알 수 없다. 순서도 제출 순서 그대로여야 한다
+        assertThat(exported).isEqualTo("zzff-export-a.png\nzzff-export-b.png");
+
+        // ⚠ 바꾸는 건 내려받기뿐 — 상세 화면은 이 ID로 다운로드 링크를 만든다
+        String detail = post("/api/adm/formanswer/selectFormAnswerView.do",
+                "{\"rowId\":\"" + answerId + "\"}", admin).body();
+        String stored = JsonPath.read(detail, "$.data.values['" + ids[1] + "']");
+        assertThat(stored).isEqualTo(a + "\n" + b);
+    }
+
+    @Test
+    @DisplayName("이름을 찾을 수 없는 첨부는 빈칸이 아니라 '파일 없음'으로 남는다")
+    void exportMarksMissingFile() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        String[] ids = newFormWithFileField(admin, "ZZ첨부 파일없음");
+        String fileId = upload(admin, "zzff-gone.png");
+        submit(admin, ids[0], ids[1], fileId);
+        // 파일 행이 사라진 상황(수동 정리 등) — 매핑과 답은 남아 있다
+        jdbc.update("DELETE FROM file WHERE file_id = ?::integer", Integer.parseInt(fileId));
+
+        String body = post("/api/adm/formanswer/selectFormAnswerListExport.do",
+                "{\"formId\":\"" + ids[0] + "\"}", admin).body();
+        String exported = JsonPath.read(body, "$.data.list[0].values['" + ids[1] + "']");
+
+        // 빈칸이면 처음부터 첨부가 없었던 것처럼 보인다
+        assertThat(exported).isEqualTo("(파일 없음 #" + fileId + ")");
+    }
+
     // ===== helpers =====
 
     /** 파일첨부 문항 하나짜리 폼 생성 → [formId, fieldId] */

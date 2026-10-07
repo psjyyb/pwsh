@@ -470,13 +470,56 @@ public class FormService {
                     .put(String.valueOf(r.get("fieldId")),
                             r.get("value") == null ? "" : String.valueOf(r.get("value")));
         }
+        List<FormFieldVO> fields = selectFields(formId);
+        replaceFileIdsWithNames(formId, fields, byAnswer);
         for (FormAnswerVO a : answers) {
             a.setValues(byAnswer.getOrDefault(a.getRowId(), Map.of()));
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("fields", selectFields(formId));
+        out.put("fields", fields);
         out.put("list", answers);
         return out;
+    }
+
+    /**
+     * 내려받기에서 파일첨부 문항의 값(파일 ID 목록)을 <b>원본 파일명</b>으로 바꾼다.
+     *
+     * <p>값에는 ID 숫자만 들어 있어서, 그대로 내보내면 엑셀에 "12 / 13"이 찍혀 무슨 서류인지
+     * 알 수 없다. 화면 상세는 파일명을 따로 받아 보여주지만(1.2.12) 내려받기는 그 경로를 안 탔다.
+     *
+     * <p>이 폼의 첨부 이름을 <b>한 번에</b> 가져와 맞춘다 — 응답마다 조회하면 응답 수만큼 쿼리가 나간다.
+     * 이름을 못 찾으면(정리된 파일 등) {@code (파일 없음 #ID)}로 남긴다 — 빈칸으로 두면 처음부터
+     * 첨부가 없었던 것처럼 보인다.
+     *
+     * <p>⚠ 바꾸는 건 <b>내려받기 응답뿐</b>이다. 저장된 값과 상세 조회의 값은 그대로 파일 ID다
+     * (상세 화면이 그 ID로 다운로드 링크를 만든다).
+     */
+    private void replaceFileIdsWithNames(String formId, List<FormFieldVO> fields,
+                                         Map<String, Map<String, String>> byAnswer) {
+        List<String> fileFieldIds = fields.stream()
+                .filter(f -> FILE_FIELD.equals(f.getFieldCd())).map(FormFieldVO::getRowId).toList();
+        if (fileFieldIds.isEmpty()) {
+            return;
+        }
+        FormAnswerVO p = new FormAnswerVO();
+        p.setFormId(formId);
+        List<Map<String, Object>> rows = commonDAO.selectList("formAnswerDAO.selectFileNamesByForm", p);
+        Map<String, String> nameById = new HashMap<>();
+        for (Map<String, Object> r : rows) {
+            nameById.put(String.valueOf(r.get("fileId")), String.valueOf(r.get("name")));
+        }
+        for (Map<String, String> values : byAnswer.values()) {
+            for (String fieldId : fileFieldIds) {
+                String raw = values.get(fieldId);
+                if (raw == null || raw.isEmpty()) {
+                    continue;
+                }
+                String names = Arrays.stream(raw.split(MULTI_SEP)).map(String::trim).filter(s -> !s.isEmpty())
+                        .map(id -> nameById.getOrDefault(id, "(파일 없음 #" + id + ")"))
+                        .collect(java.util.stream.Collectors.joining(MULTI_SEP));
+                values.put(fieldId, names);
+            }
+        }
     }
 
     // ===== 공통 =====

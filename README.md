@@ -14,8 +14,7 @@
 pwsh/
 ├─ backend/    Spring Boot REST API (MyBatis, JWT)
 │  └─ src/main/resources/db/migration/   DB 스키마·기초데이터 (Flyway, 단일 출처)
-├─ frontend/   React SPA (adm=관리자 / gen=사용자 영역)
-└─ sql/        sample-data.sql (샘플 데이터, 실행은 선택)
+└─ frontend/   React SPA (adm=관리자 / gen=사용자 영역)
 ```
 
 ## 개발 환경
