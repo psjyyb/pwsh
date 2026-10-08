@@ -34,7 +34,8 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
 
     @AfterEach
     void cleanup() {
-        jdbc.update("DELETE FROM privacy_log WHERE sql_ids LIKE '%downloadFormAttachment%'");
+        jdbc.update("DELETE FROM privacy_log WHERE sql_ids LIKE '%downloadFormAttachment%'"
+                + " OR sql_ids LIKE '%exportFormAttachmentNames%'");
         jdbc.update("DELETE FROM form_answer_value WHERE form_answer_id IN"
                 + " (SELECT form_answer_id FROM form_answer WHERE form_id IN"
                 + "  (SELECT form_id FROM form WHERE title LIKE 'ZZ기록%'))");
@@ -115,7 +116,73 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
         assertThat(logCount()).as("용도 필터가 빠지면 남의 응답 번호로 기록이 붙는다").isZero();
     }
 
+    @Test
+    @DisplayName("파일첨부 문항만 있는 폼도 응답 내려받기가 접근기록에 남는다")
+    void exportOfFileOnlyFormIsLogged() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        submitWithAttachment(admin, "ZZ기록 내려받기", "zzpl-export.png");
+        String formId = formIdOf("ZZ기록 내려받기");
+
+        assertThat(export(formId, admin).statusCode()).isEqualTo(200);
+
+        // ★ 내려받기에는 파일명이 나가고(1.2.16) 파일명엔 신청자 이름이 흔히 들어간다.
+        //   개인정보 문항이 없으면 복호화가 없어 자동 탐지에 안 걸린다 — 직접 남겨야 한다
+        assertThat(exportLogTargets()).as("누구 서류 목록을 받았는지가 남아야 한다").isEqualTo("user");
+    }
+
+    @Test
+    @DisplayName("비로그인 제출은 응답 번호로 대상을 남긴다")
+    void exportOfAnonymousAnswerUsesAnswerNo() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        submitWithAttachment(admin, "ZZ기록 비로그인", "zzpl-anon.png");
+        String formId = formIdOf("ZZ기록 비로그인");
+        String answerId = jdbc.queryForObject(
+                "SELECT form_answer_id::text FROM form_answer WHERE form_id = ?::integer", String.class, formId);
+        jdbc.update("UPDATE form_answer SET member_id = NULL WHERE form_answer_id = ?::integer",
+                Integer.parseInt(answerId));
+
+        assertThat(export(formId, admin).statusCode()).isEqualTo(200);
+
+        // 대상을 비우면 "(대상 불명)"이 돼 누구 서류였는지 추적할 수 없다
+        assertThat(exportLogTargets()).isEqualTo("응답#" + answerId);
+    }
+
+    @Test
+    @DisplayName("첨부가 하나도 없으면 내려받기를 기록하지 않는다")
+    void exportWithoutAttachmentsIsNotLogged() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        assertThat(post("/api/adm/form/insertForm.do",
+                "{\"title\":\"ZZ기록 첨부없음\",\"typeCd\":\"FORM01\",\"loginYn\":\"Y\",\"multiYn\":\"Y\","
+                        + "\"fields\":[{\"label\":\"서류\",\"fieldCd\":\"FIELD09\",\"requiredYn\":\"N\"}]}",
+                admin).statusCode()).isEqualTo(200);
+        String formId = formIdOf("ZZ기록 첨부없음");
+        assertThat(post("/api/adm/formanswer/insertFormAnswer.do",
+                "{\"formId\":\"" + formId + "\",\"values\":{}}", admin).statusCode()).isEqualTo(200);
+        jdbc.update("UPDATE form_answer SET member_id = 'user' WHERE form_id = ?::integer", Integer.parseInt(formId));
+
+        assertThat(export(formId, admin).statusCode()).isEqualTo(200);
+
+        // 파일 문항이 있다는 것만으로 남기면 설문을 받을 때마다 기록이 쌓여 정작 볼 기록이 묻힌다
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM privacy_log WHERE sql_ids LIKE '%exportFormAttachmentNames%'", Integer.class))
+                .isZero();
+    }
+
     // ===== helpers =====
+
+    private HttpResponse<String> export(String formId, String token) throws Exception {
+        return post("/api/adm/formanswer/selectFormAnswerListExport.do", "{\"formId\":\"" + formId + "\"}", token);
+    }
+
+    private String formIdOf(String title) {
+        return jdbc.queryForObject("SELECT form_id::text FROM form WHERE title = ?", String.class, title);
+    }
+
+    private String exportLogTargets() {
+        return jdbc.queryForObject(
+                "SELECT target_ids FROM privacy_log WHERE sql_ids LIKE '%exportFormAttachmentNames%'"
+                        + " ORDER BY privacy_log_id DESC LIMIT 1", String.class);
+    }
 
     private int logCount() {
         Integer n = jdbc.queryForObject(

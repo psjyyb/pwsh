@@ -4,6 +4,7 @@ import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.mail.service.MailService;
+import com.pwsh.global.log.PrivacyAccessCollector;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.time.LocalDate;
@@ -11,8 +12,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -454,6 +457,7 @@ public class FormService {
     /**
      * 내려받기용 전체 응답(문항 값 포함). 개인정보 문항이 있으면 복호화가 걸리므로
      * 이 조회는 <b>개인정보 접근기록에 남는다</b> — 대량 내려받기야말로 남겨야 할 행위다.
+     * 첨부 파일명이 나가는 경우도 따로 남긴다({@link #recordAttachmentNameExport}).
      */
     public Map<String, Object> export(String formId) {
         FormAnswerVO p = new FormAnswerVO();
@@ -471,7 +475,8 @@ public class FormService {
                             r.get("value") == null ? "" : String.valueOf(r.get("value")));
         }
         List<FormFieldVO> fields = selectFields(formId);
-        replaceFileIdsWithNames(formId, fields, byAnswer);
+        Set<String> withFiles = replaceFileIdsWithNames(formId, fields, byAnswer);
+        recordAttachmentNameExport(answers, withFiles);
         for (FormAnswerVO a : answers) {
             a.setValues(byAnswer.getOrDefault(a.getRowId(), Map.of()));
         }
@@ -493,13 +498,16 @@ public class FormService {
      *
      * <p>⚠ 바꾸는 건 <b>내려받기 응답뿐</b>이다. 저장된 값과 상세 조회의 값은 그대로 파일 ID다
      * (상세 화면이 그 ID로 다운로드 링크를 만든다).
+     *
+     * @return 첨부 값이 있어 파일명이 나간 응답 ID들(접근기록 대상)
      */
-    private void replaceFileIdsWithNames(String formId, List<FormFieldVO> fields,
-                                         Map<String, Map<String, String>> byAnswer) {
+    private Set<String> replaceFileIdsWithNames(String formId, List<FormFieldVO> fields,
+                                                Map<String, Map<String, String>> byAnswer) {
+        Set<String> withFiles = new LinkedHashSet<>();
         List<String> fileFieldIds = fields.stream()
                 .filter(f -> FILE_FIELD.equals(f.getFieldCd())).map(FormFieldVO::getRowId).toList();
         if (fileFieldIds.isEmpty()) {
-            return;
+            return withFiles;
         }
         FormAnswerVO p = new FormAnswerVO();
         p.setFormId(formId);
@@ -508,7 +516,8 @@ public class FormService {
         for (Map<String, Object> r : rows) {
             nameById.put(String.valueOf(r.get("fileId")), String.valueOf(r.get("name")));
         }
-        for (Map<String, String> values : byAnswer.values()) {
+        for (Map.Entry<String, Map<String, String>> e : byAnswer.entrySet()) {
+            Map<String, String> values = e.getValue();
             for (String fieldId : fileFieldIds) {
                 String raw = values.get(fieldId);
                 if (raw == null || raw.isEmpty()) {
@@ -518,8 +527,35 @@ public class FormService {
                         .map(id -> nameById.getOrDefault(id, "(파일 없음 #" + id + ")"))
                         .collect(java.util.stream.Collectors.joining(MULTI_SEP));
                 values.put(fieldId, names);
+                withFiles.add(e.getKey());
             }
         }
+        return withFiles;
+    }
+
+    /**
+     * 파일명이 나간 내려받기를 개인정보 접근기록에 남긴다.
+     *
+     * <p>파일명에는 신청자 이름이 흔히 들어간다({@code 홍길동_등본.pdf}). 개인정보 문항이 있는 폼은
+     * 복호화가 일어나 자동으로 잡히지만, <b>파일첨부 문항만 있는 폼은 복호화가 없어 그물에 안 걸린다</b> —
+     * 그래서 첨부 열람(FileService.recordFormAttachmentAccess)처럼 직접 넣는다.
+     *
+     * <p>첨부가 실제로 나간 응답만 대상으로 한다 — 파일 문항이 있다는 것만으로 남기면 빈 설문을 받을
+     * 때마다 기록이 쌓여 정작 볼 기록이 묻힌다. 비로그인 제출은 {@code 응답#번호}로 특정한다
+     * (첨부 열람 기록과 같은 표기 — 둘을 맞춰 봐야 같은 서류인지 알 수 있다).
+     */
+    private void recordAttachmentNameExport(List<FormAnswerVO> answers, Set<String> withFiles) {
+        if (withFiles.isEmpty()) {
+            return;
+        }
+        Set<String> targets = new LinkedHashSet<>();
+        for (FormAnswerVO a : answers) {
+            if (withFiles.contains(a.getRowId())) {
+                boolean member = a.getMemberId() != null && !a.getMemberId().isBlank();
+                targets.add(member ? a.getMemberId() : "응답#" + a.getRowId());
+            }
+        }
+        PrivacyAccessCollector.add("formAnswerDAO.exportFormAttachmentNames", targets, withFiles.size());
     }
 
     // ===== 공통 =====
