@@ -14,7 +14,8 @@ public class CommentVO extends BaseVO {
     private String content;
     private String goodCnt;
     private String badCnt;
-    private String likedYn;   // 조회 표시: 내가 좋아요 눌렀는지(Y/N)
+    private String likedYn;   // 조회 표시: 내가 추천했는지(Y/N)
+    private String dislikedYn; // 조회 표시: 내가 비추천했는지(Y/N)
     private String viewerId;  // 좋아요 여부 판정용 현재 조회자(서버 세팅, 비로그인 null)
     private String regName;   // 작성자 표시명(닉네임, member 조인)
     private String regHandle; // 작성자 공개 식별자(member.handle) — 프로필 링크용. 로그인 ID 대체

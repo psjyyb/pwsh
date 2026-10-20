@@ -21,7 +21,8 @@ public class PostVO extends BaseVO {
     private String password;
     private String goodCnt;
     private String badCnt;
-    private String likedYn;   // 조회 표시: 내가 좋아요 눌렀는지(Y/N)
+    private String likedYn;   // 조회 표시: 내가 추천했는지(Y/N)
+    private String dislikedYn; // 조회 표시: 내가 비추천했는지(Y/N)
     private String viewerId;  // 좋아요 여부 판정용 현재 조회자(서버 세팅, 비로그인 null)
     private String viewCnt;
     private String noticeYn;

@@ -12,8 +12,10 @@ export interface Comment {
   mineYn?: string // 'Y'=내가 쓴 댓글(서버 계산)
   regProfileFileId?: string // 작성자 프로필 사진 file_id
   regDt?: string
-  goodCnt?: string // 좋아요 수
-  likedYn?: string // 내가 좋아요 눌렀는지(Y/N)
+  goodCnt?: string   // 추천 수
+  badCnt?: string    // 비추천 수
+  likedYn?: string   // 내가 추천했는지(Y/N)
+  dislikedYn?: string // 내가 비추천했는지(Y/N)
 }
 
 export const commentApi = {

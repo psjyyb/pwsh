@@ -1,50 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  추천/비추천. 표(content_like)가 원본이고, post·comment의 good_cnt·bad_cnt는 화면 표시용 사본이다.
+  ★ 숫자는 "실제로 바뀐 표 행 수"만큼만 움직인다(LikeService) — 더블클릭 같은 동시 요청에서
+    표는 1개인데 숫자만 2가 되는 어긋남을 막는다.
+  ★ 대상 테이블·컬럼은 문자열 치환(${})이 아니라 분기로 고른다 — 이 매퍼도 #{}만 쓴다.
+-->
 <mapper namespace="likeDAO">
 
-    <select id="selectActiveCnt" parameterType="likeVO" resultType="int">
-        SELECT COUNT(*) FROM content_like
+    <!-- 내가 이 대상에 이미 던진 표의 구분(없으면 null) -->
+    <select id="selectMyType" parameterType="likeVO" resultType="string">
+        SELECT like_type FROM content_like
         WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </select>
 
+    <!-- 유니크 충돌(동시 요청)은 0행으로 흘려보낸다 — 500 대신 "이미 처리됨" -->
     <insert id="insert" parameterType="likeVO">
-        INSERT INTO content_like (member_id, target_type, target_id, reg_id, reg_dt, reg_ip)
-        VALUES (#{memberId}, #{targetType}, #{targetId}::integer, #{regId}, NOW(), #{regIp})
+        INSERT INTO content_like (member_id, target_type, target_id, like_type, reg_id, reg_dt, reg_ip)
+        VALUES (#{memberId}, #{targetType}, #{targetId}::integer, #{likeType}, #{regId}, NOW(), #{regIp})
         ON CONFLICT (member_id, target_type, target_id) DO NOTHING
     </insert>
 
+    <!-- 전환. 이전 구분이 그대로일 때만 바꾼다 — 그 사이 다른 요청이 바꿨으면 0행 -->
+    <update id="updateType" parameterType="likeVO">
+        UPDATE content_like SET like_type = #{likeType}
+        WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+          AND like_type = #{prevType}
+    </update>
+
+    <!-- 취소. 지우려는 구분이 그대로일 때만 지운다 -->
     <delete id="delete" parameterType="likeVO">
         DELETE FROM content_like
         WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
+          AND like_type = #{likeType}
     </delete>
 
-    <!-- 표시용 good_cnt 트랜잭션 동기화 -->
-    <update id="incPostGood" parameterType="likeVO">
-        UPDATE post SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE post_id = #{targetId}::integer
-    </update>
-    <update id="decPostGood" parameterType="likeVO">
-        UPDATE post SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE post_id = #{targetId}::integer
-    </update>
-    <update id="incCommentGood" parameterType="likeVO">
-        UPDATE comment SET good_cnt = COALESCE(good_cnt, 0) + 1 WHERE comment_id = #{targetId}::integer
-    </update>
-    <update id="decCommentGood" parameterType="likeVO">
-        UPDATE comment SET good_cnt = GREATEST(0, COALESCE(good_cnt, 0) - 1) WHERE comment_id = #{targetId}::integer
+    <!--
+      표시용 숫자 증감. delta는 +1/-1, column은 GOOD/BAD.
+      COALESCE: 컬럼이 NULL 허용이라 옛 행은 NULL일 수 있다. GREATEST: 음수로 내려가지 않게.
+    -->
+    <update id="updateCount" parameterType="map">
+        <choose>
+            <when test='"POST".equals(targetType)'>UPDATE post SET</when>
+            <otherwise>UPDATE comment SET</otherwise>
+        </choose>
+        <choose>
+            <when test='"BAD".equals(likeType)'>bad_cnt = GREATEST(0, COALESCE(bad_cnt, 0) + #{delta})</when>
+            <otherwise>good_cnt = GREATEST(0, COALESCE(good_cnt, 0) + #{delta})</otherwise>
+        </choose>
+        <choose>
+            <when test='"POST".equals(targetType)'>WHERE post_id = #{targetId}::integer</when>
+            <otherwise>WHERE comment_id = #{targetId}::integer</otherwise>
+        </choose>
     </update>
 
-    <!-- 대상 존재 확인(고아 좋아요 방지) -->
-    <select id="countPost" parameterType="likeVO" resultType="int">
-        SELECT COUNT(*) FROM post WHERE post_id = #{targetId}::integer AND use_yn = 'Y'
-    </select>
-    <select id="countComment" parameterType="likeVO" resultType="int">
-        SELECT COUNT(*) FROM comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y'
+    <!--
+      대상 확인 — 살아 있는 글·댓글인지 + 접근 인가에 쓸 게시글 ID.
+      댓글이면 소속 게시글 ID를 돌려준다(게시판 권한은 게시글 기준). 삭제된 글의 댓글도 막는다.
+    -->
+    <select id="selectTargetPostId" parameterType="likeVO" resultType="string">
+        <choose>
+            <when test='"POST".equals(targetType)'>
+                SELECT post_id::TEXT FROM post WHERE post_id = #{targetId}::integer AND use_yn = 'Y'
+            </when>
+            <otherwise>
+                SELECT c.post_id::TEXT FROM comment c
+                JOIN post p ON p.post_id = c.post_id AND p.use_yn = 'Y'
+                WHERE c.comment_id = #{targetId}::integer AND c.use_yn = 'Y'
+            </otherwise>
+        </choose>
     </select>
 
-    <select id="selectPostGood" parameterType="likeVO" resultType="int">
-        SELECT COALESCE(good_cnt, 0) FROM post WHERE post_id = #{targetId}::integer
-    </select>
-    <select id="selectCommentGood" parameterType="likeVO" resultType="int">
-        SELECT COALESCE(good_cnt, 0) FROM comment WHERE comment_id = #{targetId}::integer
+    <select id="selectCounts" parameterType="likeVO" resultType="likeVO">
+        <choose>
+            <when test='"POST".equals(targetType)'>
+                SELECT COALESCE(good_cnt, 0)::TEXT AS good_cnt, COALESCE(bad_cnt, 0)::TEXT AS bad_cnt
+                FROM post WHERE post_id = #{targetId}::integer
+            </when>
+            <otherwise>
+                SELECT COALESCE(good_cnt, 0)::TEXT AS good_cnt, COALESCE(bad_cnt, 0)::TEXT AS bad_cnt
+                FROM comment WHERE comment_id = #{targetId}::integer
+            </otherwise>
+        </choose>
     </select>
 
 </mapper>

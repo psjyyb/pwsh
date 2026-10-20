@@ -145,7 +145,9 @@
     <select id="selectView" parameterType="postVO" resultType="postVO">
         SELECT post_id::TEXT AS row_id, board_id, title, content,
                p_post_id, depth, sort_no, secret_yn, password, good_cnt, bad_cnt, view_cnt,
-               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
+               <!-- 내 추천/비추천 상태. ★ like_type 조건 필수 — 빠지면 비추천한 사람에게도 추천이 켜져 보인다 -->
+               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId} AND l.like_type = 'GOOD') THEN 'Y' ELSE 'N' END) AS liked_yn,
+               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId} AND l.like_type = 'BAD') THEN 'Y' ELSE 'N' END) AS disliked_yn,
                notice_yn, notice_start_dt, notice_end_dt,
                reg_id, <!-- 서버 인가용(비밀글 작성자 판정). 응답 직전 PostService에서 제거 -->
                (SELECT u.nickname FROM member u WHERE u.member_id = post.reg_id) AS reg_name,

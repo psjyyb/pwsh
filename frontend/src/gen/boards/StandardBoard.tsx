@@ -17,6 +17,7 @@ import SafeHtml from '../../common/SafeHtml'
 import type { RichTextEditorHandle } from '../../common/adm/components/RichTextEditor'
 import { hasViewedRecently, markViewed } from '../../common/util/postView'
 import { likeApi } from '../../api/like'
+import type { LikeType } from '../../api/like'
 import { bookmarkApi } from '../../api/bookmark'
 import MemberAvatar from '../../common/gen/components/MemberAvatar'
 import MentionText from '../../common/gen/components/MentionText'
@@ -305,13 +306,14 @@ export default function StandardBoard({ board }: { board: Board }) {
       message.error(e instanceof Error ? e.message : '댓글 수정 실패')
     }
   }
-  const toggleLikePost = async () => {
+  /** 추천/비추천 — 같은 쪽을 다시 누르면 취소, 반대쪽이면 전환(서버 판정). 결과 상태·숫자를 그대로 반영. */
+  const votePost = async (likeType: LikeType) => {
     if (!post) return
     try {
-      const r = await likeApi.toggle('POST', post.rowId!)
-      setPost({ ...post, likedYn: r.likedYn, goodCnt: r.goodCnt })
+      const r = await likeApi.vote('POST', post.rowId!, likeType)
+      setPost({ ...post, ...r })
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
+      message.error(e instanceof Error ? e.message : '추천 처리 실패')
     }
   }
   /** 북마크 토글 — 결과 상태를 서버 응답(markedYn)으로 반영. */
@@ -326,12 +328,12 @@ export default function StandardBoard({ board }: { board: Board }) {
       message.error(e instanceof Error ? e.message : '북마크 처리 실패')
     }
   }
-  const toggleLikeComment = async (c: Comment) => {
+  const voteComment = async (c: Comment, likeType: LikeType) => {
     try {
-      const r = await likeApi.toggle('COMMENT', c.rowId!)
-      setComments(comments.map((x) => (x.rowId === c.rowId ? { ...x, likedYn: r.likedYn, goodCnt: r.goodCnt } : x)))
+      const r = await likeApi.vote('COMMENT', c.rowId!, likeType)
+      setComments(comments.map((x) => (x.rowId === c.rowId ? { ...x, ...r } : x)))
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '좋아요 처리 실패')
+      message.error(e instanceof Error ? e.message : '추천 처리 실패')
     }
   }
   const submitReply = async (parent: Comment) => {
@@ -529,11 +531,20 @@ export default function StandardBoard({ board }: { board: Board }) {
 
         <div style={{ marginTop: 16, textAlign: 'center' }}>
           {meId ? (
-            <Button shape="round" type={post.likedYn === 'Y' ? 'primary' : 'default'} onClick={toggleLikePost}>
-              {post.likedYn === 'Y' ? '♥' : '♡'} 좋아요 {Number(post.goodCnt) || 0}
-            </Button>
+            <>
+              <Button shape="round" type={post.likedYn === 'Y' ? 'primary' : 'default'} onClick={() => votePost('GOOD')}>
+                👍 추천 {Number(post.goodCnt) || 0}
+              </Button>
+              <Button
+                shape="round" style={{ marginLeft: 8 }}
+                danger={post.dislikedYn === 'Y'} type={post.dislikedYn === 'Y' ? 'primary' : 'default'}
+                onClick={() => votePost('BAD')}
+              >
+                👎 비추천 {Number(post.badCnt) || 0}
+              </Button>
+            </>
           ) : (
-            <span style={{ color: '#888' }}>♥ {Number(post.goodCnt) || 0}</span>
+            <span style={{ color: '#888' }}>👍 {Number(post.goodCnt) || 0} · 👎 {Number(post.badCnt) || 0}</span>
           )}
           {meId && (
             <Button
@@ -590,11 +601,16 @@ export default function StandardBoard({ board }: { board: Board }) {
                   <div><MentionText text={c.content} /></div>
                   <div style={{ marginTop: 2, display: 'flex', gap: 12, alignItems: 'center' }}>
                     {meId ? (
-                      <a onClick={() => toggleLikeComment(c)} style={{ color: c.likedYn === 'Y' ? '#6C4EE3' : '#999', fontSize: 12 }}>
-                        {c.likedYn === 'Y' ? '♥' : '♡'} {Number(c.goodCnt) || 0}
-                      </a>
+                      <>
+                        <a onClick={() => voteComment(c, 'GOOD')} style={{ color: c.likedYn === 'Y' ? '#6C4EE3' : '#999', fontSize: 12 }}>
+                          👍 {Number(c.goodCnt) || 0}
+                        </a>
+                        <a onClick={() => voteComment(c, 'BAD')} style={{ color: c.dislikedYn === 'Y' ? '#ff4d4f' : '#999', fontSize: 12 }}>
+                          👎 {Number(c.badCnt) || 0}
+                        </a>
+                      </>
                     ) : (
-                      <span style={{ color: '#bbb', fontSize: 12 }}>♥ {Number(c.goodCnt) || 0}</span>
+                      <span style={{ color: '#bbb', fontSize: 12 }}>👍 {Number(c.goodCnt) || 0} · 👎 {Number(c.badCnt) || 0}</span>
                     )}
                     {meId && <a style={{ color: '#999', fontSize: 12 }} onClick={() => { setReplyKey(replyKey === c.rowId ? null : c.rowId!); setReplyText('') }}>답글</a>}
                     {meId && c.mineYn !== 'Y' && <ReportAction targetType="COMMENT" targetId={c.rowId!} />}

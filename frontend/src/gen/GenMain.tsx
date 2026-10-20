@@ -333,7 +333,7 @@ export default function GenMain() {
         </div>
       </section>
 
-      {/* 이번 주 베스트 — 최근 7일 참여도(좋아요·댓글·조회) 상위 */}
+      {/* 이번 주 베스트 — 최근 7일 참여도(추천·댓글·조회) 상위 */}
       {best.length > 0 && (
         <section className="gen-section is-sub">
           <div className="gen-wfix">
@@ -355,7 +355,7 @@ export default function GenMain() {
                     <span className="gen-tile-chip is-soft" style={{ flexShrink: 0 }}>{p.boardName}</span>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{p.title}</span>
                     <span className="gen-nums" style={{ fontSize: 12, color: gen.inkFaint, flexShrink: 0 }}>
-                      좋아요 {Number(p.goodCnt) || 0} · 댓글 {Number(p.commentCnt) || 0}
+                      추천 {Number(p.goodCnt) || 0} · 댓글 {Number(p.commentCnt) || 0}
                     </span>
                   </div>
                 ))}

@@ -15,8 +15,10 @@ export interface Post {
   password?: string // 비밀글 비밀번호(작성/열람 시 전송, 서버는 조회 응답에 미포함)
   secretLocked?: string // 'Y'=비밀글 잠금(비번 필요) — 서버 응답 전용
   viewCnt?: string
-  goodCnt?: string
-  likedYn?: string // 내가 좋아요 눌렀는지(Y/N) — 상세 조회 응답
+  goodCnt?: string   // 추천 수
+  badCnt?: string    // 비추천 수
+  likedYn?: string   // 내가 추천했는지(Y/N) — 상세 조회 응답
+  dislikedYn?: string // 내가 비추천했는지(Y/N) — 상세 조회 응답
   regId?: string // 작성자 로그인 ID — 관리자 화면 전용(사용자(GEN) 응답에는 내려오지 않음)
   regName?: string // 작성자 표시명(닉네임)
   regHandle?: string // 작성자 공개 식별자 — 프로필 링크용(GEN)

@@ -86,24 +86,24 @@ class EngagementTest extends IntegrationTest {
         String me = accessToken("lkuser", "Test1234!@");
         String postId = hobbyWithPost("좋아요취미", "좋아요 글", admin)[2];
 
-        String on = post("/api/adm/like/toggleLike.do",
+        String on = post("/api/adm/like/updateLike.do",
                 "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", me).body();
         assertEquals("Y", JsonPath.read(on, "$.data.likedYn"));
         assertEquals("1", String.valueOf(JsonPath.<Object>read(on, "$.data.goodCnt")));
         assertEquals(1, jdbc.queryForObject("SELECT good_cnt FROM post WHERE post_id = ?::integer",
                 Integer.class, postId), "글의 좋아요 수도 함께 반영된다");
 
-        String off = post("/api/adm/like/toggleLike.do",
+        String off = post("/api/adm/like/updateLike.do",
                 "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", me).body();
         assertEquals("N", JsonPath.read(off, "$.data.likedYn"));
         assertEquals("0", String.valueOf(JsonPath.<Object>read(off, "$.data.goodCnt")));
 
         // 없는 글 / 지원하지 않는 유형 / 비로그인
-        assertNotEquals(200, post("/api/adm/like/toggleLike.do",
+        assertNotEquals(200, post("/api/adm/like/updateLike.do",
                 "{\"targetType\":\"POST\",\"targetId\":\"99999999\"}", me).statusCode());
-        assertEquals(400, post("/api/adm/like/toggleLike.do",
+        assertEquals(400, post("/api/adm/like/updateLike.do",
                 "{\"targetType\":\"RECRUIT\",\"targetId\":\"" + postId + "\"}", me).statusCode());
-        assertNotEquals(200, post("/api/adm/like/toggleLike.do",
+        assertNotEquals(200, post("/api/adm/like/updateLike.do",
                 "{\"targetType\":\"POST\",\"targetId\":\"" + postId + "\"}", null).statusCode());
     }
 

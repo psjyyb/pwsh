@@ -9,7 +9,9 @@
                (SELECT u.handle FROM member u WHERE u.member_id = comment.reg_id) AS reg_handle,
                (CASE WHEN #{viewerId}::text IS NOT NULL AND comment.reg_id = #{viewerId} THEN 'Y' ELSE 'N' END) AS mine_yn,
                (SELECT u.profile_file_id FROM member u WHERE u.member_id = comment.reg_id) AS reg_profile_file_id,
-               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = comment.comment_id AND l.member_id = #{viewerId}) THEN 'Y' ELSE 'N' END) AS liked_yn,
+               <!-- 내 추천/비추천 상태. ★ like_type 조건 필수 — 빠지면 비추천한 사람에게도 추천이 켜져 보인다 -->
+               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = comment.comment_id AND l.member_id = #{viewerId} AND l.like_type = 'GOOD') THEN 'Y' ELSE 'N' END) AS liked_yn,
+               (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'COMMENT' AND l.target_id = comment.comment_id AND l.member_id = #{viewerId} AND l.like_type = 'BAD') THEN 'Y' ELSE 'N' END) AS disliked_yn,
                TO_CHAR(reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt
         FROM comment
         WHERE use_yn = 'Y' AND post_id = #{postId}::integer

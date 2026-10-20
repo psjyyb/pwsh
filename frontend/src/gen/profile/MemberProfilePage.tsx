@@ -242,7 +242,7 @@ export default function MemberProfilePage() {
                 <List.Item style={{ cursor: 'pointer' }} onClick={() => navigate(`/gen/board/${p.boardId}?post=${p.rowId}`)}>
                   <List.Item.Meta
                     title={p.title}
-                    description={`${p.boardName ?? '-'} · 💬 ${p.commentCnt ?? 0} · ❤ ${p.goodCnt ?? 0} · ${p.regDt ?? ''}`}
+                    description={`${p.boardName ?? '-'} · 💬 ${p.commentCnt ?? 0} · 👍 ${p.goodCnt ?? 0} · ${p.regDt ?? ''}`}
                   />
                 </List.Item>
               )}

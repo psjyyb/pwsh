@@ -139,7 +139,7 @@ export default function FeedPage() {
                         <Space size={8} wrap style={{ fontSize: 13, color: '#888' }}>
                           <span>{it.regName || '회원'}</span>
                           <span>· 💬 {it.commentCnt ?? 0}</span>
-                          <span>· ❤ {it.goodCnt ?? 0}</span>
+                          <span>· 👍 {it.goodCnt ?? 0}</span>
                           <span>· {it.regDt}</span>
                         </Space>
                       )

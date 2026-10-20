@@ -277,7 +277,7 @@ export default function PostMngPage() {
           ),
         },
         regCol,
-        { title: '좋아요', width: 70, align: 'center', render: (_, r) => Number(r.goodCnt) || 0 },
+        { title: '추천', width: 70, align: 'center', render: (_, r) => Number(r.goodCnt) || 0 },
         { title: '조회', dataIndex: 'viewCnt', width: 70 },
         dtCol,
       ]
