@@ -62,9 +62,9 @@
 
     <!-- 그룹-메뉴 권한 1건 등록(menu_yn='Y') -->
     <insert id="insertAuthMenu" parameterType="authGroupVO">
-        INSERT INTO auth (menu_id, conn_id, type, menu_yn, search_yn, mod_yn, use_yn,
+        INSERT INTO auth (menu_id, conn_id, type, menu_yn, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
-        VALUES (#{menuId}::integer, #{authGroupId}, 'GRP', 'Y', 'Y', 'Y', 'Y',
+        VALUES (#{menuId}::integer, #{authGroupId}, 'GRP', 'Y', 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 

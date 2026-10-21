@@ -24,6 +24,5 @@ public class ConfigVO extends BaseVO {
     private String maintYn;
     private String maintMessage;
     private String title;
-    private String menuVersion;
     private String logoFileId; // 관리자 로고 파일(file_ref map_key=config_id, loc='LOGO'), 조회 전용
 }

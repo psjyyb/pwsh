@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.20 · CMS 1.2.19` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.21 · CMS 1.2.20` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,27 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.21 (CMS 1.2.20) — 쓰지 않는 컬럼 정리 흡수
+
+CMS 1.2.20을 흡수했다. `auth.search_yn`(조회 권한)·`auth.mod_yn`(수정 권한)은 **값만 넣고 읽는 곳이 없었고**
+(실제 판정은 `menu_yn` 하나), `config.menu_version`(메뉴 캐시 버전)은 **조회만 하고 쓰는 곳이 없었다.**
+pwsh 고유 코드(모집·취미·피드·배지 등)도 세 컬럼을 읽지 않음을 전수 확인했다.
+
+- **DB** — `V6__drop_unused_columns.sql`(DROP COLUMN 3개, CMS의 V7과 같은 내용). V2·V3의 기초데이터 INSERT는
+  적용된 마이그레이션이라 고치지 않았다 — V6가 그 뒤에 실행된다.
+- `AuthGroup_SQL`·`Config_SQL`·`ConfigVO`·`config.api.ts`·`FormTest`는 흡수 전 CMS와 같음을 확인한 뒤 CMS 파일로 교체.
+  `SystemStatusTest`·`AdminCrudTest`는 pwsh 쪽이 달라 해당 부분만 고쳤다.
+- ⚠ 옛 빌드로 이 DB에 붙으면 환경설정 조회·권한그룹 메뉴 저장이 실패한다 — 새 빌드와 함께 적용(기동 시 Flyway가 실행).
+- 참고: 이 파일 아래쪽 옛 기록에 "`UPDATE config SET menu_version = menu_version + 1`로 메뉴 캐시를 올린다"는 안내가 있는데,
+  그 값은 원래 아무 데서도 쓰이지 않았고 이제 컬럼도 없다 — 따라 하지 않는다.
+
+### 테스트
+
+`AdminCrudTest` — 권한그룹 라운드트립에 **그룹-메뉴 권한 저장** 단계 추가(이 경로를 거치는 테스트가 없었다), 세 컬럼 삭제 확인 1건 추가.
+**mutation 검증**: 권한 INSERT에 옛 컬럼 유지 → 1건 실패(확인 완료). 전체 **217개 통과**. 프론트 `tsc -b` 통과.
 
 ---
 

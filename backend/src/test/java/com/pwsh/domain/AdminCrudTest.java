@@ -51,8 +51,27 @@ class AdminCrudTest extends IntegrationTest {
         assertThat(post("/api/adm/authgroup/updateAuthGroup.do",
                 "{\"rowId\":\"ZZTESTG\",\"authGroupName\":\"테스트그룹2\"}", admin).statusCode()).isEqualTo(200);
 
+        // 그룹-메뉴 권한 저장 — auth INSERT 컬럼이 스키마와 어긋나면(CMS 1.2.20 컬럼 정리 등) 여기서 500이 난다
+        String menuId = jdbc.queryForObject("SELECT MIN(menu_id)::text FROM menu WHERE use_yn = 'Y'", String.class);
+        assertThat(post("/api/adm/authgroup/updateAuthGroupMenu.do",
+                "{\"authGroupId\":\"ZZTESTG\",\"menuIds\":[\"" + menuId + "\"]}", admin).statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth WHERE type = 'GRP' AND conn_id = 'ZZTESTG'"
+                + " AND menu_id = ?::integer AND menu_yn = 'Y'", Integer.class, menuId)).isEqualTo(1);
+
         assertThat(post("/api/adm/authgroup/deleteAuthGroup.do", "{\"rowId\":\"ZZTESTG\"}", admin).statusCode())
                 .isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth WHERE conn_id = 'ZZTESTG'", Integer.class))
+                .as("그룹을 지우면 권한 행도 함께 정리된다").isZero();
+    }
+
+    @Test
+    @DisplayName("쓰지 않던 컬럼(auth.search_yn·mod_yn, config.menu_version)은 스키마에서 빠져 있다")
+    void unusedColumnsDropped() {
+        // 남아 있으면 "조회만/수정 가능"을 나눠 저장하는 것처럼 오해하게 된다(실제 판정은 menu_yn뿐)
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns"
+                + " WHERE table_schema = current_schema()"
+                + " AND ((table_name = 'auth' AND column_name IN ('search_yn', 'mod_yn'))"
+                + "   OR (table_name = 'config' AND column_name = 'menu_version'))", Integer.class)).isZero();
     }
 
     @Test

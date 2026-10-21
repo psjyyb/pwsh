@@ -138,9 +138,9 @@ class SystemStatusTest extends IntegrationTest {
         // 그 방어가 사라지므로, 컨트롤러의 requireAdmin()이 마지막 방어선이 된다.
         Integer menuId = jdbc.queryForObject(
                 "SELECT menu_id FROM menu WHERE area = 'ADM' AND link_url = '/adm/system'", Integer.class);
-        jdbc.update("INSERT INTO auth (menu_id, conn_id, type, menu_yn, search_yn, mod_yn, use_yn,"
+        jdbc.update("INSERT INTO auth (menu_id, conn_id, type, menu_yn, use_yn,"
                 + " reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)"
-                + " VALUES (?, 'MEMBER', 'GRP', 'Y', 'Y', 'N', 'Y',"
+                + " VALUES (?, 'MEMBER', 'GRP', 'Y', 'Y',"
                 + " 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1')", menuId);
         try {
             assertThat(post("/api/adm/system/selectSystemView.do", "{}",

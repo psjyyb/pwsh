@@ -299,9 +299,9 @@ class FormTest extends IntegrationTest {
                 + " reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)"
                 + " VALUES (0, 'GEN', 'ZZ폼메뉴', 99, 'MENU05', ?::integer, 'N', 'Y',"
                 + " 'system', 'system', NOW(), NOW(), '127.0.0.1', '127.0.0.1')", Integer.parseInt(formId));
-        jdbc.update("INSERT INTO auth (menu_id, conn_id, type, menu_yn, search_yn, mod_yn, use_yn,"
+        jdbc.update("INSERT INTO auth (menu_id, conn_id, type, menu_yn, use_yn,"
                 + " reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)"
-                + " SELECT menu_id, g.grp, 'GRP', 'Y', 'Y', 'N', 'Y', 'system', 'system',"
+                + " SELECT menu_id, g.grp, 'GRP', 'Y', 'Y', 'system', 'system',"
                 + " NOW(), NOW(), '127.0.0.1', '127.0.0.1'"
                 + " FROM menu, (VALUES ('GUEST'), ('MEMBER')) AS g(grp)"
                 + " WHERE conn_cd = 'MENU05' AND conn_id = ?::integer", Integer.parseInt(formId));
