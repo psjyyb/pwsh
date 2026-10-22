@@ -40,16 +40,18 @@ public class PostService {
      *
      * <p>안 하면 {@code %} 한 글자 검색이 <b>게시판 전체 조회</b>가 되고, {@code _}는 아무 글자나
      * 매칭해 검색 결과가 조용히 틀어진다. 목록·건수 두 경로가 같은 값을 봐야 하므로 둘 다 거친다.
+     *
+     * <p>★ 원래 검색어(filterKeyword)는 두고 이스케이프본(keywordLike)을 따로 둔다. 컨트롤러가 같은 VO로
+     * 건수·목록을 차례로 부르므로, 원본을 덮어쓰면 두 번째(목록)에서 '\'가 겹쳐 "1건인데 목록은 빈"
+     * 화면이 된다(CMS 1.2.22에서 고침, 회귀 방지: SearchTest).
      */
     private void escapeSearch(PostVO vo) {
         String keyword = vo.getFilterKeyword();
-        if (keyword == null || keyword.isEmpty()) {
-            return;
-        }
-        vo.setFilterKeyword(keyword.trim()
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_"));
+        vo.setKeywordLike(keyword == null || keyword.isBlank() ? null
+                : keyword.trim()
+                        .replace("\\", "\\\\")
+                        .replace("%", "\\%")
+                        .replace("_", "\\_"));
     }
 
     /** 주간 인기글(메인 '이번 주 베스트') — 취미 공개 게시판·비밀글 제외라 접근가드 불필요(공개). */

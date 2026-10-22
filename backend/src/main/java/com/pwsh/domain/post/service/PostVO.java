@@ -38,5 +38,6 @@ public class PostVO extends BaseVO {
     private String noticeEff;      // 'Y'=공지 유효(기간내) → 목록 상단
     private String secretLocked;   // 'Y'=비밀글 잠금(작성자/관리자 아님·비번 불일치) → 내용 미반환
     private String viewUp;         // 'Y'=조회수 증가 대상(프론트가 브라우저 기록으로 중복 판단). 관리자 열람 등은 'N'
+    private String keywordLike;    // filterKeyword의 LIKE 이스케이프본(서비스 세팅 — 원본은 그대로 둔다)
 
 }

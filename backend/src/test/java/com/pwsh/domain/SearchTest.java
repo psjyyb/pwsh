@@ -177,6 +177,22 @@ class SearchTest extends IntegrationTest {
                 .as("이스케이프가 빠지면 게시판 전체 글이 나온다").isZero();
     }
 
+    @Test
+    @DisplayName("게시판 목록에서 '%'가 든 제목을 찾으면 건수와 목록이 같다")
+    void boardListSearchFindsLiteralWildcard() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        newPost(admin, NOTICE_BOARD, "ZZ검색 50%할인", "본문");
+
+        String body = post("/api/adm/post/selectPostList.do",
+                "{\"boardId\":\"" + NOTICE_BOARD + "\",\"filterKeyword\":\"50%할인\",\"filterField\":\"title\"}",
+                null).body();
+        assertThat((Integer) JsonPath.read(body, "$.data.totalCount")).isEqualTo(1);
+        // 건수·목록이 같은 VO로 차례로 불린다 — 검색어 원본을 덮어쓰면 두 번째(목록)에서 '\'가 겹쳐
+        // "1건인데 목록은 비어 있는" 화면이 된다
+        List<String> titles = JsonPath.read(body, "$.data.list[*].title");
+        assertThat(titles).containsExactly("ZZ검색 50%할인");
+    }
+
     // ===== helpers =====
 
     private String searchBody(String keyword, String token) throws Exception {
