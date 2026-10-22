@@ -6,8 +6,10 @@ import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
 import com.pwsh.common.event.SessionEndReason;
 import com.pwsh.common.event.SessionInvalidatedEvent;
+import com.pwsh.domain.destroylog.service.DestroyLogService;
 import com.pwsh.domain.eventlog.service.EventLogService;
 import com.pwsh.domain.mail.service.MailService;
+import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class MemberService {
     private final EventLogService eventLogService;
     private final MailService mailService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DestroyLogService destroyLogService;
 
     /** 휴면 안내 메일의 로그인 링크. 사이트 주소는 배포 환경마다 달라 설정으로 받는다 */
     @Value("${site.login-url:/}")
@@ -220,7 +223,7 @@ public class MemberService {
      * 탈퇴 후 보존기간이 지난 계정의 <b>개인정보 컬럼만</b> 비운다.
      *
      * <p>행은 남긴다 — {@code post.reg_id}·{@code comment.reg_id}·{@code recruit.reg_id}가 회원 ID로
-     * 붙어 있어 행을 지우면 과거 게시글·모집의 작성자가 깨진다. 파기 사실은 event_log에 남는다.
+     * 붙어 있어 행을 지우면 과거 게시글·모집의 작성자가 깨진다. 파기 사실은 event_log와 파기 이력(destroy_log)에 남는다.
      *
      * @return 파기 건수
      */
@@ -235,6 +238,7 @@ public class MemberService {
                 continue;
             }
             eventLogService.write("MEMBER_DESTROY", "member", target.getMemberId());
+            destroyLogService.write(target.getMemberId(), DestroyLogService.AUTO, null);
             changed++;
         }
         return changed;
@@ -250,6 +254,8 @@ public class MemberService {
         // JWT 필터는 상태가 아니라 token_ver로 판정해서, 안 끊으면 기존 access 토큰이 만료까지 산다.
         invalidateToken(vo.getMemberId(), SessionEndReason.DESTROY);
         eventLogService.write("MEMBER_DESTROY", "member", vo.getMemberId());
+        // 파기 이력은 updateDestroy가 실제로 바꾼 뒤에만 남긴다(위에서 0건이면 예외로 빠진다)
+        destroyLogService.write(vo.getMemberId(), DestroyLogService.ADMIN_NOW, SecurityUtil.getCurrentMemberId());
     }
 
     /** 매일 새벽 — 안내 먼저, 그다음 전환·파기. 순서가 바뀌면 통지 없이 휴면이 되는 계정이 생긴다. */

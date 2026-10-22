@@ -7,6 +7,7 @@ import com.pwsh.common.message.Messages;
 import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.common.event.LoginSucceededEvent;
 import com.pwsh.common.event.SessionEndReason;
+import com.pwsh.domain.loginlog.service.LoginLogService;
 import com.pwsh.domain.member.service.MemberService;
 import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.domain.policy.service.PolicyService;
@@ -15,6 +16,7 @@ import com.pwsh.global.security.SecurityUtil;
 import com.pwsh.global.security.jwt.JwtTokenProvider;
 import com.pwsh.global.web.ClientIpHolder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 인증 업무 로직 — 로그인(계정잠금·실패횟수·JWT 발급)·토큰 재발급·비밀번호 변경/연장.
  * 컨트롤러는 매핑·입력검증(@Valid, PasswordPolicy)만. (단일 @Service)
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -42,23 +45,46 @@ public class AuthService {
     private final AccessIpService accessIpService;
     private final MemberService memberService;
     private final ApplicationEventPublisher eventPublisher;
+    private final LoginLogService loginLogService;
 
+    /**
+     * 로그인 + 로그인 이력 기록(성공·실패 모두).
+     *
+     * <p>★ 실패는 예외로 끝나므로 기록을 성공 경로에만 두면 정작 봐야 할 실패(계정 추측·무차별 대입)가
+     * 하나도 안 남는다. 실패 지점마다 결과 코드를 달아(LoginFailure) 여기서 기록한 뒤 <b>원래 예외를
+     * 그대로</b> 다시 던진다 — 응답(상태코드·안내문)은 기록 전과 같다.
+     */
     public TokenResponse login(LoginRequest request) {
+        try {
+            TokenResponse res = authenticate(request);
+            recordLogin(request.memberId(), LoginLogService.SUCCESS, null);
+            return res;
+        } catch (LoginFailure f) {
+            recordLogin(request.memberId(), f.resultCd, f.original.getMessage());
+            throw f.original;
+        } catch (RuntimeException e) {
+            // 예상하지 못한 실패(인증 매니저의 다른 예외·DB 오류 등)도 시도 자체는 남긴다
+            recordLogin(request.memberId(), LoginLogService.FAIL_ETC, e.getClass().getSimpleName());
+            throw e;
+        }
+    }
+
+    private TokenResponse authenticate(LoginRequest request) {
         // 계정 상태 사전 점검: 정지·휴면=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
         MemberVO pre = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(request.memberId()));
         if (pre != null) {
             if ("STATUS03".equals(pre.getStatusCd())) {
-                throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
+                throw failed(LoginLogService.FAIL_SUSPENDED, new BusinessException(ErrorCode.ACCOUNT_SUSPENDED));
             }
             // 휴면은 비밀번호가 맞아도 막는다. 해제는 관리자를 거친다 —
             // 셀프 해제는 본인 인증 수단이 필요한데, 지금 이메일 인증은 가입·비번재설정 전용이다.
             if ("STATUS04".equals(pre.getStatusCd())) {
-                throw new BusinessException(ErrorCode.ACCOUNT_DORMANT);
+                throw failed(LoginLogService.FAIL_DORMANT, new BusinessException(ErrorCode.ACCOUNT_DORMANT));
             }
             if ("STATUS02".equals(pre.getStatusCd())) {
                 if ("Y".equals(pre.getLockActive())) {
-                    throw new BusinessException(ErrorCode.ACCOUNT_LOCKED, Messages.get(
-                            "error.auth.accountLockedWait", pre.getFailCntLimit(), pre.getLockRemainMin()));
+                    throw failed(LoginLogService.FAIL_LOCKED, new BusinessException(ErrorCode.ACCOUNT_LOCKED,
+                            Messages.get("error.auth.accountLockedWait", pre.getFailCntLimit(), pre.getLockRemainMin())));
                 }
                 commonDAO.update("memberDAO.unlockAccount", memberIdParam(request.memberId())); // 잠금시간 경과 → 자동 해제
             }
@@ -70,21 +96,23 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(request.memberId(), request.password()));
         } catch (BadCredentialsException e) {
             if (pre == null) {
-                throw e; // 존재하지 않는 계정 → 일반 인증 실패
+                throw failed(LoginLogService.FAIL_UNKNOWN_ID, e); // 존재하지 않는 계정 → 일반 인증 실패
             }
             // 비밀번호 불일치 → 실패횟수 +1(제한 도달 시 자동 잠금), 상태 다시 조회해 안내
             commonDAO.update("memberDAO.increaseFailCnt", memberIdParam(request.memberId()));
             MemberVO after = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(request.memberId()));
             if (after == null) {
-                throw e; // 재조회 사이 계정이 사라진 극단적 레이스 → 일반 인증 실패로 처리(NPE 방지)
+                // 재조회 사이 계정이 사라진 극단적 레이스 → 일반 인증 실패로 처리(NPE 방지)
+                throw failed(LoginLogService.FAIL_ETC, e);
             }
+            // 이번 실패로 잠긴 경우도 사유는 "비밀번호 불일치"다 — 이미 잠겨 있던 계정의 시도(FAIL_LOCKED)와 구분
             if ("STATUS02".equals(after.getStatusCd())) {
-                throw new BusinessException(ErrorCode.ACCOUNT_LOCKED, Messages.get(
-                        "error.auth.accountLockedNow", after.getFailCntLimit(), after.getFailLockMins()));
+                throw failed(LoginLogService.FAIL_PASSWORD, new BusinessException(ErrorCode.ACCOUNT_LOCKED,
+                        Messages.get("error.auth.accountLockedNow", after.getFailCntLimit(), after.getFailLockMins())));
             }
-            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS, Messages.get(
-                    "error.auth.passwordMismatchCount",
-                    after.getFailCnt(), after.getFailCntLimit(), after.getFailLockMins()));
+            throw failed(LoginLogService.FAIL_PASSWORD, new BusinessException(ErrorCode.INVALID_CREDENTIALS,
+                    Messages.get("error.auth.passwordMismatchCount",
+                            after.getFailCnt(), after.getFailCntLimit(), after.getFailLockMins())));
         }
         // 접속로그 audit(reg_id=로그인 사용자)을 위해 컨텍스트 설정 (STATELESS라 요청 종료 시 사라짐)
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -94,8 +122,8 @@ public class AuthService {
         // (비밀번호 검증 뒤에 두는 이유: 인증 전에 막으면 IP만으로 계정 존재 여부가 드러난다)
         if (("admin".equals(userDetails.getMemberId()) || "MEM02".equals(userDetails.getTypeCd()))
                 && !accessIpService.isAllowed(ClientIpHolder.get())) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    Messages.get("error.accessip.notAllowed", ClientIpHolder.get()));
+            throw failed(LoginLogService.FAIL_IP, new BusinessException(ErrorCode.ACCESS_DENIED,
+                    Messages.get("error.accessip.notAllowed", ClientIpHolder.get())));
         }
         // 새 세션 시작: token_ver +1 → 다른 기기에 남아있던 토큰은 다음 요청에서 무효(단일세션 last-wins)
         String newVer = String.valueOf(
@@ -403,5 +431,33 @@ public class AuthService {
         MemberVO v = new MemberVO();
         v.setMemberId(memberId);
         return v;
+    }
+
+    /**
+     * 로그인 이력 기록. ★ 기록에 실패해도 로그인 자체는 막지 않는다 — DB 일시 장애로 기록이 안 되면
+     * 모든 사용자가 로그인을 못 하게 된다(개인정보 접근기록과 같은 판단).
+     */
+    private void recordLogin(String loginId, String resultCd, String message) {
+        try {
+            loginLogService.write(loginId, resultCd, message);
+        } catch (RuntimeException e) {
+            log.warn("로그인 이력 기록 실패: result={}, cause={}", resultCd, e.toString());
+        }
+    }
+
+    private static LoginFailure failed(String resultCd, RuntimeException original) {
+        return new LoginFailure(resultCd, original);
+    }
+
+    /** 로그인 실패를 결과 코드와 함께 login()까지 나르는 운반용 예외. 밖으로는 나가지 않는다(원래 예외로 바꿔 던짐). */
+    private static final class LoginFailure extends RuntimeException {
+        private final String resultCd;
+        private final RuntimeException original;
+
+        LoginFailure(String resultCd, RuntimeException original) {
+            super(null, null, false, false); // 운반만 하므로 스택트레이스를 만들지 않는다
+            this.resultCd = resultCd;
+            this.original = original;
+        }
     }
 }

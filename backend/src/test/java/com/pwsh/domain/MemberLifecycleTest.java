@@ -28,6 +28,7 @@ class MemberLifecycleTest extends IntegrationTest {
 
     @AfterEach
     void cleanup() {
+        jdbc.update("DELETE FROM destroy_log WHERE member_id LIKE 'zzlc%'");
         jdbc.update("DELETE FROM auth_member WHERE member_id LIKE 'zzlc%'");
         jdbc.update("DELETE FROM login_session WHERE member_id LIKE 'zzlc%'");
         jdbc.update("DELETE FROM member WHERE member_id LIKE 'zzlc%'");

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  로그인 이력. append-only — 수정·삭제 SQL을 두지 않는다(관리자도 고칠 수 없어야 기록으로 쓸 수 있다).
+  ★ 검색어는 LoginLogService가 LIKE 특수문자를 이스케이프한 keywordLike로 받는다 → ESCAPE '\' 필수.
+-->
+<mapper namespace="loginLogDAO">
+
+    <sql id="searchCond">
+        <if test="resultCd != null and resultCd != ''">AND l.result_cd = #{resultCd}</if>
+        <if test="filterFrom != null and filterFrom != ''">AND l.reg_dt &gt;= #{filterFrom}::date</if>
+        <if test="filterTo != null and filterTo != ''">AND l.reg_dt &lt; (#{filterTo}::date + INTERVAL '1 day')</if>
+        <if test="keywordLike != null and keywordLike != ''">
+            <choose>
+                <when test='"reg_ip".equals(filterField)'>AND l.reg_ip LIKE '%' || #{keywordLike} || '%' ESCAPE '\'</when>
+                <otherwise>AND l.login_id LIKE '%' || #{keywordLike} || '%' ESCAPE '\'</otherwise>
+            </choose>
+        </if>
+    </sql>
+
+    <select id="selectList" parameterType="loginLogVO" resultType="loginLogVO">
+        SELECT l.login_log_id::TEXT AS row_id, l.login_id, l.result_cd, c.name AS result_name, l.fail_message,
+               l.device_type, l.user_agent, TO_CHAR(l.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, l.reg_ip
+        FROM login_log l
+        LEFT JOIN code c ON c.code_id = l.result_cd AND c.p_code_id = 'LOGIN00'
+        <where>
+            <include refid="searchCond" />
+        </where>
+        ORDER BY l.login_log_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="loginLogVO" resultType="int">
+        SELECT COUNT(*) FROM login_log l
+        <where>
+            <include refid="searchCond" />
+        </where>
+    </select>
+
+    <!-- reg_ip는 AuditInterceptor 자동, reg_dt는 NOW() -->
+    <insert id="insert" parameterType="loginLogVO">
+        INSERT INTO login_log (login_id, result_cd, fail_message, device_type, user_agent, reg_dt, reg_ip)
+        VALUES (#{loginId}, #{resultCd}, #{failMessage}, #{deviceType}, #{userAgent}, NOW(), #{regIp})
+    </insert>
+
+</mapper>

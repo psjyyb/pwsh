@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  개인정보 파기 이력. append-only — 수정·삭제 SQL을 두지 않는다(파기 증빙이라 관리자도 고칠 수 없어야 한다).
+  ★ 검색어는 DestroyLogService가 LIKE 특수문자를 이스케이프한 keywordLike로 받는다 → ESCAPE '\' 필수.
+-->
+<mapper namespace="destroyLogDAO">
+
+    <sql id="searchCond">
+        <if test="destroyCd != null and destroyCd != ''">AND d.destroy_cd = #{destroyCd}</if>
+        <if test="filterFrom != null and filterFrom != ''">AND d.reg_dt &gt;= #{filterFrom}::date</if>
+        <if test="filterTo != null and filterTo != ''">AND d.reg_dt &lt; (#{filterTo}::date + INTERVAL '1 day')</if>
+        <if test="keywordLike != null and keywordLike != ''">
+            <choose>
+                <when test='"actor_id".equals(filterField)'>AND d.actor_id LIKE '%' || #{keywordLike} || '%' ESCAPE '\'</when>
+                <otherwise>AND d.member_id LIKE '%' || #{keywordLike} || '%' ESCAPE '\'</otherwise>
+            </choose>
+        </if>
+    </sql>
+
+    <select id="selectList" parameterType="destroyLogVO" resultType="destroyLogVO">
+        SELECT d.destroy_log_id::TEXT AS row_id, d.member_id, d.destroy_cd, c.name AS destroy_name,
+               TO_CHAR(d.withdraw_dt, 'YYYY-MM-DD HH24:MI') AS withdraw_dt, d.actor_id,
+               TO_CHAR(d.reg_dt, 'YYYY-MM-DD HH24:MI:SS') AS reg_dt, d.reg_ip
+        FROM destroy_log d
+        LEFT JOIN code c ON c.code_id = d.destroy_cd AND c.p_code_id = 'DESTROY00'
+        <where>
+            <include refid="searchCond" />
+        </where>
+        ORDER BY d.destroy_log_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="destroyLogVO" resultType="int">
+        SELECT COUNT(*) FROM destroy_log d
+        <where>
+            <include refid="searchCond" />
+        </where>
+    </select>
+
+    <!--
+      파기 1건 기록. 탈퇴 시각은 member에서 그대로 옮긴다(보존기간 계산 근거) — 파기 처리와 같은 트랜잭션이라
+      파기가 롤백되면 이력도 함께 사라진다(실제로 지우지 않은 건 이력에 없어야 한다).
+      reg_ip는 AuditInterceptor 자동, reg_dt는 NOW()
+    -->
+    <insert id="insert" parameterType="destroyLogVO">
+        INSERT INTO destroy_log (member_id, destroy_cd, withdraw_dt, actor_id, reg_dt, reg_ip)
+        SELECT m.member_id, #{destroyCd}, m.withdraw_dt, #{actorId}, NOW(), #{regIp}
+        FROM member m WHERE m.member_id = #{memberId}
+    </insert>
+
+</mapper>

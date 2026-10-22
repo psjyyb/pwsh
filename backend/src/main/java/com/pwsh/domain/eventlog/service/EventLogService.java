@@ -54,8 +54,8 @@ public class EventLogService {
         return null;
     }
 
-    /** User-Agent → 기기 유형(간단 판별). */
-    private String parseDevice(String ua) {
+    /** User-Agent → 기기 유형(간단 판별). 로그인 이력도 같은 기준으로 나눈다(LoginLogService). */
+    public static String parseDevice(String ua) {
         if (ua == null) {
             return "unknown";
         }
