@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.23 · CMS 1.2.22` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.24 · CMS 1.2.23` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,25 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.24 (CMS 1.2.23) — 활동로그 유형 이름 표시 · 간헐 실패 테스트 정리 흡수
+
+CMS 1.2.23을 흡수했다.
+
+- **활동로그 화면의 유형이 코드값으로 나오던 문제** — 조회 SQL 별칭(`event_type_name`)이 VO·화면(`eventName`)과 달라 값이 비었다.
+  `Eventlog_SQL.xml`의 목록·상세 별칭을 `event_name`으로 맞췄다.
+- **`FormAttachmentPrivacyLogTest` 간헐 실패** — 개인정보 접근기록은 응답 뒤에 적재되는데 바로 조회했다.
+  "남아야 한다"는 기다리며 다시 보고, "안 남아야 한다"는 잠깐 기다린 뒤 센다. 이 저장소에서 `privacy_log`를 읽는 다른 테스트(`FormTest`)는 이미 기다리는 방식임을 확인했다.
+
+### CMS와 다르게 옮긴 곳
+
+없다. `Eventlog_SQL.xml`·`FormAttachmentPrivacyLogTest`는 흡수 전 CMS와 같음을 확인한 뒤 CMS 파일을 가져와 패키지만 바꿨고, `EventlogTest`(신규)도 같다.
+
+### 테스트
+
+`EventlogTest`(1, 신규). **mutation 검증**: 별칭을 되돌리면 → 1건 실패(확인 완료). 전체 **233개 통과**(전체 실행 2회 연속). DB·프론트 변경 없음.
 
 ---
 

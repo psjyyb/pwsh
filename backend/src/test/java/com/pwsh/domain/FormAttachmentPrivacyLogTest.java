@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,11 @@ import org.junit.jupiter.api.Test;
  * </ul>
  */
 class FormAttachmentPrivacyLogTest extends IntegrationTest {
+
+    /** 첨부 열람 기록의 SQL ID 표기(FileService.recordFormAttachmentAccess) */
+    private static final String DOWNLOAD = "downloadFormAttachment";
+    /** 내려받기 첨부 파일명 기록의 SQL ID 표기(FormService.recordAttachmentNameExport) */
+    private static final String EXPORT = "exportFormAttachmentNames";
 
     private static final byte[] PNG = new byte[] {
         (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 'I', 'H', 'D', 'R',
@@ -58,10 +64,7 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
 
         assertThat(get("/api/adm/file/download.do?fileId=" + fileId, admin).statusCode()).isEqualTo(200);
 
-        String targets = jdbc.queryForObject(
-                "SELECT target_ids FROM privacy_log WHERE sql_ids LIKE '%downloadFormAttachment%'"
-                        + " ORDER BY privacy_log_id DESC LIMIT 1", String.class);
-        assertThat(targets).as("누구 서류를 봤는지가 남아야 한다").isEqualTo("user");
+        assertThat(awaitTargets(DOWNLOAD)).as("누구 서류를 봤는지가 남아야 한다").isEqualTo("user");
     }
 
     @Test
@@ -73,7 +76,8 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
         // 첨부가 이미지면 이 경로로도 열람된다(FORM은 공개 용도가 아니라 관리자만 통과)
         assertThat(get("/api/pub/image/" + fileId, admin).statusCode()).isEqualTo(200);
 
-        assertThat(logCount()).as("다운로드만 막고 이 경로를 비워두면 기록을 우회할 수 있다").isEqualTo(1);
+        awaitTargets(DOWNLOAD);
+        assertThat(count(DOWNLOAD)).as("다운로드만 막고 이 경로를 비워두면 기록을 우회할 수 있다").isEqualTo(1);
     }
 
     @Test
@@ -89,7 +93,7 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
         assertThat(get("/api/adm/file/download.do?fileId=" + fileId, admin).statusCode()).isEqualTo(200);
 
         // 게시판 첨부·로고까지 남기면 정작 봐야 할 서류 열람이 묻힌다
-        assertThat(logCount()).isZero();
+        assertThat(countAfterWait(DOWNLOAD)).isZero();
 
         jdbc.update("DELETE FROM file_ref WHERE map_key = ?::integer", Integer.parseInt(postId));
         jdbc.update("DELETE FROM post WHERE post_id = ?::integer", Integer.parseInt(postId));
@@ -113,7 +117,7 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
 
         assertThat(get("/api/adm/file/download.do?fileId=" + otherFile, admin).statusCode()).isEqualTo(200);
 
-        assertThat(logCount()).as("용도 필터가 빠지면 남의 응답 번호로 기록이 붙는다").isZero();
+        assertThat(countAfterWait(DOWNLOAD)).as("용도 필터가 빠지면 남의 응답 번호로 기록이 붙는다").isZero();
     }
 
     @Test
@@ -127,7 +131,7 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
 
         // ★ 내려받기에는 파일명이 나가고(1.2.16) 파일명엔 신청자 이름이 흔히 들어간다.
         //   개인정보 문항이 없으면 복호화가 없어 자동 탐지에 안 걸린다 — 직접 남겨야 한다
-        assertThat(exportLogTargets()).as("누구 서류 목록을 받았는지가 남아야 한다").isEqualTo("user");
+        assertThat(awaitTargets(EXPORT)).as("누구 서류 목록을 받았는지가 남아야 한다").isEqualTo("user");
     }
 
     @Test
@@ -144,7 +148,7 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
         assertThat(export(formId, admin).statusCode()).isEqualTo(200);
 
         // 대상을 비우면 "(대상 불명)"이 돼 누구 서류였는지 추적할 수 없다
-        assertThat(exportLogTargets()).isEqualTo("응답#" + answerId);
+        assertThat(awaitTargets(EXPORT)).isEqualTo("응답#" + answerId);
     }
 
     @Test
@@ -163,9 +167,7 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
         assertThat(export(formId, admin).statusCode()).isEqualTo(200);
 
         // 파일 문항이 있다는 것만으로 남기면 설문을 받을 때마다 기록이 쌓여 정작 볼 기록이 묻힌다
-        assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM privacy_log WHERE sql_ids LIKE '%exportFormAttachmentNames%'", Integer.class))
-                .isZero();
+        assertThat(countAfterWait(EXPORT)).isZero();
     }
 
     // ===== helpers =====
@@ -178,15 +180,33 @@ class FormAttachmentPrivacyLogTest extends IntegrationTest {
         return jdbc.queryForObject("SELECT form_id::text FROM form WHERE title = ?", String.class, title);
     }
 
-    private String exportLogTargets() {
-        return jdbc.queryForObject(
-                "SELECT target_ids FROM privacy_log WHERE sql_ids LIKE '%exportFormAttachmentNames%'"
-                        + " ORDER BY privacy_log_id DESC LIMIT 1", String.class);
+    /**
+     * 그 기록의 대상(target_ids). ★ 적재는 응답이 나간 뒤(afterCompletion) 일어나므로 곧바로 조회하면
+     * 아직 없을 수 있다 — 잠깐씩 기다리며 다시 본다(PrivacyLogTest와 같은 이유). 바로 조회하던 때는
+     * 전체 실행에서 가끔 빈 결과로 실패했다.
+     */
+    private String awaitTargets(String sqlId) throws Exception {
+        for (int i = 0; i < 40; i++) {
+            List<String> rows = jdbc.queryForList(
+                    "SELECT target_ids FROM privacy_log WHERE sql_ids LIKE ? ORDER BY privacy_log_id DESC LIMIT 1",
+                    String.class, "%" + sqlId + "%");
+            if (!rows.isEmpty()) {
+                return rows.get(0);
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("개인정보 접근기록이 남지 않았다: " + sqlId);
     }
 
-    private int logCount() {
-        Integer n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM privacy_log WHERE sql_ids LIKE '%downloadFormAttachment%'", Integer.class);
+    /** "안 남아야 한다"는 기다려도 안 생기는 것을 봐야 한다 — 바로 세면 늦게 들어오는 기록을 놓쳐 잘못 통과한다. */
+    private int countAfterWait(String sqlId) throws Exception {
+        Thread.sleep(500);
+        return count(sqlId);
+    }
+
+    private int count(String sqlId) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM privacy_log WHERE sql_ids LIKE ?",
+                Integer.class, "%" + sqlId + "%");
         return n == null ? 0 : n;
     }
 
