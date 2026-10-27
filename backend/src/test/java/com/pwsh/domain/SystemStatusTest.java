@@ -102,10 +102,10 @@ class SystemStatusTest extends IntegrationTest {
         // 테스트 DB는 Flyway가 clean → migrate 하므로 이력이 반드시 있다
         List<String> versions = JsonPath.read(body, "$.data.db.migrations[*].version");
         assertThat(versions).isNotEmpty();
-        // 배치 4종(파일 GC·메일 이력·회원 라이프사이클·모집 알림)이 보여야 한다.
+        // 배치 5종(파일 GC·메일 이력·회원 라이프사이클·모집 알림·로그 보관 정리)이 보여야 한다.
         // SSE 연결 유지 핑은 운영 배치가 아니라 여기 없고, 연결 수는 realtime 항목으로 나온다.
         List<String> schedules = JsonPath.read(body, "$.data.schedules[*].name");
-        assertThat(schedules).hasSize(4);
+        assertThat(schedules).hasSize(5);
         assertThat((int) JsonPath.read(body, "$.data.realtime.connections")).isNotNegative();
     }
 

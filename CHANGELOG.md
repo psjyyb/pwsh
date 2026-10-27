@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.24 · CMS 1.2.23` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.25 · CMS 1.2.24` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,32 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.25 (CMS 1.2.24) — 로그 보관 일수가 실제로 동작하게 흡수
+
+CMS 1.2.24를 흡수했다. 환경설정의 "로그 보관 수"(`config.del_log_days`)는 저장만 되고 쓰이지 않았다.
+
+- 매일 새벽 3시 30분(`log.retention.cron`) 보관 일수가 지난 **활동로그·로그인 이력**을 지운다. 0·빈 값이면 안 지운다.
+- **개인정보 접근로그·파기 이력은 지우지 않는다**(보존 의무). 이 저장소의 로그 테이블도 CMS와 같은 5개뿐이라 대상이 같다.
+- 하한 365일 — 저장 시 0 또는 365 이상만 허용, DB에 짧게 들어가 있어도 배치는 하한까지만 지운다.
+- 화면 이름표 "로그 보관 일수" + 대상·제외·하한 안내. 시스템 상태 배치 목록에 "로그 보관 정리"(이 저장소는 5종).
+- **DB** — `V8__log_retention.sql`(CMS의 V9와 같은 내용: 컬럼 설명 + 하한 미만 값 보정). dev DB 값은 이미 365.
+
+### CMS와 다르게 옮긴 곳
+
+- ★ **보관 일수를 읽는 방법** — 이 저장소의 `ConfigService.selectView()`는 비관리자에게 사이트명·로고만 돌려준다(정책값 비노출 보안 보강).
+  정리 배치는 로그인한 사람이 없는 문맥이라 CMS 코드 그대로면 일수가 늘 비어 **정리가 영원히 돌지 않았다**
+  (CMS 코드 그대로 `LogRetentionTest`를 돌려 2건 실패로 확인). 배치 전용 `ConfigService.logRetentionDays()`(DAO 직접 조회)를 두고
+  `EventLogService`가 그것을 쓴다 — 점검 모드 판정(`maintStatus`)과 같은 이유.
+- `ConfigService`·`SystemService`·`SystemStatusTest`(배치 4 → 5종)·`ConfigPage`·`application.yml`·`messages.properties`는 pwsh 고유 내용이 있어 해당 부분만 고쳤다.
+- `LoginLogService`·두 매퍼·`LogRetentionTest`는 CMS와 같다.
+
+### 테스트
+
+`LogRetentionTest`(6, 신규) — CMS와 동일. **mutation 검증**: (위) CMS식 조회로는 2건 실패 / 저장 검증 제거 → 1건 / 배치 목록 누락 → 1건 실패(확인 완료).
+전체 **239개 통과**. 프론트 `tsc -b` 통과.
 
 ---
 

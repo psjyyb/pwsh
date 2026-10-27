@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
-  로그인 이력. append-only — 수정·삭제 SQL을 두지 않는다(관리자도 고칠 수 없어야 기록으로 쓸 수 있다).
+  로그인 이력. append-only — 수정 SQL은 두지 않는다(관리자도 고칠 수 없어야 기록으로 쓸 수 있다).
+  삭제는 보관 일수가 지난 행을 배치가 지우는 deleteExpired 하나뿐이다(화면에서 지우는 경로는 없다).
   ★ 검색어는 LoginLogService가 LIKE 특수문자를 이스케이프한 keywordLike로 받는다 → ESCAPE '\' 필수.
 -->
 <mapper namespace="loginLogDAO">
@@ -36,6 +37,11 @@
             <include refid="searchCond" />
         </where>
     </select>
+
+    <!-- 보관 일수 지난 행 삭제(EventLogService.purgeExpiredLogs가 활동로그와 함께 부른다) -->
+    <delete id="deleteExpired" parameterType="map">
+        DELETE FROM login_log WHERE reg_dt &lt; NOW() - (#{days} || ' days')::INTERVAL
+    </delete>
 
     <!-- reg_ip는 AuditInterceptor 자동, reg_dt는 NOW() -->
     <insert id="insert" parameterType="loginLogVO">

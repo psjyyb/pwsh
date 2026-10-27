@@ -3,6 +3,7 @@ package com.pwsh.domain.loginlog.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.domain.eventlog.service.EventLogService;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -59,6 +60,11 @@ public class LoginLogService {
         vo.setUserAgent(ua);
         vo.setDeviceType(EventLogService.parseDevice(ua));
         commonDAO.insert("loginLogDAO.insert", vo);
+    }
+
+    /** 보관 일수가 지난 행 삭제. 일수 판단(0·하한)은 부르는 쪽(EventLogService.purgeExpiredLogs)이 한다. */
+    public int purgeOlderThan(int days) {
+        return commonDAO.delete("loginLogDAO.deleteExpired", Map.of("days", String.valueOf(days)));
     }
 
     /**

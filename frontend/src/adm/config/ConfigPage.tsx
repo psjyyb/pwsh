@@ -82,7 +82,20 @@ export default function ConfigPage() {
         <Form.Item name="sessionExpireMins" label="세션 만료(분)">
           <NumberInput />
         </Form.Item>
-        <Form.Item name="delLogDays" label="로그 보관 수">
+        <Form.Item
+          name="delLogDays"
+          label="로그 보관 일수"
+          extra="이 기간이 지난 활동로그·로그인 이력을 매일 새벽 정리합니다. 0이면 정리하지 않습니다. 접속기록 보관 의무 때문에 365일 미만은 저장되지 않습니다. 개인정보 접근로그·파기 이력은 정리하지 않습니다."
+          rules={[
+            {
+              // 서버도 같은 검증을 한다(ConfigService) — 여기서는 저장 전에 바로 알려 주기만 한다
+              validator: (_, v?: string) =>
+                !v || Number(v) === 0 || Number(v) >= 365
+                  ? Promise.resolve()
+                  : Promise.reject(new Error('0(정리 안 함) 또는 365일 이상으로 입력하세요.')),
+            },
+          ]}
+        >
           <NumberInput />
         </Form.Item>
         <Form.Item name="dormantDays" label="휴면 전환 일수" extra="마지막 접속 후 이 기간이 지나면 휴면으로 바뀝니다. 0이면 전환하지 않습니다.">

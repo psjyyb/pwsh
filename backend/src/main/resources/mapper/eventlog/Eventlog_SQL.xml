@@ -40,6 +40,11 @@
         WHERE e.event_log_id = #{rowId}::integer
     </select>
 
+    <!-- 보관 일수 지난 행 삭제(EventLogService.purgeExpiredLogs — 하루 한 번 배치). 화면에서 지우는 경로는 없다 -->
+    <delete id="deleteExpired" parameterType="map">
+        DELETE FROM event_log WHERE reg_dt &lt; NOW() - (#{days} || ' days')::INTERVAL
+    </delete>
+
     <!-- 행위 로그 기록(EventLogService). reg_ip는 AuditInterceptor 자동, reg_dt는 NOW() -->
     <insert id="insert" parameterType="eventlogVO">
         INSERT INTO event_log (event_cd, member_id, target_table, target_id, device_type, user_agent, reg_dt, reg_ip)

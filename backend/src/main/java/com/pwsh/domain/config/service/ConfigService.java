@@ -1,6 +1,9 @@
 package com.pwsh.domain.config.service;
 
 import com.pwsh.common.CommonDAO;
+import com.pwsh.common.exception.BusinessException;
+import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.common.message.Messages;
 import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,6 +17,13 @@ public class ConfigService {
 
     /** 점검 모드 판정은 모든 요청마다 필요하므로 짧게 캐시한다(설정 저장 시 즉시 무효화). */
     private static final long MAINT_CACHE_TTL_MS = 30_000L;
+
+    /**
+     * 로그 보관 일수 하한(0=정리 안 함은 예외). 활동로그·로그인 이력에는 관리자의 접속기록이 섞여 있어
+     * 너무 짧게 잡으면 접속기록 보관 의무를 어길 수 있다 — 1년 아래로는 지우지 않는다.
+     * 저장 검증과 정리 배치(EventLogService.purgeExpiredLogs)가 같은 값을 쓴다.
+     */
+    public static final int MIN_LOG_RETENTION_DAYS = 365;
 
     private final CommonDAO commonDAO;
     private final AccessIpService accessIpService;
@@ -44,6 +54,7 @@ public class ConfigService {
     }
 
     public void update(ConfigVO vo) {
+        assertLogRetention(vo.getDelLogDays());
         if ("Y".equals(vo.getAccIpYn())) {
             // 자기 IP를 등록하지 않고 제한을 켜면 즉시 스스로 잠긴다(복구는 DB SQL뿐) → 사전 차단
             accessIpService.assertNotSelfLockout();
@@ -51,6 +62,39 @@ public class ConfigService {
         commonDAO.update("configDAO.update", vo);
         accessIpService.evict(); // 접속 IP 제한 사용여부가 바뀌었을 수 있으므로 캐시를 즉시 버린다
         maintCache.set(null);    // 점검 모드도 마찬가지 — 껐는데 30초간 막혀 있으면 안 된다
+    }
+
+    /**
+     * 로그 보관 일수(정리 배치용).
+     *
+     * <p>★ {@link #selectView()}가 아니라 DAO를 직접 읽는다 — 배치는 로그인한 사람이 없는 문맥이라
+     * selectView가 표시용 두 값(사이트명·로고)만 돌려줘 일수가 늘 비고, 그러면 정리가 영원히 돌지 않는다
+     * ({@link #maintStatus()}와 같은 이유. 회귀 방지: LogRetentionTest).
+     */
+    public String logRetentionDays() {
+        ConfigVO vo = commonDAO.selectOne("configDAO.selectView", new ConfigVO());
+        return vo == null ? null : vo.getDelLogDays();
+    }
+
+    /**
+     * 로그 보관 일수: 빈 값·0(정리 안 함)·하한 이상만 허용. 빈 값은 매퍼가 NULL로 저장하고
+     * 정리 배치는 NULL을 0과 같이 "정리 안 함"으로 본다.
+     */
+    private void assertLogRetention(String days) {
+        if (days == null || days.isBlank()) {
+            return;
+        }
+        int d;
+        try {
+            d = Integer.parseInt(days.trim());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    Messages.get("error.config.logRetentionTooShort", MIN_LOG_RETENTION_DAYS));
+        }
+        if (d < 0 || (d > 0 && d < MIN_LOG_RETENTION_DAYS)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    Messages.get("error.config.logRetentionTooShort", MIN_LOG_RETENTION_DAYS));
+        }
     }
 
     /** 점검 모드 캐시 무효화 — 설정을 DB에서 직접 바꿨을 때 즉시 반영시키는 용도. */

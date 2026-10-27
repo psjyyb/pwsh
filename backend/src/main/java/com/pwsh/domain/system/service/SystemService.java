@@ -62,6 +62,9 @@ public class SystemService {
     @Value("${recruit.remind.cron:0 0 9 * * *}")
     private String recruitRemindCron;
 
+    @Value("${log.retention.cron:0 30 3 * * *}")
+    private String logRetentionCron;
+
     @Value("${mail.enabled:false}")
     private boolean mailEnabled;
 
@@ -160,7 +163,8 @@ public class SystemService {
                 Map.of("name", "고아 파일 정리", "cron", fileGcCron),
                 Map.of("name", "메일 이력 정리", "cron", mailLogCron),
                 Map.of("name", "회원 라이프사이클", "cron", lifecycleCron),
-                Map.of("name", "모집 하루 전 알림", "cron", recruitRemindCron));
+                Map.of("name", "모집 하루 전 알림", "cron", recruitRemindCron),
+                Map.of("name", "로그 보관 정리", "cron", logRetentionCron));
     }
 
     /**
