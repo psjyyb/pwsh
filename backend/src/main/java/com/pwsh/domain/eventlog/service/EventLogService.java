@@ -55,8 +55,7 @@ public class EventLogService {
      * @return 지운 행 수(활동로그, 로그인 이력)
      */
     public Map<String, Integer> purgeExpiredLogs() {
-        // ★ CMS는 selectView()를 쓰지만 이 저장소의 selectView는 비관리자(배치 포함)에게 표시용 값만 준다 —
-        //   그대로 쓰면 일수가 늘 비어 정리가 돌지 않는다. 배치 전용 조회를 쓴다.
+        // ★ selectView()를 쓰면 안 된다 — 비관리자(배치 포함)에게는 표시용 값만 줘서 일수가 늘 비어 정리가 돌지 않는다
         String raw = configService.logRetentionDays();
         int days = raw == null || raw.isBlank() ? 0 : Integer.parseInt(raw.trim());
         if (days <= 0) {

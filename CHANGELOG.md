@@ -12,7 +12,7 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 버전은 `X.Y.Z` 세 자리, 기능 묶음마다 Z를 올린다.
 
 - 실행 중인 서버 확인: `POST /api/pub/version` → `{version, cmsVersion, buildTime}`
-  또는 관리자 화면 사이드바 하단(`v0.6.25 · CMS 1.2.24` 형태로 표시).
+  또는 관리자 화면 사이드바 하단(`v0.6.26 · CMS 1.2.25` 형태로 표시).
 
 ## CMS를 따라잡는 방법
 
@@ -20,6 +20,24 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 2. **framework 저장소의 `CHANGELOG.md`** 에서 그 다음 버전부터 차례로 적용한다(DDL이 누적이라 건너뛰지 않는다).
 3. 각 버전의 ⚠ 표시를 반드시 확인한다 — 그대로 옮기면 깨지는 부분이 적혀 있다.
 4. 다 옮겼으면 `backend/build.gradle`의 `ext.cmsVersion`을 올리고 이 파일에 기록한다.
+
+---
+
+## 0.6.26 (CMS 1.2.25) — 환경설정 정책값 비노출 · 숫자 아닌 게시판 ID 400 흡수 (이 저장소가 먼저 고친 것의 역반영)
+
+CMS 1.2.25를 흡수했다. 이번 CMS 변경은 **이 저장소가 먼저 고쳐 둔 두 가지**(환경설정 조회의 비관리자 필터,
+`Validate.numeric`)를 CMS로 가져간 것이라 **동작은 바뀌지 않는다.**
+
+- `ConfigService`·`EventLogService` — CMS 파일로 맞췄다. 차이는 주석·메서드 순서뿐이었다(0.6.25에서 "CMS와 다른 점"으로 적어 둔
+  배치 전용 조회 `logRetentionDays()`를 이제 CMS도 같은 방식으로 쓴다). 두 저장소의 두 파일이 같아져 다음 이식이 쉬워진다.
+- `Validate.java`·`PostController`의 숫자 검사·`GuestPublicPageTest`의 두 테스트는 원래 같다(변경 없음).
+- CLAUDE.md의 "CMS와 다른 점" 표기를 정리했다.
+
+**DB** — 없음. 프론트 변경 없음.
+
+### 테스트
+
+신규 없음(이 저장소에 이미 있던 테스트를 CMS가 가져갔다). 전체 **239개 통과**.
 
 ---
 

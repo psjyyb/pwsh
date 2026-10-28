@@ -39,8 +39,11 @@ public class ConfigService {
 
     /**
      * 설정 조회. 사이트명·로고는 로그인 화면과 사용자 화면도 필요해서 이 API는 권한 예외로 열려 있다
-     * (PermissionInterceptor의 EXEMPT_SUFFIX). 그래서 관리자가 아니면 표시용 두 값만 돌려준다 —
-     * 잠금 임계값·비번 만료일 같은 보안 정책값을 아무 방문자에게 알려줄 이유가 없다.
+     * (PermissionInterceptor의 EXEMPT_SUFFIX, SecurityConfig permitAll). 그래서 관리자가 아니면 표시용 두 값만
+     * 돌려준다 — 잠금 임계값·비번 만료일 같은 보안 정책값을 아무 방문자에게 알려줄 이유가 없다(1.2.25).
+     *
+     * <p>★ 서버 안에서 설정값이 필요하면 이 메서드를 쓰지 않는다 — 배치·필터처럼 관리자 로그인이 없는 문맥에서는
+     * 표시용 두 값만 돌아와 나머지가 늘 비어 보인다({@link #maintStatus()}·{@link #logRetentionDays()} 참고).
      */
     public ConfigVO selectView() {
         ConfigVO vo = commonDAO.selectOne("configDAO.selectView", new ConfigVO());
@@ -53,6 +56,17 @@ public class ConfigService {
         return display;
     }
 
+    /**
+     * 로그 보관 일수(정리 배치용).
+     *
+     * <p>★ {@link #selectView()}가 아니라 DAO를 직접 읽는다 — 배치는 로그인한 사람이 없는 문맥이라
+     * selectView가 표시용 두 값만 돌려줘 일수가 늘 비고, 그러면 정리가 영원히 돌지 않는다(회귀 방지: LogRetentionTest).
+     */
+    public String logRetentionDays() {
+        ConfigVO vo = commonDAO.selectOne("configDAO.selectView", new ConfigVO());
+        return vo == null ? null : vo.getDelLogDays();
+    }
+
     public void update(ConfigVO vo) {
         assertLogRetention(vo.getDelLogDays());
         if ("Y".equals(vo.getAccIpYn())) {
@@ -62,18 +76,6 @@ public class ConfigService {
         commonDAO.update("configDAO.update", vo);
         accessIpService.evict(); // 접속 IP 제한 사용여부가 바뀌었을 수 있으므로 캐시를 즉시 버린다
         maintCache.set(null);    // 점검 모드도 마찬가지 — 껐는데 30초간 막혀 있으면 안 된다
-    }
-
-    /**
-     * 로그 보관 일수(정리 배치용).
-     *
-     * <p>★ {@link #selectView()}가 아니라 DAO를 직접 읽는다 — 배치는 로그인한 사람이 없는 문맥이라
-     * selectView가 표시용 두 값(사이트명·로고)만 돌려줘 일수가 늘 비고, 그러면 정리가 영원히 돌지 않는다
-     * ({@link #maintStatus()}와 같은 이유. 회귀 방지: LogRetentionTest).
-     */
-    public String logRetentionDays() {
-        ConfigVO vo = commonDAO.selectOne("configDAO.selectView", new ConfigVO());
-        return vo == null ? null : vo.getDelLogDays();
     }
 
     /**

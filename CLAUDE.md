@@ -69,7 +69,7 @@
 - 정책값(`dormant_days`·`dormant_notify_days`·`destroy_days`)은 `config` 테이블이다. 0이면 그 기능을 끈다.
 - **파기 이력**(`destroy_log`, CMS 1.2.21 — 회원관리 > 파기 이력, 조회 전용): 자동 파기(`DESTROY01`)·관리자 즉시 파기(`DESTROY02`, 처리자 기록)를 탈퇴 시각과 함께 남긴다. ★ **파기와 같은 트랜잭션**에서 실제로 바뀐 뒤에만 쓴다. ★ 파기 경로(`sweepDestroy`·`destroyNow`)를 새로 만들면 `DestroyLogService.write`를 꼭 같이 부른다.
 - **로그인 이력**(`login_log`, CMS 1.2.21 — 로그관리 > 로그인 이력, 조회 전용): 성공·실패를 사유(`LOGIN00`)·IP·User-Agent와 함께 남긴다. ★ 기록은 `AuthService.login` 한 곳 — 실패 분기를 추가하면 `failed(코드, 원래예외)`로 던진다(그냥 던지면 "기타"로 남는다). 응답은 원래 예외 그대로라 바뀌지 않는다. 기록 실패는 로그인을 막지 않는다. 없는 아이디도 입력값 그대로(50자) 남는다 — 아이디 칸에 비밀번호를 넣은 경우 그 값이 관리자 화면에 남는다는 점은 알고 쓴다.
-- **로그 보관 정리**(CMS 1.2.24): 환경설정 "로그 보관 일수"(`config.del_log_days`)가 지난 **활동로그·로그인 이력**을 매일 새벽 지운다(`EventLogService.purgeExpiredLogs`, `log.retention.cron` 03:30). 0·빈 값이면 안 지운다. 하한 365일(저장 거절 + 배치도 하한까지만). ★ 개인정보 접근로그·파기 이력은 대상이 아니다(보존 의무) — 새 로그 테이블을 만들면 보존 의무부터 따진다. ★ 보관 일수는 `ConfigService.logRetentionDays()`로 읽는다 — `selectView()`는 비관리자(배치 포함)에게 표시용 값만 줘서 쓰면 정리가 영원히 안 돈다(CMS와 다른 점).
+- **로그 보관 정리**(CMS 1.2.24): 환경설정 "로그 보관 일수"(`config.del_log_days`)가 지난 **활동로그·로그인 이력**을 매일 새벽 지운다(`EventLogService.purgeExpiredLogs`, `log.retention.cron` 03:30). 0·빈 값이면 안 지운다. 하한 365일(저장 거절 + 배치도 하한까지만). ★ 개인정보 접근로그·파기 이력은 대상이 아니다(보존 의무) — 새 로그 테이블을 만들면 보존 의무부터 따진다. ★ 보관 일수는 `ConfigService.logRetentionDays()`로 읽는다 — `selectView()`는 비관리자(배치 포함)에게 표시용 값만 줘서 쓰면 정리가 영원히 안 돈다(CMS 1.2.25부터 CMS도 같은 방식). 서버 안에서 설정값이 필요하면 `selectView()` 말고 DAO를 직접 읽는다(`maintStatus()`도 같다).
 
 ## 시스템 상태 · 캐시 · 백업
 - `/adm/system`(관리자 > 시스템관리): 앱(버전·가동시간·힙)·DB(크기·**Flyway 적용 이력**)·디스크·배치 cron(4종)·캐시·**SSE 연결 수**를 한 장에. 전부 **읽기 전용**이다.
