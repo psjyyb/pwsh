@@ -41,6 +41,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/form/selectFormView.do",
             "/formanswer/insertFormAnswer.do",
             "/board/selectBoardView.do",
+            // 게시판 콤보는 메뉴관리·취미 관리 화면이 쓴다 — 게시판관리 메뉴권한 대신 BoardService가 관리자 여부를 본다
             "/board/selectBoardListCombo.do",
             "/hobby/selectHobbyList.do",
             "/hobby/selectHobbyView.do",

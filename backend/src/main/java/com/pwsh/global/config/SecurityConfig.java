@@ -91,7 +91,6 @@ public class SecurityConfig {
                                 // 게시글 첨부 목록 — 글 열람 권한으로 FileController가 다시 인가한다.
                                 "/api/adm/file/selectFileMapList.do",
                                 "/api/adm/board/selectBoardView.do",
-                                "/api/adm/board/selectBoardListCombo.do",
                                 "/api/adm/post/selectPostList.do",
                                 "/api/adm/post/selectPostListWeeklyBest.do",
                                 "/api/adm/post/selectPostView.do",

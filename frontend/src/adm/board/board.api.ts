@@ -19,7 +19,7 @@ export interface Board {
 
 export const boardApi = {
   ...createCrudApi<Board>('/adm/board', 'Board'),
-  /** 게시판 콤보(메뉴 게시판 연결 선택용) — selectList{variant=Combo} */
+  /** 게시판 콤보(메뉴 게시판 연결·취미 게시판 지정용, 관리자 전용) — selectList{variant=Combo} */
   comboList: () => apiPost<Board[]>('/adm/board/selectBoardListCombo.do', {}),
 }
 export const BOARD_LIST_URL = boardApi.listUrl
