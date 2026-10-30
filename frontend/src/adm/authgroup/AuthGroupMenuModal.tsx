@@ -34,7 +34,7 @@ export default function AuthGroupMenuModal({ open, authgroup, onClose }: Props) 
   useEffect(() => {
     if (!open || !authgroup) return
     // 관리자(ADM)·사용자(GEN) 메뉴를 모두 로드해 한 트리에 표시(권한필터 없는 관리트리).
-    // → 사용자 메뉴(취미게시판/모집/페이지 등)에도 그룹 권한을 부여할 수 있어야 함.
+    // → 사용자 메뉴(게시판/페이지/폼 등)도 여기서 그룹 권한을 줘야 공개된다 — 새 GEN 메뉴는 권한 행이 없어 아무에게도 안 보인다.
     Promise.all([menuApi.manageTree('ADM'), menuApi.manageTree('GEN')])
       .then(([adm, gen]) => {
         setTreeData([
