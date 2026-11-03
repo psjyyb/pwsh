@@ -90,6 +90,28 @@ class AdminAuditTest extends IntegrationTest {
         assertEquals(before, auditTotal(), "알림 읽음 같은 일상 행위는 기록하지 않는다");
     }
 
+    @Test
+    void force_logout_and_auth_group_change_record_actor_and_show_names() throws Exception {
+        // CMS 1.2.28에서 CMS도 같은 기록을 남기게 됐다 — 그때 CMS 테스트가 본 조치자·화면 이름을 여기서도 확인한다
+        String admin = accessToken("admin", "admin1234!");
+        createMember(admin, "zzaudit01");
+        assertEquals(200, post("/api/adm/member/updateMemberForceLogout.do",
+                "{\"memberId\":\"zzaudit01\"}", admin).statusCode());
+        assertEquals(200, post("/api/adm/member/updateMemberAuthGroup.do",
+                "{\"memberId\":\"zzaudit01\",\"authGroupIds\":[\"MEMBER\"]}", admin).statusCode());
+
+        assertEquals("admin", auditActor("MEMBER_LOGOUT", "zzaudit01"), "조치자가 기록된다");
+        assertEquals("admin", auditActor("MEMBER_AUTH_GROUP", "zzaudit01"), "조치자가 기록된다");
+        // 코드(EVENT00)가 없으면 행은 남아도 화면에는 MEMBER_LOGOUT 같은 코드값이 그대로 보인다
+        assertEquals("강제 로그아웃", eventName(admin, "MEMBER_LOGOUT"));
+        assertEquals("권한그룹 변경", eventName(admin, "MEMBER_AUTH_GROUP"));
+    }
+
+    private String eventName(String admin, String eventCd) throws Exception {
+        String list = post("/api/adm/eventlog/selectEventlogList.do", "{\"eventCd\":\"" + eventCd + "\"}", admin).body();
+        return JsonPath.read(list, "$.data.list[0].eventName");
+    }
+
     private int auditCnt(String eventCd, String table, String targetId) {
         Integer n = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM event_log WHERE event_cd = ? AND target_table = ? AND target_id = ?",
