@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
  * 로그인 사용자(SecurityContext) + 요청 IP(ClientIpHolder). 컨텍스트 없으면 user="system".
  * IP는 스케줄 배치처럼 HTTP 요청이 없는 경로에서 null인데, reg_ip/upd_ip는 NOT NULL이라
  * 그대로 두면 insert가 실패한다 → 로컬(127.0.0.1)로 채워 배치 적재가 조용히 실패하지 않게 한다.
+ * 호출부가 직접 넣은 값(DataInitializer 등)은 비었을 때만 채우므로 그대로 남는다.
  */
 @Component
 @Intercepts({

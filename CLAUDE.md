@@ -23,7 +23,7 @@
   - 입력 필수검증은 컨트롤러 진입부 `Validate.required(value, "라벨")`.
 - 요청 **JSON `@RequestBody`**, 응답 **`ApiResponse{success,data,error}`**. 목록 data=`{list,totalCount,page}`. 예외는 `GlobalExceptionHandler`가 처리(컨트롤러 try/catch 금지).
 - **VO**: `BaseVO` 상속(`rowId`=자기 PK, 페이징·audit·암호화키 포함). 필드는 **String 통일**.
-- **매퍼**: `resultType`=VO, PK는 문자열로 캐스팅해 VO의 `rowId`로 받는다. `${}` 절대 금지(전부 `#{}`). 논리삭제 플래그로 항상 필터. 등록/수정 이력 값은 `AuditInterceptor`가 자동 세팅.
+- **매퍼**: `resultType`=VO, PK는 문자열로 캐스팅해 VO의 `rowId`로 받는다. `${}` 절대 금지(전부 `#{}`). 논리삭제 플래그로 항상 필터. 등록/수정 이력 값은 `AuditInterceptor`가 자동 세팅 — 요청이 없는 배치·기동 초기화에서는 사용자 `system`, IP `127.0.0.1`(대부분 테이블의 `reg_ip`·`upd_ip`가 NOT NULL이라 비워 두면 배치 저장이 실패한다 — 모집 하루 전 알림 배치를 넣을 때부터, CMS는 1.2.29부터). 호출부가 직접 넣은 IP는 비었을 때만 채우므로 그대로 남는다(회귀 방지 `AuditInterceptorTest`).
 
 ## ★ DB 마이그레이션 (Flyway)
 - **스키마의 단일 출처는 `backend/src/main/resources/db/migration`이다.** dev·운영·테스트 모두 앱 기동 시 Flyway가 미적용분만 실행한다 — psql로 DDL을 손으로 넣지 않는다.
