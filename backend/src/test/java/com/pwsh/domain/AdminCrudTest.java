@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pwsh.support.IntegrationTest;
 import com.jayway.jsonpath.JsonPath;
 import java.net.http.HttpResponse;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +63,27 @@ class AdminCrudTest extends IntegrationTest {
                 .isEqualTo(200);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth WHERE conn_id = 'ZZTESTG'", Integer.class))
                 .as("그룹을 지우면 권한 행도 함께 정리된다").isZero();
+    }
+
+    @Test
+    @DisplayName("admin이 아닌 관리자도 권한그룹관리를 쓴다(메뉴 주소가 화면·API 경로 /adm/authgroup과 같다)")
+    void nonSuperAdminCanUseAuthGroupScreen() throws Exception {
+        // 메뉴 권한은 API 경로(/api/adm/authgroup → /adm/authgroup)로 메뉴를 찾아 판정하고, 사이드바는 메뉴 주소로 화면 폴더
+        // (adm/authgroup)를 찾는다. CMS는 1.2.29까지 기초데이터 주소가 '/adm/authgrp'로 남아 403이었다(이 저장소는 원래 맞다)
+        String admin = accessToken("admin", "admin1234!");
+        assertThat(post("/api/adm/member/insertMember.do",
+                "{\"memberId\":\"zzadmin01\",\"memberName\":\"테스트관리자\",\"typeCd\":\"MEM02\","
+                        + "\"statusCd\":\"STATUS01\",\"password\":\"Test1234!@\"}", admin).statusCode()).isEqualTo(200);
+        assertThat(post("/api/adm/member/updateMemberAuthGroup.do",
+                "{\"memberId\":\"zzadmin01\",\"authGroupIds\":[\"ADMIN\"]}", admin).statusCode()).isEqualTo(200);
+        // 사용자관리 > 권한그룹 지정 창이 읽는 목록
+        assertThat((List<String>) JsonPath.read(post("/api/adm/member/selectMemberListAuthGroup.do",
+                "{\"memberId\":\"zzadmin01\"}", admin).body(), "$.data")).containsExactly("ADMIN");
+
+        String token = accessToken("zzadmin01", "Test1234!@");
+        assertThat(post("/api/adm/authgroup/selectAuthGroupList.do", "{}", token).statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT link_url FROM menu WHERE area = 'ADM' AND name = '권한그룹관리' AND use_yn = 'Y'",
+                String.class)).as("사이드바가 화면 폴더 adm/authgroup을 찾는 주소").isEqualTo("/adm/authgroup");
     }
 
     @Test

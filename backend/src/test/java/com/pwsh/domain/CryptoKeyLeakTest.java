@@ -37,7 +37,9 @@ class CryptoKeyLeakTest extends IntegrationTest {
         assertNoKey("menu tree(비로그인)", post("/api/adm/menu/selectMenuListTree.do", "{\"area\":\"GEN\"}", null).body());
         assertNoKey("popup(비로그인)", post("/api/adm/popup/selectPopupListMain.do", "{}", null).body());
         assertNoKey("모집 목록(비로그인)", post("/api/adm/recruit/selectRecruitList.do", "{}", null).body());
-        assertNoKey("게시글 목록(비로그인)", post("/api/adm/post/selectPostList.do", "{}", null).body());
+        // 게시판 ID가 없으면 오류 응답만 보게 된다 — 실제 목록(기초데이터: 공지사항=1)을 받아 VO가 실린 본문을 검사한다
+        assertNoKey("게시글 목록(비로그인)", post("/api/adm/post/selectPostList.do", "{\"boardId\":\"1\"}", null).body());
+        assertNoKey("통합검색(비로그인)", post("/api/adm/search/selectSearchAll.do", "{\"keyword\":\"공지\"}", null).body());
 
         // 공개 프로필 — 회원을 지목하는 공개 API라 PII 인접 경로다(조회 키는 handle)
         String handle = jdbc.queryForObject("SELECT handle FROM member WHERE member_id = 'user'", String.class);

@@ -5,12 +5,15 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
 import com.pwsh.common.util.AfterCommit;
+import com.pwsh.common.util.Validate;
+import com.pwsh.domain.board.service.BoardVO;
 import com.pwsh.global.file.FileSignature;
 import com.pwsh.global.file.FileStorage;
 import com.pwsh.global.log.PrivacyAccessCollector;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -237,6 +240,11 @@ public class FileService {
     public void saveFileMapping(FileVO searchVO) {
         assertMapKeyOwner(searchVO); // 남의 글(map_key) 첨부를 임의 변경하는 IDOR 차단
         List<FileVO> oldFiles = commonDAO.selectList("fileDAO.selectFilesByMap", searchVO);
+        Set<String> oldIds = new HashSet<>();
+        for (FileVO of : oldFiles) {
+            oldIds.add(of.getFileId());
+        }
+        checkNewPostFiles(searchVO, oldIds);
 
         commonDAO.delete("fileDAO.deleteRfileByMap", searchVO);
         String[] ids = searchVO.getFileIds();
@@ -286,6 +294,83 @@ public class FileService {
                     log.warn("[File] 커밋 후 디스크 삭제 실패 — 수동 정리 필요: {}/{}", path, storedName);
                 }
             });
+        }
+    }
+
+    /**
+     * 게시글(POST*) 매핑에 <b>이번에 새로 붙는</b> 파일 검사. 이미 붙어 있던 파일은 보지 않는다 — 수정 화면은 기존 첨부를
+     * 그대로 다시 보내고, 게시판 제한을 나중에 줄여도 제목·본문만 고친 저장이 막히면 안 된다.
+     *
+     * <p>① <b>남의 파일</b>(관리자 제외): 다운로드 인가(assertServable)는 파일이 붙은 글 중 하나라도 볼 수 있으면 통과라,
+     * 남의 file_id(순번)를 내 공개 글에 붙이면 비공개 게시판 첨부·폼 서류까지 내려받을 수 있다. 첨부·갤러리는 거절(403).
+     * 본문 이미지(POST_EDITOR)는 다른 글 이미지를 복사해 넣는 정상 사용이 있어 막지 않고 <b>연결만 하지 않는다</b>
+     * (이미지는 원래 글의 권한으로 계속 보인다).
+     *
+     * <p>② <b>게시판 첨부 제한</b>(관리자도 적용 — 화면도 같은 제한을 건다): 첨부(POST)=사용 여부·개수(전체)·용량,
+     * 갤러리(POST_IMG)=용량만. 화면(FileUpload·GalleryImages)과 같은 규칙이다.
+     */
+    private void checkNewPostFiles(FileVO vo, Set<String> oldIds) {
+        String loc = vo.getFileType();
+        String[] ids = vo.getFileIds();
+        if (ids == null || loc == null || !loc.startsWith("POST")) {
+            return;
+        }
+        List<String> newIds = new ArrayList<>();
+        for (String id : ids) {
+            if (!oldIds.contains(id)) {
+                Validate.numeric(id, "파일"); // 아래 ::integer 캐스트가 500으로 새지 않게
+                newIds.add(id);
+            }
+        }
+        if (newIds.isEmpty()) {
+            return;
+        }
+        if (!SecurityUtil.isAdmin()) {
+            Set<String> notMine = new HashSet<>();
+            for (String id : newIds) {
+                Integer owned = commonDAO.selectOne("fileDAO.countOwnedFileByMember",
+                        Map.of("fileId", id, "memberId", SecurityUtil.getCurrentMemberId()));
+                if (owned == null || owned == 0) {
+                    notMine.add(id);
+                }
+            }
+            if (!notMine.isEmpty()) {
+                if (!"POST_EDITOR".equals(loc)) {
+                    throw new BusinessException(ErrorCode.ACCESS_DENIED);
+                }
+                vo.setFileIds(Arrays.stream(ids).filter(id -> !notMine.contains(id)).toArray(String[]::new));
+                vo.setDescriptions(null); // 본문 이미지는 캡션이 없다 — 걸러낸 뒤 순서가 어긋나지 않게 비운다
+                newIds.removeAll(notMine);
+            }
+        }
+        if ("POST".equals(loc) || "POST_IMG".equals(loc)) {
+            assertBoardFileLimit(vo, loc, newIds);
+        }
+    }
+
+    private void assertBoardFileLimit(FileVO vo, String loc, List<String> newIds) {
+        BoardVO board = commonDAO.selectOne("fileDAO.selectPostBoardFileLimit", vo);
+        if (board == null) {
+            return; // 글이 없으면 볼 제한도 없다(비관리자는 assertMapKeyOwner가 이미 막았다)
+        }
+        if ("POST".equals(loc)) {
+            if (!"Y".equals(board.getFileYn())) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.file.attachDisabled"));
+            }
+            int maxCount = Integer.parseInt(board.getFileCntLimit());
+            if (vo.getFileIds().length > maxCount) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.file.countExceeded", maxCount));
+            }
+        }
+        long maxBytes = Long.parseLong(board.getFileSizeLimitMb()) * 1024 * 1024;
+        for (String id : newIds) {
+            FileVO p = new FileVO();
+            p.setFileId(id);
+            FileVO meta = commonDAO.selectOne("fileDAO.selectView", p);
+            if (meta != null && meta.getSize() != null && Long.parseLong(meta.getSize()) > maxBytes) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT,
+                        Messages.get("error.file.sizeExceeded", board.getFileSizeLimitMb()));
+            }
         }
     }
 
