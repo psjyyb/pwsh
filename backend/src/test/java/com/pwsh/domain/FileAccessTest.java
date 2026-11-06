@@ -3,11 +3,25 @@ package com.pwsh.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pwsh.support.IntegrationTest;
+import com.jayway.jsonpath.JsonPath;
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** 파일 접근제어 — 관리 기능(gc/삭제/목록)은 관리자 전용, 다운로드 잘못된 id는 404. */
+/** 파일 접근제어 — 관리 기능(gc/삭제/목록)은 관리자 전용, 다운로드 잘못된 id는 404, 어디에도 안 붙은 파일은 올린 사람만. */
 class FileAccessTest extends IntegrationTest {
+
+    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+
+    @AfterEach
+    void cleanUp() {
+        jdbc.update("DELETE FROM file WHERE original_name LIKE 'zzacc%'");
+    }
 
     @Test
     @DisplayName("일반회원은 파일 관리 기능(gc/목록/삭제) 호출 시 403")
@@ -31,5 +45,46 @@ class FileAccessTest extends IntegrationTest {
     void downloadInvalidIdReturns404() throws Exception {
         String admin = accessToken("admin", "admin1234!");
         assertThat(get("/api/adm/file/download.do?fileId=999999", admin).statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    @DisplayName("어디에도 안 붙은 파일은 올린 사람만 받는다(다른 회원 403) — 내려받기·공개 이미지 둘 다")
+    void unlinkedFileOnlyForUploader() throws Exception {
+        // 올리고 아직 저장 안 한 첨부·제출 전 폼 서류·연결이 거절된 첨부가 이 상태로 GC 유예(24시간) 동안 남는다.
+        // v0.6.31(CMS 1.2.31)까지는 "편집 중 미리보기"라며 로그인만 보고 통과시켜, file_id 순번만으로 남이 받을 수 있었다
+        String admin = accessToken("admin", "admin1234!");
+        String user = accessToken("user", "user1234!");
+        createMember(admin, "zzacc01");
+        String other = accessToken("zzacc01", "Test1234!@");
+        String fileId = upload(user, "zzacc-draft.png");
+
+        assertThat(get("/api/adm/file/download.do?fileId=" + fileId, other).statusCode()).isEqualTo(403);
+        assertThat(get("/api/pub/image/" + fileId, other).statusCode()).isEqualTo(403);
+
+        assertThat(get("/api/adm/file/download.do?fileId=" + fileId, user).statusCode()).as("올린 사람(미리보기)").isEqualTo(200);
+        assertThat(get("/api/pub/image/" + fileId, user).statusCode()).as("에디터 미리보기").isEqualTo(200);
+        assertThat(get("/api/pub/image/" + fileId, admin).statusCode()).as("관리자").isEqualTo(200);
+        assertThat(get("/api/pub/image/" + fileId, null).statusCode()).as("비로그인").isEqualTo(403);
+    }
+
+    private String upload(String token, String name) throws Exception {
+        String boundary = "ZZBoundary" + System.nanoTime();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        out.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        out.write(("Content-Disposition: form-data; name=\"files\"; filename=\"" + name + "\"\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+        out.write("Content-Type: image/png\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+        out.write(PNG);
+        out.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl() + "/api/adm/file/upload.do"))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .header("Authorization", "Bearer " + token)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(out.toByteArray()))
+                .build();
+        HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        assertThat(res.statusCode()).isEqualTo(200);
+        return JsonPath.read(res.body(), "$.data[0].fileId");
     }
 }

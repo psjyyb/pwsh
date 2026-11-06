@@ -142,10 +142,14 @@ public class FileService {
     /**
      * 파일 접근 인가(공개 이미지 서빙·다운로드 공통). 파일이 연결된 콘텐츠 권한으로 판정 — 순차 id 열거(IDOR) 차단.
      * - 관리자: 통과
-     * - POPUP 매핑: 공개(팝업은 메인에 전원 노출)
+     * - 프로필 사진(member.profile_file_id 직접 참조): 공개(작성자 아바타 등) — 매핑 확인보다 먼저 본다
+     * - POPUP/LOGO/BANNER·HOBBY* 매핑: 공개(팝업·로고·메인 배너·취미 이미지는 비로그인에도 노출)
      * - POST* 매핑(첨부/갤러리/에디터): 그 게시글이 속한 게시판 접근권(GenAccessGuard.canAccessPost)
-     * - 매핑 없음(편집 중 갓 업로드): 로그인 사용자만 허용(익명 열거 차단)
+     * - 매핑 없음(편집 중 갓 업로드): 올린 사람만(에디터·첨부·프로필 미리보기)
      * 어디에도 접근권이 없으면 403.
+     *
+     * <p>★ 매핑 없는 파일을 "로그인만 하면 통과"로 두지 않는다 — 올리고 아직 저장 안 한 첨부·제출 전 폼 서류·연결이 거절된
+     * 첨부가 GC 유예(24시간) 동안 이 상태로 남아, file_id 순번만으로 다른 회원이 받을 수 있었다(v0.6.31까지, CMS 1.2.32).
      */
     public void assertServable(FileVO file) {
         if (SecurityUtil.isAdmin()) {
@@ -158,10 +162,14 @@ public class FileService {
         }
         List<FileVO> refs = commonDAO.selectList("fileDAO.selectRefsByFileId", file);
         if (refs.isEmpty()) {
-            if (!SecurityUtil.isAuthenticated()) {
+            Integer owned = SecurityUtil.isAuthenticated()
+                    ? commonDAO.selectOne("fileDAO.countOwnedFileByMember",
+                            Map.of("fileId", file.getFileId(), "memberId", SecurityUtil.getCurrentMemberId()))
+                    : null;
+            if (owned == null || owned == 0) {
                 throw new BusinessException(ErrorCode.ACCESS_DENIED);
             }
-            return; // 미매핑 = 편집 중 미리보기(로그인 사용자)
+            return; // 미매핑 = 편집 중 미리보기(올린 사람)
         }
         for (FileVO r : refs) {
             String loc = r.getFileType();
