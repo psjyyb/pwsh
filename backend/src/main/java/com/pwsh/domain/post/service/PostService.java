@@ -5,6 +5,7 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
 import com.pwsh.domain.banword.service.BanwordService;
+import com.pwsh.domain.board.service.BoardVO;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -23,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PostService {
 
+    /** 남이 쓴 비밀글의 제목 — 상세 잠금과 목록이 같은 문구를 쓴다 */
+    private static final String SECRET_TITLE = "비밀글입니다.";
+
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
     private final PasswordEncoder passwordEncoder;
@@ -30,9 +34,28 @@ public class PostService {
 
     public List<PostVO> selectList(PostVO vo) {
         genAccessGuard.checkBoard(vo.getBoardId());
+        prepareListQuery(vo);
+        List<PostVO> list = commonDAO.selectList("postDAO.selectList", vo);
+        if (!SecurityUtil.isAdmin()) {
+            for (PostVO p : list) {
+                // 상세는 제목까지 가리고 통합검색은 아예 빼는데 목록만 실제 제목을 주면 비밀글 제목이 그대로 샌다(v0.6.32까지)
+                if ("Y".equals(p.getSecretYn()) && !"Y".equals(p.getMineYn())) {
+                    p.setTitle(SECRET_TITLE);
+                    p.setFileId(null); // 갤러리 대표 이미지 — 비밀글 이미지는 작성자·관리자만 받으므로 남에게 ID를 주면 깨진 이미지가 된다
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 목록·건수 공통 — 검색어 이스케이프 + 조회자. 둘이 같은 조건을 봐야 건수와 목록이 맞는다.
+     * viewerId=mine_yn(내 글)·차단 필터·남의 비밀글 검색 제외, adminYn=관리자는 비밀글도 검색. 둘 다 요청 값을 덮어쓴다.
+     */
+    private void prepareListQuery(PostVO vo) {
         escapeSearch(vo);
-        vo.setViewerId(viewerId()); // mine_yn(내 글) 판정용 — 목록의 수정/삭제·비밀글 게이트에 사용
-        return commonDAO.selectList("postDAO.selectList", vo);
+        vo.setViewerId(viewerId());
+        vo.setAdminYn(SecurityUtil.isAdmin() ? "Y" : "N");
     }
 
     /**
@@ -68,8 +91,7 @@ public class PostService {
 
     public int selectListTotalCount(PostVO vo) {
         genAccessGuard.checkBoard(vo.getBoardId());
-        escapeSearch(vo);
-        vo.setViewerId(viewerId()); // 목록과 동일한 차단 필터를 적용해 총건수 일치
+        prepareListQuery(vo); // 목록과 동일한 차단·검색 조건을 적용해 총건수 일치
         return commonDAO.selectOne("postDAO.selectListTotalCount", vo);
     }
 
@@ -96,7 +118,7 @@ public class PostService {
                     PostVO locked = new PostVO();
                     locked.setRowId(post.getRowId());
                     locked.setBoardId(post.getBoardId());
-                    locked.setTitle("비밀글입니다.");
+                    locked.setTitle(SECRET_TITLE);
                     locked.setSecretYn("Y");
                     locked.setSecretLocked("Y");
                     return locked;
@@ -131,6 +153,7 @@ public class PostService {
         } else {
             genAccessGuard.checkBoard(vo.getBoardId());
         }
+        applyBoardRules(vo, vo.getBoardId(), null);
         banwordService.assertClean(vo.getTitle(), vo.getContent());
         encodePostPw(vo);
         commonDAO.insert("postDAO.insert", vo);
@@ -145,10 +168,48 @@ public class PostService {
 
     /** 수정 — 작성자 본인·관리자만(IDOR 방지), 소속 게시판 접근권 확인. */
     public void update(PostVO vo) {
-        loadForModify(vo);
+        PostVO current = loadForModify(vo);
+        applyBoardRules(vo, current.getBoardId(), current);
         banwordService.assertClean(vo.getTitle(), vo.getContent());
         encodePostPw(vo);
         commonDAO.update("postDAO.update", vo);
+    }
+
+    /**
+     * 게시판 규칙을 요청 값보다 앞세운다 — 화면만 막으면 요청을 직접 만들어 넘어간다(v0.6.32까지 그랬다).
+     * <ul>
+     *   <li>1:1 문의(BOARD03): 항상 비밀글이고 공지가 될 수 없다(작성자·관리자만 보는 글).</li>
+     *   <li>공지 고정: 관리자만, 그 게시판이 공지를 쓸 때만. 관리자가 아닌 수정은 <b>기존 공지 상태를 그대로</b> 둔다 —
+     *       화면은 회원에게 공지 칸을 안 보여 'N'을 보내서, 받아들이면 관리자가 올린 공지가 작성자 수정으로 풀린다.</li>
+     * </ul>
+     *
+     * @param current 수정 전 글(등록이면 null)
+     */
+    private void applyBoardRules(PostVO vo, String boardId, PostVO current) {
+        BoardVO key = new BoardVO();
+        key.setRowId(boardId);
+        BoardVO board = commonDAO.selectOne("boardDAO.selectView", key);
+        boolean qna = board != null && "BOARD03".equals(board.getTypeCd());
+        if (qna) {
+            vo.setSecretYn("Y");
+        }
+        if (SecurityUtil.isAdmin()) {
+            if (qna || board == null || !"Y".equals(board.getNoticeYn())) {
+                clearNotice(vo);
+            }
+        } else if (current == null) {
+            clearNotice(vo);
+        } else {
+            vo.setNoticeYn(current.getNoticeYn());
+            vo.setNoticeStartDt(current.getNoticeStartDt());
+            vo.setNoticeEndDt(current.getNoticeEndDt());
+        }
+    }
+
+    private void clearNotice(PostVO vo) {
+        vo.setNoticeYn("N");
+        vo.setNoticeStartDt(null);
+        vo.setNoticeEndDt(null);
     }
 
     /** 삭제(논리) + 이 글의 파일(첨부/갤러리/에디터) use_yn='N' 전파(GC가 보존기간 후 정리). 작성자·관리자만. */

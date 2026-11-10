@@ -67,6 +67,19 @@ class FileAccessTest extends IntegrationTest {
         assertThat(get("/api/pub/image/" + fileId, null).statusCode()).as("비로그인").isEqualTo(403);
     }
 
+    @Test
+    @DisplayName("게시글 외 용도(폼 첨부 등)의 첨부 목록은 관리자만 — 비로그인·회원 403")
+    void nonPostFileMapListIsAdminOnly() throws Exception {
+        // 이 API는 비로그인에게도 열려 있다(게시글 첨부 목록 때문). v0.6.32까지 게시글 외 용도는 검사를 안 해,
+        // 폼 첨부 서류의 파일명·파일 ID를 응답 번호 순번으로 누구나 받았다. 화면이 부르는 용도는 POST·POST_IMG뿐이다
+        String body = "{\"mapKey\":\"1\",\"fileType\":\"FORM\"}";
+        assertThat(post("/api/adm/file/selectFileMapList.do", body, null).statusCode()).isEqualTo(403);
+        assertThat(post("/api/adm/file/selectFileMapList.do", body, accessToken("user", "user1234!")).statusCode())
+                .isEqualTo(403);
+        assertThat(post("/api/adm/file/selectFileMapList.do", body, accessToken("admin", "admin1234!")).statusCode())
+                .isEqualTo(200);
+    }
+
     private String upload(String token, String name) throws Exception {
         String boundary = "ZZBoundary" + System.nanoTime();
         ByteArrayOutputStream out = new ByteArrayOutputStream();

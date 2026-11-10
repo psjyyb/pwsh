@@ -66,6 +66,17 @@ class AdminCrudTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("권한그룹 콤보는 관리자 전용이다(일반 회원 403, 비로그인 401)")
+    void authGroupComboIsAdminOnly() throws Exception {
+        // 관리자 사용자관리 화면(권한그룹 지정 창)만 쓴다. 게시판 콤보(CMS 1.2.26)와 같은 이유로 그룹 구성을 아무에게나 보이지 않는다
+        assertThat(post("/api/adm/authgroup/selectAuthGroupListCombo.do", "{}", null).statusCode()).isEqualTo(401);
+        assertThat(post("/api/adm/authgroup/selectAuthGroupListCombo.do", "{}", accessToken("user", "user1234!"))
+                .statusCode()).isEqualTo(403);
+        assertThat(post("/api/adm/authgroup/selectAuthGroupListCombo.do", "{}", accessToken("admin", "admin1234!"))
+                .statusCode()).isEqualTo(200);
+    }
+
+    @Test
     @DisplayName("admin이 아닌 관리자도 권한그룹관리를 쓴다(메뉴 주소가 화면·API 경로 /adm/authgroup과 같다)")
     void nonSuperAdminCanUseAuthGroupScreen() throws Exception {
         // 메뉴 권한은 API 경로(/api/adm/authgroup → /adm/authgroup)로 메뉴를 찾아 판정하고, 사이드바는 메뉴 주소로 화면 폴더

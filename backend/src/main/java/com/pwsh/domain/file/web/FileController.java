@@ -140,13 +140,19 @@ public class FileController {
      *
      * <p>게시글 첨부(POST*)는 <b>그 글의 열람 권한</b>으로 판정한다 — 공개 글이면 비로그인도 목록을 볼 수 있고
      * (막아두면 게스트가 첨부 있는 글을 열자마자 401로 로그인 화면에 튕긴다), 접근 권한이 없는 게시판의
-     * 글이면 로그인 회원이라도 파일명조차 얻지 못한다. 그 외 위치(팝업·로고)는 공개 자산이다.
+     * 글이면 로그인 회원이라도 파일명조차 얻지 못한다(비밀글은 작성자·관리자만 — GenAccessGuard.checkPost).
+     *
+     * <p>★ 그 외 용도는 <b>관리자만</b>. 이 API는 비로그인에게도 열려 있어서(게시글 첨부 때문), v0.6.32까지 그 외 용도를
+     * 검사하지 않아 폼 첨부 서류의 파일명·파일 ID를 응답 번호 순번으로 누구나 받았다. 사용자 화면이 부르는 용도는
+     * 게시글 첨부·갤러리(POST·POST_IMG)뿐이고, 팝업·배너·로고는 각자의 조회 API가 파일 ID를 준다.
      */
     @RequestMapping("/selectFileMapList.do")
     public ApiResponse<List<FileVO>> selectFileMapList(@RequestBody FileVO searchVO) {
         String loc = searchVO.getFileType();
         if (loc != null && loc.startsWith("POST")) {
             genAccessGuard.checkPost(searchVO.getMapKey());
+        } else {
+            requireAdmin();
         }
         return ApiResponse.ok(fileService.selectFilesByMap(searchVO));
     }

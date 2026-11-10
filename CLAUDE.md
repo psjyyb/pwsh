@@ -7,7 +7,7 @@
 - **취미 게시판**: 취미(등산·보드게임·낚시…) 1개 = 게시판 1개. 게시판/댓글/첨부/권한은 틀의 기능을 그대로 쓴다. 취미 추가 = 기초데이터에 게시판 + 메뉴 등록만(코드 수정 없음). 작성자 표기는 **닉네임**.
 - **모집**(`domain/recruit`): 모임원 모집 + 참여신청(수락/거절/대기) + 참석 기록 + **확정자 단체 대화**(SSE 실시간) + **다음 회차 복제**. `RecruitController`(5메서드, `insertRecruit{variant}` ''=신규/Copy=복제, `updateRecruit{variant}` ''=수정/Status=마감) + `RecruitApplyController`·`RecruitChatController`(peer) + 단일 `RecruitService`. 목록/조회는 공개, 등록·신청·수락은 로그인(세부 인가는 서비스의 `assertOwnerOrAdmin`).
 - **부가 도메인**: 알림·쪽지(SSE)·후기·북마크·차단·신고·통합검색·내 취미 피드·활동 배지·마이페이지(내 일정 캘린더).
-- **추천/비추천**(`domain/like`, CMS 1.2.19): `POST /api/adm/like/updateLike.do` `{targetType: POST|COMMENT, targetId, likeType: GOOD|BAD}`. 1인 1표 — 같은 쪽 다시 누르기=취소, 반대쪽=전환. 표(`content_like.like_type`)가 원본, `good_cnt`·`bad_cnt`는 표시용 사본이라 **표가 실제로 바뀐 만큼만** 움직인다. 볼 수 없는 게시판 글엔 투표 불가(`GenAccessGuard.checkPost` — 취미 게시판은 공개라 통과). ★ 내 상태(`liked_yn`·`disliked_yn`) 매퍼는 **`like_type` 조건 필수** — 빠지면 비추천한 사람에게도 추천이 켜져 보인다. 주간 베스트·피드·프로필의 👍 숫자는 `good_cnt`(추천)만 본다. 회귀 방지 `LikeTest`·`EngagementTest`.
+- **추천/비추천**(`domain/like`, CMS 1.2.19): `POST /api/adm/like/updateLike.do` `{targetType: POST|COMMENT, targetId, likeType: GOOD|BAD}`. 1인 1표 — 같은 쪽 다시 누르기=취소, 반대쪽=전환. 표(`content_like.like_type`)가 원본, `good_cnt`·`bad_cnt`는 표시용 사본이라 **표가 실제로 바뀐 만큼만** 움직인다. 볼 수 없는 글엔 투표 불가(`GenAccessGuard.checkPost` — 취미 게시판은 공개라 통과, 단 남의 비밀글·삭제글은 막힌다). ★ 내 상태(`liked_yn`·`disliked_yn`) 매퍼는 **`like_type` 조건 필수** — 빠지면 비추천한 사람에게도 추천이 켜져 보인다. 주간 베스트·피드·프로필의 👍 숫자는 `good_cnt`(추천)만 본다. 회귀 방지 `LikeTest`·`EngagementTest`.
 - **셀프 회원가입**: `POST /api/auth/signup`(공개, 이메일 인증 + 닉네임 필수). 프론트 공개 라우트 `/signup`.
 
 ## 스택 / 구조
@@ -94,9 +94,14 @@
 - **JWT 무상태**. 사용자별 토큰 버전으로 **단일세션(last-wins)** + 로그아웃/비번변경/강제로그아웃 시 즉시 무효화(필터가 매 요청 대조).
 - **RBAC 3계층 ADMIN/MEMBER/GUEST**(비로그인=GUEST). ① 메뉴 노출=메뉴 조회 시 권한 필터 ② 관리 API=`PermissionInterceptor`(`/api/adm/**`를 메뉴 URL 권한으로. 사용자 콘텐츠 API는 예외 목록으로 통과시키고 서비스가 인가) ③ 콘텐츠 딥링크=`GenAccessGuard` ④ 소유자=`SecurityUtil.assertOwnerOrAdmin`.
   - 메뉴 권한(`auth`)은 **`menu_yn` 하나**다 — 메뉴를 받으면 그 화면의 조회·수정이 모두 열린다. "조회만/수정 가능" 구분은 없다(쓰지 않던 `search_yn`·`mod_yn`은 CMS 1.2.20에서 삭제). 나누려면 컬럼과 함께 `PermissionInterceptor`의 판정을 새로 만들어야 한다.
+  - ⚠ 권한그룹에 하나도 속하지 않은 로그인 회원은 GUEST 권한도 받지 않는다(비로그인보다 볼 수 있는 게 적다 — 취미 게시판은 예외로 공개). 테스트에서 회원을 만들면 `MEMBER` 그룹을 지정한다(`updateMemberAuthGroup.do`).
   - ★ **사용자(GEN) 메뉴는 권한 행이 있어야 보인다** — 메뉴를 만들 때 권한이 자동으로 붙지 않는다. 새 게시판(공지 등)·페이지·폼 메뉴는 권한그룹관리 > 권한 설정에서 `GUEST`(비로그인)·`MEMBER`(회원)에 체크해야 공개된다(설정 창은 ADM·GEN 관리 트리를 함께 보여 준다, 회귀 방지 `MenuRbacTest`). 취미 게시판은 예외 — 메뉴 권한과 무관하게 커뮤니티 공개다(`GenAccessGuard`). ⚠ 관리 트리는 메뉴관리 API라 메뉴관리 권한이 없는 계정에선 설정 창 트리가 비어 보인다.
-  - ★ **관리 화면만 쓰는 콤보는 `permitAll`에 넣지 않는다.** 게시판 콤보(`selectBoardListCombo.do` — 메뉴관리·취미 관리가 쓴다)가 비로그인에게 비공개 게시판 ID·이름까지 내보내던 것을 CMS 1.2.26 흡수 때 관리자 전용으로 좁혔다(`BoardService`가 `isAdmin()` 확인, 회귀 방지 `BoardTest`).
+  - ★ **관리 화면만 쓰는 콤보는 `permitAll`에 넣지 않는다.** 게시판 콤보(`selectBoardListCombo.do` — 메뉴관리·취미 관리가 쓴다)가 비로그인에게 비공개 게시판 ID·이름까지 내보내던 것을 CMS 1.2.26 흡수 때 관리자 전용으로 좁혔다(`BoardService`가 `isAdmin()` 확인, 회귀 방지 `BoardTest`). 권한그룹 콤보(`selectAuthGroupListCombo.do`)도 같은 방식이다(CMS 1.2.33, `AuthGroupService`, 회귀 방지 `AdminCrudTest`).
 - 비번 BCrypt·복잡도 `PasswordPolicy`(8~64자). **비밀글 비밀번호도 BCrypt**(`PostService.encodePostPw`) — ⚠ 수정 시 빈 값은 인코딩하지 않는다(매퍼가 빈 값을 "변경 없음"으로 읽는다 — 인코딩하면 아무도 모르는 비번으로 덮인다). 인코더가 Delegating이라 저장값은 `{bcrypt}$2a$…`(SQL로 직접 넣을 땐 접두어 포함). 회귀 방지 `SecretPostTest`. 계정(admin/user)은 `DataInitializer`가 기동 시 생성. 개인정보(이름·연락처 등)는 pgcrypto AES(`#{cryptoKey}`).
+- ★ **비밀글의 댓글·추천·첨부·갤러리·본문 이미지·북마크는 작성자·관리자만**(CMS 1.2.33). 비밀번호로 연 사람은 **본문(글자)만** 본다. 글 단위 판정은 한 곳 — `GenAccessGuard.checkPost`·`canAccessPost`이고, 댓글·추천·첨부 목록·내려받기·공개 이미지·북마크 담기가 모두 이걸 쓴다. 새로 "글에 딸린 것"을 만들면 이 판정을 쓴다. 회귀 방지 `PostPrivacyTest`.
+  - ★ **삭제글·비밀글 확인은 취미 게시판 공개 통과보다 먼저**다(`postDAO.selectPostAccessGate`). 취미 게시판은 메뉴 권한 쿼리(`menuDAO.countGenBoardPermByPost`)를 안 타서, 순서를 바꾸면 취미 게시판 비밀글 댓글·사진이 **비로그인에게** 열린다(v0.6.32까지 그랬다). SQL에도 CMS와 같은 조건이 있지만 이 저장소에선 이중 방어다.
+  - 목록은 남의 비밀글 제목을 "비밀글입니다."로, 대표 이미지 ID는 비운다(`PostService.selectList`). 게시판 목록 **검색에는 남의 비밀글이 걸리지 않는다**. '내 북마크'도 남의 비밀글 제목을 가린다(담은 뒤 비밀글로 바뀐 경우).
+  - **1:1 문의(BOARD03)는 서버가 비밀글로 강제**하고 공지가 될 수 없다. **공지 고정은 관리자만, 그 게시판이 공지를 쓸 때만** — 회원이 보낸 공지 값은 등록 땐 무시, 수정 땐 기존 상태 유지(`PostService.applyBoardRules`).
 - **공개 식별자**: 클라이언트에 로그인 ID를 내려보내지 않는다. 회원 지목은 12자리 `handle`, 본인 판정은 서버가 계산한 `mineYn`(판정용 `viewerId`는 **서비스가 세팅** — 클라이언트 값 신뢰 금지). 표시는 닉네임. 서버 인가에 `reg_id`가 필요한 상세 조회는 매퍼에서 뽑되 **응답 직전 서비스가 지운다**(`setRegId(null)`) — 지우는 코드를 빼면 유출된다(회귀 방지 `PublicIdentityTest`). 관리자(adm) 화면은 로그인 ID를 그대로 쓴다. **표시명(닉네임)은 필수** — 비면 사용자 화면에서 작성자가 빈칸이 된다(셀프가입·관리자 등록 모두).
 
 ## 파일 / 실시간 / 브랜딩
@@ -113,6 +118,7 @@
   - 라이브러리에만 담긴 파일은 공개 연결이 없어 `assertServable`이 익명 요청을 막는다 — 관리자 화면 썸네일은 `<img src>`가 아니라 `AuthImage`(blob 로드)로 띄운다.
   - ⚠ `/api/adm/file/**`는 `PermissionInterceptor`의 메뉴권한 검사에서 **통째로 면제**돼 있다(게시판 첨부 때문). 관리 기능은 컨트롤러에서 `requireAdmin()`을 직접 불러야 한다.
 - 공개 이미지 `/api/pub/image/{id}`와 **첨부 목록 조회**는 **연결 콘텐츠 접근권으로 인가**(순차 id 열거 차단) — 공개 글이면 비로그인도 보이고, 권한 없는 게시판이면 로그인 회원이라도 파일명조차 안 준다. 파일 관리(gc/삭제/목록)는 관리자 전용.
+  - 첨부 목록 조회(`selectFileMapList`)는 게시글 첨부(POST*)만 글 단위 판정, **그 외 용도는 관리자만**(CMS 1.2.33 — 이 API가 비로그인에게 열려 있어 폼 첨부 파일명이 샜다).
   - ★ **어디에도 안 붙은 파일은 올린 사람·관리자만 받는다**(에디터·첨부·프로필 미리보기). 올리고 아직 저장 안 한 첨부·제출 전 폼 서류가 GC 유예(24시간) 동안 이 상태라, "로그인만 하면 통과"로 두면 file_id 순번으로 남이 받는다(v0.6.31까지 그랬다, CMS 1.2.32 흡수로 고침, 회귀 방지 `FileAccessTest`). 프로필 사진은 매핑이 아니라 `member.profile_file_id`라 이 판정보다 **먼저** 공개로 통과시킨다 — 순서를 바꾸면 아바타가 안 보인다.
   - ★ 공개 화면이 부르는 조회 API는 `SecurityConfig` permitAll에 넣어야 한다. 하나라도 빠지면 401 → 프론트 인터셉터가 로그인 화면으로 보내 **화면 전체를 못 본다**(회귀 방지: `GuestPublicPageTest`).
   - ★ **위 인가는 "파일이 붙은 글 중 하나라도 볼 수 있으면 통과"다 — 그래서 붙이는 쪽을 막아야 한다.** 게시글 매핑(`saveFileMapping`, POST*)에 **새로 붙는 파일은 본인이 올린 것만**(관리자 제외, `fileDAO.countOwnedFileByMember` — 프로필 사진·폼 제출과 같은 규칙). v0.6.30까지는 안 봐서, 남의 file_id(순번)를 내 공개 글(취미 게시판 포함)에 붙여 비공개 게시판 첨부·폼 서류를 내려받을 수 있었다. 첨부·갤러리는 403, 본문 이미지(POST_EDITOR)는 복사해 붙인 다른 글 이미지가 있을 수 있어 **연결만 하지 않는다**. 이미 붙어 있던 파일은 보지 않는다(수정 화면이 기존 첨부를 다시 보낸다). 새 매핑 경로를 만들면 같은 확인을 넣는다. 회귀 방지 `FileMappingTest`.

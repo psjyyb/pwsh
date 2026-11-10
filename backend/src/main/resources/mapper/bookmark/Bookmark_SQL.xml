@@ -28,10 +28,14 @@
         WHERE member_id = #{memberId} AND target_type = #{targetType} AND target_id = #{targetId}::integer
     </delete>
 
-    <!-- 내 북마크 목록(게시글) — 삭제된 대상은 제외 -->
+    <!-- 내 북마크 목록(게시글) — 삭제된 대상은 제외.
+         ★ 남의 비밀글 제목은 가린다 — 공개 글일 때 북마크한 뒤 작성자가 비밀글로 바꾸면 여기로 제목이 샌다
+           (게시판 목록·상세와 같은 문구. 새로 북마크하는 건 BookmarkService가 막는다) -->
     <select id="selectMyPostList" parameterType="bookmarkVO" resultType="bookmarkVO">
         SELECT bm.bookmark_id::TEXT AS row_id, bm.target_type, bm.target_id,
-               b.title, b.board_id, bi.name AS sub_name,
+               CASE WHEN COALESCE(b.secret_yn, 'N') = 'Y' AND b.reg_id &lt;&gt; bm.member_id
+                    THEN '비밀글입니다.' ELSE b.title END AS title,
+               b.board_id, bi.name AS sub_name,
                TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
         FROM bookmark bm
         JOIN post b ON b.post_id = bm.target_id AND b.use_yn = 'Y'

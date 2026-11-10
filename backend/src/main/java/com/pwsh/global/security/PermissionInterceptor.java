@@ -45,6 +45,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/board/selectBoardListCombo.do",
             "/hobby/selectHobbyList.do",
             "/hobby/selectHobbyView.do",
+            // 권한그룹 콤보는 사용자관리 화면이 쓴다 — 권한그룹관리 메뉴권한 대신 AuthGroupService가 관리자 여부를 본다
             "/authgroup/selectAuthGroupListCombo.do");
 
     @Override

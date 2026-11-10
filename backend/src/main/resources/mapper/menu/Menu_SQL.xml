@@ -82,7 +82,16 @@
         <if test="memberId == null or memberId == ''">AND a.conn_id = 'GUEST'</if>
     </select>
 
-    <!-- 콘텐츠 단위 인가(댓글용): 게시글(post_id)이 속한 게시판을 노출하는 GEN 메뉴 권한 카운트. -->
+    <!--
+      글 단위 인가(댓글·추천·첨부 목록·내려받기·공개 이미지): 게시글(post_id)이 속한 게시판을 노출하는 GEN 메뉴 권한 카운트.
+      ★ 게시판 권한만 보면 안 된다(v0.6.32까지 그랬다) — 상세만 비밀글을 가리고 그 글의 댓글·첨부는 게시판 권한으로 열려,
+        1:1 문의 답변·첨부를 다른 회원이 받았다. 그래서
+        - 삭제된 글(use_yn='N')은 0
+        - 비밀글은 작성자만(비밀번호로 연 사람은 본문만 — 댓글·첨부는 이 판정이라 안 열린다). 비로그인은 memberId가 없어 0
+      관리자는 GenAccessGuard가 이 쿼리 전에 통과시킨다.
+      ⚠ 이 저장소는 GenAccessGuard가 이 쿼리 전에 모든 글에 삭제·비밀글 조건을 먼저 본다(취미 게시판은 메뉴가 없어
+        이 쿼리를 아예 안 타기 때문). 여기 두 조건은 CMS 원본과 맞춰 둔 이중 방어라, 지워도 테스트가 실패하지 않는다.
+    -->
     <select id="countGenBoardPermByPost" parameterType="map" resultType="int">
         SELECT COUNT(*)
         FROM post b
@@ -92,6 +101,8 @@
             JOIN auth_member u ON u.auth_group_id = a.conn_id AND u.use_yn = 'Y' AND u.member_id = #{memberId}
         </if>
         WHERE b.post_id = #{postId}::integer
+          AND b.use_yn = 'Y'
+          AND (COALESCE(b.secret_yn, 'N') &lt;&gt; 'Y' OR b.reg_id = #{memberId})
         <if test="memberId == null or memberId == ''">AND a.conn_id = 'GUEST'</if>
     </select>
 

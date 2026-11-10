@@ -32,6 +32,11 @@
                     AND title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
                 </otherwise>
             </choose>
+            <!-- ★ 남의 비밀글은 검색에 걸리지 않는다 — 목록 제목을 가려도 결과에 남으면 "그 단어가 든 비밀글이 있다"가
+                 샌다(상세·통합검색과 같은 규칙, CMS 1.2.33). viewerId·adminYn은 PostService가 세팅한다 -->
+            <if test='!"Y".equals(adminYn)'>
+                AND (COALESCE(secret_yn, 'N') &lt;&gt; 'Y' OR reg_id = #{viewerId})
+            </if>
         </if>
     </sql>
 
@@ -192,9 +197,9 @@
         UPDATE post SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE post_id = #{rowId}::integer
     </update>
 
-    <!-- 글의 소속 게시판 ID(콘텐츠 인가에서 취미 게시판 공개 판정용) -->
-    <select id="selectBoardIdByPostId" parameterType="map" resultType="string">
-        SELECT board_id::TEXT FROM post WHERE post_id = #{postId}::integer
+    <!-- 글 단위 인가의 기본 정보(GenAccessGuard.canAccessPost) — 소속 게시판(취미 게시판 공개 판정)·삭제 여부·비밀글·작성자 -->
+    <select id="selectPostAccessGate" parameterType="map" resultType="postVO">
+        SELECT board_id::TEXT AS board_id, use_yn, secret_yn, reg_id FROM post WHERE post_id = #{postId}::integer
     </select>
 
 </mapper>

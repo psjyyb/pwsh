@@ -3,6 +3,7 @@ package com.pwsh.global.security;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.post.service.PostVO;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,10 @@ public class GenAccessGuard {
         checkContent("MENU05", formId);
     }
 
-    /** 댓글 접근 인가: 게시글(postId)이 속한 게시판 권한으로 판정. 없으면 403. */
+    /**
+     * 글 단위 인가(댓글·추천·첨부 목록·북마크): 그 글의 게시판 권한 + 삭제되지 않음 + 비밀글이면 작성자만. 없으면 403.
+     * 비밀번호로 비밀글을 연 사람도 여기는 통과하지 못한다(본문만 열린다 — CMS 1.2.33 규칙).
+     */
     public void checkPost(String postId) {
         if (postId == null || postId.isEmpty()) {
             return;
@@ -61,7 +65,7 @@ public class GenAccessGuard {
         }
     }
 
-    /** 게시글(postId)이 속한 게시판에 접근 가능한지(예외 없이 boolean). 이미지/다운로드 인가에서 재사용. */
+    /** checkPost와 같은 판정(예외 없이 boolean). 이미지/다운로드 인가에서 재사용 — 메뉴 게시판 규칙은 menuDAO.countGenBoardPermByPost. */
     public boolean canAccessPost(String postId) {
         if (postId == null || postId.isEmpty()) {
             return false;
@@ -69,11 +73,20 @@ public class GenAccessGuard {
         if (isPrivileged()) {
             return true;
         }
-        // 취미(hobby) 연결 게시판의 글은 커뮤니티 공개 — checkBoard와 동일 규칙(메뉴 권한 무관).
         Map<String, Object> bk = new HashMap<>();
         bk.put("postId", postId);
-        String boardId = commonDAO.selectOne("postDAO.selectBoardIdByPostId", bk);
-        if (isHobbyBoard(boardId)) {
+        PostVO gate = commonDAO.selectOne("postDAO.selectPostAccessGate", bk);
+        if (gate == null || !"Y".equals(gate.getUseYn())) {
+            return false; // 없는 글·삭제된 글
+        }
+        // ★ 아래 취미 게시판 통과보다 먼저 본다 — 취미 게시판은 비로그인 공개라, 여기서 안 막으면 비밀글 댓글·첨부가
+        //   비로그인에게까지 열린다(v0.6.32까지 그랬다). 메뉴 게시판은 countGenBoardPermByPost가 같은 조건을 본다.
+        String me = effectiveMemberId();
+        if ("Y".equals(gate.getSecretYn()) && (me == null || !me.equals(gate.getRegId()))) {
+            return false;
+        }
+        // 취미(hobby) 연결 게시판의 글은 커뮤니티 공개 — checkBoard와 동일 규칙(메뉴 권한 무관).
+        if (isHobbyBoard(gate.getBoardId())) {
             return true;
         }
         Map<String, Object> p = new HashMap<>();

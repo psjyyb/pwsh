@@ -1,6 +1,9 @@
 package com.pwsh.domain.authgroup.service;
 
 import com.pwsh.common.CommonDAO;
+import com.pwsh.common.exception.BusinessException;
+import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,7 +26,14 @@ public class AuthGroupService {
         return commonDAO.selectOne("authGroupDAO.selectListTotalCount", vo);
     }
 
+    /**
+     * 콤보(사용자-권한그룹 지정용) — 관리자 전용. 쓰는 곳은 관리자 사용자관리 화면뿐인데 메뉴권한 인터셉터 면제라
+     * v0.6.32까지 로그인한 누구나 그룹 ID·이름(권한 구성)을 받았다. 게시판 콤보(CMS 1.2.26)와 같은 방식으로 여기서 막는다.
+     */
     public List<AuthGroupVO> selectComboList(AuthGroupVO vo) {
+        if (!SecurityUtil.isAdmin()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
         return commonDAO.selectList("authGroupDAO.selectComboList", vo);
     }
 

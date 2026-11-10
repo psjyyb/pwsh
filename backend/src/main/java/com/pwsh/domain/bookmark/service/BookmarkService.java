@@ -4,6 +4,7 @@ import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
+import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookmarkService {
 
     private final CommonDAO commonDAO;
+    private final GenAccessGuard genAccessGuard;
 
     /** 북마크 토글 → 결과 상태(markedYn) 반환. */
     @Transactional
@@ -45,6 +47,11 @@ public class BookmarkService {
             commonDAO.delete("bookmarkDAO.delete", key);
             marked = false;
         } else {
+            // 볼 수 없는 글(남의 비밀글·권한 없는 게시판)은 북마크하지 않는다 — 북마크 목록이 제목을 보여 줘서
+            // 글 번호만으로 비밀글 제목을 받는 통로가 됐다(v0.6.32까지). 빼는 쪽은 막지 않는다(이미 담긴 걸 정리할 수 있게)
+            if ("POST".equals(targetType)) {
+                genAccessGuard.checkPost(targetId);
+            }
             commonDAO.insert("bookmarkDAO.insert", key);
             marked = true;
         }

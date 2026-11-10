@@ -91,6 +91,9 @@ export default function StandardBoard({ board }: { board: Board }) {
     new Set([post?.regName, ...comments.map((c) => c.regName)].filter((n): n is string => !!n)),
   ).slice(0, 8)
   const canEdit = (mineYn?: string) => isAdmin() || mineYn === 'Y' // 소유자 판정=서버계산 mineYn(로그인 ID 미노출)
+  /** 비밀글의 댓글·첨부·사진·추천·북마크는 작성자·관리자만(서버 규칙과 같다) — 비밀번호로 연 사람은 본문만 본다 */
+  const isSecretRestricted = (p?: { secretYn?: string; mineYn?: string }) =>
+    p?.secretYn === 'Y' && p?.mineYn !== 'Y' && !isAdmin()
   const isNew = (regDt?: string) => {
     const n = Number(board.newCnt)
     if (!n || !regDt) return false
@@ -147,6 +150,14 @@ export default function StandardBoard({ board }: { board: Board }) {
         bookmarkApi.ids('POST').then((ids) => setBookmarked(ids.includes(postId))).catch(() => setBookmarked(false))
       } else {
         setBookmarked(false)
+      }
+      // 비밀글을 비밀번호로 연 사람(작성자·관리자가 아님)에게 서버는 본문만 준다 — 댓글·첨부·사진 요청은 403이라 부르지 않는다
+      if (isSecretRestricted(p)) {
+        setComments([])
+        setViewGallery([])
+        setViewFiles([])
+        setMode('view')
+        return
       }
       setComments(await commentApi.list(postId))
       if (isGallery) {
@@ -529,8 +540,14 @@ export default function StandardBoard({ board }: { board: Board }) {
         )}
         <SafeHtml className="toastui-editor-contents" style={{ minHeight: isGallery ? 0 : 120 }} html={post.content ?? ''} />
 
+        {isSecretRestricted(post) && (
+          <div style={{ marginTop: 20, color: '#888', fontSize: 13 }}>
+            비밀글의 댓글·첨부파일·사진은 작성자와 관리자만 볼 수 있습니다.
+          </div>
+        )}
+
         <div style={{ marginTop: 16, textAlign: 'center' }}>
-          {meId ? (
+          {isSecretRestricted(post) ? null : meId ? (
             <>
               <Button shape="round" type={post.likedYn === 'Y' ? 'primary' : 'default'} onClick={() => votePost('GOOD')}>
                 👍 추천 {Number(post.goodCnt) || 0}
@@ -546,7 +563,8 @@ export default function StandardBoard({ board }: { board: Board }) {
           ) : (
             <span style={{ color: '#888' }}>👍 {Number(post.goodCnt) || 0} · 👎 {Number(post.badCnt) || 0}</span>
           )}
-          {meId && (
+          {/* 남의 비밀글은 새로 담을 수 없다(서버 403). 비밀글로 바뀌기 전에 담아 둔 건 뺄 수 있게 버튼을 남긴다 */}
+          {meId && (!isSecretRestricted(post) || bookmarked) && (
             <Button
               shape="round" style={{ marginLeft: 8 }}
               type={bookmarked ? 'primary' : 'default'} ghost={bookmarked}
@@ -573,6 +591,7 @@ export default function StandardBoard({ board }: { board: Board }) {
           </div>
         )}
 
+        {!isSecretRestricted(post) && (
         <div style={{ marginTop: 20, borderTop: '1px solid var(--gen-line)', paddingTop: 12 }}>
           <b>{isQna ? `답변 ${comments.length}` : `댓글 ${comments.length}`}</b>
           {comments.map((c) => {
@@ -660,6 +679,7 @@ export default function StandardBoard({ board }: { board: Board }) {
             </div>
           )}
         </div>
+        )}
         </Card>
         </PageBody>
       </>
@@ -716,7 +736,8 @@ export default function StandardBoard({ board }: { board: Board }) {
             )}
           </Space>
         )}
-        {!isQna && board.noticeYn === 'Y' && (
+        {/* 공지 고정은 관리자만 — 서버도 회원이 보낸 공지 값은 무시한다(PostService.applyBoardRules) */}
+        {!isQna && board.noticeYn === 'Y' && isAdmin() && (
           <Space size={8} wrap align="baseline">
             <Form.Item name="noticeYn" label="공지"><YnSelect /></Form.Item>
             {noticeWatch === 'Y' && <Form.Item name="noticeStartDt" label="공지 시작"><DateField allowClear /></Form.Item>}

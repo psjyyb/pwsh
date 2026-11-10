@@ -24,6 +24,7 @@ public class PostVO extends BaseVO {
     private String likedYn;   // 조회 표시: 내가 추천했는지(Y/N)
     private String dislikedYn; // 조회 표시: 내가 비추천했는지(Y/N)
     private String viewerId;  // 좋아요 여부 판정용 현재 조회자(서버 세팅, 비로그인 null)
+    private String adminYn;   // 'Y'=관리자 조회(서비스 세팅 — 요청 값을 믿지 않는다). 남의 비밀글 검색 제외 판정용
     private String viewCnt;
     private String noticeYn;
     private String noticeStartDt;
