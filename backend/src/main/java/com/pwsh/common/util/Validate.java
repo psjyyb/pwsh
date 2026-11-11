@@ -30,4 +30,14 @@ public final class Validate {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.validate.invalid", label));
         }
     }
+
+    /**
+     * 이메일 형식(필수). 메일 서버가 거절하기 전에 오타를 400으로 돌려준다 — 형식만 보고 실제 존재 여부는 모른다.
+     */
+    public static void email(String value, String label) {
+        required(value, label);
+        if (!value.trim().matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.validate.invalid", label));
+        }
+    }
 }

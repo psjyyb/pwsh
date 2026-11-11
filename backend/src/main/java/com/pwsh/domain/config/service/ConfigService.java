@@ -5,7 +5,11 @@ import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
 import com.pwsh.domain.accessip.service.AccessIpService;
+import com.pwsh.domain.mail.service.MailService;
+import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.global.security.SecurityUtil;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +31,7 @@ public class ConfigService {
 
     private final CommonDAO commonDAO;
     private final AccessIpService accessIpService;
+    private final MailService mailService;
 
     private final AtomicReference<MaintSnapshot> maintCache = new AtomicReference<>();
 
@@ -67,11 +72,29 @@ public class ConfigService {
         return vo == null ? null : vo.getDelLogDays();
     }
 
+    /**
+     * 관리자 2차 인증 사용 여부(로그인용).
+     *
+     * <p>★ {@link #selectView()}가 아니라 DAO를 직접 읽는다 — 로그인 요청은 관리자 로그인 전이라 selectView가
+     * 표시용 두 값만 돌려줘, 그걸 쓰면 2차 인증이 영원히 꺼진 것처럼 동작한다.
+     */
+    public boolean adminOtpEnabled() {
+        ConfigVO vo = commonDAO.selectOne("configDAO.selectView", new ConfigVO());
+        return vo != null && "Y".equals(vo.getAdminOtpYn());
+    }
+
     public void update(ConfigVO vo) {
         assertLogRetention(vo.getDelLogDays());
         if ("Y".equals(vo.getAccIpYn())) {
             // 자기 IP를 등록하지 않고 제한을 켜면 즉시 스스로 잠긴다(복구는 DB SQL뿐) → 사전 차단
             accessIpService.assertNotSelfLockout();
+        }
+        if (vo.getAdminOtpYn() != null && !vo.getAdminOtpYn().isBlank()) {
+            vo.setAdminOtpYn("Y".equals(vo.getAdminOtpYn()) ? "Y" : "N");
+            // 켜는 순간에만 본다 — 이미 켜진 상태에서 사이트명 하나 바꾸는 저장까지 막지 않는다
+            if ("Y".equals(vo.getAdminOtpYn()) && !adminOtpEnabled()) {
+                assertAdminOtpReady();
+            }
         }
         commonDAO.update("configDAO.update", vo);
         accessIpService.evict(); // 접속 IP 제한 사용여부가 바뀌었을 수 있으므로 캐시를 즉시 버린다
@@ -96,6 +119,25 @@ public class ConfigService {
         if (d < 0 || (d > 0 && d < MIN_LOG_RETENTION_DAYS)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
                     Messages.get("error.config.logRetentionTooShort", MIN_LOG_RETENTION_DAYS));
+        }
+    }
+
+    /**
+     * 관리자 2차 인증을 켜도 되는지 — 메일을 못 보내거나 이메일이 없는 관리자가 있으면 켜는 순간 그 관리자가(메일이 꺼져
+     * 있으면 전원이) 로그인할 수 없게 된다. 복구는 DB SQL뿐이라 저장 전에 막고, 이유를 모두 한 번에 알려 준다.
+     */
+    private void assertAdminOtpReady() {
+        List<String> reasons = new ArrayList<>();
+        if (!mailService.isEnabled()) {
+            reasons.add(Messages.get("error.config.otpMailDisabled"));
+        }
+        List<String> noEmail = commonDAO.selectList("memberDAO.selectAdminIdsWithoutEmail", new MemberVO());
+        if (!noEmail.isEmpty()) {
+            reasons.add(Messages.get("error.config.otpNoEmail", String.join(", ", noEmail)));
+        }
+        if (!reasons.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    Messages.get("error.config.otpNotReady", String.join(" ", reasons)));
         }
     }
 

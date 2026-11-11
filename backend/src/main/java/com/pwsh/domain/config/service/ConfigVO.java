@@ -21,6 +21,8 @@ public class ConfigVO extends BaseVO {
     /** 탈퇴 후 개인정보 보존일(0이면 즉시 파기) */
     private String destroyDays;
     private String accIpYn;
+    /** 관리자 2차 인증(이메일 코드). 저장 요청에 없으면 기존 값 유지(매퍼 COALESCE) */
+    private String adminOtpYn;
     private String maintYn;
     private String maintMessage;
     private String title;

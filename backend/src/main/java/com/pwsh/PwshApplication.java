@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling // 고아파일 정리 등 스케줄 배치
+@EnableScheduling // 배치 스케줄러(TaskScheduler) — 작업 등록은 BatchService가 batch_job의 주기로 한다(SSE 핑만 @Scheduled)
 public class PwshApplication {
 
 	public static void main(String[] args) {

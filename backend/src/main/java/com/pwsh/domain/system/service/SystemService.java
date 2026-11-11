@@ -1,7 +1,9 @@
 package com.pwsh.domain.system.service;
 
 import com.pwsh.common.CommonDAO;
+import com.pwsh.domain.batch.service.BatchJobVO;
 import com.pwsh.domain.config.service.ConfigVO;
+import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.global.config.CacheConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
@@ -42,6 +44,7 @@ import org.springframework.stereotype.Service;
 public class SystemService {
 
     private final CommonDAO commonDAO;
+    private final MailService mailService;
     private final com.pwsh.global.realtime.RealtimeService realtimeService;
     private final CacheManager cacheManager;
     private final Environment environment;
@@ -49,24 +52,6 @@ public class SystemService {
 
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
-
-    @Value("${file.gc.cron:0 0 4 * * *}")
-    private String fileGcCron;
-
-    @Value("${mail.log.cron:0 30 4 * * *}")
-    private String mailLogCron;
-
-    @Value("${member.lifecycle.cron:0 0 3 * * *}")
-    private String lifecycleCron;
-
-    @Value("${recruit.remind.cron:0 0 9 * * *}")
-    private String recruitRemindCron;
-
-    @Value("${log.retention.cron:0 30 3 * * *}")
-    private String logRetentionCron;
-
-    @Value("${mail.enabled:false}")
-    private boolean mailEnabled;
 
     /** 화면 한 장에 들어가는 상태 전부. 실패한 항목은 통째로 죽지 않고 그 칸만 비운다. */
     public Map<String, Object> status() {
@@ -77,7 +62,13 @@ public class SystemService {
         result.put("schedules", schedules());
         result.put("caches", caches());
         result.put("realtime", realtime());
+        result.put("mail", mailService.settings());
         return result;
+    }
+
+    /** 메일 설정 점검 발송(템플릿 없이 고정 문구) → 결과·사유. 이력에도 남는다. */
+    public MailService.SendResult mailCheck(String toEmail) {
+        return mailService.sendCheck(toEmail.trim());
     }
 
     private Map<String, Object> app() {
@@ -94,7 +85,7 @@ public class SystemService {
         Runtime rt = Runtime.getRuntime();
         m.put("heapUsedMb", (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024);
         m.put("heapMaxMb", rt.maxMemory() / 1024 / 1024);
-        m.put("mailEnabled", mailEnabled ? "Y" : "N");
+        m.put("mailEnabled", mailService.isEnabled() ? "Y" : "N");
         return m;
     }
 
@@ -155,16 +146,28 @@ public class SystemService {
     }
 
     /**
-     * 배치 cron. 다음 실행 시각까지 계산하지 않는다 — 스케줄러 내부 상태에 기대면 깨지기 쉽다.
-     * SSE 연결 유지 핑(25초 fixedDelay)은 운영 배치가 아니라 빼고, 연결 수는 realtime 항목으로 보여준다.
+     * 배치 주기 요약 — 원본은 batch_job(배치 작업 관리 화면)이다. 실행·변경·이력은 그 화면에서 한다.
+     * v0.6.33까지는 yml의 cron을 읽었는데, 주기를 DB로 옮긴 뒤 여기만 yml을 보면 화면과 실제가 어긋난다.
+     * SSE 연결 유지 핑(25초 fixedDelay)은 운영 배치가 아니라 빼고(@Scheduled 그대로), 연결 수는 realtime 항목으로 보여준다.
      */
     private List<Map<String, Object>> schedules() {
-        return List.of(
-                Map.of("name", "고아 파일 정리", "cron", fileGcCron),
-                Map.of("name", "메일 이력 정리", "cron", mailLogCron),
-                Map.of("name", "회원 라이프사이클", "cron", lifecycleCron),
-                Map.of("name", "모집 하루 전 알림", "cron", recruitRemindCron),
-                Map.of("name", "로그 보관 정리", "cron", logRetentionCron));
+        List<Map<String, Object>> list = new ArrayList<>();
+        try {
+            for (BatchJobVO job : commonDAO.<BatchJobVO>selectList("batchJobDAO.selectList", new BatchJobVO())) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("name", job.getName());
+                m.put("cron", job.getCronExpr());
+                m.put("autoYn", job.getAutoYn());
+                if (job.getLastStatusName() != null) {
+                    m.put("lastStatusName", job.getLastStatusName());
+                    m.put("lastStartDt", job.getLastStartDt());
+                }
+                list.add(m);
+            }
+        } catch (RuntimeException e) {
+            log.warn("[System] 배치 목록 조회 실패: {}", e.getMessage());
+        }
+        return list;
     }
 
     /**

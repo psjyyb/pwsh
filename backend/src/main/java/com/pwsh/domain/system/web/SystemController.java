@@ -3,6 +3,8 @@ package com.pwsh.domain.system.web;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.response.ApiResponse;
+import com.pwsh.common.util.Validate;
+import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.domain.system.service.SystemService;
 import com.pwsh.global.security.SecurityUtil;
 import java.nio.charset.StandardCharsets;
@@ -12,12 +14,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 시스템 상태 · 캐시 · 설정 백업 — 컨트롤러는 매핑만, 로직은 {@link SystemService}.
- * selectSystemView: 상태 한 장 / updateSystemCache: 캐시 비우기 / downloadBackup: 설정 스냅샷
+ * selectSystemView: 상태 한 장 / updateSystemCache: 캐시 비우기 / updateSystemMailCheck: 메일 설정 점검 발송 /
+ * downloadBackup: 설정 스냅샷
  *
  * <p>⚠ 여기서 내려주는 값(경로·DB 크기·버전·마이그레이션 이력)은 <b>공격자에게 쓸모 있는 정보</b>다.
  * 메뉴권한만 믿지 않고 관리자 여부를 직접 확인한다 — 이 도메인은 메뉴를 지워도 URL이 살아 있으면
@@ -47,6 +51,15 @@ public class SystemController {
     public ApiResponse<Integer> evictCache() {
         requireAdmin();
         return ApiResponse.ok(systemService.evictAll());
+    }
+
+    /** 메일 설정 점검 — 입력한 주소로 고정 문구 한 통(템플릿 불필요) → 결과·사유를 바로 돌려준다 */
+    @RequestMapping("/updateSystemMailCheck.do")
+    public ApiResponse<MailService.SendResult> mailCheck(@RequestBody(required = false) Map<String, String> body) {
+        requireAdmin();
+        String toEmail = body == null ? null : body.get("toEmail");
+        Validate.email(toEmail, "받는 주소");
+        return ApiResponse.ok(systemService.mailCheck(toEmail));
     }
 
     /**

@@ -4,6 +4,8 @@ import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import jakarta.mail.internet.MimeMessage;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -36,6 +37,11 @@ public class MailService {
     /** 본문·제목의 치환 자리 — {{키}} */
     private static final Pattern VAR = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.]+)\\s*\\}\\}");
 
+    /** 메일 설정 점검(템플릿 없이 고정 문구)의 이력 표시 코드 — mail_template에는 없는 값이다 */
+    public static final String CHECK_CD = "SMTP_CHECK";
+
+    private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final CommonDAO commonDAO;
     private final JavaMailSender mailSender;
     private final PlatformTransactionManager txManager;
@@ -47,8 +53,26 @@ public class MailService {
     @Value("${spring.mail.username:}")
     private String mailFrom;
 
+    @Value("${spring.mail.host:}")
+    private String mailHost;
+
+    @Value("${spring.mail.port:0}")
+    private int mailPort;
+
     @Value("${mail.log.retention-days:90}")
     private int logRetentionDays;
+
+    /**
+     * 발송 결과. sent=실제로 SMTP 서버에 넘겼는지, statusCd=이력과 같은 값(SUCCESS/SKIP/FAIL), errorMsg=미발송·실패 사유.
+     * 관리 화면이 "왜 안 갔는지"를 이력 화면까지 가지 않고 바로 보여 주려고 둔다(CMS 1.2.34 — 전에는 true/false뿐이었다).
+     */
+    public record SendResult(boolean sent, String statusCd, String errorMsg) {
+    }
+
+    /** 메일 발송이 켜져 있는지(mail.enabled). 관리자 2차 인증은 꺼져 있으면 켤 수 없다 */
+    public boolean isEnabled() {
+        return mailEnabled;
+    }
 
     // ===== 템플릿 =====
 
@@ -120,14 +144,20 @@ public class MailService {
      * @param vars       {{키}} 치환 값. null 가능
      */
     public boolean send(String templateCd, String toEmail, Map<String, String> vars) {
+        return sendWithResult(templateCd, toEmail, vars).sent();
+    }
+
+    /** {@link #send}와 같고, 미발송·실패 사유까지 돌려준다(관리 화면의 테스트 발송용). */
+    public SendResult sendWithResult(String templateCd, String toEmail, Map<String, String> vars) {
         MailTemplateVO key = new MailTemplateVO();
         key.setTemplateCd(templateCd);
         MailTemplateVO tpl = commonDAO.selectOne("mailTemplateDAO.selectByCode", key);
         if (tpl == null) {
             // 템플릿이 없으면 보낼 내용이 없다. 조용히 지나가면 아무도 모르므로 이력에 남긴다.
-            writeLog(templateCd, toEmail, null, null, "FAIL", "템플릿을 찾을 수 없습니다: " + templateCd);
+            String reason = "템플릿을 찾을 수 없습니다: " + templateCd;
+            writeLog(templateCd, toEmail, null, null, "FAIL", reason);
             log.warn("메일 템플릿 없음: {}", templateCd);
-            return false;
+            return new SendResult(false, "FAIL", reason);
         }
         Map<String, String> values = vars == null ? Map.of() : vars;
         List<String> missing = new ArrayList<>();
@@ -137,21 +167,55 @@ public class MailService {
     }
 
     /**
+     * 메일 설정 점검 — 템플릿 없이 고정 문구 한 통. 템플릿을 하나도 안 만든 상태에서도 SMTP 설정(호스트·계정·포트)이
+     * 맞는지 볼 수 있게 한다. 이력에는 {@link #CHECK_CD}로 남는다.
+     */
+    public SendResult sendCheck(String toEmail) {
+        String now = LocalDateTime.now().format(DT);
+        String subject = "[메일 발송 점검] " + now;
+        String content = "<p>이 메일이 보이면 메일 발송 설정이 정상입니다.</p>"
+                + "<p style=\"color:#888888;font-size:12px;\">보낸 시각: " + now + "<br/>SMTP: "
+                + escapeHtml(mailHost + ":" + mailPort) + "</p>";
+        return dispatch(CHECK_CD, toEmail, subject, content, List.of());
+    }
+
+    /**
+     * 메일 설정 요약(시스템 상태 화면). ★ 비밀번호는 어떤 형태로도 넣지 않는다. 발신 계정은 앞 두 글자만 보인다 —
+     * 화면은 관리자 전용이지만 화면 캡처가 돌아다니는 일은 흔하다.
+     */
+    public Map<String, Object> settings() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("enabled", mailEnabled ? "Y" : "N");
+        m.put("host", mailHost);
+        m.put("port", mailPort);
+        boolean senderSet = mailFrom != null && !mailFrom.isBlank();
+        m.put("senderSet", senderSet ? "Y" : "N");
+        if (senderSet) {
+            int at = mailFrom.indexOf('@');
+            String local = at < 0 ? mailFrom : mailFrom.substring(0, at);
+            m.put("sender", local.substring(0, Math.min(2, local.length())) + "***" + (at < 0 ? "" : mailFrom.substring(at)));
+        }
+        m.put("logRetentionDays", logRetentionDays);
+        return m;
+    }
+
+    /**
      * 실제 전송 + 이력 적재. mail.enabled=false면 전송하지 않고 SKIP으로만 남긴다.
      * 미치환 키가 있으면 발송은 하되 경고로 이력에 적는다(수신자에게 {{키}}가 보이는 것보다 낫다).
      */
-    private boolean dispatch(String templateCd, String toEmail, String subject, String content,
-                             List<String> missing) {
+    private SendResult dispatch(String templateCd, String toEmail, String subject, String content,
+                                List<String> missing) {
         String warn = missing.isEmpty() ? null : "미치환 키: " + String.join(", ", missing);
         if (!mailEnabled) {
-            writeLog(templateCd, toEmail, subject, content, "SKIP",
-                    warn == null ? "mail.enabled=false" : "mail.enabled=false / " + warn);
-            return false;
+            String reason = warn == null ? "mail.enabled=false" : "mail.enabled=false / " + warn;
+            writeLog(templateCd, toEmail, subject, content, "SKIP", reason);
+            return new SendResult(false, "SKIP", reason);
         }
         if (mailFrom == null || mailFrom.isBlank()) {
             // 발송을 켜 놓고 계정을 안 넣은 상태. 조용히 성공한 척하지 않는다.
-            writeLog(templateCd, toEmail, subject, content, "FAIL", "발신 계정(MAIL_USERNAME) 미설정");
-            return false;
+            String reason = "발신 계정(MAIL_USERNAME) 미설정";
+            writeLog(templateCd, toEmail, subject, content, "FAIL", reason);
+            return new SendResult(false, "FAIL", reason);
         }
         try {
             // HTML 메일이라 MimeMessage(+Helper). 평문 SimpleMailMessage로는 스타일이 적용되지 않는다.
@@ -163,11 +227,12 @@ public class MailService {
             helper.setText(content, true);
             mailSender.send(mime);
             writeLog(templateCd, toEmail, subject, content, "SUCCESS", warn);
-            return true;
+            return new SendResult(true, "SUCCESS", warn);
         } catch (Exception e) {
             log.warn("메일 발송 실패 template={} to={}", templateCd, toEmail, e);
-            writeLog(templateCd, toEmail, subject, content, "FAIL", shorten(e.getMessage()));
-            return false;
+            String reason = shorten(e.getMessage());
+            writeLog(templateCd, toEmail, subject, content, "FAIL", reason);
+            return new SendResult(false, "FAIL", reason);
         }
     }
 
@@ -261,11 +326,15 @@ public class MailService {
         return commonDAO.delete("mailLogDAO.deleteExpired", Map.of("days", String.valueOf(retentionDays)));
     }
 
-    @Scheduled(cron = "${mail.log.cron:0 30 4 * * *}")
-    public void scheduledPurge() {
+    /**
+     * 설정된 보존기간(mail.log.retention-days)으로 정리. 매일 새벽 배치 작업 관리(BatchService, 작업 코드
+     * MAIL_LOG_PURGE)가 DB의 주기로 부른다. @return 지운 건수
+     */
+    public int purgeExpiredLogs() {
         int deleted = purgeLogs(logRetentionDays);
         if (deleted > 0) {
             log.info("메일 발송 이력 정리: {}건 삭제(보존 {}일)", deleted, logRetentionDays);
         }
+        return deleted;
     }
 }

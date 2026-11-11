@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -428,10 +427,5 @@ public class FileService {
                 orphans.size(), deleted, retentionDays, abandonHours);
         return deleted;
     }
-
-    /** 매일 새벽 자동 실행(cron 설정 가능). */
-    @Scheduled(cron = "${file.gc.cron:0 0 4 * * *}")
-    public void scheduledSweep() {
-        sweep();
-    }
+    // 매일 새벽 자동 실행은 배치 작업 관리(BatchService, 작업 코드 FILE_GC)가 DB의 주기로 부른다.
 }

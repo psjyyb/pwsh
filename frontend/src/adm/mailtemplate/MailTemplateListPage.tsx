@@ -6,6 +6,8 @@ import { useSplitForm } from '../../common/hooks/useSplitForm'
 import SearchBar from '../../common/adm/components/SearchBar'
 import SplitLayout from '../../common/adm/components/SplitLayout'
 import { mailLogApi } from '../maillog/maillog.api'
+import type { MailSendResult } from '../maillog/maillog.api'
+import MailResultAlert from '../../common/adm/components/MailResultAlert'
 import { MAIL_TEMPLATE_LIST_URL, mailTemplateApi } from './mailtemplate.api'
 import type { MailPreview, MailTemplate } from './mailtemplate.api'
 
@@ -41,6 +43,7 @@ export default function MailTemplateListPage() {
   const [varsText, setVarsText] = useState('')
   const [toEmail, setToEmail] = useState('')
   const [preview, setPreview] = useState<MailPreview | null>(null)
+  const [sendResult, setSendResult] = useState<MailSendResult | null>(null)
   const [busy, setBusy] = useState(false)
 
   const current = (): MailTemplate => form.getFieldsValue()
@@ -53,6 +56,7 @@ export default function MailTemplateListPage() {
     }
     setVarsText(varDraft(tpl))
     setPreview(null)
+    setSendResult(null)
     setTestOpen(true)
   }
 
@@ -72,10 +76,10 @@ export default function MailTemplateListPage() {
     }
     setBusy(true)
     try {
-      const ok = await mailLogApi.send(current().templateCd!, toEmail.trim(), parseVars(varsText))
-      // 서버가 실제 발송 여부를 그대로 돌려준다 — 실패·미발송도 이력에 남으므로 거기서 사유를 본다.
-      if (ok) message.success('발송했습니다. 결과는 메일발송이력에서 확인하세요.')
-      else message.warning('발송되지 않았습니다. 메일발송이력에서 사유를 확인하세요.')
+      // 서버가 결과와 사유(미발송·SMTP 오류)를 바로 돌려준다 — 이력 화면까지 가지 않아도 된다
+      setSendResult(await mailLogApi.send(current().templateCd!, toEmail.trim(), parseVars(varsText)))
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '발송에 실패했습니다.')
     } finally {
       setBusy(false)
     }
@@ -191,6 +195,7 @@ export default function MailTemplateListPage() {
             <div style={{ marginBottom: 6, fontWeight: 600 }}>수신자</div>
             <Input value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="test@example.com" />
           </div>
+          {sendResult && <MailResultAlert result={sendResult} />}
           {preview && (
             <>
               {preview.missing && (

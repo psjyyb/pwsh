@@ -39,11 +39,11 @@ public class MailLogController {
         return ApiResponse.ok(mailService.selectLogView(searchVO));
     }
 
-    /** 템플릿으로 1통 발송(관리자 확인용). 결과는 이 목록에 그대로 남는다. */
+    /** 템플릿으로 1통 발송(관리자 확인용) → 결과·사유를 바로 돌려준다. 결과는 이 목록에도 그대로 남는다. */
     @RequestMapping("/insertMailLog.do")
-    public ApiResponse<Boolean> insert(@RequestBody MailLogVO searchVO) {
+    public ApiResponse<MailService.SendResult> insert(@RequestBody MailLogVO searchVO) {
         Validate.required(searchVO.getTemplateCd(), "템플릿 코드");
         Validate.required(searchVO.getToEmail(), "수신자");
-        return ApiResponse.ok(mailService.send(searchVO.getTemplateCd(), searchVO.getToEmail(), searchVO.getVars()));
+        return ApiResponse.ok(mailService.sendWithResult(searchVO.getTemplateCd(), searchVO.getToEmail(), searchVO.getVars()));
     }
 }

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  배치 실행 이력. 시작 때 '실행 중'(BATCH01) 행을 만들고 끝나면 결과를 한 번 채운다. 화면에서 고치거나 지우는 경로는 없다
+  (보관 일수가 지난 행을 로그 보관 정리가 지우는 deleteExpired 하나뿐).
+-->
+<mapper namespace="batchLogDAO">
+
+    <!--
+      시작 기록. ★ ux_batch_log_running(작업당 '실행 중' 1행) 때문에 같은 작업이 이미 돌고 있으면 0행이 된다 —
+      BatchService는 0이면 시작하지 않는다(즉시 실행은 거절, 예약 실행은 건너뜀). 겹쳐 돌면 안내메일이 두 번 나간다.
+      reg_id·reg_ip는 AuditInterceptor가 채운다(즉시 실행=누른 관리자, 예약 실행=system)
+    -->
+    <insert id="insertRunning" parameterType="batchLogVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="batch_log_id">
+        INSERT INTO batch_log (job_cd, manual_yn, status_cd, start_dt, reg_id, reg_ip)
+        VALUES (#{jobCd}, #{manualYn}, 'BATCH01', NOW(), #{regId}, #{regIp})
+        ON CONFLICT (job_cd) WHERE status_cd = 'BATCH01' DO NOTHING
+    </insert>
+
+    <!-- 종료 기록. 기동 정리(failStale)가 먼저 실패로 바꿨으면 덮어쓰지 않는다 -->
+    <update id="finish" parameterType="batchLogVO">
+        UPDATE batch_log SET status_cd = #{statusCd}, result_msg = #{resultMsg}, end_dt = NOW()
+        WHERE batch_log_id = #{rowId}::integer AND status_cd = 'BATCH01'
+    </update>
+
+    <!--
+      기동 시 정리 — 실행 도중 서버가 내려가면 '실행 중'이 영원히 남고, 그 작업은 다시 시작할 수 없다(위 유니크 인덱스).
+      단일 서버 기준이다: 기동 시점에 이 서버에서 도는 작업은 없다.
+    -->
+    <update id="failStale" parameterType="map">
+        UPDATE batch_log SET status_cd = 'BATCH03', result_msg = '서버 재시작으로 중단됨(처리 결과 확인 필요)', end_dt = NOW()
+        WHERE status_cd = 'BATCH01'
+    </update>
+
+    <sql id="searchCond">
+        <if test="jobCd != null and jobCd != ''">AND l.job_cd = #{jobCd}</if>
+        <if test="statusCd != null and statusCd != ''">AND l.status_cd = #{statusCd}</if>
+    </sql>
+
+    <select id="selectList" parameterType="batchLogVO" resultType="batchLogVO">
+        SELECT l.batch_log_id::TEXT AS row_id, l.job_cd, j.name AS job_name, l.manual_yn, l.status_cd, c.name AS status_name,
+               l.result_msg, TO_CHAR(l.start_dt, 'YYYY-MM-DD HH24:MI:SS') AS start_dt,
+               TO_CHAR(l.end_dt, 'YYYY-MM-DD HH24:MI:SS') AS end_dt, l.reg_id, l.reg_ip
+        FROM batch_log l
+        LEFT JOIN batch_job j ON j.job_cd = l.job_cd
+        LEFT JOIN code c ON c.code_id = l.status_cd AND c.p_code_id = 'BATCH00'
+        <where>
+            <include refid="searchCond" />
+        </where>
+        ORDER BY l.batch_log_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="batchLogVO" resultType="int">
+        SELECT COUNT(*) FROM batch_log l
+        <where>
+            <include refid="searchCond" />
+        </where>
+    </select>
+
+    <!-- 보관 일수 지난 행 삭제(EventLogService.purgeExpiredLogs가 활동로그와 함께 부른다). 실행 중인 행은 남긴다 -->
+    <delete id="deleteExpired" parameterType="map">
+        DELETE FROM batch_log WHERE start_dt &lt; NOW() - (#{days} || ' days')::INTERVAL AND status_cd &lt;&gt; 'BATCH01'
+    </delete>
+
+</mapper>

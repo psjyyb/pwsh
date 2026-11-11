@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  배치 작업. 행은 BatchService에 구현된 작업과 1:1이라 등록·삭제 SQL이 없다(V12 시드). 화면은 주기·자동 실행만 바꾼다.
+  다음 실행 시각·스케줄 등록 여부는 DB 값이 아니라 서비스가 스케줄러를 보고 채운다.
+-->
+<mapper namespace="batchJobDAO">
+
+    <!-- 작업 + 마지막 실행 1건 -->
+    <sql id="jobColumns">
+        SELECT j.batch_job_id::TEXT AS row_id, j.job_cd, j.name, j.description, j.cron_expr, j.auto_yn,
+               j.sort_no::TEXT AS sort_no, TO_CHAR(j.upd_dt, 'YYYY-MM-DD HH24:MI:SS') AS upd_dt, j.upd_id,
+               l.status_cd AS last_status_cd, c.name AS last_status_name, l.manual_yn AS last_manual_yn,
+               TO_CHAR(l.start_dt, 'YYYY-MM-DD HH24:MI:SS') AS last_start_dt,
+               TO_CHAR(l.end_dt, 'YYYY-MM-DD HH24:MI:SS') AS last_end_dt,
+               l.result_msg AS last_result_msg
+        FROM batch_job j
+        LEFT JOIN LATERAL (
+            SELECT b.status_cd, b.manual_yn, b.start_dt, b.end_dt, b.result_msg FROM batch_log b
+            WHERE b.job_cd = j.job_cd ORDER BY b.batch_log_id DESC LIMIT 1
+        ) l ON TRUE
+        LEFT JOIN code c ON c.code_id = l.status_cd AND c.p_code_id = 'BATCH00'
+    </sql>
+
+    <select id="selectList" parameterType="batchJobVO" resultType="batchJobVO">
+        <include refid="jobColumns" />
+        ORDER BY j.sort_no, j.batch_job_id
+    </select>
+
+    <select id="selectListTotalCount" parameterType="batchJobVO" resultType="int">
+        SELECT COUNT(*) FROM batch_job
+    </select>
+
+    <select id="selectView" parameterType="batchJobVO" resultType="batchJobVO">
+        <include refid="jobColumns" />
+        WHERE j.batch_job_id = #{rowId}::integer
+    </select>
+
+    <!-- 주기·자동 실행만 바꾼다. 작업 코드·이름은 코드와 묶여 있어 화면에서 바꾸지 않는다 -->
+    <update id="update" parameterType="batchJobVO">
+        UPDATE batch_job SET
+            cron_expr = #{cronExpr},
+            auto_yn = #{autoYn},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE batch_job_id = #{rowId}::integer
+    </update>
+
+</mapper>

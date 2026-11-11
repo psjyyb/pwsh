@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * - 조회(목록/상세)는 공개(SecurityConfig permitAll), 쓰기/신청/수락은 로그인 필요.
  * - 모집 수정/삭제·마감·신청 수락/거절 = 주최자 또는 관리자(assertOwnerOrAdmin).
  * - 신청 취소 = 신청자 본인 또는 관리자.
- * - 모임 하루 전 리마인더는 스케줄 배치({@link #scheduledMeetReminder()}).
+ * - 모임 하루 전 리마인더는 배치 작업 관리가 부른다({@link #sendMeetReminders(String)}, 작업 코드 RECRUIT_REMIND).
  */
 @Slf4j
 @Service
@@ -593,13 +592,8 @@ public class RecruitService {
         return v;
     }
 
-    // ===== 모임 리마인더(스케줄 배치) =====
-
-    /** 매일 지정 시각에 '내일 모임' 알림 발송(cron 설정 가능). */
-    @Scheduled(cron = "${recruit.remind.cron:0 0 9 * * *}")
-    public void scheduledMeetReminder() {
-        sendMeetReminders(java.time.LocalDate.now().plusDays(1).toString());
-    }
+    // ===== 모임 리마인더(배치) =====
+    // 매일 '내일 모임' 대상으로 부르는 쪽은 배치 작업 관리(BatchService, 작업 코드 RECRUIT_REMIND)다 — 주기는 batch_job.
 
     /**
      * 지정일에 모임이 있는 건의 주최자·수락 참여자에게 리마인더 알림 적재.

@@ -5,6 +5,7 @@ import com.pwsh.common.util.PasswordPolicy;
 import com.pwsh.domain.auth.service.AuthService;
 import com.pwsh.domain.auth.service.LoginRequest;
 import com.pwsh.domain.auth.service.NicknameRequest;
+import com.pwsh.domain.auth.service.OtpRequest;
 import com.pwsh.domain.auth.service.PwChangeRequest;
 import com.pwsh.domain.auth.service.PwResetRequest;
 import com.pwsh.domain.auth.service.RefreshRequest;
@@ -32,6 +33,12 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
+    }
+
+    /** 관리자 2차 인증 — 로그인 응답의 otpKey + 메일로 받은 코드 → 토큰 */
+    @PostMapping("/loginOtp")
+    public ApiResponse<TokenResponse> loginOtp(@Valid @RequestBody OtpRequest request) {
+        return ApiResponse.ok(authService.loginOtp(request));
     }
 
     /** 가입 이메일 인증코드 발송(공개) — 입력 이메일로 6자리 코드 발송. */

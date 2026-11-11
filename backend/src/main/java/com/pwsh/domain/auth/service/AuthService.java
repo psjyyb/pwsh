@@ -7,7 +7,9 @@ import com.pwsh.common.message.Messages;
 import com.pwsh.domain.accessip.service.AccessIpService;
 import com.pwsh.common.event.LoginSucceededEvent;
 import com.pwsh.common.event.SessionEndReason;
+import com.pwsh.domain.config.service.ConfigService;
 import com.pwsh.domain.loginlog.service.LoginLogService;
+import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.domain.member.service.MemberService;
 import com.pwsh.domain.member.service.MemberVO;
 import com.pwsh.domain.policy.service.PolicyService;
@@ -15,6 +17,11 @@ import com.pwsh.global.security.CustomUserDetails;
 import com.pwsh.global.security.SecurityUtil;
 import com.pwsh.global.security.jwt.JwtTokenProvider;
 import com.pwsh.global.web.ClientIpHolder;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -46,6 +53,14 @@ public class AuthService {
     private final MemberService memberService;
     private final ApplicationEventPublisher eventPublisher;
     private final LoginLogService loginLogService;
+    private final ConfigService configService;
+    private final MailService mailService;
+
+    /** 2차 인증 코드 유효 시간(분) — 메일이 늦게 와도 넣을 수 있고, 새어도 금방 쓸모없어지는 정도 */
+    private static final int OTP_EXPIRE_MINS = 5;
+    /** 코드 하나로 틀릴 수 있는 횟수 — 넘으면 그 코드는 버려지고 다시 로그인해야 한다 */
+    private static final int OTP_MAX_FAIL = 5;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     /**
      * 로그인 + 로그인 이력 기록(성공·실패 모두).
@@ -57,7 +72,13 @@ public class AuthService {
     public TokenResponse login(LoginRequest request) {
         try {
             TokenResponse res = authenticate(request);
-            recordLogin(request.memberId(), LoginLogService.SUCCESS, null);
+            if (res.otpKey() != null) {
+                // 비밀번호만 통과 — 성공이 아니다. 코드 메일이 안 나갔으면 사유를 남겨 둔다(관리자가 "코드가 안 와요"를 가린다)
+                recordLogin(request.memberId(), LoginLogService.OTP_SENT,
+                        Boolean.TRUE.equals(res.otpMailSent()) ? null : "코드 메일 미발송 — 메일 발송이력에서 사유 확인");
+            } else {
+                recordLogin(request.memberId(), LoginLogService.SUCCESS, null);
+            }
             return res;
         } catch (LoginFailure f) {
             recordLogin(request.memberId(), f.resultCd, f.original.getMessage());
@@ -69,25 +90,87 @@ public class AuthService {
         }
     }
 
+    /**
+     * 관리자 2차 인증 — 비밀번호 단계에서 받은 확인 키 + 메일로 받은 코드 → 토큰.
+     *
+     * <p>★ 계정 상태(정지·휴면·잠금)와 접속 IP를 <b>여기서 다시</b> 본다. 비밀번호 단계와 코드 단계 사이에 계정이 잠기거나
+     * 다른 곳에서 코드를 넣을 수 있다. 틀린 코드는 비밀번호와 같은 실패 횟수에 더한다(잠금 기준 공유) — 코드를 따로 세면
+     * 비밀번호를 아는 사람이 로그인을 반복하며 코드를 계속 찍어 볼 수 있다.
+     */
+    public TokenResponse loginOtp(OtpRequest request) {
+        String loginId = "";
+        try {
+            LoginOtpVO key = new LoginOtpVO();
+            key.setOtpKey(request.otpKey());
+            LoginOtpVO otp = commonDAO.selectOne("loginOtpDAO.selectByKey", key);
+            if (otp == null) {
+                throw failed(LoginLogService.FAIL_OTP, otpExpired());
+            }
+            loginId = otp.getMemberId();
+            if (!"Y".equals(otp.getUseYn()) || "Y".equals(otp.getExpiredYn())) {
+                throw failed(LoginLogService.FAIL_OTP, otpExpired());
+            }
+            MemberVO user = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(loginId));
+            if (user == null || !"Y".equals(user.getUseYn())) {
+                throw failed(LoginLogService.FAIL_OTP, otpExpired());
+            }
+            assertAccountUsable(user);
+            if (!passwordEncoder.matches(request.code(), otp.getCodeHash())) {
+                otp.setMaxFail(String.valueOf(OTP_MAX_FAIL));
+                commonDAO.update("loginOtpDAO.increaseFail", otp);
+                commonDAO.update("memberDAO.increaseFailCnt", memberIdParam(loginId));
+                int fails = Integer.parseInt(otp.getFailCnt()) + 1;
+                throw failed(LoginLogService.FAIL_OTP, new BusinessException(ErrorCode.INVALID_CREDENTIALS,
+                        Messages.get("error.auth.otpMismatch", fails, OTP_MAX_FAIL)));
+            }
+            if (commonDAO.update("loginOtpDAO.markUsed", otp) == 0) {
+                throw failed(LoginLogService.FAIL_OTP, otpExpired()); // 같은 코드가 동시에 두 번 들어온 경우
+            }
+            CustomUserDetails userDetails = new CustomUserDetails(user);
+            // 접속로그 audit(reg_id=로그인 사용자) — 비밀번호 단계와 같은 이유
+            SecurityContextHolder.getContext().setAuthentication(
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities()));
+            assertAdminIp(userDetails);
+            TokenResponse res = issueTokens(userDetails);
+            recordLogin(loginId, LoginLogService.SUCCESS, null);
+            return res;
+        } catch (LoginFailure f) {
+            recordLogin(loginId, f.resultCd, f.original.getMessage());
+            throw f.original;
+        } catch (RuntimeException e) {
+            recordLogin(loginId, LoginLogService.FAIL_ETC, e.getClass().getSimpleName());
+            throw e;
+        }
+    }
+
+    private static BusinessException otpExpired() {
+        return new BusinessException(ErrorCode.INVALID_CREDENTIALS, Messages.get("error.auth.otpExpired"));
+    }
+
+    /** 계정 상태 점검: 정지·휴면=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제. 비밀번호·코드 단계가 함께 쓴다. */
+    private void assertAccountUsable(MemberVO pre) {
+        if ("STATUS03".equals(pre.getStatusCd())) {
+            throw failed(LoginLogService.FAIL_SUSPENDED, new BusinessException(ErrorCode.ACCOUNT_SUSPENDED));
+        }
+        // 휴면은 비밀번호가 맞아도 막는다. 해제는 관리자를 거친다 —
+        // 셀프 해제는 본인 인증 수단이 필요한데, 지금 이메일 인증은 가입·비번재설정 전용이다.
+        if ("STATUS04".equals(pre.getStatusCd())) {
+            throw failed(LoginLogService.FAIL_DORMANT, new BusinessException(ErrorCode.ACCOUNT_DORMANT));
+        }
+        if ("STATUS02".equals(pre.getStatusCd())) {
+            if ("Y".equals(pre.getLockActive())) {
+                throw failed(LoginLogService.FAIL_LOCKED, new BusinessException(ErrorCode.ACCOUNT_LOCKED,
+                        Messages.get("error.auth.accountLockedWait", pre.getFailCntLimit(), pre.getLockRemainMin())));
+            }
+            commonDAO.update("memberDAO.unlockAccount", memberIdParam(pre.getMemberId())); // 잠금시간 경과 → 자동 해제
+        }
+    }
+
     private TokenResponse authenticate(LoginRequest request) {
         // 계정 상태 사전 점검: 정지·휴면=차단, 잠금=시간 미경과면 차단 / 경과면 자동 해제
         MemberVO pre = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(request.memberId()));
         if (pre != null) {
-            if ("STATUS03".equals(pre.getStatusCd())) {
-                throw failed(LoginLogService.FAIL_SUSPENDED, new BusinessException(ErrorCode.ACCOUNT_SUSPENDED));
-            }
-            // 휴면은 비밀번호가 맞아도 막는다. 해제는 관리자를 거친다 —
-            // 셀프 해제는 본인 인증 수단이 필요한데, 지금 이메일 인증은 가입·비번재설정 전용이다.
-            if ("STATUS04".equals(pre.getStatusCd())) {
-                throw failed(LoginLogService.FAIL_DORMANT, new BusinessException(ErrorCode.ACCOUNT_DORMANT));
-            }
-            if ("STATUS02".equals(pre.getStatusCd())) {
-                if ("Y".equals(pre.getLockActive())) {
-                    throw failed(LoginLogService.FAIL_LOCKED, new BusinessException(ErrorCode.ACCOUNT_LOCKED,
-                            Messages.get("error.auth.accountLockedWait", pre.getFailCntLimit(), pre.getLockRemainMin())));
-                }
-                commonDAO.update("memberDAO.unlockAccount", memberIdParam(request.memberId())); // 잠금시간 경과 → 자동 해제
-            }
+            assertAccountUsable(pre);
         }
 
         Authentication authentication;
@@ -118,13 +201,77 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        // 관리자 계정은 허용 IP에서만 로그인 — 토큰을 아예 발급하지 않는다.
         // (비밀번호 검증 뒤에 두는 이유: 인증 전에 막으면 IP만으로 계정 존재 여부가 드러난다)
-        if (("admin".equals(userDetails.getMemberId()) || "MEM02".equals(userDetails.getTypeCd()))
-                && !accessIpService.isAllowed(ClientIpHolder.get())) {
+        assertAdminIp(userDetails);
+        // 관리자 2차 인증 — 토큰 대신 확인 키만 준다. 비밀번호 검증 뒤라 켜져 있는지 여부도 비밀번호를 아는 사람만 안다
+        if (isAdminAccount(userDetails) && configService.adminOtpEnabled()) {
+            MemberVO member = pre != null ? pre
+                    : commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(userDetails.getMemberId()));
+            return issueOtp(member);
+        }
+        return issueTokens(userDetails);
+    }
+
+    /** 관리자 판정(접속 IP 제한·2차 인증 대상) — MEM02 또는 부트스트랩 계정 admin */
+    private static boolean isAdminAccount(CustomUserDetails userDetails) {
+        return "admin".equals(userDetails.getMemberId()) || "MEM02".equals(userDetails.getTypeCd());
+    }
+
+    /** 관리자 계정은 허용 IP에서만 로그인 — 토큰을 아예 발급하지 않는다. */
+    private void assertAdminIp(CustomUserDetails userDetails) {
+        if (isAdminAccount(userDetails) && !accessIpService.isAllowed(ClientIpHolder.get())) {
             throw failed(LoginLogService.FAIL_IP, new BusinessException(ErrorCode.ACCESS_DENIED,
                     Messages.get("error.accessip.notAllowed", ClientIpHolder.get())));
         }
+    }
+
+    /**
+     * 2차 인증 코드 발급 + 메일. 코드는 해시로만 저장하고, 화면에는 추측할 수 없는 확인 키만 준다.
+     *
+     * <p>★ 이메일이 없으면 코드를 보낼 수 없어 막는다(토큰을 그냥 주면 2차 인증이 이메일 없는 관리자에게만 꺼진 셈이다).
+     * 켤 때 ConfigService가 이메일 없는 관리자를 걸러 주지만, 켠 뒤에 만든 관리자는 여기서 걸린다.
+     * <p>메일이 안 나가도(메일 꺼짐·SMTP 실패) 확인 키는 준다 — 어차피 코드 없이는 못 들어오고, 화면이 "메일이 안 나갔다"를
+     * 바로 알려 준다(otpMailSent=false). 코드는 발송 이력 본문에 남는다(관리자 전용 화면, 보존기간 후 삭제).
+     * <p>메일의 받는 사람 표기는 닉네임 우선이다 — 이 서비스의 표시명은 닉네임이고 실명은 선택 입력이다.
+     */
+    private TokenResponse issueOtp(MemberVO member) {
+        String email = member.getEmail();
+        if (email == null || email.isBlank()) {
+            throw failed(LoginLogService.FAIL_OTP,
+                    new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.auth.otpNoEmail")));
+        }
+        String code = String.format("%06d", RANDOM.nextInt(1_000_000));
+        LoginOtpVO otp = new LoginOtpVO();
+        otp.setMemberId(member.getMemberId());
+        otp.setOtpKey(newOtpKey());
+        otp.setCodeHash(passwordEncoder.encode(code));
+        otp.setExpireMins(String.valueOf(OTP_EXPIRE_MINS));
+        commonDAO.delete("loginOtpDAO.deleteByMember", otp); // 앞서 받은 코드는 무효(마지막 메일의 코드만)
+        commonDAO.insert("loginOtpDAO.insert", otp);
+
+        String title = commonDAO.selectOne("configDAO.selectTitle", new MemberVO());
+        String ip = ClientIpHolder.get();
+        String name = member.getNickname() != null && !member.getNickname().isBlank() ? member.getNickname()
+                : member.getMemberName() != null ? member.getMemberName() : member.getMemberId();
+        boolean sent = mailService.send("ADMIN_LOGIN_CODE", email.trim(), Map.of(
+                "siteTitle", title == null ? "" : title,
+                "memberName", name,
+                "code", code,
+                "expireMins", String.valueOf(OTP_EXPIRE_MINS),
+                "requestDt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                "requestIp", ip == null ? "-" : ip));
+        return TokenResponse.otp(otp.getOtpKey(), sent);
+    }
+
+    /** 확인 키 — 32바이트 난수(URL 안전 Base64). 순번·시각처럼 추측 가능한 값이면 남의 코드 입력창을 열 수 있다 */
+    private static String newOtpKey() {
+        byte[] b = new byte[32];
+        RANDOM.nextBytes(b);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+    }
+
+    /** 토큰 발급 — 비밀번호 단계(2차 인증 꺼짐·일반 회원)와 코드 단계가 함께 쓴다 */
+    private TokenResponse issueTokens(CustomUserDetails userDetails) {
         // 새 세션 시작: token_ver +1 → 다른 기기에 남아있던 토큰은 다음 요청에서 무효(단일세션 last-wins)
         String newVer = String.valueOf(
                 (Integer) commonDAO.selectOne("memberDAO.incrementTokenVer", memberIdParam(userDetails.getMemberId())));

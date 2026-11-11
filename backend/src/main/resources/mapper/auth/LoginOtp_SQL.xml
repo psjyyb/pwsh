@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  관리자 2차 인증 코드(AuthService). 코드는 해시로만 두고, 화면은 otp_key만 들고 다닌다.
+  수명이 몇 분이라 이력으로 남기지 않는다 — 기록은 로그인 이력(LOGIN10 발송 / LOGIN08 실패 / LOGIN01 성공)이 맡는다.
+-->
+<mapper namespace="loginOtpDAO">
+
+    <!--
+      새 코드를 만들기 전 정리: 그 관리자의 앞선 코드(★ 다시 로그인하면 마지막 메일의 코드만 유효)와 하루 지난 행.
+      따로 청소 배치를 두지 않아도 테이블이 커지지 않는다.
+    -->
+    <delete id="deleteByMember" parameterType="loginOtpVO">
+        DELETE FROM login_otp WHERE member_id = #{memberId} OR reg_dt &lt; NOW() - INTERVAL '1 day'
+    </delete>
+
+    <insert id="insert" parameterType="loginOtpVO">
+        INSERT INTO login_otp (otp_key, member_id, code_hash, fail_cnt, expire_dt, use_yn, reg_dt)
+        VALUES (#{otpKey}, #{memberId}, #{codeHash}, 0, NOW() + (#{expireMins} || ' minutes')::INTERVAL, 'Y', NOW())
+    </insert>
+
+    <select id="selectByKey" parameterType="loginOtpVO" resultType="loginOtpVO">
+        SELECT login_otp_id::TEXT AS row_id, otp_key, member_id, code_hash, fail_cnt::TEXT AS fail_cnt, use_yn,
+               CASE WHEN expire_dt &lt; NOW() THEN 'Y' ELSE 'N' END AS expired_yn
+        FROM login_otp
+        WHERE otp_key = #{otpKey}
+    </select>
+
+    <!-- 틀린 횟수 +1, 상한에 닿으면 폐기 — 6자리라 횟수 제한이 없으면 맞힐 때까지 시도할 수 있다 -->
+    <update id="increaseFail" parameterType="loginOtpVO">
+        UPDATE login_otp SET
+            fail_cnt = fail_cnt + 1,
+            use_yn = CASE WHEN fail_cnt + 1 &gt;= #{maxFail}::integer THEN 'N' ELSE use_yn END
+        WHERE login_otp_id = #{rowId}::integer AND use_yn = 'Y'
+    </update>
+
+    <!-- 사용 처리. ★ use_yn='Y' 조건으로 같은 코드가 동시에 두 번 통과하지 못한다(0행이면 이미 쓰인 코드) -->
+    <update id="markUsed" parameterType="loginOtpVO">
+        UPDATE login_otp SET use_yn = 'N' WHERE login_otp_id = #{rowId}::integer AND use_yn = 'Y'
+    </update>
+
+</mapper>

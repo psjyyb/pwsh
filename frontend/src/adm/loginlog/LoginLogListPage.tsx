@@ -7,9 +7,14 @@ import SplitLayout from '../../common/adm/components/SplitLayout'
 import { LOGINLOG_LIST_URL } from './loginlog.api'
 import type { LoginLog } from './loginlog.api'
 
-/** 성공(LOGIN01)만 초록, 나머지는 실패 — 실패가 눈에 띄어야 공격 시도를 빨리 본다 */
+/**
+ * 성공(LOGIN01)만 초록, 2차 인증 코드 발송(LOGIN10)은 파랑(비밀번호만 통과 — 실패도 성공도 아니다),
+ * 나머지는 실패 — 실패가 눈에 띄어야 공격 시도를 빨리 본다
+ */
 const resultTag = (r: LoginLog) => (
-  <Tag color={r.resultCd === 'LOGIN01' ? 'green' : 'red'}>{r.resultName ?? r.resultCd}</Tag>
+  <Tag color={r.resultCd === 'LOGIN01' ? 'green' : r.resultCd === 'LOGIN10' ? 'blue' : 'red'}>
+    {r.resultName ?? r.resultCd}
+  </Tag>
 )
 
 /** 로그인 이력 — 분할(목록 | 상세 읽기전용, append-only). 성공·실패 모두 자동기록. */

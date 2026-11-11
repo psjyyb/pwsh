@@ -61,6 +61,13 @@ export default function ConfigPage() {
           <Select options={YN_OPTIONS} />
         </Form.Item>
         <Form.Item
+          name="adminOtpYn"
+          label="관리자 2차 인증"
+          extra="켜면 관리자는 비밀번호 다음에 등록된 이메일로 받은 6자리 코드를 넣어야 로그인됩니다(5분 유효). 메일 발송이 꺼져 있거나 이메일이 없는 관리자가 있으면 켜지지 않습니다 — 먼저 시스템 상태 > 메일 설정 점검으로 발송을 확인하세요."
+        >
+          <Select options={YN_OPTIONS} />
+        </Form.Item>
+        <Form.Item
           name="maintYn"
           label="점검(유지보수) 모드"
           extra="켜면 관리자를 제외한 모든 요청이 차단되고 아래 안내 문구가 표시됩니다. 관리자는 그대로 로그인·작업할 수 있습니다."

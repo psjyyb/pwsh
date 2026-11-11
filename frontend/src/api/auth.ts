@@ -6,11 +6,20 @@ export interface TokenResponse {
   refreshToken: string
   pwExpired?: boolean | null // 비밀번호 만료(알림용, 강제 아님)
   pwDaysLeft?: number | null // 만료까지 남은 일수
+  /** 있으면 관리자 2차 인증 단계 — 토큰 없이 이 키만 온다. 메일로 받은 코드와 함께 loginOtp로 보낸다 */
+  otpKey?: string
+  /** false면 코드 메일이 나가지 않았다(메일 발송 꺼짐·실패) */
+  otpMailSent?: boolean
 }
 
-/** 로그인 → JWT(Access/Refresh) 발급 */
+/** 로그인 → JWT(Access/Refresh) 발급. 관리자 2차 인증이 켜져 있으면 토큰 대신 otpKey가 온다 */
 export function login(memberId: string, password: string): Promise<TokenResponse> {
   return apiPost<TokenResponse>('/auth/login', { memberId, password })
+}
+
+/** 관리자 2차 인증 — 로그인 응답의 otpKey + 메일로 받은 6자리 코드 → JWT */
+export function loginOtp(otpKey: string, code: string): Promise<TokenResponse> {
+  return apiPost<TokenResponse>('/auth/loginOtp', { otpKey, code })
 }
 
 export interface SignupParams {

@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -258,9 +257,13 @@ public class MemberService {
         destroyLogService.write(vo.getMemberId(), DestroyLogService.ADMIN_NOW, SecurityUtil.getCurrentMemberId());
     }
 
-    /** 매일 새벽 — 안내 먼저, 그다음 전환·파기. 순서가 바뀌면 통지 없이 휴면이 되는 계정이 생긴다. */
-    @Scheduled(cron = "${member.lifecycle.cron:0 0 3 * * *}")
-    public void scheduledLifecycle() {
+    /**
+     * 회원 라이프사이클 한 회차 — 안내 먼저, 그다음 전환·파기. 순서가 바뀌면 통지 없이 휴면이 되는 계정이 생긴다.
+     * 매일 새벽 배치 작업 관리(BatchService, 작업 코드 MEMBER_LIFECYCLE)가 DB의 주기로 부른다.
+     *
+     * @return 처리 건수 요약(배치 실행 이력에 그대로 남는다)
+     */
+    public String runLifecycle() {
         int notified = notifyDormantSoon();
         int dormant = sweepDormant();
         int destroyed = sweepDestroy();
@@ -268,6 +271,7 @@ public class MemberService {
             log.info("회원 라이프사이클: 휴면예정 안내 {}건, 휴면 전환 {}건, 개인정보 파기 {}건",
                     notified, dormant, destroyed);
         }
+        return String.format("휴면예정 안내 %d건, 휴면 전환 %d건, 개인정보 파기 %d건", notified, dormant, destroyed);
     }
 
     /** 안내메일 수신자 표기 — 이 서비스의 표시명은 닉네임이다(이름은 선택 입력이라 비어 있을 수 있다). */

@@ -28,6 +28,7 @@ class LogRetentionTest extends IntegrationTest {
         jdbc.update("DELETE FROM login_log WHERE login_id LIKE 'zzret%'");
         jdbc.update("DELETE FROM privacy_log WHERE request_uri = '/zzret'");
         jdbc.update("DELETE FROM destroy_log WHERE member_id LIKE 'zzret%'");
+        jdbc.update("DELETE FROM batch_log WHERE job_cd LIKE 'ZZRET%'");
         jdbc.update("UPDATE config SET del_log_days = 365");
     }
 
@@ -44,6 +45,22 @@ class LogRetentionTest extends IntegrationTest {
 
         assertThat(eventIds()).containsExactly("new");
         assertThat(loginIds()).containsExactly("zzret-new");
+    }
+
+    @Test
+    @DisplayName("배치 실행 이력도 같은 보관 일수로 지운다 — 단, 실행 중인 행은 남긴다")
+    void purgesOldBatchLogsButNotRunning() {
+        jdbc.update("UPDATE config SET del_log_days = 365");
+        batchRow("ZZRET_OLD", "BATCH02", 400);
+        batchRow("ZZRET_NEW", "BATCH02", 10);
+        // 오래됐어도 '실행 중'은 지우지 않는다 — 지우면 그 작업이 끝날 때 결과를 적을 행이 사라진다
+        batchRow("ZZRET_RUN", "BATCH01", 400);
+
+        Map<String, Integer> deleted = eventLogService.purgeExpiredLogs();
+
+        assertThat(jdbc.queryForList("SELECT job_cd FROM batch_log WHERE job_cd LIKE 'ZZRET%' ORDER BY job_cd", String.class))
+                .containsExactly("ZZRET_NEW", "ZZRET_RUN");
+        assertThat(deleted.get("batchLog")).isEqualTo(1);
     }
 
     @Test
@@ -124,6 +141,12 @@ class LogRetentionTest extends IntegrationTest {
         jdbc.update("INSERT INTO login_log (login_id, result_cd, reg_dt, reg_ip)"
                 + " VALUES (?, 'LOGIN01', NOW() - (? || ' days')::INTERVAL, '127.0.0.1')",
                 loginId, String.valueOf(daysAgo));
+    }
+
+    private void batchRow(String jobCd, String statusCd, int daysAgo) {
+        jdbc.update("INSERT INTO batch_log (job_cd, manual_yn, status_cd, start_dt, reg_id, reg_ip)"
+                + " VALUES (?, 'N', ?, NOW() - (? || ' days')::INTERVAL, 'system', '127.0.0.1')",
+                jobCd, statusCd, String.valueOf(daysAgo));
     }
 
     private java.util.List<String> eventIds() {

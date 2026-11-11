@@ -31,7 +31,7 @@
 - ★ **이미 적용된 마이그레이션은 절대 고치지 않는다.** 체크섬이 달라지면 기동이 막힌다(`checksum mismatch`). 잘못됐으면 되돌리는 마이그레이션을 새로 추가한다.
 - ★ **아직 적용되지 않은 마이그레이션은 합쳐도 된다.** 규칙은 "만든 뒤엔 못 고친다"가 아니라 **"적용된 뒤엔 못 고친다"**다. 코드값 몇 줄짜리 파일이 쌓이면 주기적으로 합친다(CMS 1.2.7~1.2.13이 `V3__cms_1_2_7_to_1_2_13.sql` 하나로 합쳐져 있다).
   - 합치기 전 **모든 환경**에서 확인한다: `SELECT version FROM flyway_schema_history;` — 한 곳이라도 적용돼 있으면 그 DB가 다음 기동에 막힌다. dev·테스트만 보지 말고 백업·다른 PC의 DB도 본다.
-  - 합친 뒤에는 **가장 낮은 번호**를 쓴다(V3~V7 → `V3__`). 번호를 건너뛰면 나중에 "V5는 어디 갔나"를 찾게 된다. 번호 대역 규칙은 그대로라 다음 CMS 흡수는 `V9`부터다(`V4`=CMS 1.2.18 비밀글 비밀번호 전환, `V5`=CMS 1.2.19 추천/비추천 구분, `V6`=CMS 1.2.20 미사용 컬럼 삭제, `V7`=CMS 1.2.21 로그인·파기 이력, `V8`=CMS 1.2.24 로그 보관 일수). ⚠ CMS의 `V10`(1.2.28 활동로그 유형 `MEMBER_LOGOUT`·`MEMBER_AUTH_GROUP`)은 이 저장소 `V2`에 이미 있어 **가져오지 않았다** — 가져오면 코드 PK 중복으로 기동이 막힌다. CMS의 `V11`(1.2.30 권한그룹관리 메뉴 주소 `/adm/authgrp`→`/adm/authgroup`)도 이 저장소는 처음부터 맞아 가져오지 않았다.
+  - 합친 뒤에는 **가장 낮은 번호**를 쓴다(V3~V7 → `V3__`). 번호를 건너뛰면 나중에 "V5는 어디 갔나"를 찾게 된다. 번호 대역 규칙은 그대로라 다음 CMS 흡수는 `V10`부터다(`V4`=CMS 1.2.18 비밀글 비밀번호 전환, `V5`=CMS 1.2.19 추천/비추천 구분, `V6`=CMS 1.2.20 미사용 컬럼 삭제, `V7`=CMS 1.2.21 로그인·파기 이력, `V8`=CMS 1.2.24 로그 보관 일수, `V9`=CMS 1.2.34 배치 작업·관리자 2차 인증(CMS의 `V12`)). 이 저장소 고유는 `V1001`=모집 하루 전 알림 배치 행. ⚠ CMS의 `V10`(1.2.28 활동로그 유형 `MEMBER_LOGOUT`·`MEMBER_AUTH_GROUP`)은 이 저장소 `V2`에 이미 있어 **가져오지 않았다** — 가져오면 코드 PK 중복으로 기동이 막힌다. CMS의 `V11`(1.2.30 권한그룹관리 메뉴 주소 `/adm/authgrp`→`/adm/authgroup`)도 이 저장소는 처음부터 맞아 가져오지 않았다.
   - 파일이 20개쯤 쌓이면 **baseline squash**: 현재 스키마를 덤프해 `V1`·`V2`를 새로 만들고 그 뒤 파일을 지운다.
   - ⚠ 기본데이터를 `R__`(repeatable, 내용이 바뀌면 매번 재실행)에 몰아넣는 방법도 있지만 **쓰지 않는다** — 메뉴·공통코드는 운영자가 화면에서 고치는 값이라, 재실행될 때마다 그 수정이 덮여 사라진다.
 - DDL과 그에 딸린 시드(공통코드·메뉴)를 **한 파일에** 넣는다.
@@ -65,14 +65,22 @@
   - 파기 시 세션 종료 사유는 `DESTROY`(셀프 탈퇴 `WITHDRAW`와 구분).
 - ⚠ **휴면은 배치·해제버튼 말고 두 경로로 더 드나든다** — 상세 폼의 계정상태(`updateInfo`)와 제재 토글(`updateStatus`). 세 곳 모두 나올 때 `dormant_dt` 비우고 `last_login_dt` 당기고, 들어갈 때 `dormant_dt` 찍고 세션을 끊어야 한다. 한 곳만 빠져도 그 경로로 푼 계정이 다음 배치에서 곧바로 재휴면된다.
 - 직전 상태 조회는 `selectStatusCd`를 쓴다 — `selectByMemberId`는 개인정보를 복호화해서, 그걸 쓰면 정보수정 한 번마다 개인정보 접근로그가 쌓인다.
-- 배치 순서는 **안내 → 전환 → 파기**(`member.lifecycle.cron`). 바뀌면 통지 없이 휴면이 되는 계정이 생긴다.
+- 배치 순서는 **안내 → 전환 → 파기**(`MemberService.runLifecycle`, 배치 작업 `MEMBER_LIFECYCLE`). 바뀌면 통지 없이 휴면이 되는 계정이 생긴다.
 - 정책값(`dormant_days`·`dormant_notify_days`·`destroy_days`)은 `config` 테이블이다. 0이면 그 기능을 끈다.
 - **파기 이력**(`destroy_log`, CMS 1.2.21 — 회원관리 > 파기 이력, 조회 전용): 자동 파기(`DESTROY01`)·관리자 즉시 파기(`DESTROY02`, 처리자 기록)를 탈퇴 시각과 함께 남긴다. ★ **파기와 같은 트랜잭션**에서 실제로 바뀐 뒤에만 쓴다. ★ 파기 경로(`sweepDestroy`·`destroyNow`)를 새로 만들면 `DestroyLogService.write`를 꼭 같이 부른다.
 - **로그인 이력**(`login_log`, CMS 1.2.21 — 로그관리 > 로그인 이력, 조회 전용): 성공·실패를 사유(`LOGIN00`)·IP·User-Agent와 함께 남긴다. ★ 기록은 `AuthService.login` 한 곳 — 실패 분기를 추가하면 `failed(코드, 원래예외)`로 던진다(그냥 던지면 "기타"로 남는다). 응답은 원래 예외 그대로라 바뀌지 않는다. 기록 실패는 로그인을 막지 않는다. 없는 아이디도 입력값 그대로(50자) 남는다 — 아이디 칸에 비밀번호를 넣은 경우 그 값이 관리자 화면에 남는다는 점은 알고 쓴다.
-- **로그 보관 정리**(CMS 1.2.24): 환경설정 "로그 보관 일수"(`config.del_log_days`)가 지난 **활동로그·로그인 이력**을 매일 새벽 지운다(`EventLogService.purgeExpiredLogs`, `log.retention.cron` 03:30). 0·빈 값이면 안 지운다. 하한 365일(저장 거절 + 배치도 하한까지만). ★ 개인정보 접근로그·파기 이력은 대상이 아니다(보존 의무) — 새 로그 테이블을 만들면 보존 의무부터 따진다. ★ 보관 일수는 `ConfigService.logRetentionDays()`로 읽는다 — `selectView()`는 비관리자(배치 포함)에게 표시용 값만 줘서 쓰면 정리가 영원히 안 돈다(CMS 1.2.25부터 CMS도 같은 방식). 서버 안에서 설정값이 필요하면 `selectView()` 말고 DAO를 직접 읽는다(`maintStatus()`도 같다).
+- **로그 보관 정리**(CMS 1.2.24): 환경설정 "로그 보관 일수"(`config.del_log_days`)가 지난 **활동로그·로그인 이력·배치 실행 이력**(CMS 1.2.34 — 실행 중인 행은 남김)을 매일 새벽 지운다(`EventLogService.purgeExpiredLogs`, 배치 작업 `LOG_RETENTION` 03:30). 0·빈 값이면 안 지운다. 하한 365일(저장 거절 + 배치도 하한까지만). ★ 개인정보 접근로그·파기 이력은 대상이 아니다(보존 의무) — 새 로그 테이블을 만들면 보존 의무부터 따진다. ★ 보관 일수는 `ConfigService.logRetentionDays()`로 읽는다 — `selectView()`는 비관리자(배치 포함)에게 표시용 값만 줘서 쓰면 정리가 영원히 안 돈다(CMS 1.2.25부터 CMS도 같은 방식). 서버 안에서 설정값이 필요하면 `selectView()` 말고 DAO를 직접 읽는다(`maintStatus()`도 같다).
 
 ## 시스템 상태 · 캐시 · 백업
-- `/adm/system`(관리자 > 시스템관리): 앱(버전·가동시간·힙)·DB(크기·**Flyway 적용 이력**)·디스크·배치 cron(4종)·캐시·**SSE 연결 수**를 한 장에. 전부 **읽기 전용**이다.
+- `/adm/system`(관리자 > 시스템관리): 앱(버전·가동시간·힙)·DB(크기·**Flyway 적용 이력**)·디스크·배치 주기 요약(5종)·캐시·**SSE 연결 수**·메일 설정을 한 장에. 상태는 **읽기 전용**이고, 쓰는 동작은 캐시 비우기와 **메일 설정 점검**(템플릿 없이 점검 메일 한 통, 이력 코드 `SMTP_CHECK`, CMS 1.2.34)뿐이다. ★ SMTP 비밀번호는 어떤 형태로도 내려보내지 않는다(`MailService.settings()`).
+
+## 배치 작업 관리 (CMS 1.2.34, v0.6.34)
+- 배치 5종(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리 + 이 저장소 전용 **모집 하루 전 알림 `RECRUIT_REMIND`**)의 **주기·자동 실행은 `batch_job`이 원본**이다(관리자 > 시스템관리 > 배치 작업 관리). `BatchService`가 기동 때·저장 때 `TaskScheduler`에 다시 등록한다 — 재시작 불필요. ⚠ yml의 `*.cron` 키(`recruit.remind.cron` 포함)는 지웠다(읽지 않는다).
+- ★ **새 배치는 `@Scheduled`로 만들지 않는다** — 화면에 안 보이고 이력도 안 남는다. `batch_job` 행(이 저장소 고유면 `V1001`+ 마이그레이션) + `BatchService.doJob`의 분기(결과 요약 문자열 반환) + `JOBS` 목록에 코드를 추가한다. 예외: SSE 연결 유지 핑(`RealtimeService.heartbeat`, 25초)은 배치가 아니라 `@Scheduled` 그대로다.
+- ★ **같은 작업은 동시에 한 번만** 돈다 — '실행 중'(`BATCH01`) 행 부분 유니크 인덱스(`ux_batch_log_running`) + `INSERT ... ON CONFLICT DO NOTHING`. 즉시 실행은 400, 예약 실행은 그 회차를 건너뛴다.
+- ★ 기동 때 '실행 중'으로 남은 이력을 실패로 정리한다(`batchLogDAO.failStale`) — 빼면 실행 도중 서버가 내려간 작업은 다시는 시작되지 않는다.
+- 즉시 실행: 이력 행은 요청 스레드에서(누른 관리자·IP), 작업은 스케줄러 스레드에서. 스케줄러 스레드 2개(`spring.task.scheduling.pool.size`). cron은 6자리, 1분보다 잦은 주기 거절. 컨트롤러가 `requireAdmin()`을 한 번 더 본다(회귀 방지 `BatchJobTest`).
+- 모집 하루 전 알림은 같은 날 다시 돌려도 이미 보낸 사람을 매퍼가 거른다 — 즉시 실행해도 중복 알림이 나가지 않는다(회귀 방지 `RecruitRemindTest`).
 - ⚠ 경로·DB 크기·버전은 공격자에게 쓸모 있다. 메뉴권한 인터셉터 외에 컨트롤러가 `requireAdmin()`을 **한 번 더** 본다 — 메뉴를 다른 그룹에 열어주면 인터셉터 방어가 사라진다(회귀 방지: `SystemStatusTest`).
 - **캐시(Caffeine, 단일 JVM)**: 대상은 공통코드 콤보(`CacheConfig.CODE_COMBO`). 기준은 "자주 읽고, 거의 안 바뀌고, **누가 읽든 결과가 같은 것**".
   - ★ **메뉴 트리는 캐시하지 않는다** — 권한에 따라 결과가 달라 키를 잘못 잡으면 권한 없는 메뉴가 노출된다.
@@ -98,6 +106,7 @@
   - ★ **사용자(GEN) 메뉴는 권한 행이 있어야 보인다** — 메뉴를 만들 때 권한이 자동으로 붙지 않는다. 새 게시판(공지 등)·페이지·폼 메뉴는 권한그룹관리 > 권한 설정에서 `GUEST`(비로그인)·`MEMBER`(회원)에 체크해야 공개된다(설정 창은 ADM·GEN 관리 트리를 함께 보여 준다, 회귀 방지 `MenuRbacTest`). 취미 게시판은 예외 — 메뉴 권한과 무관하게 커뮤니티 공개다(`GenAccessGuard`). ⚠ 관리 트리는 메뉴관리 API라 메뉴관리 권한이 없는 계정에선 설정 창 트리가 비어 보인다.
   - ★ **관리 화면만 쓰는 콤보는 `permitAll`에 넣지 않는다.** 게시판 콤보(`selectBoardListCombo.do` — 메뉴관리·취미 관리가 쓴다)가 비로그인에게 비공개 게시판 ID·이름까지 내보내던 것을 CMS 1.2.26 흡수 때 관리자 전용으로 좁혔다(`BoardService`가 `isAdmin()` 확인, 회귀 방지 `BoardTest`). 권한그룹 콤보(`selectAuthGroupListCombo.do`)도 같은 방식이다(CMS 1.2.33, `AuthGroupService`, 회귀 방지 `AdminCrudTest`).
 - 비번 BCrypt·복잡도 `PasswordPolicy`(8~64자). **비밀글 비밀번호도 BCrypt**(`PostService.encodePostPw`) — ⚠ 수정 시 빈 값은 인코딩하지 않는다(매퍼가 빈 값을 "변경 없음"으로 읽는다 — 인코딩하면 아무도 모르는 비번으로 덮인다). 인코더가 Delegating이라 저장값은 `{bcrypt}$2a$…`(SQL로 직접 넣을 땐 접두어 포함). 회귀 방지 `SecretPostTest`. 계정(admin/user)은 `DataInitializer`가 기동 시 생성. 개인정보(이름·연락처 등)는 pgcrypto AES(`#{cryptoKey}`).
+- **관리자 2차 인증**(CMS 1.2.34, 환경설정 `admin_otp_yn`, 기본 꺼짐): 관리자(MEM02·`admin`)는 비밀번호 다음에 메일 코드를 넣어야 토큰을 받는다. 비밀번호 단계는 토큰 대신 `otpKey`만 주고 `POST /api/auth/loginOtp {otpKey, code}`가 토큰을 준다. 코드는 해시로만(`login_otp`)·5분·코드당 5회·재사용 불가·다시 로그인하면 앞 코드 무효. ★ 틀린 코드는 비밀번호와 같은 실패 횟수에 더하고, 코드 단계에서 계정 상태·접속 IP를 다시 본다. ★ 켤 때 메일 꺼짐·이메일 없는 관리자를 막는다(이메일 검사는 복호화 없이 빈 값 암호문과 비교). 설정 판정은 `ConfigService.adminOtpEnabled()`(DAO 직접). 코드 메일의 이름은 닉네임 우선. 잠기면 `UPDATE config SET admin_otp_yn = 'N';` 회귀 방지 `AdminOtpTest`.
 - ★ **비밀글의 댓글·추천·첨부·갤러리·본문 이미지·북마크는 작성자·관리자만**(CMS 1.2.33). 비밀번호로 연 사람은 **본문(글자)만** 본다. 글 단위 판정은 한 곳 — `GenAccessGuard.checkPost`·`canAccessPost`이고, 댓글·추천·첨부 목록·내려받기·공개 이미지·북마크 담기가 모두 이걸 쓴다. 새로 "글에 딸린 것"을 만들면 이 판정을 쓴다. 회귀 방지 `PostPrivacyTest`.
   - ★ **삭제글·비밀글 확인은 취미 게시판 공개 통과보다 먼저**다(`postDAO.selectPostAccessGate`). 취미 게시판은 메뉴 권한 쿼리(`menuDAO.countGenBoardPermByPost`)를 안 타서, 순서를 바꾸면 취미 게시판 비밀글 댓글·사진이 **비로그인에게** 열린다(v0.6.32까지 그랬다). SQL에도 CMS와 같은 조건이 있지만 이 저장소에선 이중 방어다.
   - 목록은 남의 비밀글 제목을 "비밀글입니다."로, 대표 이미지 ID는 비운다(`PostService.selectList`). 게시판 목록 **검색에는 남의 비밀글이 걸리지 않는다**. '내 북마크'도 남의 비밀글 제목을 가린다(담은 뒤 비밀글로 바뀐 경우).
@@ -106,7 +115,7 @@
 
 ## 파일 / 실시간 / 브랜딩
 - 모든 파일 참조는 **매핑 테이블 경유만**(엔티티에 직접 파일 ID 컬럼을 두지 않는다). 용도 코드(POST/POST_IMG/POST_EDITOR/POPUP/LOGO/BANNER)로 구분.
-- **고아 파일 GC**: 업로드 후 미저장(기본 24h 유예)·삭제된 엔티티의 파일(기본 180일 보존)을 스케줄러가 회수. 설정은 `application.yml`의 `file.gc.*`, 수동 실행은 `POST /api/adm/file/gc.do`(관리자).
+- **고아 파일 GC**: 업로드 후 미저장(기본 24h 유예)·삭제된 엔티티의 파일(기본 180일 보존)을 배치(`FILE_GC`)가 회수. 유예·보존 기간은 `application.yml`의 `file.gc.*`, 주기는 배치 작업 관리, 수동 실행은 `POST /api/adm/file/gc.do`(관리자) 또는 배치 작업 관리의 즉시 실행.
   - ★ **삭제 전파 필수**: 파일을 매핑하는 도메인은 엔티티 삭제 시 `fileDAO.deactivateFilesByOwner`로 파일을 비활성화해야 한다. 누락하면 GC에 걸리지 않아 영구 누수된다(컴파일러가 못 잡음).
   - ⚠️ `FileController.saveFileMapping`은 매핑에서 빠진 파일을 **즉시 물리 삭제**한다. 복구 불가.
   - 휴지통 UI는 없다. 복구는 개발자가 논리삭제 플래그를 되돌리는 SQL로 처리(GC 실행 후에는 파일 복구 불가, 본문만 복구).
@@ -133,7 +142,7 @@
   - **결과 메일**(`form.result_mail_yn`, 기본 꺼짐): 처리상태를 바꾸면 신청자에게 `FORM_RESULT` 템플릿으로 보낸다. ★ **수신 주소는 두 갈래** — 로그인 제출이면 회원 이메일, 아니면 **이메일 문항(FIELD08) 답**(회원 이메일만 보면 비로그인 제출 건은 영영 통지가 안 간다). ★ **메일 실패가 상태 변경을 되돌리지 않는다** — 되돌리면 "관리자는 처리했는데 화면은 그대로"가 된다.
   - ⚠ MyBatis 동적 SQL에서 한 글자 비교에 작은따옴표 금지(`test="x == 'Y'"` → OGNL이 char로 읽어 500) — `"Y".equals(x)`로 쓴다.
 - **개인정보 접근 로그**: 개인정보를 복호화해 읽으면 `privacy_log`에 자동으로 남는다(요청 1건 = 1행, 로그관리 > 개인정보 접근로그). 실행 SQL의 `DECRYPT(`를 보고 탐지하므로 **개인정보는 반드시 pgcrypto 컬럼으로 둔다** — 평문 컬럼에 담으면 기록에 안 잡힌다. 지금 복호화하는 곳은 `memberDAO`·`loginSessionDAO`·`mailLogDAO`(전부 관리자 화면). 본인 조회·비로그인 요청은 남기지 않고, ⚠ **자동 삭제하지 않는다**(법정 최소 보존기간). ⚠ `email_verification.target`은 가입 인증 중 이메일을 평문으로 들고 있어 이 기록 대상이 아니다. ⚠ **테스트에서 `privacy_log`를 확인할 땐 기다렸다 조회한다** — 적재가 응답 뒤(afterCompletion)라 바로 읽으면 가끔 비어 있다("남아야 한다"는 잠깐씩 다시 보고, "안 남아야 한다"는 잠깐 기다린 뒤 센다. 예: `FormAttachmentPrivacyLogTest.awaitTargets`).
-- **메일**: 발송 창구는 `MailService.send(templateCd, toEmail, vars)` 하나다 — `JavaMailSender`를 도메인에서 직접 부르면 그 발송만 `mail_log`에 안 남는다. 문구는 코드가 아니라 `mail_template` 행(관리자 > 시스템관리 > 메일템플릿). 지금 발송되는 곳은 `EmailVerifyService`(`SIGNUP_CODE`·`RESET_CODE`)뿐이다. 본문의 `{{키}}` 치환 값은 **HTML 이스케이프 후 삽입**하고, ⚠ 수신자 주소는 암호화 저장, ⚠ 본문은 `mail.log.retention-days`(90일) 뒤 스케줄러가 지운다. `mail.enabled=false`(기본)면 전송 없이 `SKIP` 이력만 남는다. 저장된 HTML은 **`sandbox` iframe으로만 렌더**한다.
+- **메일**: 발송 창구는 `MailService.send(templateCd, toEmail, vars)` 하나다 — `JavaMailSender`를 도메인에서 직접 부르면 그 발송만 `mail_log`에 안 남는다. 사유까지 필요하면 `sendWithResult`(`{sent, statusCd, errorMsg}` — 관리 화면 테스트 발송, CMS 1.2.34). 문구는 코드가 아니라 `mail_template` 행(관리자 > 시스템관리 > 메일템플릿). 지금 발송되는 곳은 `EmailVerifyService`(`SIGNUP_CODE`·`RESET_CODE`)·회원 라이프사이클(`DORMANT_NOTICE`)·폼 결과(`FORM_RESULT`)·관리자 2차 인증(`ADMIN_LOGIN_CODE`)이다. 본문의 `{{키}}` 치환 값은 **HTML 이스케이프 후 삽입**하고, ⚠ 수신자 주소는 암호화 저장, ⚠ 본문은 `mail.log.retention-days`(90일) 뒤 스케줄러가 지운다. `mail.enabled=false`(기본)면 전송 없이 `SKIP` 이력만 남는다. 저장된 HTML은 **`sandbox` iframe으로만 렌더**한다.
 
 ## 실행 / 검증
 - Backend: `cd backend && ./gradlew bootRun` (dev 설정 `application-dev.yml`, 운영은 env `DB_URL`·`JWT_SECRET` 등).

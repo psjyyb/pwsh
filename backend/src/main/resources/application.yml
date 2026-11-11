@@ -29,6 +29,13 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+  # 배치 스케줄러(BatchService가 batch_job의 주기로 작업을 등록한다). 기본 1개면 오래 걸리는 작업 하나가 도는 동안
+  # [즉시 실행]이 그 뒤에 줄을 서서 '실행 중'인 채 기다린다 — 둘로 둔다(SSE 연결 유지 핑도 같은 스케줄러를 쓴다).
+  task:
+    scheduling:
+      pool:
+        size: 2
+
   # 파일 업로드 크기 제한
   servlet:
     multipart:
@@ -56,43 +63,28 @@ spring:
 #  - enabled: false면 실제 SMTP 전송을 하지 않고 이력만 SKIP으로 남긴다(개발·테스트 기본값).
 #    운영에서 true로 켠다. 계정 미설정 상태로 켜면 발송이 FAIL로 남는다(조용히 삼키지 않는다).
 #  - log.retention-days: 이력 보존기간. 본문에 인증번호가 남으므로 무한 보관하지 않는다. 0이면 정리 안 함.
+#    정리 주기는 배치 작업 관리 화면(작업 코드 MAIL_LOG_PURGE).
 mail:
   enabled: ${MAIL_ENABLED:false}
   log:
     retention-days: 90
-    cron: "0 30 4 * * *"  # 매일 새벽 4시 30분(파일 GC 4시와 겹치지 않게)
 
 # 파일 업로드 저장 경로 (기본: 실행 디렉터리의 uploads. 운영은 환경변수 FILE_UPLOAD_DIR)
 file:
   upload-dir: ${FILE_UPLOAD_DIR:uploads}
   # 고아 파일 정리(GC): 파일만 삭제(DB 기본데이터 행은 보존)
+  #  ⚠ 도는 주기는 여기 없다 — 배치 작업 관리 화면(batch_job, 작업 코드 FILE_GC)에서 바꾼다(v0.6.34).
   gc:
     retention-days: 180  # C: 삭제된 엔티티 파일 보존기간(일)
     abandon-hours: 24    # A: 업로드 후 미저장 파일 유예(시간)
-    cron: "0 0 4 * * *"  # 매일 새벽 4시 자동 실행
 
-# 회원 라이프사이클(휴면 전환·개인정보 파기) 배치
-#  - 전환일·통지일·보존일은 DB(config)에서 운영자가 바꾼다. 여기는 도는 시각만 정한다.
-#  - 순서: 휴면예정 안내 → 휴면 전환 → 파기 (안내가 뒤로 가면 통지 없이 휴면이 된다)
-member:
-  lifecycle:
-    cron: "0 0 3 * * *"  # 매일 새벽 3시(파일 GC 4시·메일 정리 4시 30분과 겹치지 않게)
-
-# 로그 보관 정리 배치 — 활동로그·로그인 이력 중 보관 일수가 지난 행을 지운다
-#  - 보관 일수는 DB(config.del_log_days, 환경설정 화면)에서 운영자가 바꾼다. 0이면 지우지 않는다. 하한 365일.
-#  - 개인정보 접근로그·파기 이력은 대상이 아니다(보존 의무).
-log:
-  retention:
-    cron: "0 30 3 * * *"  # 매일 새벽 3시 30분(라이프사이클 3시·파일 GC 4시·메일 정리 4시 30분 사이)
+# ⚠ 배치 주기(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리·모집 하루 전 알림)는 v0.6.34(CMS 1.2.34)부터
+#   DB(batch_job)가 원본이다. 관리자 > 시스템관리 > 배치 작업 관리에서 바꾸면 재시작 없이 반영된다. 예전의 file.gc.cron·
+#   mail.log.cron·member.lifecycle.cron·log.retention.cron·recruit.remind.cron 키는 더 이상 읽지 않는다.
 
 # 안내메일의 로그인 링크. 배포 주소가 환경마다 달라 설정으로 받는다(운영은 env SITE_LOGIN_URL)
 site:
   login-url: ${SITE_LOGIN_URL:http://localhost:3000/login}
-
-# 모집: 모임 하루 전 리마인더 알림 배치(주최자 + 수락 참여자)
-recruit:
-  remind:
-    cron: "0 0 9 * * *"  # 매일 오전 9시 — 내일 모임 대상
 
 # MyBatis: 컬럼(snake) → VO 필드(camel) 자동 매핑
 mybatis:

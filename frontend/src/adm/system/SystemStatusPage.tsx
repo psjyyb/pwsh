@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, Col, Descriptions, Popconfirm, Progress, Row, Space, Spin, Table, Tag, message } from 'antd'
+import { Button, Card, Col, Descriptions, Input, Popconfirm, Progress, Row, Space, Spin, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
+import MailResultAlert from '../../common/adm/components/MailResultAlert'
+import type { MailSendResult } from '../maillog/maillog.api'
 import { systemApi } from './system.api'
 import type { Migration, SystemCache, SystemSchedule, SystemStatus } from './system.api'
 
@@ -22,6 +24,8 @@ export default function SystemStatusPage() {
   const [data, setData] = useState<SystemStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [checkTo, setCheckTo] = useState('')
+  const [checkResult, setCheckResult] = useState<MailSendResult | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -85,8 +89,25 @@ export default function SystemStatusPage() {
 
   const scheduleColumns: TableColumnsType<SystemSchedule> = [
     { title: '배치', dataIndex: 'name' },
-    { title: 'cron', dataIndex: 'cron', width: 160 },
+    { title: 'cron', dataIndex: 'cron', width: 130 },
+    { title: '자동', width: 60, render: (_, r) => (r.autoYn === 'Y' ? '켜짐' : <Tag>꺼짐</Tag>) },
+    { title: '마지막', width: 90, render: (_, r) => r.lastStatusName ?? '-' },
   ]
+
+  const sendMailCheck = async () => {
+    if (!checkTo.trim()) {
+      message.warning('받는 주소를 입력하세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      setCheckResult(await systemApi.mailCheck(checkTo.trim()))
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '점검 메일을 보내지 못했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (loading && !data) {
     return <Card><div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div></Card>
@@ -95,6 +116,7 @@ export default function SystemStatusPage() {
   const app = data?.app ?? {}
   const db = data?.db ?? {}
   const disk = data?.disk ?? {}
+  const mail = data?.mail ?? {}
   const heapPct = app.heapMaxMb ? Math.round(((app.heapUsedMb ?? 0) / app.heapMaxMb) * 100) : 0
   const diskUsedPct =
     disk.totalMb && disk.freeMb !== undefined
@@ -199,7 +221,12 @@ export default function SystemStatusPage() {
                 pagination={false}
               />
             </Card>
-            <Card title="배치" size="small" styles={{ body: { padding: 0 } }}>
+            <Card
+              title="배치"
+              size="small"
+              styles={{ body: { padding: 0 } }}
+              extra={<span style={{ fontSize: 12, color: '#999' }}>변경·즉시 실행·이력은 배치 작업 관리</span>}
+            >
               <Table<SystemSchedule>
                 rowKey="name"
                 size="small"
@@ -209,6 +236,29 @@ export default function SystemStatusPage() {
               />
             </Card>
           </Space>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          {/* 템플릿 없이 SMTP 설정 자체를 확인한다 — 템플릿 테스트 발송은 메일템플릿 화면에 있다 */}
+          <Card title="메일 설정 점검" size="small">
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              <Descriptions column={1} size="small" bordered>
+                <Descriptions.Item label="메일 발송">
+                  {mail.enabled === 'Y' ? <Tag color="green">켜짐</Tag> : <Tag>꺼짐(이력만 기록)</Tag>}
+                </Descriptions.Item>
+                <Descriptions.Item label="SMTP">{mail.host ? `${mail.host}:${mail.port}` : '-'}</Descriptions.Item>
+                <Descriptions.Item label="발신 계정">
+                  {mail.senderSet === 'Y' ? mail.sender : <Tag color="red">미설정(MAIL_USERNAME)</Tag>}
+                </Descriptions.Item>
+                <Descriptions.Item label="이력 보존">{mail.logRetentionDays ?? '-'}일</Descriptions.Item>
+              </Descriptions>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input value={checkTo} onChange={(e) => setCheckTo(e.target.value)} placeholder="받는 주소" />
+                <Button type="primary" onClick={sendMailCheck} loading={busy}>점검 메일 보내기</Button>
+              </Space.Compact>
+              {checkResult && <MailResultAlert result={checkResult} />}
+            </Space>
+          </Card>
         </Col>
       </Row>
     </Card>

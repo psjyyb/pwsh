@@ -6,6 +6,7 @@ import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.support.IntegrationTest;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,11 +107,11 @@ class MailTest extends IntegrationTest {
         String admin = accessToken("admin", "admin1234!");
         String id = insertTemplate(admin, "ZZ_SEND", "발송", "[알림] {{title}}", "<p>{{title}}</p>");
 
-        // mail.enabled=false → 실제로 보내지 않으므로 false를 돌려준다. 그래도 이력은 남아야 한다.
+        // mail.enabled=false → 실제로 보내지 않으므로 sent=false. 그래도 이력은 남아야 한다.
         String res = post("/api/adm/maillog/insertMailLog.do",
                 "{\"templateCd\":\"ZZ_SEND\",\"toEmail\":\"zz-mail@example.com\",\"vars\":{\"title\":\"점검안내\"}}",
                 admin).body();
-        assertThat(JsonPath.<Boolean>read(res, "$.data")).isFalse();
+        assertThat(JsonPath.<Boolean>read(res, "$.data.sent")).isFalse();
 
         String logs = post("/api/adm/maillog/selectMailLogList.do",
                 "{\"filterKeyword\":\"zz-mail@example.com\",\"pageNo\":1,\"pageSize\":10}", admin).body();
@@ -159,6 +160,56 @@ class MailTest extends IntegrationTest {
         assertThat(mailService.purgeLogs(0)).isZero();
 
         deleteTemplate(admin, id);
+    }
+
+    @Test
+    @DisplayName("테스트 발송은 결과와 사유를 바로 돌려준다 — 미발송(메일 꺼짐)과 실패(템플릿 없음)를 구분한다")
+    void testSendReturnsReason() throws Exception {
+        // v0.6.33(CMS 1.2.33)까지는 true/false만 줘서 "왜 안 갔는지"는 메일발송이력 화면에 가서 봐야 했다
+        String admin = accessToken("admin", "admin1234!");
+        String id = insertTemplate(admin, "ZZ_WHY", "사유", "제목", "<p>본문</p>");
+
+        String skip = post("/api/adm/maillog/insertMailLog.do",
+                "{\"templateCd\":\"ZZ_WHY\",\"toEmail\":\"zz-why@example.com\"}", admin).body();
+        assertThat(JsonPath.<String>read(skip, "$.data.statusCd")).isEqualTo("SKIP");
+        assertThat(JsonPath.<String>read(skip, "$.data.errorMsg")).contains("mail.enabled=false");
+
+        String fail = post("/api/adm/maillog/insertMailLog.do",
+                "{\"templateCd\":\"ZZ_NOPE2\",\"toEmail\":\"zz-why@example.com\"}", admin).body();
+        assertThat(JsonPath.<Boolean>read(fail, "$.data.sent")).isFalse();
+        assertThat(JsonPath.<String>read(fail, "$.data.statusCd")).isEqualTo("FAIL");
+        assertThat(JsonPath.<String>read(fail, "$.data.errorMsg")).contains("ZZ_NOPE2");
+
+        deleteTemplate(admin, id);
+        jdbc.update("DELETE FROM mail_log WHERE template_cd IN ('ZZ_WHY', 'ZZ_NOPE2')");
+    }
+
+    @Test
+    @DisplayName("메일 설정 점검: 시스템 상태에 설정이 보이고, 템플릿 없이 점검 메일을 보내 결과를 바로 받는다")
+    void systemMailCheck() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        String status = post("/api/adm/system/selectSystemView.do", "{}", admin).body();
+        assertThat(JsonPath.<String>read(status, "$.data.mail.enabled")).isEqualTo("N");
+        assertThat(JsonPath.<String>read(status, "$.data.mail.host")).isNotBlank();
+        assertThat(JsonPath.<Object>read(status, "$.data.mail.port")).isNotNull();
+        assertThat(JsonPath.<String>read(status, "$.data.mail.senderSet")).isIn("Y", "N");
+        // SMTP 비밀번호는 어떤 형태로도 내려가지 않는다
+        Map<String, Object> mail = JsonPath.read(status, "$.data.mail");
+        assertThat(mail.keySet()).noneMatch(k -> k.toLowerCase().contains("pass"));
+
+        String res = post("/api/adm/system/updateSystemMailCheck.do", "{\"toEmail\":\"zz-check@example.com\"}", admin).body();
+        assertThat(JsonPath.<String>read(res, "$.data.statusCd")).isEqualTo("SKIP");
+        assertThat(JsonPath.<String>read(res, "$.data.errorMsg")).contains("mail.enabled=false");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM mail_log WHERE template_cd = 'SMTP_CHECK'", Integer.class))
+                .as("점검 발송도 이력에 남는다").isEqualTo(1);
+
+        assertThat(post("/api/adm/system/updateSystemMailCheck.do", "{\"toEmail\":\"not-an-email\"}", admin).statusCode())
+                .isEqualTo(400);
+        assertThat(post("/api/adm/system/updateSystemMailCheck.do", "{}", admin).statusCode()).isEqualTo(400);
+        assertThat(post("/api/adm/system/updateSystemMailCheck.do", "{\"toEmail\":\"zz-check@example.com\"}",
+                accessToken("user", "user1234!")).statusCode()).isEqualTo(403);
+
+        jdbc.update("DELETE FROM mail_log WHERE template_cd = 'SMTP_CHECK'");
     }
 
     @Test

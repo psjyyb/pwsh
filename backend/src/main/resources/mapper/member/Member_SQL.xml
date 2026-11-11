@@ -230,6 +230,20 @@
         WHERE member_id = #{rowId}
     </update>
 
+    <!--
+      이메일이 없는 관리자(관리자 2차 인증을 켜기 전 확인 — 이들은 코드를 받을 수 없어 켜는 순간 로그인할 수 없게 된다).
+      관리자 판정은 로그인과 같다: MEM02 또는 부트스트랩 계정 admin.
+      ★ 복호화하지 않고 "빈 문자열을 같은 키로 암호화한 값"과 비교한다 — pgcrypto encrypt()는 IV가 0으로 고정이라
+        같은 입력이면 같은 값이 나온다. 복호화하면 이메일을 읽지 않는 검사인데도 개인정보 접근기록이 쌓인다.
+    -->
+    <select id="selectAdminIdsWithoutEmail" parameterType="memberVO" resultType="string">
+        SELECT member_id FROM member
+        WHERE use_yn = 'Y' AND (type_cd = 'MEM02' OR member_id = 'admin')
+          AND (email IS NULL OR email = ''
+               OR email = ENCODE(ENCRYPT(CONVERT_TO('', 'UTF8'), #{cryptoKey}::BYTEA, 'AES'), 'HEX'))
+        ORDER BY member_id
+    </select>
+
     <!-- ===== 회원 라이프사이클 (휴면 전환 · 개인정보 파기) ===== -->
 
     <!--

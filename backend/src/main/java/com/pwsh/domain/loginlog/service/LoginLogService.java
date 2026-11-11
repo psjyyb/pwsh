@@ -25,7 +25,11 @@ public class LoginLogService {
     public static final String FAIL_SUSPENDED = "LOGIN05";
     public static final String FAIL_DORMANT = "LOGIN06";
     public static final String FAIL_IP = "LOGIN07";
+    /** 관리자 2차 인증 실패(코드 불일치·만료·이메일 없음) */
+    public static final String FAIL_OTP = "LOGIN08";
     public static final String FAIL_ETC = "LOGIN09";
+    /** 관리자 2차 인증 코드 발송 — 비밀번호만 통과한 상태라 성공(LOGIN01)과 구분한다 */
+    public static final String OTP_SENT = "LOGIN10";
 
     /** login_log.login_id 길이. 입력값이 길어도 기록 때문에 로그인 응답이 500으로 바뀌면 안 된다 */
     private static final int LOGIN_ID_MAX = 50;
