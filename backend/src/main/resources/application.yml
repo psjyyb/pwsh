@@ -78,7 +78,12 @@ file:
     retention-days: 180  # C: 삭제된 엔티티 파일 보존기간(일)
     abandon-hours: 24    # A: 업로드 후 미저장 파일 유예(시간)
 
-# ⚠ 배치 주기(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리·모집 하루 전 알림)는 v0.6.34(CMS 1.2.34)부터
+# 인앱 알림 보존기간(일). 만든 지 이만큼 지난 알림은 읽음 여부와 상관없이 지운다(화면은 최근 30건만 읽는다).
+#   0이면 지우지 않는다. 정리 주기는 배치 작업 관리 화면(작업 코드 NOTIFICATION_PURGE, CMS 1.2.36).
+notification:
+  retention-days: 90
+
+# ⚠ 배치 주기(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리·알림 정리·모집 하루 전 알림)는 v0.6.34(CMS 1.2.34)부터
 #   DB(batch_job)가 원본이다. 관리자 > 시스템관리 > 배치 작업 관리에서 바꾸면 재시작 없이 반영된다. 예전의 file.gc.cron·
 #   mail.log.cron·member.lifecycle.cron·log.retention.cron·recruit.remind.cron 키는 더 이상 읽지 않는다.
 

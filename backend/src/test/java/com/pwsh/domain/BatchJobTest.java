@@ -21,9 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 class BatchJobTest extends IntegrationTest {
 
-    /** CMS 4종 + 이 저장소 전용 모집 하루 전 알림 */
+    /** CMS 5종(1.2.36 알림 정리 포함) + 이 저장소 전용 모집 하루 전 알림 */
     private static final List<String> JOBS =
-            List.of("FILE_GC", "MAIL_LOG_PURGE", "MEMBER_LIFECYCLE", "LOG_RETENTION", "RECRUIT_REMIND");
+            List.of("FILE_GC", "MAIL_LOG_PURGE", "MEMBER_LIFECYCLE", "LOG_RETENTION", "NOTIFICATION_PURGE", "RECRUIT_REMIND");
 
     @Autowired
     private BatchService batchService;
@@ -35,6 +35,7 @@ class BatchJobTest extends IntegrationTest {
         jdbc.update("UPDATE batch_job SET cron_expr = '0 0 3 * * *', auto_yn = 'Y' WHERE job_cd = 'MEMBER_LIFECYCLE'");
         jdbc.update("UPDATE batch_job SET cron_expr = '0 30 3 * * *', auto_yn = 'Y' WHERE job_cd = 'LOG_RETENTION'");
         jdbc.update("UPDATE batch_job SET cron_expr = '0 0 9 * * *', auto_yn = 'Y' WHERE job_cd = 'RECRUIT_REMIND'");
+        jdbc.update("UPDATE batch_job SET cron_expr = '0 0 5 * * *', auto_yn = 'Y' WHERE job_cd = 'NOTIFICATION_PURGE'");
         jdbc.update("DELETE FROM batch_job WHERE job_cd LIKE 'ZZ%'");
         jdbc.update("DELETE FROM batch_log");
         jdbc.update("DELETE FROM event_log WHERE target_table = 'zzbatch'");
@@ -46,7 +47,7 @@ class BatchJobTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("작업 5종(CMS 4종 + 모집 하루 전 알림)이 주기·자동 실행·다음 실행 시각과 함께 보이고, 스케줄러에 등록돼 있다")
+    @DisplayName("작업 6종(CMS 5종 + 모집 하루 전 알림)이 주기·자동 실행·다음 실행 시각과 함께 보이고, 스케줄러에 등록돼 있다")
     void listShowsJobs() throws Exception {
         String body = list(admin());
         assertThat(JsonPath.<List<String>>read(body, "$.data.list[*].jobCd")).containsExactlyInAnyOrderElementsOf(JOBS);

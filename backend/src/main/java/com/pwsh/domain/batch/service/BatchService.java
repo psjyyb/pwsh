@@ -8,6 +8,7 @@ import com.pwsh.domain.eventlog.service.EventLogService;
 import com.pwsh.domain.file.service.FileService;
 import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.domain.member.service.MemberService;
+import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.domain.recruit.service.RecruitService;
 import java.time.Duration;
 import java.time.Instant;
@@ -49,10 +50,10 @@ public class BatchService {
 
     /**
      * 코드에 구현된 작업. 여기 없는 코드의 행은 스케줄러에 올리지 않는다(즉시 실행하면 실패로 남는다).
-     * CMS 4종 + 이 저장소 전용 RECRUIT_REMIND(모집 하루 전 알림, 행은 V1001).
+     * CMS 5종(NOTIFICATION_PURGE는 CMS 1.2.36, 행은 V11) + 이 저장소 전용 RECRUIT_REMIND(모집 하루 전 알림, 행은 V1001).
      */
     private static final Set<String> JOBS =
-            Set.of("MEMBER_LIFECYCLE", "LOG_RETENTION", "FILE_GC", "MAIL_LOG_PURGE", "RECRUIT_REMIND");
+            Set.of("MEMBER_LIFECYCLE", "LOG_RETENTION", "FILE_GC", "MAIL_LOG_PURGE", "NOTIFICATION_PURGE", "RECRUIT_REMIND");
     /** 정리 작업을 매초 돌리게 해 두면 DB를 계속 긁는다 — 사람이 정하는 주기는 1분보다 잦을 이유가 없다 */
     private static final Duration MIN_INTERVAL = Duration.ofMinutes(1);
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -64,6 +65,7 @@ public class BatchService {
     private final EventLogService eventLogService;
     private final FileService fileService;
     private final MailService mailService;
+    private final NotificationService notificationService;
     private final RecruitService recruitService;
 
     /**
@@ -206,6 +208,7 @@ public class BatchService {
             }
             case "FILE_GC" -> String.format("고아 파일 %d건 삭제", fileService.sweep());
             case "MAIL_LOG_PURGE" -> String.format("메일 이력 %d건 삭제", mailService.purgeExpiredLogs());
+            case "NOTIFICATION_PURGE" -> String.format("알림 %d건 삭제", notificationService.purgeExpired());
             // 같은 날 다시 돌려도 이미 보낸 수신자는 매퍼가 거른다 — 즉시 실행해도 중복 알림이 나가지 않는다
             case "RECRUIT_REMIND" -> String.format("내일 모임 알림 %d건 발송",
                     recruitService.sendMeetReminders(LocalDate.now().plusDays(1).toString()));

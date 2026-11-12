@@ -8,6 +8,7 @@ import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -32,6 +33,27 @@ public class NotificationService {
     private final CommonDAO commonDAO;
     private final com.pwsh.global.realtime.RealtimeService realtimeService;
     private final PlatformTransactionManager txManager;
+
+    /** 알림 보존기간(일). 0이면 지우지 않는다(CMS 1.2.36) */
+    @Value("${notification.retention-days:90}")
+    private int retentionDays;
+
+    /**
+     * 보존기간(notification.retention-days) 지난 알림 삭제 — 읽음 여부와 상관없이 만든 시각 기준(CMS 1.2.36).
+     * 배치 작업 관리(BatchService, 작업 코드 NOTIFICATION_PURGE)가 DB의 주기로 부른다. 법정 보존 대상이 아니라
+     * 로그 보관 정리(LOG_RETENTION)와 따로 둔다. 모집 하루 전 알림의 "오늘 보냈는지" 확인은 오늘 행만 보므로 영향이 없다.
+     * @return 지운 건수
+     */
+    public int purgeExpired() {
+        if (retentionDays <= 0) {
+            return 0;
+        }
+        int deleted = commonDAO.delete("notificationDAO.deleteExpired", java.util.Map.of("days", String.valueOf(retentionDays)));
+        if (deleted > 0) {
+            log.info("알림 정리: {}건 삭제(보존 {}일)", deleted, retentionDays);
+        }
+        return deleted;
+    }
 
     /**
      * 이벤트 알림 적재. 수신자==행위자(본인)면 스킵.

@@ -10,6 +10,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -37,6 +38,8 @@ class NotificationTest extends IntegrationTest {
         jdbc.update("DELETE FROM auth WHERE menu_id IN (SELECT menu_id FROM menu WHERE name = 'ZZ알림 신청메뉴')");
         jdbc.update("DELETE FROM menu WHERE name = 'ZZ알림 신청메뉴'");
         jdbc.update("DELETE FROM form WHERE title LIKE 'ZZ알림%'");
+        jdbc.update("DELETE FROM notification WHERE content LIKE 'ZZ정리%'");
+        jdbc.update("DELETE FROM batch_log WHERE job_cd = 'NOTIFICATION_PURGE'");
     }
 
     @Test
@@ -91,6 +94,8 @@ class NotificationTest extends IntegrationTest {
                 .build();
         HttpResponse<Stream<String>> res = http.send(req, HttpResponse.BodyHandlers.ofLines());
         assertThat(res.statusCode()).isEqualTo(200);
+        // 앞단 프록시(nginx)가 응답을 모아 두면 이벤트가 버퍼가 찰 때까지 안 간다 — 이 응답만 버퍼링하지 말라고 알린다(CMS 1.2.36)
+        assertThat(res.headers().firstValue("X-Accel-Buffering")).hasValue("no");
         Iterator<String> lines = res.body().iterator();
         try {
             assertThat(awaitEvent(lines, "ready")).as("연결 직후 ready").isTrue();
@@ -103,7 +108,62 @@ class NotificationTest extends IntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("모임 단체 대화 스트림도 버퍼링하지 말라고 알린다(스트림이 둘이라 하나만 고치면 대화가 늦게 온다)")
+    void chatStreamUnbuffered() throws Exception {
+        String user = accessToken("user", "user1234!");
+        HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/adm/recruitChat/selectRecruitChatListStream.do"))
+                .header("Authorization", "Bearer " + user)
+                .header("Content-Type", "application/json")
+                .header("Accept", "text/event-stream")
+                .POST(HttpRequest.BodyPublishers.ofString("{}", StandardCharsets.UTF_8))
+                .build();
+        HttpResponse<Stream<String>> res = http.send(req, HttpResponse.BodyHandlers.ofLines());
+        try {
+            assertThat(res.statusCode()).isEqualTo(200);
+            assertThat(res.headers().firstValue("X-Accel-Buffering")).hasValue("no");
+        } finally {
+            res.body().close();
+        }
+    }
+
+    @Test
+    @DisplayName("알림 정리 배치: 만든 지 90일 지난 알림은 읽음 여부와 상관없이 지우고, 그 안의 것은 남긴다")
+    void purgeRemovesOldNotifications() throws Exception {
+        insertNotification("user", "ZZ정리 91일 안읽음", "N", 91);
+        insertNotification("user", "ZZ정리 91일 읽음", "Y", 91);
+        insertNotification("user", "ZZ정리 89일", "N", 89);
+        Integer jobId = jdbc.queryForObject("SELECT batch_job_id FROM batch_job WHERE job_cd = 'NOTIFICATION_PURGE'", Integer.class);
+
+        assertThat(post("/api/adm/batch/updateBatchRun.do", "{\"rowId\":\"" + jobId + "\"}", accessToken("admin", "admin1234!"))
+                .statusCode()).isEqualTo(200);
+        Map<String, Object> log = awaitFinished("NOTIFICATION_PURGE");
+        assertThat(log.get("status_cd")).isEqualTo("BATCH02");
+        assertThat((String) log.get("result_msg")).contains("알림 2건 삭제");
+        assertThat(jdbc.queryForList("SELECT content FROM notification WHERE content LIKE 'ZZ정리%'", String.class))
+                .containsExactly("ZZ정리 89일");
+    }
+
     // ===== helpers =====
+
+    private void insertNotification(String memberId, String content, String readYn, int daysAgo) {
+        jdbc.update("INSERT INTO notification (member_id, type, content, read_yn, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)"
+                + " VALUES (?, 'COMMENT', ?, ?, 'Y', 'system', 'system', NOW() - (? || ' days')::INTERVAL, NOW(), '127.0.0.1', '127.0.0.1')",
+                memberId, content, readYn, String.valueOf(daysAgo));
+    }
+
+    /** 백그라운드 실행이 끝날 때까지(실행 중이 아닐 때까지) 기다렸다가 마지막 이력을 돌려준다. */
+    private Map<String, Object> awaitFinished(String jobCd) throws InterruptedException {
+        for (int i = 0; i < 100; i++) {
+            List<Map<String, Object>> rows = jdbc.queryForList(
+                    "SELECT * FROM batch_log WHERE job_cd = ? ORDER BY batch_log_id DESC LIMIT 1", jobCd);
+            if (!rows.isEmpty() && !"BATCH01".equals(rows.get(0).get("status_cd"))) {
+                return rows.get(0);
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError(jobCd + " 실행이 10초 안에 끝나지 않았다");
+    }
 
     /** 다음 이벤트 이름이 나올 때까지 줄을 읽는다(5초 제한). 핑 주석(:ping)·data 줄은 건너뛴다 */
     private boolean awaitEvent(Iterator<String> lines, String name) throws Exception {

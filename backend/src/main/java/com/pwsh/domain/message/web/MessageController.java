@@ -6,6 +6,7 @@ import com.pwsh.domain.message.service.MessageService;
 import com.pwsh.domain.message.service.MessageVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,11 +43,14 @@ public class MessageController {
      *
      * <p>EventSource가 아니라 fetch로 소비하도록 POST로 둔다 — EventSource는 Authorization 헤더를
      * 보낼 수 없어 토큰을 URL에 실어야 하고, 그러면 접근 로그·리퍼러에 토큰이 남는다.
-     * ApiResponse로 감싸지 않는 유일한 엔드포인트(스트림이므로).
+     * ApiResponse로 감싸지 않는다(스트림이므로 — 모임 대화 스트림도 같다).
+     *
+     * <p>X-Accel-Buffering: no(CMS 1.2.36) — 앞단 nginx는 기본으로 응답을 모아 두었다 보내서, 이 헤더가 없으면 이벤트가
+     * 버퍼가 찰 때까지 안 간다(화면은 연결돼 있다고 보고 폴링도 멈춘다). 다른 프록시라면 그 설정에서 이 경로의 버퍼링을 끈다.
      */
     @PostMapping(value = "/selectMessageListStream.do", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream() {
-        return messageService.subscribe();
+    public ResponseEntity<SseEmitter> stream() {
+        return ResponseEntity.ok().header("X-Accel-Buffering", "no").body(messageService.subscribe());
     }
 
     /** 쪽지 보내기 */

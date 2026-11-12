@@ -37,6 +37,11 @@
         WHERE member_id = #{memberId} AND read_yn = 'N'
     </update>
 
+    <!-- 보존기간 지난 알림 삭제(알림 정리 배치, CMS 1.2.36 — 읽음 여부와 상관없이 만든 시각 기준) -->
+    <delete id="deleteExpired" parameterType="map">
+        DELETE FROM notification WHERE reg_dt &lt; NOW() - (#{days} || ' days')::INTERVAL
+    </delete>
+
     <!-- ===== 알림 수신 설정(notification_setting). 행이 없으면 전부 수신(기본 ON) ===== -->
     <select id="selectSetting" parameterType="notificationVO" resultType="notificationVO">
         SELECT COALESCE(s.apply_yn,   'Y') AS apply_yn,

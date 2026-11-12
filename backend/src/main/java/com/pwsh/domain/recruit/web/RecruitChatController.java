@@ -7,6 +7,7 @@ import com.pwsh.domain.recruit.service.RecruitService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,10 +36,11 @@ public class RecruitChatController {
      * 실시간 스트림(SSE) — 새 대화가 등록되면 "recruitchat"만 밀어준다(본문 없음).
      * 클라이언트는 이벤트를 받고 위 목록 API로 다시 가져간다(인가는 목록 API가 담당).
      * 쪽지 스트림과 같은 허브라서 알림·쪽지 이벤트도 같이 오며, 클라이언트가 이름으로 골라 쓴다.
+     * X-Accel-Buffering: no — 쪽지 스트림(MessageController.stream)과 같은 이유(CMS 1.2.36).
      */
     @PostMapping(value = "/selectRecruitChatListStream.do", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream() {
-        return recruitService.subscribeChat();
+    public ResponseEntity<SseEmitter> stream() {
+        return ResponseEntity.ok().header("X-Accel-Buffering", "no").body(recruitService.subscribeChat());
     }
 
     @RequestMapping("/insertRecruitChat.do")
