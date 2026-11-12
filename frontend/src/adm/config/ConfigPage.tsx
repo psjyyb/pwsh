@@ -68,6 +68,13 @@ export default function ConfigPage() {
           <Select options={YN_OPTIONS} />
         </Form.Item>
         <Form.Item
+          name="signupYn"
+          label="회원가입 허용"
+          extra="끄면 로그인 화면의 회원가입 링크가 사라지고 가입·인증코드 발송이 막힙니다(스팸 가입이 몰릴 때 등). 인증코드를 보내야 하므로 메일 발송이 꺼져 있으면 다시 켜지지 않습니다. 비밀번호 찾기는 이 설정과 상관없이 항상 쓸 수 있습니다."
+        >
+          <Select options={YN_OPTIONS} />
+        </Form.Item>
+        <Form.Item
           name="maintYn"
           label="점검(유지보수) 모드"
           extra="켜면 관리자를 제외한 모든 요청이 차단되고 아래 안내 문구가 표시됩니다. 관리자는 그대로 로그인·작업할 수 있습니다."

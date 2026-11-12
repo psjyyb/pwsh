@@ -215,7 +215,7 @@ class MailTest extends IntegrationTest {
     @Test
     @DisplayName("가입 인증 메일도 템플릿·이력을 탄다 — 직접 JavaMailSender를 부르면 이 이력이 비어 있다")
     void signupCodeGoesThroughTemplate() throws Exception {
-        // mail.enabled=false라 실제로 나가지 않고 발송은 실패로 끝나지만(=코드 발급도 롤백),
+        // mail.enabled=false라 실제로 나가지 않고 발송은 실패로 끝나지만(=코드는 바로 만료, CMS 1.2.35),
         // 이력은 독립 트랜잭션이라 반드시 남는다.
         post("/api/auth/sendSignupCode", "{\"email\":\"zz-signup@example.com\"}", null);
 

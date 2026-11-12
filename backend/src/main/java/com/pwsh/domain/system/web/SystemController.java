@@ -53,6 +53,16 @@ public class SystemController {
         return ApiResponse.ok(systemService.evictAll());
     }
 
+    /**
+     * 설치 점검 — 운영 전에 빠뜨리기 쉬운 설정(기본 키·기본 비밀번호·개발 프로파일·업로드 경로·메일·배치)의 판정 목록.
+     * 비밀값은 싣지 않는다. 어떤 방어가 꺼져 있는지 알려 주는 목록이라 관리자만.
+     */
+    @RequestMapping("/selectSystemListCheck.do")
+    public ApiResponse<Map<String, Object>> checks() {
+        requireAdmin();
+        return ApiResponse.ok(systemService.checks());
+    }
+
     /** 메일 설정 점검 — 입력한 주소로 고정 문구 한 통(템플릿 불필요) → 결과·사유를 바로 돌려준다 */
     @RequestMapping("/updateSystemMailCheck.do")
     public ApiResponse<MailService.SendResult> mailCheck(@RequestBody(required = false) Map<String, String> body) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Checkbox, ConfigProvider, Form, Input, Space, message } from 'antd'
+import { Alert, Button, Card, Checkbox, ConfigProvider, Form, Input, Space, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { signup, login, sendSignupCode } from '../api/auth'
 import { tokenStore } from './token'
@@ -10,15 +10,20 @@ import PolicyViewModal from '../common/gen/components/PolicyViewModal'
 import { genTheme } from '../gen/theme'
 import defaultLogo from '../assets/logo.svg'
 
+/** 인증코드 유효 시간 — 서버(EmailVerifyService.TTL_MIN)·메일 본문과 같은 값 */
+const CODE_TTL_MIN = 5
+
 /**
- * 셀프 회원가입 — 공개 페이지(비로그인). 아이디·비번·닉네임 필수, 이메일 선택.
- * 성공 시 로그인 페이지로 이동(자동 로그인 아님).
+ * 셀프 회원가입 — 공개 페이지(비로그인). 아이디·비번·닉네임·이메일(인증) 필수 + 약관 동의.
+ * 성공하면 바로 로그인해 관심 취미 고르기(/gen/onboarding)로 간다.
+ * 환경설정 "회원가입 허용"을 끄면 안내만 보인다(서버도 403, CMS 1.2.35 — 이 저장소 기본 켜짐).
  */
 export default function SignupPage() {
   const navigate = useNavigate()
   const [form] = Form.useForm()
   const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
+  const [open, setOpen] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
   const [codeSent, setCodeSent] = useState(false)
@@ -46,7 +51,7 @@ export default function SignupPage() {
     try {
       await sendSignupCode(email)
       setCodeSent(true)
-      message.success('인증코드를 메일로 보냈습니다. (유효 10분)')
+      message.success(`인증코드를 메일로 보냈습니다. (유효 ${CODE_TTL_MIN}분)`)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '인증코드 발송에 실패했습니다.')
     } finally {
@@ -58,6 +63,7 @@ export default function SignupPage() {
     configApi.view().then((c) => {
       if (c.title) setSiteTitle(c.title)
       setLogoFileId(c.logoFileId ?? undefined)
+      setOpen(c.signupYn !== 'N')
     }).catch(() => {})
     // 동의 항목은 약관 관리(policy)에 등록된 내용을 그대로 쓴다 — 약관이 늘면 화면 수정 없이 항목이 늘어난다
     policyApi.publicList().then(setPolicies).catch(() => setPolicies([]))
@@ -112,6 +118,12 @@ export default function SignupPage() {
           <div style={{ color: '#888', fontSize: 13 }}>함께 시작해요 ✨ 회원가입</div>
         </div>
 
+        {!open ? (
+          <>
+            <Alert type="info" showIcon message="지금은 회원가입을 받지 않습니다." description="잠시 후 다시 찾아 주세요." />
+            <Button block style={{ marginTop: 16 }} onClick={() => navigate('/login')}>로그인으로</Button>
+          </>
+        ) : (
         <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
           <Form.Item
             name="memberId"
@@ -179,7 +191,7 @@ export default function SignupPage() {
             name="code"
             label="인증코드"
             rules={[{ required: true, message: '메일로 받은 인증코드를 입력하세요.' }]}
-            extra="이메일로 전송된 6자리 코드를 입력하세요. (유효 10분)"
+            extra={`이메일로 전송된 6자리 코드를 입력하세요. (유효 ${CODE_TTL_MIN}분)`}
           >
             <Input placeholder="6자리 인증코드" maxLength={6} inputMode="numeric" />
           </Form.Item>
@@ -221,6 +233,7 @@ export default function SignupPage() {
             <a onClick={() => navigate('/login')}>로그인</a>
           </div>
         </Form>
+        )}
       </Card>
       <PolicyViewModal rowId={viewPolicyId} onClose={() => setViewPolicyId(undefined)} />
     </div>

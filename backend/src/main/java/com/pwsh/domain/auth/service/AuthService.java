@@ -55,6 +55,7 @@ public class AuthService {
     private final LoginLogService loginLogService;
     private final ConfigService configService;
     private final MailService mailService;
+    private final org.springframework.scheduling.TaskScheduler taskScheduler;
 
     /** 2차 인증 코드 유효 시간(분) — 메일이 늦게 와도 넣을 수 있고, 새어도 금방 쓸모없어지는 정도 */
     private static final int OTP_EXPIRE_MINS = 5;
@@ -299,22 +300,27 @@ public class AuthService {
      * 셀프 회원가입 — 아이디·닉네임 중복검사 후 member 생성 + MEMBER 권한그룹 매핑(같은 트랜잭션).
      * 익명 요청이라 audit reg_id는 AuditInterceptor가 "system"으로 세팅한다.
      * (비밀번호 복잡도는 컨트롤러에서 PasswordPolicy로 선검증)
+     *
+     * <p>★ 환경설정 "회원가입 허용"이 꺼져 있으면 막는다(CMS 1.2.35, 이 저장소 기본 켜짐) — 화면 링크만 숨기면 API로 가입된다.
+     * <p>동의 이력은 지금 쓰는 약관 번호만 남긴다(요청에 섞인 없는 번호는 버린다).
      */
     @Transactional
     public void signup(SignupRequest request) {
+        assertSignupOpen();
         if (!request.password().equals(request.pwConfirm())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.passwordConfirmMismatch"));
         }
         // 필수 약관 동의 확인 — 화면 체크박스는 우회 가능하므로 서버가 다시 판정한다.
         // (중복검사·계정생성보다 앞에서 막아 불필요한 조회·생성을 하지 않는다)
-        java.util.List<String> required = policyService.selectListRequiredIds();
-        java.util.List<String> agreed = request.agreedPolicyIds() == null
-                ? java.util.List.of() : request.agreedPolicyIds();
-        if (!agreed.containsAll(required)) {
+        java.util.Set<String> agreed = request.agreedPolicyIds() == null
+                ? java.util.Set.of() : new java.util.HashSet<>(request.agreedPolicyIds());
+        if (!agreed.containsAll(policyService.selectListRequiredIds())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.signup.policyRequired"));
         }
-        // 이메일 인증코드 검증(발급받은 유효 코드여야 가입 진행)
-        if (!emailVerifyService.verify(request.email(), "SIGNUP", request.code())) {
+        // 이메일 인증코드 검증(발급받은 유효 코드여야 가입 진행). 코드 발송과 같은 형태(앞뒤 공백 제거·소문자)로 맞춘다 —
+        // v0.6.34까지는 발송만 공백을 지워 " a@b.com"처럼 들어오면 맞는 코드도 거절됐다
+        String email = request.email().trim().toLowerCase();
+        if (!emailVerifyService.verify(email, EmailVerifyService.SIGNUP, request.code())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.signup.invalidCode"));
         }
         // 아이디 중복
@@ -337,7 +343,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setTypeCd("MEM01");
         user.setNickname(request.nickname());
-        user.setEmail(request.email()); // 선택(null 가능)
+        user.setEmail(email);
         user.setStatusCd("STATUS01");
         commonDAO.insert("memberDAO.insert", user);
         // MEMBER 권한그룹 매핑
@@ -346,34 +352,58 @@ public class AuthService {
         authMember.setAuthGroupId("MEMBER");
         commonDAO.insert("memberDAO.insertAuthMember", authMember);
         // 동의 이력 저장(필수 약관 + 회원이 함께 체크한 선택 약관). 동의 시각·IP가 증빙으로 남는다.
-        for (String policyId : agreed) {
-            policyService.insertMemberPolicy(request.memberId(), policyId);
+        // 지금 쓰는 약관만 — v0.6.34까지는 요청 번호를 그대로 넣어 없는 약관 번호도 이력에 남았다
+        for (String policyId : policyService.selectListPublicIds()) {
+            if (agreed.contains(policyId)) {
+                policyService.insertMemberPolicy(request.memberId(), policyId);
+            }
         }
         // 사용한 인증코드 소비(재사용 방지)
-        emailVerifyService.consume(request.email(), "SIGNUP");
+        emailVerifyService.consume(email, EmailVerifyService.SIGNUP);
     }
 
-    /** 가입 이메일 인증코드 발송(공개) — 형식만 확인하고 코드 발송. */
+    /** 가입 이메일 인증코드 발송(공개, 회원가입 허용일 때만). 받는 주소 = 가입할 이메일이라 실패 사유를 그대로 알려도 된다. */
     public void sendSignupCode(String email) {
+        assertSignupOpen();
         if (email == null || email.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.signup.emailRequired"));
         }
-        emailVerifyService.issue(email.trim(), "SIGNUP", email.trim());
+        com.pwsh.common.util.Validate.email(email.trim(), "이메일");
+        String normalized = email.trim().toLowerCase();
+        emailVerifyService.issue(normalized, EmailVerifyService.SIGNUP, normalized);
     }
 
     /**
      * 비밀번호 재설정 코드 발송(공개) — member_id로 회원 조회 → 등록된 이메일로 코드 발송.
-     * 계정/이메일 존재 여부는 응답으로 노출하지 않는다(계정 열거 방지): 없으면 조용히 무시하고 성공처럼 응답.
+     *
+     * <p>★ 응답은 계정 유무·재발송 제한·메일 실패와 상관없이 항상 같다(CMS 1.2.35). 발급·발송은 <b>응답과 따로 뒤에서</b> 한다 —
+     * v0.6.34까지는 그 자리에서 해서, 있는 계정에서만 재발송 제한(400)·메일 실패(500)가 나거나 응답이 느려져 아이디가 드러났다.
      */
     public void sendResetCode(String memberId) {
-        if (memberId == null || memberId.isBlank()) {
+        if (memberId == null || memberId.isBlank() || memberId.length() > 30) {
             return;
         }
-        MemberVO u = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(memberId.trim()));
-        if (u == null || !"Y".equals(u.getUseYn()) || u.getEmail() == null || u.getEmail().isBlank()) {
-            return; // 열거 방지: 존재/미존재 구분 없이 동일 응답
+        String id = memberId.trim();
+        taskScheduler.schedule(() -> issueResetQuietly(id), java.time.Instant.now());
+    }
+
+    private void issueResetQuietly(String memberId) {
+        try {
+            MemberVO u = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(memberId));
+            if (u == null || !"Y".equals(u.getUseYn()) || u.getEmail() == null || u.getEmail().isBlank()) {
+                return;
+            }
+            emailVerifyService.issue(memberId, EmailVerifyService.RESET, u.getEmail().trim());
+        } catch (RuntimeException e) {
+            // 재발송 제한·메일 실패는 요청자에게 알리지 않는다(위 이유). 메일 실패는 발송 이력에 남는다
+            log.debug("비밀번호 찾기 코드 발급 건너뜀: {}", e.getMessage());
         }
-        emailVerifyService.issue(memberId.trim(), "RESET", u.getEmail());
+    }
+
+    private void assertSignupOpen() {
+        if (!configService.signupEnabled()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.signup.disabled"));
+        }
     }
 
     /** 비밀번호 재설정(공개) — 인증코드 검증 후 새 비번 적용 + 세션 무효화(token_ver +1). */
@@ -382,7 +412,7 @@ public class AuthService {
         if (!request.newPw().equals(request.pwConfirm())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.passwordConfirmMismatch"));
         }
-        if (!emailVerifyService.verify(request.memberId(), "RESET", request.code())) {
+        if (!emailVerifyService.verify(request.memberId(), EmailVerifyService.RESET, request.code())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.reset.invalidCode"));
         }
         MemberVO u = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(request.memberId()));
@@ -394,7 +424,7 @@ public class AuthService {
         upd.setPassword(passwordEncoder.encode(request.newPw()));
         commonDAO.update("memberDAO.updatePw", upd);
         memberService.invalidateToken(request.memberId(), SessionEndReason.PWCHANGE); // 토큰·세션 정리는 창구 한 곳
-        emailVerifyService.consume(request.memberId(), "RESET");
+        emailVerifyService.consume(request.memberId(), EmailVerifyService.RESET);
     }
 
     /** 내 정보(memberId·nickname·typeCd). 마이페이지 표시용. */

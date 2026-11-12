@@ -17,14 +17,18 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
+    /** 기본 계정 비밀번호 — 설치 점검(SystemService.checks)이 "아직 이 값 그대로인지"를 같은 상수로 본다 */
+    public static final String DEFAULT_ADMIN_PW = "admin1234!";
+    public static final String DEFAULT_USER_PW = "user1234!";
+
     private final CommonDAO commonDAO;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
-        createIfAbsent("admin", "admin1234!", "MEM02", "관리자", "관리자");
+        createIfAbsent("admin", DEFAULT_ADMIN_PW, "MEM02", "관리자", "관리자");
         // 샘플 일반 사용자(권한그룹 예시용). 권한그룹/메뉴 매핑은 마이그레이션(V2 기초데이터)에서 시드.
-        createIfAbsent("user", "user1234!", "MEM01", "일반사용자", "회원1");
+        createIfAbsent("user", DEFAULT_USER_PW, "MEM01", "일반사용자", "회원1");
     }
 
     private void createIfAbsent(String memberId, String rawPw, String typeCd, String memberName, String nickname) {

@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [siteTitle, setSiteTitle] = useState('취만사')
   const [logoFileId, setLogoFileId] = useState<string | undefined>()
   const [notice, setNotice] = useState('')
+  // 회원가입 링크 — 이 저장소는 기본 켜짐이라 설정을 읽기 전엔 보이고, 관리자가 끄면 숨긴다(서버도 막는다)
+  const [signupOpen, setSignupOpen] = useState(true)
   // 관리자 2차 인증 단계 — 비밀번호를 통과하면 서버가 토큰 대신 확인 키를 준다
   const [otp, setOtp] = useState<{ key: string; mailSent: boolean } | null>(null)
   const logoSrc = logoFileId ? `/api/pub/image/${logoFileId}` : defaultLogo
@@ -22,6 +24,7 @@ export default function LoginPage() {
     configApi.view().then((c) => {
       if (c.title) setSiteTitle(c.title)
       setLogoFileId(c.logoFileId ?? undefined)
+      setSignupOpen(c.signupYn !== 'N')
     }).catch(() => {})
     // 확장설정 site.login-notice — 점검 예고·공지 등을 로그인 화면에 띄운다(비어 있으면 미표시)
     pubConfigItemApi.list().then((rows) => {
@@ -120,9 +123,13 @@ export default function LoginPage() {
               로그인
             </Button>
             <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13 }}>
-              아직 회원이 아니신가요?{' '}
-              <a onClick={() => navigate('/signup')}>회원가입</a>
-              <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+              {signupOpen && (
+                <>
+                  아직 회원이 아니신가요?{' '}
+                  <a onClick={() => navigate('/signup')}>회원가입</a>
+                  <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+                </>
+              )}
               <a onClick={() => navigate('/forgot')}>비밀번호 찾기</a>
             </div>
           </Form>

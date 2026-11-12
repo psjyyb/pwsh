@@ -5,7 +5,7 @@
     <!-- 단일 행 설정 -->
     <select id="selectView" parameterType="configVO" resultType="configVO">
         SELECT fail_cnt_limit, fail_lock_mins, password_expire_days, session_expire_mins,
-               del_log_days, acc_ip_yn, admin_otp_yn, maint_yn, maint_message, title,
+               del_log_days, acc_ip_yn, admin_otp_yn, signup_yn, maint_yn, maint_message, title,
                dormant_days, dormant_notify_days, destroy_days,
                (SELECT r.file_id FROM file_ref r
                  JOIN file f ON f.file_id = r.file_id AND f.use_yn = 'Y'
@@ -28,6 +28,7 @@
             acc_ip_yn = #{accIpYn},
             <!-- ★ 안 보낸 저장(옛 화면·다른 도구)이 2차 인증을 몰래 끄지 않게 비어 있으면 그대로 둔다 -->
             admin_otp_yn = COALESCE(NULLIF(#{adminOtpYn}, ''), admin_otp_yn),
+            signup_yn = COALESCE(NULLIF(#{signupYn}, ''), signup_yn),
             maint_yn = #{maintYn},
             maint_message = #{maintMessage},
             title = #{title}

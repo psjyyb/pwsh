@@ -58,6 +58,7 @@ public class ConfigService {
         ConfigVO display = new ConfigVO();
         display.setTitle(vo.getTitle());
         display.setLogoFileId(vo.getLogoFileId());
+        display.setSignupYn(vo.getSignupYn()); // 로그인 화면의 "회원가입" 링크 표시용(보안 정책값이 아니다)
         return display;
     }
 
@@ -83,8 +84,21 @@ public class ConfigService {
         return vo != null && "Y".equals(vo.getAdminOtpYn());
     }
 
+    /** 셀프 회원가입 허용 여부 — 가입 API가 매 요청 본다(DAO 직접, 비로그인 요청이라 selectView의 표시 필터와 무관하게) */
+    public boolean signupEnabled() {
+        ConfigVO vo = commonDAO.selectOne("configDAO.selectView", new ConfigVO());
+        return vo != null && "Y".equals(vo.getSignupYn());
+    }
+
     public void update(ConfigVO vo) {
         assertLogRetention(vo.getDelLogDays());
+        if (vo.getSignupYn() != null && !vo.getSignupYn().isBlank()) {
+            vo.setSignupYn("Y".equals(vo.getSignupYn()) ? "Y" : "N");
+            // 켜는 순간에만 본다 — 인증 코드를 못 보내면 아무도 가입할 수 없다
+            if ("Y".equals(vo.getSignupYn()) && !signupEnabled() && !mailService.isEnabled()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.config.signupMailDisabled"));
+            }
+        }
         if ("Y".equals(vo.getAccIpYn())) {
             // 자기 IP를 등록하지 않고 제한을 켜면 즉시 스스로 잠긴다(복구는 DB SQL뿐) → 사전 차단
             accessIpService.assertNotSelfLockout();

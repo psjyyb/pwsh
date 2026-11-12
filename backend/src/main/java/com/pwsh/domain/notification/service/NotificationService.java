@@ -9,8 +9,12 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 인앱 알림(단일 @Service). 조회/읽음은 항상 로그인 본인 기준(member_id 서버 강제).
@@ -21,50 +25,81 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class NotificationService {
 
+    /** 내 신청(폼)의 처리상태 변경(CMS 1.2.35) — 수신 설정과 상관없이 항상 받는다(내 신청의 결과라 끌 이유가 적다) */
+    public static final String FORM = "FORM";
+    private static final int TITLE_MAX = 40;
+
     private final CommonDAO commonDAO;
     private final com.pwsh.global.realtime.RealtimeService realtimeService;
+    private final PlatformTransactionManager txManager;
 
     /**
      * 이벤트 알림 적재. 수신자==행위자(본인)면 스킵.
-     * REQUIRES_NEW + best-effort: 알림 적재 실패가 원(호출자) 트랜잭션(댓글/신청 등록 등)을 롤백시키지 않도록
-     * 독립 트랜잭션으로 처리하고 예외는 삼킨다(순수 부수효과).
+     *
+     * <p>★ 실패가 원래 동작(댓글·신청 등록 등)을 되돌리지 않게 독립 트랜잭션으로 넣고 예외는 삼킨다(로그만).
+     * <p>★ 원래 동작이 트랜잭션 안이면 <b>그게 커밋된 뒤에</b> 만든다(CMS 1.2.35) — v0.6.34까지는 호출 즉시 만들고 커밋 전에 밀어서,
+     * 원래 동작이 되돌려져도 알림만 남았고, 화면이 이벤트를 받자마자 다시 읽으면 아직 안 보이는 알림이 있었다.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notify(String memberId, String type, String content, String linkUrl) {
-        if (memberId == null || memberId.isBlank()) {
-            return;
-        }
-        String actor = SecurityUtil.getCurrentMemberId();
-        if (memberId.equals(actor)) {
+        if (memberId == null || memberId.isBlank() || memberId.equals(SecurityUtil.getCurrentMemberId())) {
             return; // 본인 행동엔 알림 없음(내 글에 내가 댓글 등)
         }
-        if (!isEnabled(memberId, type)) {
-            return; // 수신자가 해당 유형 알림을 꺼둠(notification_setting)
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    insertAndPush(memberId, type, content, linkUrl);
+                }
+            });
+            return;
         }
+        insertAndPush(memberId, type, content, linkUrl);
+    }
+
+    private void insertAndPush(String memberId, String type, String content, String linkUrl) {
         try {
+            if (!isEnabled(memberId, type)) {
+                return; // 수신자가 해당 유형 알림을 꺼둠(notification_setting)
+            }
             NotificationVO vo = new NotificationVO();
             vo.setMemberId(memberId);
             vo.setType(type);
-            vo.setContent(content);
+            vo.setContent(content.length() <= 300 ? content : content.substring(0, 300));
             vo.setLinkUrl(linkUrl);
-            commonDAO.insert("notificationDAO.insert", vo);
-            // 실시간: 접속 중이면 헤더 배지가 즉시 갱신되도록 종류만 밀어준다
+            TransactionTemplate tx = new TransactionTemplate(txManager);
+            tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            tx.executeWithoutResult(s -> commonDAO.insert("notificationDAO.insert", vo));
+            // 실시간: 접속 중이면 헤더 배지가 즉시 갱신되도록 종류만 밀어준다(행이 커밋된 뒤라 다시 읽으면 보인다)
             realtimeService.push(memberId, "notification");
         } catch (Exception e) {
-            // 알림 실패는 원 동작을 막지 않는다(독립 트랜잭션이라 호출자 롤백과도 무관).
-            // 다만 조용히 사라지면 원인 추적이 불가능하므로 경고는 남긴다.
+            // 알림 실패는 원 동작을 막지 않는다. 다만 조용히 사라지면 원인 추적이 불가능하므로 경고는 남긴다.
             log.warn("[Notification] 적재 실패: user={}, type={} ({})", memberId, type, e.getMessage());
         }
+    }
+
+    /** 내 신청의 처리상태 변경 — 로그인해 낸 신청만(비로그인 제출은 받을 사람이 없다). 화면에 내 신청 목록이 없어 이동 주소는 없다. */
+    public void notifyFormStatus(String memberId, String formTitle, String statusName) {
+        notify(memberId, FORM, "신청하신 '" + cut(formTitle) + "' 처리상태가 '" + statusName + "'(으)로 바뀌었습니다.", null);
+    }
+
+    private static String cut(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.length() <= TITLE_MAX ? s : s.substring(0, TITLE_MAX) + "…";
     }
 
     /**
      * 수신자가 이 유형의 알림을 받도록 설정했는지. 설정 행이 없으면 기본 수신(Y).
      * 유형 매핑: APPLY/ACCEPT/REJECT/REMIND/NEWRECRUIT→applyYn, COMMENT·MENTION→commentYn,
-     * MESSAGE→messageYn, REVIEW→reviewYn.
+     * MESSAGE→messageYn, REVIEW→reviewYn, FORM→항상 받음.
      * (REMIND=모임 하루 전 리마인더, NEWRECRUIT=담은 취미에 새 모집 —
      *  둘 다 모임 관련이라 '모임 알림' 설정을 함께 따른다. 설정을 더 쪼개려면 notification_setting에 컬럼 추가가 필요하다)
      */
     private boolean isEnabled(String memberId, String type) {
+        if (FORM.equals(type)) {
+            return true; // 아래 마지막 줄(모임 알림)로 떨어지면 모임 알림을 끈 회원이 신청 결과도 못 받는다
+        }
         try {
             NotificationVO p = new NotificationVO();
             p.setMemberId(memberId);

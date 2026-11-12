@@ -1,52 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 이메일 인증코드(email_verification). 가입 이메일 인증 / 비밀번호 재설정 공용. -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  이메일 인증 코드(EmailVerifyService). 코드는 해시로만 둔다(CMS 1.2.35). 대상(target)·용도(purpose)마다 최신 1건만 유효하다.
+-->
 <mapper namespace="emailVerifyDAO">
 
-    <!-- 대상+용도의 기존 코드 삭제(재발급 전 정리 / 검증 성공 후 소비) -->
-    <delete id="deleteByTarget" parameterType="emailVerificationVO">
+    <!--
+      같은 대상·용도의 발급을 한 줄로 세운다(트랜잭션 끝까지). 재발송 제한 확인과 발급 사이에 다른 요청이 끼어들면
+      둘 다 제한을 통과해 메일이 두 통 나간다(비밀번호 찾기는 뒤에서 도는 작업이라 동시에 들어오기 쉽다).
+    -->
+    <select id="lockTarget" parameterType="emailVerificationVO" resultType="string">
+        SELECT pg_advisory_xact_lock(hashtext(#{purpose} || ':' || #{target}))::text
+    </select>
+
+    <!-- 재발송 제한 안에 발급한 행이 있는지(메일 발송에 실패해 만료시킨 행도 센다 — 실패가 제한을 우회하면 안 된다) -->
+    <select id="countRecent" parameterType="emailVerificationVO" resultType="int">
+        SELECT COUNT(*) FROM email_verification
+        WHERE target = #{target} AND purpose = #{purpose}
+          AND reg_dt &gt; NOW() - (#{cooldownSec} || ' seconds')::INTERVAL
+    </select>
+
+    <!-- 새 코드 전에: 그 대상·용도의 앞선 코드(최신 1건만 유효)와 하루 지난 행(따로 청소 배치를 두지 않는다) -->
+    <delete id="deleteBeforeIssue" parameterType="emailVerificationVO">
         DELETE FROM email_verification
-         WHERE target = #{target} AND purpose = #{purpose}
+        WHERE (target = #{target} AND purpose = #{purpose}) OR reg_dt &lt; NOW() - INTERVAL '1 day'
     </delete>
 
-    <!-- 코드 발급. 만료 = NOW() + ttlMin 분 -->
-    <insert id="insert" parameterType="emailVerificationVO">
-        INSERT INTO email_verification (target, purpose, code, expire_dt)
-        VALUES (#{target}, #{purpose}, #{code},
-                NOW() + (#{ttlMin} || ' minutes')::interval)
+    <insert id="insert" parameterType="emailVerificationVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="verify_id">
+        INSERT INTO email_verification (target, purpose, code_hash, attempt_cnt, expire_dt, reg_dt)
+        VALUES (#{target}, #{purpose}, #{codeHash}, 0, NOW() + (#{ttlMin} || ' minutes')::INTERVAL, NOW())
     </insert>
 
-    <!-- 유효(미만료) 코드 일치 건수 -->
-    <select id="selectValidCount" parameterType="emailVerificationVO" resultType="int">
-        SELECT COUNT(*)
-          FROM email_verification
-         WHERE target = #{target} AND purpose = #{purpose}
-           AND code = #{code}
-           AND expire_dt > NOW()
-    </select>
-
-    <!-- 최근 발급 코드의 누적 실패 시도 횟수(없으면 NULL) -->
-    <select id="selectAttemptCnt" parameterType="emailVerificationVO" resultType="int">
-        SELECT COALESCE(attempt_cnt, 0)
-          FROM email_verification
-         WHERE target = #{target} AND purpose = #{purpose}
-         ORDER BY verify_id DESC LIMIT 1
-    </select>
-
-    <!-- 실패 시도 +1 (대상+용도의 단일 코드행) -->
-    <update id="incAttempt" parameterType="emailVerificationVO">
-        UPDATE email_verification
-           SET attempt_cnt = COALESCE(attempt_cnt, 0) + 1
-         WHERE target = #{target} AND purpose = #{purpose}
+    <!-- 메일 발송 실패 → 바로 만료(받지 못한 코드를 유효하게 두지 않는다). 행은 재발송 제한 근거로 남긴다 -->
+    <update id="expire" parameterType="emailVerificationVO">
+        UPDATE email_verification SET expire_dt = NOW() WHERE verify_id = #{rowId}::integer
     </update>
 
-    <!-- 마지막 발급 후 경과 초(재발송 throttle용). 없으면 NULL -->
-    <select id="selectSecondsSinceLast" parameterType="emailVerificationVO" resultType="int">
-        SELECT EXTRACT(EPOCH FROM (NOW() - reg_dt))::int
-          FROM email_verification
-         WHERE target = #{target} AND purpose = #{purpose}
-         ORDER BY verify_id DESC LIMIT 1
+    <!-- 검증 대상: 그 대상·용도의 최신 1건(만료된 것은 제외) -->
+    <select id="selectLatestValid" parameterType="emailVerificationVO" resultType="emailVerificationVO">
+        SELECT verify_id::TEXT AS row_id, target, purpose, code_hash, attempt_cnt::TEXT AS attempt_cnt
+        FROM email_verification
+        WHERE target = #{target} AND purpose = #{purpose} AND expire_dt &gt; NOW()
+        ORDER BY verify_id DESC LIMIT 1
     </select>
+
+    <update id="incAttempt" parameterType="emailVerificationVO">
+        UPDATE email_verification SET attempt_cnt = attempt_cnt + 1 WHERE verify_id = #{rowId}::integer
+    </update>
+
+    <!-- 대상+용도 코드 전량 삭제(검증 성공 후 소비 · 5번 틀린 코드 폐기) -->
+    <delete id="deleteByTarget" parameterType="emailVerificationVO">
+        DELETE FROM email_verification WHERE target = #{target} AND purpose = #{purpose}
+    </delete>
 
 </mapper>

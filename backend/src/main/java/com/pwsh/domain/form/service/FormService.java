@@ -4,6 +4,7 @@ import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.domain.mail.service.MailService;
+import com.pwsh.domain.notification.service.NotificationService;
 import com.pwsh.global.log.PrivacyAccessCollector;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
@@ -45,6 +46,7 @@ public class FormService {
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
     private final MailService mailService;
+    private final NotificationService notificationService;
 
     // ===== 폼 정의 =====
 
@@ -335,8 +337,17 @@ public class FormService {
      */
     @Transactional
     public void updateAnswerStatus(FormAnswerVO vo) {
+        FormAnswerVO before = commonDAO.selectOne("formAnswerDAO.selectView", vo);
         commonDAO.update("formAnswerDAO.updateStatus", vo);
         notifyResult(vo);
+        // 인앱 알림(1.2.35): 로그인해 낸 신청이고 처리상태가 실제로 바뀌었을 때만 — 메모만 고친 저장까지 알리면 소음이다.
+        // 결과 메일(폼 설정)과 별개다. 이 트랜잭션이 커밋된 뒤에 만들어진다(NotificationService.notify)
+        FormAnswerVO after = commonDAO.selectOne("formAnswerDAO.selectView", vo);
+        if (before != null && after != null && after.getMemberId() != null && !after.getMemberId().isBlank()
+                && !java.util.Objects.equals(before.getStatusCd(), after.getStatusCd())) {
+            notificationService.notifyFormStatus(after.getMemberId(), nullToEmpty(after.getFormTitle()),
+                    nullToEmpty(after.getStatusName()));
+        }
     }
 
     /**

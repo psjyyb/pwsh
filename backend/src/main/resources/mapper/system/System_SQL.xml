@@ -16,6 +16,26 @@
         SELECT split_part(version(), ',', 1)
     </select>
 
+    <!-- 설치 점검: 실패한 마이그레이션(남아 있으면 다음 기동이 막힌다) -->
+    <select id="selectFailedMigrations" parameterType="map" resultType="string">
+        SELECT COALESCE(version, '') || ' ' || description FROM flyway_schema_history
+        WHERE success = false ORDER BY installed_rank
+    </select>
+
+    <!-- 설치 점검: 가장 최근에 성공한 버전 -->
+    <select id="selectLatestMigration" parameterType="map" resultType="string">
+        SELECT version FROM flyway_schema_history
+        WHERE success = true AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1
+    </select>
+
+    <!--
+      설치 점검: 기본 계정이 기본 비밀번호 그대로인지 보려고 해시만 읽는다.
+      ★ selectByMemberId를 쓰지 않는다 — 개인정보를 복호화해서, 점검 한 번마다 개인정보 접근기록이 쌓인다.
+    -->
+    <select id="selectMemberPassword" parameterType="map" resultType="string">
+        SELECT password FROM member WHERE member_id = #{memberId} AND use_yn = 'Y'
+    </select>
+
     <!-- 적용된 마이그레이션 최근 10건(최신순). 배포 사고에서 가장 먼저 봐야 하는 값이다 -->
     <select id="selectMigrations" parameterType="map" resultType="map">
         SELECT version, description, success,

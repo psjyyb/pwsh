@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
@@ -30,6 +31,10 @@ public abstract class IntegrationTest {
     /** 실 DB 직접 조작용(테스트 전제 데이터 준비). 프로덕션 경로는 항상 HTTP로 태운다. */
     @Autowired
     protected JdbcTemplate jdbc;
+
+    /** 인증 코드를 운영과 같은 형식(해시)으로 심을 때 쓴다(CMS 1.2.35부터 코드는 해시로만 저장) */
+    @Autowired
+    protected PasswordEncoder passwordEncoder;
 
     protected final HttpClient http = HttpClient.newHttpClient();
 
@@ -82,14 +87,22 @@ public abstract class IntegrationTest {
     protected HttpResponse<String> signup(String memberId, String nickname, String email,
                                           String agreedPolicyIdsJson) throws Exception {
         String code = "123456";
-        jdbc.update("DELETE FROM email_verification WHERE target = ? AND purpose = 'SIGNUP'", email);
-        jdbc.update("INSERT INTO email_verification (target, purpose, code, expire_dt) VALUES (?, 'SIGNUP', ?, NOW() + INTERVAL '10 minutes')",
-                email, code);
+        seedCode(email.trim().toLowerCase(), "SIGNUP", code);
         return post("/api/auth/signup",
                 "{\"memberId\":\"" + memberId + "\",\"password\":\"Test1234!@\",\"pwConfirm\":\"Test1234!@\","
                         + "\"nickname\":\"" + nickname + "\",\"email\":\"" + email + "\",\"code\":\"" + code + "\","
                         + "\"agreedPolicyIds\":" + agreedPolicyIdsJson + "}",
                 null);
+    }
+
+    /**
+     * 유효한 인증 코드를 운영과 같은 형식(BCrypt 해시)으로 심는다 — 테스트는 mail.enabled=false라 발급 경로로는 코드가 남지 않는다.
+     * target: 가입=이메일(소문자), 비밀번호 찾기=회원 ID.
+     */
+    protected void seedCode(String target, String purpose, String code) {
+        jdbc.update("DELETE FROM email_verification WHERE target = ? AND purpose = ?", target, purpose);
+        jdbc.update("INSERT INTO email_verification (target, purpose, code_hash, expire_dt) VALUES (?, ?, ?, NOW() + INTERVAL '5 minutes')",
+                target, purpose, passwordEncoder.encode(code));
     }
 
     /** 기초데이터의 필수동의 약관 ID를 JSON 배열로. 가입은 이걸 다 넘겨야 통과한다. */

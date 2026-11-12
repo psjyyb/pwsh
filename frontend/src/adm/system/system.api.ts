@@ -65,6 +65,21 @@ export interface SystemCache {
   hitRate?: number
 }
 
+/** 설치 점검 한 줄(CMS 1.2.35). ★ 비밀값은 서버가 싣지 않는다(판정 결과만) */
+export interface InstallCheck {
+  key: string
+  group: string
+  item: string
+  level: 'OK' | 'WARN' | 'FAIL'
+  message: string
+  fix?: string
+}
+
+export interface InstallCheckResult {
+  summary: { OK: number; WARN: number; FAIL: number }
+  list: InstallCheck[]
+}
+
 /** 실시간(SSE) 연결 현황 — 이 JVM에 붙은 것만. 인스턴스를 늘리면 합계가 아니다 */
 export interface SystemRealtime {
   connections?: number
@@ -85,6 +100,8 @@ const BASE = '/adm/system'
 
 export const systemApi = {
   status: () => apiPost<SystemStatus>(`${BASE}/selectSystemView.do`, {}),
+  /** 설치 점검 — 운영 전에 빠뜨리기 쉬운 설정 판정(관리자 전용) */
+  checks: () => apiPost<InstallCheckResult>(`${BASE}/selectSystemListCheck.do`, {}),
   /** 캐시 전부 비우기 → 비운 캐시 수 */
   evictCache: () => apiPost<number>(`${BASE}/updateSystemCache.do`, {}),
   /** 메일 설정 점검 — 템플릿 없이 고정 문구 한 통 → 결과·사유(이력에도 남는다) */

@@ -6,6 +6,9 @@ import { configApi } from '../adm/config/config.api'
 import { genTheme } from '../gen/theme'
 import defaultLogo from '../assets/logo.svg'
 
+/** 인증코드 유효 시간 — 서버(EmailVerifyService.TTL_MIN)·메일 본문과 같은 값 */
+const CODE_TTL_MIN = 5
+
 /**
  * 비밀번호 찾기(재설정) — 공개 페이지(비로그인).
  * 아이디로 인증코드 발송 → 등록된 이메일로 받은 6자리 코드 + 새 비밀번호로 재설정.
@@ -40,7 +43,7 @@ export default function ForgotPasswordPage() {
       await sendResetCode(memberId)
       setCodeSent(true)
       // 열거 방지: 계정 유무와 무관하게 동일 안내
-      message.success('가입 시 등록한 이메일로 인증코드를 보냈습니다. (계정이 있는 경우, 유효 10분)')
+      message.success(`가입 시 등록한 이메일로 인증코드를 보냈습니다. (계정이 있는 경우, 유효 ${CODE_TTL_MIN}분)`)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '인증코드 발송에 실패했습니다.')
     } finally {
@@ -99,7 +102,7 @@ export default function ForgotPasswordPage() {
             name="code"
             label="인증코드"
             rules={[{ required: true, message: '메일로 받은 인증코드를 입력하세요.' }]}
-            extra="이메일로 전송된 6자리 코드를 입력하세요. (유효 10분)"
+            extra={`이메일로 전송된 6자리 코드를 입력하세요. (유효 ${CODE_TTL_MIN}분)`}
           >
             <Input placeholder="6자리 인증코드" maxLength={6} inputMode="numeric" />
           </Form.Item>

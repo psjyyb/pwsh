@@ -23,6 +23,8 @@ public class ConfigVO extends BaseVO {
     private String accIpYn;
     /** 관리자 2차 인증(이메일 코드). 저장 요청에 없으면 기존 값 유지(매퍼 COALESCE) */
     private String adminOtpYn;
+    /** 셀프 회원가입 허용(1.2.35). 로그인 화면이 링크를 보이려고 비로그인도 읽는다. 저장 요청에 없으면 기존 값 유지 */
+    private String signupYn;
     private String maintYn;
     private String maintMessage;
     private String title;

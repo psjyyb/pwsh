@@ -4,7 +4,10 @@ import type { TableColumnsType } from 'antd'
 import MailResultAlert from '../../common/adm/components/MailResultAlert'
 import type { MailSendResult } from '../maillog/maillog.api'
 import { systemApi } from './system.api'
-import type { Migration, SystemCache, SystemSchedule, SystemStatus } from './system.api'
+import type { InstallCheck, InstallCheckResult, Migration, SystemCache, SystemSchedule, SystemStatus } from './system.api'
+
+const LEVEL_LABEL = { OK: '정상', WARN: '주의', FAIL: '위험' } as const
+const LEVEL_ORDER = { FAIL: 0, WARN: 1, OK: 2 } as const
 
 /** MB → 사람이 읽는 크기 */
 function mb(v?: number) {
@@ -26,6 +29,23 @@ export default function SystemStatusPage() {
   const [busy, setBusy] = useState(false)
   const [checkTo, setCheckTo] = useState('')
   const [checkResult, setCheckResult] = useState<MailSendResult | null>(null)
+  const [install, setInstall] = useState<InstallCheckResult | null>(null)
+  const [installLoading, setInstallLoading] = useState(false)
+
+  const loadInstall = useCallback(async () => {
+    setInstallLoading(true)
+    try {
+      setInstall(await systemApi.checks())
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '설치 점검에 실패했습니다.')
+    } finally {
+      setInstallLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadInstall()
+  }, [loadInstall])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -87,6 +107,25 @@ export default function SystemStatusPage() {
     { title: '적중률', width: 90, render: (_, r) => (r.hitRate === undefined ? '-' : `${r.hitRate}%`) },
   ]
 
+  const installColumns: TableColumnsType<InstallCheck> = [
+    {
+      title: '결과',
+      width: 70,
+      render: (_, r) => <Tag color={r.level === 'OK' ? 'green' : r.level === 'WARN' ? 'orange' : 'red'}>{LEVEL_LABEL[r.level]}</Tag>,
+    },
+    { title: '분류', dataIndex: 'group', width: 70 },
+    { title: '항목', dataIndex: 'item', width: 170 },
+    {
+      title: '내용 · 조치',
+      render: (_, r) => (
+        <div>
+          <div>{r.message}</div>
+          {r.fix && <div style={{ color: '#888', fontSize: 12, marginTop: 2 }}>→ {r.fix}</div>}
+        </div>
+      ),
+    },
+  ]
+
   const scheduleColumns: TableColumnsType<SystemSchedule> = [
     { title: '배치', dataIndex: 'name' },
     { title: 'cron', dataIndex: 'cron', width: 130 },
@@ -143,6 +182,36 @@ export default function SystemStatusPage() {
       }
     >
       <Row gutter={[16, 16]}>
+        <Col xs={24}>
+          {/* 운영에 올리기 전에 빠뜨리기 쉬운 설정(CMS 1.2.35). 위험(FAIL)·주의(WARN)가 먼저 보이도록 정렬한다 */}
+          <Card
+            title="설치 점검"
+            size="small"
+            styles={{ body: { padding: 0 } }}
+            extra={
+              <Space>
+                {install && (
+                  <>
+                    <Tag color="red">위험 {install.summary.FAIL}</Tag>
+                    <Tag color="orange">주의 {install.summary.WARN}</Tag>
+                    <Tag color="green">정상 {install.summary.OK}</Tag>
+                  </>
+                )}
+                <Button size="small" onClick={loadInstall} loading={installLoading}>다시 점검</Button>
+              </Space>
+            }
+          >
+            <Table<InstallCheck>
+              rowKey="key"
+              size="small"
+              columns={installColumns}
+              dataSource={[...(install?.list ?? [])].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])}
+              loading={installLoading}
+              pagination={false}
+            />
+          </Card>
+        </Col>
+
         <Col xs={24} lg={12}>
           <Card title="애플리케이션" size="small">
             <Descriptions column={1} size="small" bordered>

@@ -39,8 +39,10 @@ public class PolicyController {
                 "page", PageUtil.of(vo.getPageNo(), vo.getPageSize(), totalCount)));
     }
 
+    /** 상세 — 가입 화면·푸터의 약관 보기로 비로그인에게도 열려 있다. */
     @RequestMapping("/selectPolicyView.do")
     public ApiResponse<PolicyVO> selectView(@RequestBody PolicyVO searchVO) {
+        Validate.numeric(searchVO.getRowId(), "약관"); // 매퍼의 ::integer 캐스트가 500으로 새지 않게(CMS 1.2.35)
         return ApiResponse.ok(policyService.selectView(searchVO));
     }
 

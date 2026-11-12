@@ -33,6 +33,11 @@ public class PolicyService {
         return commonDAO.selectList("policyDAO.selectListRequiredIds", new PolicyVO());
     }
 
+    /** 지금 쓰는 약관 ID 전부(CMS 1.2.35) — 동의 이력에 없는 번호가 섞여 들어가지 않게 거른다 */
+    public List<String> selectListPublicIds() {
+        return selectListPublic(new PolicyVO()).stream().map(PolicyVO::getRowId).toList();
+    }
+
     /** 동의 이력 1건 저장(회원-약관). */
     public void insertMemberPolicy(String memberId, String policyId) {
         PolicyVO vo = new PolicyVO();

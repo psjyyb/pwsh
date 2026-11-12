@@ -8,7 +8,7 @@
 - **모집**(`domain/recruit`): 모임원 모집 + 참여신청(수락/거절/대기) + 참석 기록 + **확정자 단체 대화**(SSE 실시간) + **다음 회차 복제**. `RecruitController`(5메서드, `insertRecruit{variant}` ''=신규/Copy=복제, `updateRecruit{variant}` ''=수정/Status=마감) + `RecruitApplyController`·`RecruitChatController`(peer) + 단일 `RecruitService`. 목록/조회는 공개, 등록·신청·수락은 로그인(세부 인가는 서비스의 `assertOwnerOrAdmin`).
 - **부가 도메인**: 알림·쪽지(SSE)·후기·북마크·차단·신고·통합검색·내 취미 피드·활동 배지·마이페이지(내 일정 캘린더).
 - **추천/비추천**(`domain/like`, CMS 1.2.19): `POST /api/adm/like/updateLike.do` `{targetType: POST|COMMENT, targetId, likeType: GOOD|BAD}`. 1인 1표 — 같은 쪽 다시 누르기=취소, 반대쪽=전환. 표(`content_like.like_type`)가 원본, `good_cnt`·`bad_cnt`는 표시용 사본이라 **표가 실제로 바뀐 만큼만** 움직인다. 볼 수 없는 글엔 투표 불가(`GenAccessGuard.checkPost` — 취미 게시판은 공개라 통과, 단 남의 비밀글·삭제글은 막힌다). ★ 내 상태(`liked_yn`·`disliked_yn`) 매퍼는 **`like_type` 조건 필수** — 빠지면 비추천한 사람에게도 추천이 켜져 보인다. 주간 베스트·피드·프로필의 👍 숫자는 `good_cnt`(추천)만 본다. 회귀 방지 `LikeTest`·`EngagementTest`.
-- **셀프 회원가입**: `POST /api/auth/signup`(공개, 이메일 인증 + 닉네임 필수). 프론트 공개 라우트 `/signup`.
+- **셀프 회원가입**: `POST /api/auth/signup`(공개, 이메일 인증 + 닉네임 필수). 프론트 공개 라우트 `/signup`. 환경설정 "회원가입 허용"(`config.signup_yn`, **이 저장소 기본 켜짐** — CMS는 꺼짐)으로 닫을 수 있다(CMS 1.2.35, 아래 「인증 / 인가」).
 
 ## 스택 / 구조
 - **Backend**: Spring Boot 4.1 · Java 17 · MyBatis · Spring Security + JWT · PostgreSQL. 패키지 `com.pwsh`.
@@ -31,7 +31,7 @@
 - ★ **이미 적용된 마이그레이션은 절대 고치지 않는다.** 체크섬이 달라지면 기동이 막힌다(`checksum mismatch`). 잘못됐으면 되돌리는 마이그레이션을 새로 추가한다.
 - ★ **아직 적용되지 않은 마이그레이션은 합쳐도 된다.** 규칙은 "만든 뒤엔 못 고친다"가 아니라 **"적용된 뒤엔 못 고친다"**다. 코드값 몇 줄짜리 파일이 쌓이면 주기적으로 합친다(CMS 1.2.7~1.2.13이 `V3__cms_1_2_7_to_1_2_13.sql` 하나로 합쳐져 있다).
   - 합치기 전 **모든 환경**에서 확인한다: `SELECT version FROM flyway_schema_history;` — 한 곳이라도 적용돼 있으면 그 DB가 다음 기동에 막힌다. dev·테스트만 보지 말고 백업·다른 PC의 DB도 본다.
-  - 합친 뒤에는 **가장 낮은 번호**를 쓴다(V3~V7 → `V3__`). 번호를 건너뛰면 나중에 "V5는 어디 갔나"를 찾게 된다. 번호 대역 규칙은 그대로라 다음 CMS 흡수는 `V10`부터다(`V4`=CMS 1.2.18 비밀글 비밀번호 전환, `V5`=CMS 1.2.19 추천/비추천 구분, `V6`=CMS 1.2.20 미사용 컬럼 삭제, `V7`=CMS 1.2.21 로그인·파기 이력, `V8`=CMS 1.2.24 로그 보관 일수, `V9`=CMS 1.2.34 배치 작업·관리자 2차 인증(CMS의 `V12`)). 이 저장소 고유는 `V1001`=모집 하루 전 알림 배치 행. ⚠ CMS의 `V10`(1.2.28 활동로그 유형 `MEMBER_LOGOUT`·`MEMBER_AUTH_GROUP`)은 이 저장소 `V2`에 이미 있어 **가져오지 않았다** — 가져오면 코드 PK 중복으로 기동이 막힌다. CMS의 `V11`(1.2.30 권한그룹관리 메뉴 주소 `/adm/authgrp`→`/adm/authgroup`)도 이 저장소는 처음부터 맞아 가져오지 않았다.
+  - 합친 뒤에는 **가장 낮은 번호**를 쓴다(V3~V7 → `V3__`). 번호를 건너뛰면 나중에 "V5는 어디 갔나"를 찾게 된다. 번호 대역 규칙은 그대로라 다음 CMS 흡수는 `V11`부터다(`V4`=CMS 1.2.18 비밀글 비밀번호 전환, `V5`=CMS 1.2.19 추천/비추천 구분, `V6`=CMS 1.2.20 미사용 컬럼 삭제, `V7`=CMS 1.2.21 로그인·파기 이력, `V8`=CMS 1.2.24 로그 보관 일수, `V9`=CMS 1.2.34 배치 작업·관리자 2차 인증(CMS의 `V12`), `V10`=CMS 1.2.35 중 이 저장소에 없던 부분 — 회원가입 켜기·끄기·인증 코드 해시(CMS의 `V13`은 가입 테이블·템플릿이 이미 있어, `V14` 알림 테이블도 이미 있어 가져오지 않았다)). 이 저장소 고유는 `V1001`=모집 하루 전 알림 배치 행. ⚠ CMS의 `V10`(1.2.28 활동로그 유형 `MEMBER_LOGOUT`·`MEMBER_AUTH_GROUP`)은 이 저장소 `V2`에 이미 있어 **가져오지 않았다** — 가져오면 코드 PK 중복으로 기동이 막힌다. CMS의 `V11`(1.2.30 권한그룹관리 메뉴 주소 `/adm/authgrp`→`/adm/authgroup`)도 이 저장소는 처음부터 맞아 가져오지 않았다.
   - 파일이 20개쯤 쌓이면 **baseline squash**: 현재 스키마를 덤프해 `V1`·`V2`를 새로 만들고 그 뒤 파일을 지운다.
   - ⚠ 기본데이터를 `R__`(repeatable, 내용이 바뀌면 매번 재실행)에 몰아넣는 방법도 있지만 **쓰지 않는다** — 메뉴·공통코드는 운영자가 화면에서 고치는 값이라, 재실행될 때마다 그 수정이 덮여 사라진다.
 - DDL과 그에 딸린 시드(공통코드·메뉴)를 **한 파일에** 넣는다.
@@ -73,6 +73,7 @@
 
 ## 시스템 상태 · 캐시 · 백업
 - `/adm/system`(관리자 > 시스템관리): 앱(버전·가동시간·힙)·DB(크기·**Flyway 적용 이력**)·디스크·배치 주기 요약(5종)·캐시·**SSE 연결 수**·메일 설정을 한 장에. 상태는 **읽기 전용**이고, 쓰는 동작은 캐시 비우기와 **메일 설정 점검**(템플릿 없이 점검 메일 한 통, 이력 코드 `SMTP_CHECK`, CMS 1.2.34)뿐이다. ★ SMTP 비밀번호는 어떤 형태로도 내려보내지 않는다(`MailService.settings()`).
+- **설치 점검**(CMS 1.2.35, 같은 화면 맨 위, `SystemService.checks()`): 운영 전 빠뜨리기 쉬운 설정을 `FAIL/WARN/OK` + 고치는 법으로. ★ **비밀값은 결과에 싣지 않는다**(있다/없다/기본값이다만 — 회귀 방지 `InstallCheckTest.noSecretsInResponse`). 기본 관리자 비밀번호는 `DataInitializer.DEFAULT_ADMIN_PW`와 저장 해시를 대조한다(비밀번호만 읽는 `systemDAO.selectMemberPassword` — 복호화 없음). 이 저장소는 가입이 기본 켜짐이라 메일이 꺼져 있으면 '셀프 회원가입'이 위험으로 나온다.
 
 ## 배치 작업 관리 (CMS 1.2.34, v0.6.34)
 - 배치 5종(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리 + 이 저장소 전용 **모집 하루 전 알림 `RECRUIT_REMIND`**)의 **주기·자동 실행은 `batch_job`이 원본**이다(관리자 > 시스템관리 > 배치 작업 관리). `BatchService`가 기동 때·저장 때 `TaskScheduler`에 다시 등록한다 — 재시작 불필요. ⚠ yml의 `*.cron` 키(`recruit.remind.cron` 포함)는 지웠다(읽지 않는다).
@@ -107,6 +108,12 @@
   - ★ **관리 화면만 쓰는 콤보는 `permitAll`에 넣지 않는다.** 게시판 콤보(`selectBoardListCombo.do` — 메뉴관리·취미 관리가 쓴다)가 비로그인에게 비공개 게시판 ID·이름까지 내보내던 것을 CMS 1.2.26 흡수 때 관리자 전용으로 좁혔다(`BoardService`가 `isAdmin()` 확인, 회귀 방지 `BoardTest`). 권한그룹 콤보(`selectAuthGroupListCombo.do`)도 같은 방식이다(CMS 1.2.33, `AuthGroupService`, 회귀 방지 `AdminCrudTest`).
 - 비번 BCrypt·복잡도 `PasswordPolicy`(8~64자). **비밀글 비밀번호도 BCrypt**(`PostService.encodePostPw`) — ⚠ 수정 시 빈 값은 인코딩하지 않는다(매퍼가 빈 값을 "변경 없음"으로 읽는다 — 인코딩하면 아무도 모르는 비번으로 덮인다). 인코더가 Delegating이라 저장값은 `{bcrypt}$2a$…`(SQL로 직접 넣을 땐 접두어 포함). 회귀 방지 `SecretPostTest`. 계정(admin/user)은 `DataInitializer`가 기동 시 생성. 개인정보(이름·연락처 등)는 pgcrypto AES(`#{cryptoKey}`).
 - **관리자 2차 인증**(CMS 1.2.34, 환경설정 `admin_otp_yn`, 기본 꺼짐): 관리자(MEM02·`admin`)는 비밀번호 다음에 메일 코드를 넣어야 토큰을 받는다. 비밀번호 단계는 토큰 대신 `otpKey`만 주고 `POST /api/auth/loginOtp {otpKey, code}`가 토큰을 준다. 코드는 해시로만(`login_otp`)·5분·코드당 5회·재사용 불가·다시 로그인하면 앞 코드 무효. ★ 틀린 코드는 비밀번호와 같은 실패 횟수에 더하고, 코드 단계에서 계정 상태·접속 IP를 다시 본다. ★ 켤 때 메일 꺼짐·이메일 없는 관리자를 막는다(이메일 검사는 복호화 없이 빈 값 암호문과 비교). 설정 판정은 `ConfigService.adminOtpEnabled()`(DAO 직접). 코드 메일의 이름은 닉네임 우선. 잠기면 `UPDATE config SET admin_otp_yn = 'N';` 회귀 방지 `AdminOtpTest`.
+- **셀프 회원가입·비밀번호 찾기**(CMS 1.2.35 보강): `POST /api/auth/sendSignupCode`·`signup`·`sendResetCode`·`resetPassword`. 회원 그룹 `MEMBER`를 같이 붙이고, 동의 이력은 `member_policy`(**지금 쓰는 약관 번호만** — `PolicyService.selectListPublicIds`로 거른다).
+  - ★ 환경설정 "회원가입 허용"이 꺼져 있으면 가입·코드 발송 API가 403(`AuthService.assertSignupOpen`) — 화면 링크만 숨기면 API로 가입된다. 판정은 `ConfigService.signupEnabled()`(DAO 직접). 다시 켤 때 메일 발송이 꺼져 있으면 저장 거절. ⚠ 테스트에서 끄면 `@AfterEach`에서 **'Y'로 되돌린다** — 끈 채로 두면 뒤에 도는 테스트의 `signup()`이 전부 403이 된다.
+  - ★ 인증 코드(`EmailVerifyService`, 표 `email_verification.code_hash`)는 **해시로만** 저장, 5분·5회·재발송 30초. 틀린 횟수는 `verify`의 독립 트랜잭션이 남긴다(호출자와 묶으면 가입 실패 롤백에 같이 지워져 무한 시도). 같은 대상 발급은 advisory lock으로 직렬화. 메일 실패 시 행을 **지우지 않고 만료**한다(지우면 재발송 제한이 사라진다). 테스트는 `IntegrationTest.seedCode`로 해시 코드를 심는다.
+  - ★ 가입 이메일은 발송·가입 모두 **앞뒤 공백 제거·소문자**로 맞춘다(한쪽만 하면 맞는 코드가 거절된다).
+  - ★ **비밀번호 찾기 코드 요청 응답은 항상 같다** — 발급은 `TaskScheduler`로 응답과 따로 돈다. 그 자리에서 하면 있는 계정에서만 400(재발송 제한)·500(메일 실패)이 나 아이디가 드러난다. 회귀 방지 `SignupTest`.
+  - 화면 안내의 코드 유효 시간(`CODE_TTL_MIN`, 가입·비밀번호 찾기)은 서버 `EmailVerifyService.TTL_MIN`과 같은 값이어야 한다(한때 화면만 10분이었다).
 - ★ **비밀글의 댓글·추천·첨부·갤러리·본문 이미지·북마크는 작성자·관리자만**(CMS 1.2.33). 비밀번호로 연 사람은 **본문(글자)만** 본다. 글 단위 판정은 한 곳 — `GenAccessGuard.checkPost`·`canAccessPost`이고, 댓글·추천·첨부 목록·내려받기·공개 이미지·북마크 담기가 모두 이걸 쓴다. 새로 "글에 딸린 것"을 만들면 이 판정을 쓴다. 회귀 방지 `PostPrivacyTest`.
   - ★ **삭제글·비밀글 확인은 취미 게시판 공개 통과보다 먼저**다(`postDAO.selectPostAccessGate`). 취미 게시판은 메뉴 권한 쿼리(`menuDAO.countGenBoardPermByPost`)를 안 타서, 순서를 바꾸면 취미 게시판 비밀글 댓글·사진이 **비로그인에게** 열린다(v0.6.32까지 그랬다). SQL에도 CMS와 같은 조건이 있지만 이 저장소에선 이중 방어다.
   - 목록은 남의 비밀글 제목을 "비밀글입니다."로, 대표 이미지 ID는 비운다(`PostService.selectList`). 게시판 목록 **검색에는 남의 비밀글이 걸리지 않는다**. '내 북마크'도 남의 비밀글 제목을 가린다(담은 뒤 비밀글로 바뀐 경우).
@@ -133,6 +140,7 @@
   - ★ **위 인가는 "파일이 붙은 글 중 하나라도 볼 수 있으면 통과"다 — 그래서 붙이는 쪽을 막아야 한다.** 게시글 매핑(`saveFileMapping`, POST*)에 **새로 붙는 파일은 본인이 올린 것만**(관리자 제외, `fileDAO.countOwnedFileByMember` — 프로필 사진·폼 제출과 같은 규칙). v0.6.30까지는 안 봐서, 남의 file_id(순번)를 내 공개 글(취미 게시판 포함)에 붙여 비공개 게시판 첨부·폼 서류를 내려받을 수 있었다. 첨부·갤러리는 403, 본문 이미지(POST_EDITOR)는 복사해 붙인 다른 글 이미지가 있을 수 있어 **연결만 하지 않는다**. 이미 붙어 있던 파일은 보지 않는다(수정 화면이 기존 첨부를 다시 보낸다). 새 매핑 경로를 만들면 같은 확인을 넣는다. 회귀 방지 `FileMappingTest`.
   - ★ **게시판 첨부 제한도 서버가 본다**(같은 곳, 새로 붙는 파일이 있을 때만, 관리자 포함): 첨부(POST)=사용 여부(`file_yn`)·개수(`file_cnt_limit`, 전체)·용량(`file_size_limit_mb`), 갤러리(POST_IMG)=용량만 — 화면(`FileUpload`·`GalleryImages`)과 같은 규칙. 취미 게시판도 그 게시판 설정을 따른다. 제한을 줄여도 기존 글의 수정 저장은 막히지 않는다(CMS 1.2.31).
 - **실시간(SSE)**: `RealtimeService`가 사용자별 연결을 들고 "새 게 있다"는 이벤트 이름만 푸시한다(본문 없음 — 인가는 조회 API 한 곳에만). 프론트는 `useEventStream`(fetch POST + Authorization 헤더, 자동 재연결), 끊기면 폴링으로 대체. 단일 JVM 한정.
+- **인앱 알림 생성**은 `NotificationService.notify()` 한 곳(본인 행동 제외·수신 설정·실패 격리·푸시). ★ 원래 동작이 트랜잭션 안이면 **커밋 뒤에**(afterCommit) 독립 트랜잭션으로 만들고 그 뒤에 민다(CMS 1.2.35) — 같은 트랜잭션에 넣으면 알림 실패가 댓글 등록을 되돌리고, 커밋 전에 만들면 되돌려진 처리에 알림만 남는다. 폼 처리상태 알림(`FORM`)은 수신 설정과 상관없이 항상 받는다(설정에 없는 유형은 '모임 알림'으로 떨어지므로 `isEnabled`에서 먼저 통과시킨다). 회귀 방지 `NotificationTest`.
 - **로고**: 환경설정에서 업로드, 미설정 시 `frontend/src/assets/logo.svg`. **메뉴 아이콘**: 메뉴에 저장된 아이콘 키 → 프론트 `MenuGlyph` 레지스트리.
 - **폼(신청·민원·설문)**: 한 엔진이다(`form.type_cd`로만 구분). 관리자 > 폼 관리 > 폼 설정에서 문항을 만들고, 메뉴관리에서 연결유형 `MENU05`(폼)로 고르면 `/gen/form/{form_id}`로 노출된다 — **새 신청서·설문에 코드를 고치지 않는다**. ⚠ 메뉴에 안 걸면 관리자만 보인다(`GenAccessGuard.checkForm`). 개인정보 문항은 `privacy_yn='Y'`로 표시하면 답이 `value_enc`에 암호화 저장되고 조회가 접근로그에 남는다 — `value`와 `value_enc`를 한 컬럼에 섞지 않는다(섞으면 개인정보 없는 설문도 접근기록이 쌓인다). 기간·로그인·1인1회·필수·선택지 검증은 **서버가 다시 한다**. 문항을 빼면 비활성화만(과거 응답이 붙어 있다).
   - **파일첨부 문항(`FIELD09`)**: 답은 `value`에 파일 ID 목록(줄바꿈 구분), 파일은 `file_ref`(`map_key=form_answer_id`, `file_type='FORM'`)에 붙는다. ★ 제출 시 **"내가 올린 파일인지" 확인**(IDOR 차단)하고 **매핑을 만들며**, 응답 삭제 시 **비활성화**한다 — 하나라도 빠지면 남의 파일이 붙거나, 서류가 새벽에 사라지거나, 디스크에 영구히 남는다. ⚠ 파일 문항이 있으면 `login_yn='Y'`여야 한다(업로드가 인증을 요구).
