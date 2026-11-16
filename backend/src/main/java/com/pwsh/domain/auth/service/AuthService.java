@@ -427,16 +427,21 @@ public class AuthService {
         emailVerifyService.consume(request.memberId(), EmailVerifyService.RESET);
     }
 
-    /** 내 정보(memberId·nickname·typeCd). 마이페이지 표시용. */
-    public java.util.Map<String, String> me() {
+    /**
+     * 내 정보(memberId·nickname·typeCd·handle 등). 마이페이지 표시용.
+     * CMS 1.2.37: 관리자 여부(탈퇴 버튼 표시)·약관 동의 내역(지금 쓰지 않는 약관 포함)을 함께 싣는다.
+     */
+    public java.util.Map<String, Object> me() {
         String memberId = SecurityUtil.getCurrentMemberId();
         MemberVO u = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(memberId));
-        java.util.Map<String, String> m = new java.util.HashMap<>();
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("memberId", memberId);
         m.put("nickname", u != null ? u.getNickname() : null);
         m.put("typeCd", u != null ? u.getTypeCd() : null);
         m.put("profileFileId", u != null ? u.getProfileFileId() : null);
         m.put("handle", u != null ? u.getHandle() : null); // 내 공개 식별자(본인 프로필 링크·소유자 비교용)
+        m.put("adminYn", SecurityUtil.isAdmin() ? "Y" : "N");
+        m.put("policies", policyService.selectListByMember(memberId));
         return m;
     }
 
@@ -479,20 +484,28 @@ public class AuthService {
         return m;
     }
 
-    /** 회원 탈퇴(셀프) — 현재 비번 확인 후 계정 비활성(use_yn='N') + 세션 무효화(재로그인·복구 불가). */
+    /**
+     * 회원 탈퇴(셀프) — 현재 비번 확인 후 <b>관리자 삭제와 같은 길</b>(권한그룹 매핑 정리 + use_yn='N' + withdraw_dt) + 세션 무효화.
+     *
+     * <p>CMS 1.2.37 보강: ① 관리자는 막는다 — 마지막 관리자가 실수로 나가면 관리 화면에 들어올 사람이 없다
+     * ② 전엔 member 행만 닫아 권한그룹 매핑이 남았다. 빈 비밀번호는 인코더에 넘기지 않고 바로 거절한다(원래도 400 — 방어만).
+     */
     @Transactional
     public void withdraw(String currentPw) {
         String memberId = SecurityUtil.getCurrentMemberId();
         if (memberId == null || "system".equals(memberId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, Messages.get("error.common.loginRequired"));
         }
+        if (SecurityUtil.isAdmin()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, Messages.get("error.auth.adminWithdrawBlocked"));
+        }
         MemberVO user = commonDAO.selectOne("memberDAO.selectByMemberId", memberIdParam(memberId));
-        if (user == null || !passwordEncoder.matches(currentPw, user.getPassword())) {
+        if (user == null || currentPw == null || currentPw.isEmpty() || !passwordEncoder.matches(currentPw, user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.auth.currentPasswordMismatch"));
         }
-        MemberVO upd = new MemberVO();
-        upd.setRowId(memberId);
-        commonDAO.update("memberDAO.delete", upd);            // use_yn='N' (로그인 차단)
+        MemberVO del = new MemberVO();
+        del.setRowId(memberId);
+        memberService.delete(del);                             // 권한그룹 매핑 정리 + use_yn='N' + withdraw_dt
         memberService.invalidateToken(memberId, SessionEndReason.WITHDRAW); // 현재 토큰 즉시 무효화 + 세션 종료
     }
 
@@ -526,8 +539,9 @@ public class AuthService {
     @Transactional
     public void changeNickname(NicknameRequest request) {
         String memberId = SecurityUtil.getCurrentMemberId();
+        String nickname = request.nickname().trim(); // 앞뒤 공백째 저장되면 화면에선 같아 보이는 닉네임이 둘 생긴다(CMS 1.2.37)
         MemberVO chk = new MemberVO();
-        chk.setNickname(request.nickname());
+        chk.setNickname(nickname);
         chk.setMemberId(memberId);
         Integer cnt = commonDAO.selectOne("memberDAO.selectCountByNicknameExcept", chk);
         if (cnt != null && cnt > 0) {
@@ -535,7 +549,7 @@ public class AuthService {
         }
         MemberVO upd = new MemberVO();
         upd.setRowId(memberId);
-        upd.setNickname(request.nickname());
+        upd.setNickname(nickname);
         commonDAO.update("memberDAO.updateNickname", upd);
     }
 

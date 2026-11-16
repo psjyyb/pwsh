@@ -23,7 +23,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  *
  * <p>다음은 점검 중에도 열어둔다 — 막으면 관리자가 점검을 <b>끄러 들어올 수조차 없다</b>.
  * <ul>
- *   <li>세션 관련 인증 API — 로그인·로그아웃·토큰재발급·내정보·비밀번호 변경/연장</li>
+ *   <li>세션 관련 인증 API — 로그인·관리자 2차 인증 코드·로그아웃·토큰재발급·내정보·비밀번호 변경/연장</li>
  *   <li>{@code /api/adm/config/selectConfigView.do} — 사이트명·로고(점검 화면이 읽는다)</li>
  *   <li>{@code /api/pub/**} — 로고 등 공개 이미지</li>
  * </ul>
@@ -39,6 +39,9 @@ public class MaintenanceInterceptor implements HandlerInterceptor {
     private static final Set<String> ALLOW_EXACT = Set.of(
             "/api/adm/config/selectConfigView.do",
             "/api/auth/login",
+            // ★ 관리자 2차 인증 코드 단계 — 토큰 전이라 관리자로 판정되지 않아, 빠지면 2차 인증을 켠 관리자가 점검을 끄러 못 들어온다
+            //   (v0.6.34에 2차 인증을 들이며 빠뜨렸다, CMS 1.2.37 흡수 때 더함)
+            "/api/auth/loginOtp",
             "/api/auth/logout",
             "/api/auth/refresh",
             "/api/auth/me",

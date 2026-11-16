@@ -56,7 +56,10 @@
 - **휴면**: `last_login_dt`(없으면 `reg_dt`) 기준 `config.dormant_days` 경과 → `STATUS04`. 전환 시 `invalidateToken`으로 **토큰·세션을 즉시 끊는다**. 로그인·토큰 재발급 모두 차단(`ACCOUNT_DORMANT`).
 - ★ **해제 시 `last_login_dt`를 지금으로 당긴다.** 안 당기면 다음 배치에서 곧바로 재휴면된다. 해제는 관리자만(`updateMemberRestore.do`).
 - 사전 통지는 메일 템플릿 `DORMANT_NOTICE`. ★ 대상을 **하루치만** 뽑는다 — 범위로 뽑으면 전환될 때까지 매일 같은 메일이 나간다.
-- **파기**: 탈퇴 시 `withdraw_dt`를 찍고(`memberDAO.delete` — 관리자 삭제와 셀프 탈퇴가 공유), `config.destroy_days` 경과 시 **개인정보 컬럼만 비운다**.
+- **파기**: 탈퇴 시 `withdraw_dt`를 찍고(`MemberService.delete` — 관리자 삭제와 셀프 탈퇴가 같은 길: 권한그룹 매핑 정리 + `memberDAO.delete`, CMS 1.2.37부터 셀프 탈퇴도 매핑을 정리), `config.destroy_days` 경과 시 **개인정보 컬럼만 비운다**.
+- **셀프 탈퇴**(`/api/auth/withdraw`, 마이페이지): 현재 비밀번호 확인(안 보내면 400) → 위 같은 길 → `invalidateToken(WITHDRAW)`. ★ **관리자(MEM02·admin)는 403**(CMS 1.2.37 — 마지막 관리자가 실수로 나가는 것을 막는다, 관리자 삭제는 다른 관리자가 회원관리에서). 회귀 방지 `MyPageTest`.
+- **마이페이지 내 정보**(`/api/auth/me`)는 관리자 여부(`adminYn`)·약관 동의 내역(`policies` — 지금 쓰지 않는 약관도 이력이라 함께, `policyDAO.selectListByMember`)을 싣는다(CMS 1.2.37). 닉네임 변경은 앞뒤 공백 제거·30자까지(넘으면 400).
+- **점검 모드에서 열린 auth API는 목록으로만**(`MaintenanceInterceptor.ALLOW_EXACT`): 로그인·`loginOtp`·로그아웃·토큰 재발급·내 정보·비밀번호 변경/연장. ★ `loginOtp`는 꼭 연다 — 토큰 전이라 관리자로 판정되지 않아, 빠지면 2차 인증을 켠 관리자가 점검을 끄러 못 들어온다(v0.6.34~0.6.36에 빠져 있었다, CMS 1.2.37 흡수 때 더함). 회귀 방지 `MaintenanceTest`.
   - ⚠ **행은 지우지 않는다** — `post.reg_id`·`comment.reg_id`·`recruit.reg_id`가 회원 ID로 붙어 있어 지우면 과거 글·모집의 작성자가 깨진다.
   - ⚠ **`nickname`은 NULL이 아니라 `'탈퇴한 회원'`** — 작성자 표기가 닉네임 서브쿼리라 비우면 과거 글이 빈칸이 된다(CMS 원문과 다른 부분).
   - ⚠ **파기하면 `use_yn='N'`까지 내린다** — `ux_member_nickname`이 `use_yn='Y'`에만 걸린 부분 유니크 인덱스라, 살려 두면 두 번째 파기가 유니크 위반으로 터진다.

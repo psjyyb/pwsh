@@ -86,9 +86,9 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
-    /** 내 정보(memberId·nickname·typeCd) — 마이페이지 표시용 */
+    /** 내 정보(memberId·nickname·typeCd·handle·관리자 여부·약관 동의 내역) — 마이페이지 표시용 */
     @PostMapping("/me")
-    public ApiResponse<Map<String, String>> me() {
+    public ApiResponse<Map<String, Object>> me() {
         return ApiResponse.ok(authService.me());
     }
 
@@ -115,10 +115,10 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
-    /** 회원 탈퇴(셀프) — 현재 비밀번호 확인 필요. */
+    /** 회원 탈퇴(셀프) — 현재 비밀번호 확인 필요(관리자는 403). */
     @PostMapping("/withdraw")
-    public ApiResponse<Void> withdraw(@RequestBody Map<String, String> body) {
-        authService.withdraw(body.get("currentPw"));
+    public ApiResponse<Void> withdraw(@RequestBody(required = false) Map<String, String> body) {
+        authService.withdraw(body == null ? null : body.get("currentPw"));
         return ApiResponse.ok();
     }
 

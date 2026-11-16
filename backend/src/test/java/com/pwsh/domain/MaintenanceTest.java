@@ -86,4 +86,27 @@ class MaintenanceTest extends IntegrationTest {
         configService.evictMaint();
         assertEquals(200, post("/api/adm/post/selectPostList.do", "{\"boardId\":\"1\"}", reUser).statusCode());
     }
+
+    @Test
+    void maintenance_opens_only_session_endpoints_under_auth() throws Exception {
+        String admin = accessToken("admin", "admin1234!");
+        String user = accessToken("user", "user1234!");
+        turnOn(admin);
+
+        // 세션을 얻고 유지하는 것만 열려 있다
+        assertEquals(200, post("/api/auth/me", "{}", user).statusCode());
+        assertTrue(post("/api/auth/loginOtp", "{\"otpKey\":\"x\",\"code\":\"000000\"}", null).statusCode() != 503,
+                "관리자 2차 인증 코드 단계(CMS 1.2.37) — 막으면 2차 인증을 켠 관리자가 점검을 끄러 못 들어온다(틀린 키라 인증 실패면 된다)");
+        assertEquals(200, post("/api/auth/pwExtend", "{}", user).statusCode());
+
+        // 탈퇴·닉네임 변경·비밀번호 재설정은 회원·비로그인 모두 503
+        assertEquals(503, post("/api/auth/withdraw", "{\"currentPw\":\"user1234!\"}", user).statusCode());
+        assertEquals(503, post("/api/auth/nickname", "{\"nickname\":\"zz점검\"}", user).statusCode());
+        assertEquals(503, post("/api/auth/sendSignupCode", "{\"email\":\"zz@example.com\"}", null).statusCode());
+        assertEquals(503, post("/api/auth/sendResetCode", "{\"memberId\":\"user\"}", null).statusCode());
+        assertEquals(503, post("/api/auth/resetPassword", "{}", null).statusCode());
+
+        // 관리자는 그대로 통과
+        assertEquals(200, post("/api/auth/me", "{}", admin).statusCode());
+    }
 }

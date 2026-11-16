@@ -4,6 +4,8 @@ import type { TableColumnsType } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { tokenStore } from '../../auth/token'
 import { me, changePw, updateProfileImage, withdraw } from '../../api/auth'
+import type { MyPolicy } from '../../api/auth'
+import PolicyViewModal from '../../common/gen/components/PolicyViewModal'
 import { fileApi } from '../../api/file'
 import { applyApi } from '../recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../recruit/recruit.api'
@@ -47,6 +49,10 @@ export default function MyPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [withdrawPw, setWithdrawPw] = useState('')
+  // 약관 동의 내역·관리자 여부(CMS 1.2.37) — 관리자는 셀프 탈퇴를 막는다(서버도 403)
+  const [policies, setPolicies] = useState<MyPolicy[]>([])
+  const [adminYn, setAdminYn] = useState('N')
+  const [viewPolicyId, setViewPolicyId] = useState<string | undefined>()
 
   const [posts, setPosts] = useState<Post[]>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
@@ -143,6 +149,8 @@ export default function MyPage() {
     me().then((info) => {
       setMemberId(info.memberId ?? ''); setNickname(info.nickname ?? ''); setNickInput(info.nickname ?? '')
       setProfileFileId(info.profileFileId || undefined)
+      setPolicies(info.policies ?? [])
+      setAdminYn(info.adminYn ?? 'N')
       // 배지 재료(참석 기록·받은 후기)는 공개 프로필 쪽에 있어 내 handle로 함께 가져온다
       if (info.handle) {
         getMemberProfile(info.handle).then((p) => setMyAttend(p.attend ?? {})).catch(() => {})
@@ -582,8 +590,35 @@ export default function MyPage() {
         )}
       </Card>
 
+      {/* 약관 동의 내역(CMS 1.2.37) — 지금 쓰지 않는 약관도 내가 동의했던 이력이라 함께 보인다 */}
+      <Card style={{ borderRadius: 18 }} title={cardTitle('📄', '약관 동의 내역', policies.length)}>
+        {policies.length === 0 ? (
+          <Empty description="동의한 약관이 없습니다" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {policies.map((p) => (
+              <div key={p.rowId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <span>
+                  <Tag>{p.reqYn === 'Y' ? '필수' : '선택'}</Tag>
+                  {p.title}
+                  {p.useYn !== 'Y' && <Tag style={{ marginLeft: 6 }}>지금은 쓰지 않는 약관</Tag>}
+                </span>
+                <span style={{ color: '#999', fontSize: 12, whiteSpace: 'nowrap' }}>
+                  {p.agreeDt} 동의
+                  {p.useYn === 'Y' && <a style={{ marginLeft: 10 }} onClick={() => setViewPolicyId(p.rowId)}>보기</a>}
+                </span>
+              </div>
+            ))}
+          </Space>
+        )}
+      </Card>
+
       <div style={{ textAlign: 'center', marginTop: 4 }}>
-        <Button type="text" danger onClick={() => { setWithdrawPw(''); setWithdrawOpen(true) }}>회원 탈퇴</Button>
+        {adminYn === 'Y' ? (
+          <span style={{ color: '#999', fontSize: 12 }}>관리자 계정은 스스로 탈퇴할 수 없습니다(다른 관리자가 회원관리에서 삭제).</span>
+        ) : (
+          <Button type="text" danger onClick={() => { setWithdrawPw(''); setWithdrawOpen(true) }}>회원 탈퇴</Button>
+        )}
       </div>
       </div>
       </PageBody>
@@ -604,6 +639,8 @@ export default function MyPage() {
           placeholder="함께한 경험을 남겨주세요. (선택, 500자)" maxLength={500} autoSize={{ minRows: 3, maxRows: 6 }}
         />
       </Modal>
+
+      <PolicyViewModal rowId={viewPolicyId} onClose={() => setViewPolicyId(undefined)} />
 
       {/* 회원 탈퇴 */}
       <Modal title="회원 탈퇴" open={withdrawOpen} onCancel={() => setWithdrawOpen(false)} onOk={doWithdraw}

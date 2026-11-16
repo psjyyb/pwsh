@@ -54,8 +54,24 @@ export function resetPassword(params: {
   return apiPost<void>('/auth/resetPassword', params)
 }
 
-/** 내 정보. handle=내 공개 식별자(프로필 링크·본인 판정용), memberId=로그인 ID(본인 화면 표시용) */
-export interface MeInfo { memberId?: string; nickname?: string; typeCd?: string; profileFileId?: string; handle?: string }
+/** 내 약관 동의 내역 한 줄 — useYn='N'이면 지금은 쓰지 않는(내려간) 약관 */
+export interface MyPolicy {
+  rowId?: string
+  title?: string
+  typeCdName?: string
+  reqYn?: string
+  useYn?: string
+  agreeDt?: string // 마지막으로 동의한 시각
+}
+
+/**
+ * 내 정보. handle=내 공개 식별자(프로필 링크·본인 판정용), memberId=로그인 ID(본인 화면 표시용).
+ * adminYn=관리자(셀프 탈퇴 불가 — 화면이 버튼을 숨기고 서버도 403), policies=약관 동의 내역(CMS 1.2.37)
+ */
+export interface MeInfo {
+  memberId?: string; nickname?: string; typeCd?: string; profileFileId?: string; handle?: string
+  adminYn?: string; policies?: MyPolicy[]
+}
 /** 내 정보(마이페이지) */
 export function me(): Promise<MeInfo> {
   return apiPost<MeInfo>('/auth/me', {})

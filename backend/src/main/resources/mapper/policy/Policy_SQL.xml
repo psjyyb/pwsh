@@ -39,6 +39,20 @@
         ORDER BY policy_id
     </select>
 
+    <!--
+      내 동의 내역(마이페이지, CMS 1.2.37) — 지금 쓰지 않는 약관(use_yn='N')도 내가 동의했던 이력이라 함께 낸다(use_yn으로 구분).
+      약관을 고칠 땐 행을 내리고 새로 만들므로(V2 기초데이터 주석) 옛 약관 동의가 여기 남는다.
+    -->
+    <select id="selectListByMember" parameterType="policyVO" resultType="policyVO">
+        SELECT p.policy_id::TEXT AS row_id, p.title, c.name AS type_cd_name, p.req_yn, p.use_yn,
+               TO_CHAR(mp.upd_dt, 'YYYY-MM-DD HH24:MI') AS agree_dt
+        FROM member_policy mp
+        JOIN policy p ON p.policy_id = mp.policy_id
+        LEFT JOIN code c ON c.code_id = p.type_cd AND c.p_code_id = 'POLICY00'
+        WHERE mp.member_id = #{memberId} AND mp.use_yn = 'Y'
+        ORDER BY p.use_yn DESC, p.req_yn DESC, mp.upd_dt DESC
+    </select>
+
     <!-- 동의 이력 1건. 같은 회원이 같은 약관에 재동의하면 시각만 갱신(PK 충돌 방지). -->
     <insert id="insertMemberPolicy" parameterType="policyVO">
         INSERT INTO member_policy (member_id, policy_id, use_yn,

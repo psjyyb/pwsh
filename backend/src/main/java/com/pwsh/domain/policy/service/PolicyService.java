@@ -38,6 +38,13 @@ public class PolicyService {
         return selectListPublic(new PolicyVO()).stream().map(PolicyVO::getRowId).toList();
     }
 
+    /** 내 동의 내역(마이페이지, CMS 1.2.37) — 지금 쓰지 않는 약관도 이력이라 함께 낸다(useYn으로 구분). */
+    public List<PolicyVO> selectListByMember(String memberId) {
+        PolicyVO v = new PolicyVO();
+        v.setMemberId(memberId);
+        return commonDAO.selectList("policyDAO.selectListByMember", v);
+    }
+
     /** 동의 이력 1건 저장(회원-약관). */
     public void insertMemberPolicy(String memberId, String policyId) {
         PolicyVO vo = new PolicyVO();
