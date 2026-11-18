@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  검색 통계 · 인기 검색어(CMS 1.2.38). 집계 표(search_keyword_daily)에는 누가 검색했는지가 없다 — 날짜·검색어·횟수뿐이다.
+  기간 조건은 모두 "오늘 포함 #{days}일"이다(stat_date > CURRENT_DATE - days).
+-->
+<mapper namespace="searchStatDAO">
+
+    <!-- 통합검색 1회 — 그날 그 검색어에 1을 더한다(결과가 없었으면 zero_cnt도) -->
+    <insert id="upsert" parameterType="searchStatVO">
+        INSERT INTO search_keyword_daily (stat_date, keyword, search_cnt, zero_cnt)
+        VALUES (CURRENT_DATE, #{keyword}, 1, #{zeroCnt}::integer)
+        ON CONFLICT (stat_date, keyword) DO UPDATE
+            SET search_cnt = search_keyword_daily.search_cnt + 1,
+                zero_cnt = search_keyword_daily.zero_cnt + EXCLUDED.zero_cnt
+    </insert>
+
+    <!--
+      인기 검색어 후보 — 기간 합계 minCount회 이상이고 결과가 한 번이라도 있었던 말, 숨긴 말 제외, 많은 순.
+      ★ 최소 횟수는 노출 방지 장치다 — 한두 번 들어온 말은 누군가의 이름·연락처일 수 있다.
+      금칙어는 여기서 거르지 않는다(공백·대소문자를 무시한 부분일치라 서비스가 BanwordService 규칙으로 거른다).
+    -->
+    <select id="selectPopular" parameterType="searchStatVO" resultType="string">
+        SELECT d.keyword
+        FROM search_keyword_daily d
+        WHERE d.stat_date &gt; CURRENT_DATE - #{days}::integer
+          AND NOT EXISTS (SELECT 1 FROM search_keyword_hide h WHERE h.keyword = d.keyword AND h.use_yn = 'Y')
+        GROUP BY d.keyword
+        HAVING SUM(d.search_cnt) &gt;= #{minCount}::integer AND SUM(d.search_cnt) &gt; SUM(d.zero_cnt)
+        ORDER BY SUM(d.search_cnt) DESC, d.keyword
+        LIMIT #{limitCnt}::integer
+    </select>
+
+    <sql id="listWhere">
+        WHERE d.stat_date &gt; CURRENT_DATE - #{days}::integer
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND d.keyword ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+        </if>
+        GROUP BY d.keyword
+        <if test='"Y".equals(zeroOnly)'>HAVING SUM(d.zero_cnt) &gt; 0</if>
+    </sql>
+
+    <!-- 관리 화면: 기간 안 검색어 순위(결과 없던 검색어만 보면 그 횟수 많은 순) -->
+    <select id="selectList" parameterType="searchStatVO" resultType="searchStatVO">
+        SELECT d.keyword,
+               SUM(d.search_cnt)::TEXT AS search_cnt,
+               SUM(d.zero_cnt)::TEXT AS zero_cnt,
+               TO_CHAR(MAX(d.stat_date), 'YYYY-MM-DD') AS last_date,
+               CASE WHEN EXISTS (SELECT 1 FROM search_keyword_hide h WHERE h.keyword = d.keyword AND h.use_yn = 'Y')
+                    THEN 'Y' ELSE 'N' END AS hidden_yn
+        FROM search_keyword_daily d
+        <include refid="listWhere"/>
+        ORDER BY
+        <if test='"Y".equals(zeroOnly)'>SUM(d.zero_cnt) DESC,</if>
+            SUM(d.search_cnt) DESC, d.keyword
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="searchStatVO" resultType="int">
+        SELECT COUNT(*) FROM (
+            SELECT d.keyword FROM search_keyword_daily d
+            <include refid="listWhere"/>
+        ) t
+    </select>
+
+    <!-- 일별 합계 — 오늘부터 거꾸로, 검색이 없던 날도 0으로 채운다(그래프가 끊기지 않게) -->
+    <select id="selectDaily" parameterType="searchStatVO" resultType="searchStatVO">
+        SELECT TO_CHAR(g.day, 'YYYY-MM-DD') AS stat_date,
+               COALESCE(SUM(d.search_cnt), 0)::TEXT AS search_cnt,
+               COALESCE(SUM(d.zero_cnt), 0)::TEXT AS zero_cnt,
+               COUNT(d.keyword)::TEXT AS keyword_cnt
+        FROM generate_series(CURRENT_DATE - (#{days}::integer - 1), CURRENT_DATE, INTERVAL '1 day') AS g(day)
+        LEFT JOIN search_keyword_daily d ON d.stat_date = g.day::date
+        GROUP BY g.day
+        ORDER BY g.day DESC
+    </select>
+
+    <select id="selectHideCount" parameterType="searchStatVO" resultType="int">
+        SELECT COUNT(*) FROM search_keyword_hide WHERE keyword = #{keyword} AND use_yn = 'Y'
+    </select>
+
+    <insert id="insertHide" parameterType="searchStatVO">
+        INSERT INTO search_keyword_hide (keyword, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{keyword}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="unhide" parameterType="searchStatVO">
+        UPDATE search_keyword_hide SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE keyword = #{keyword} AND use_yn = 'Y'
+    </update>
+
+</mapper>

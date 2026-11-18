@@ -37,6 +37,12 @@ export default function SearchPage() {
   const q = (params.get('q') ?? '').trim()
   const [data, setData] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [popular, setPopular] = useState<string[]>([])
+
+  // 인기 검색어(CMS 1.2.38) — 실패해도 검색은 그대로(목록만 안 보인다)
+  useEffect(() => {
+    searchApi.popular().then(setPopular).catch(() => setPopular([]))
+  }, [])
 
   useEffect(() => {
     if (!q) { setData(null); return }
@@ -68,6 +74,17 @@ export default function SearchPage() {
       />
       <PageBody narrow>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {popular.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: 'var(--gen-ink-soft)', fontSize: 13, marginRight: 4 }}>인기 검색어</span>
+          {popular.map((p, i) => (
+            <Tag key={p} style={{ cursor: 'pointer', marginInlineEnd: 0 }}
+              onClick={() => navigate(`/gen/search?q=${encodeURIComponent(p)}`)}>
+              {i + 1}. {p}
+            </Tag>
+          ))}
+        </div>
+      )}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div>
       ) : !q ? null : total === 0 ? (

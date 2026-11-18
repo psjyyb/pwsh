@@ -34,4 +34,6 @@ export const SEARCH_PREVIEW_SIZE = 10
 export const searchApi = {
   /** 취미·모집·게시글·안내페이지 통합 검색 */
   all: (filterKeyword: string) => apiPost<SearchResult>('/adm/search/selectSearchAll.do', { filterKeyword }),
+  /** 인기 검색어(CMS 1.2.38) — 최근 7일 많이 찾은 말(금칙어·숨긴 말 제외). 검색어 문자열만 온다 */
+  popular: () => apiPost<string[]>('/adm/search/selectSearchListPopular.do', {}),
 }

@@ -6,6 +6,7 @@ import com.pwsh.common.exception.ErrorCode;
 import com.pwsh.common.message.Messages;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -79,6 +80,21 @@ public class BanwordService {
                         Messages.get("error.banword.contains"));
             }
         }
+    }
+
+    /**
+     * 금칙어가 들어 있는지 판정하는 함수 — 금칙어를 한 번만 읽어 여러 문자열에 쓴다(검색 통계·인기 검색어, CMS 1.2.38).
+     * 판정 규칙은 {@link #assertClean}과 같다(대소문자·공백 무시, 부분일치).
+     */
+    public Predicate<String> matcher() {
+        List<String> words = commonDAO.<String>selectList("banwordDAO.selectWords", new BanwordVO()).stream()
+                .map(BanwordService::normalize)
+                .filter(w -> !w.isEmpty())
+                .toList();
+        return text -> {
+            String target = normalize(text);
+            return !target.isEmpty() && words.stream().anyMatch(target::contains);
+        };
     }
 
     /** 대소문자·공백 제거(회피 방지). */

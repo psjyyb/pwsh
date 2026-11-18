@@ -1,6 +1,7 @@
 package com.pwsh.domain.search.service;
 
 import com.pwsh.common.CommonDAO;
+import com.pwsh.domain.searchstat.service.SearchStatService;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +29,7 @@ public class SearchService {
     private static final int PREVIEW_SIZE = 10;
 
     private final CommonDAO commonDAO;
+    private final SearchStatService searchStatService;
 
     public Map<String, Object> searchAll(String keyword) {
         Map<String, Object> p = prepare(keyword);
@@ -50,7 +52,15 @@ public class SearchService {
         result.put("postCount", (int) commonDAO.selectOne("searchDAO.searchPostsCount", p));
         result.put("pages", commonDAO.selectList("searchDAO.searchPages", p));
         result.put("pageCount", (int) commonDAO.selectOne("searchDAO.searchPagesCount", p));
+        // 검색 통계(CMS 1.2.38) — 날짜·검색어별 횟수만(누가 검색했는지는 남기지 않는다). 결과 수는 네 유형 합
+        searchStatService.record((String) p.get("keyword"), (int) result.get("hobbyCount") + (int) result.get("recruitCount")
+                + (int) result.get("postCount") + (int) result.get("pageCount"));
         return result;
+    }
+
+    /** 인기 검색어(공개, CMS 1.2.38) — 집계·금칙어·숨김 규칙은 SearchStatService가 갖는다 */
+    public List<String> popular() {
+        return searchStatService.popular();
     }
 
     /** 검색어 정리 + 판정 기준 주입. 모든 진입점이 반드시 거친다. */

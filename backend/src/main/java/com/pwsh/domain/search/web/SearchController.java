@@ -32,4 +32,13 @@ public class SearchController {
         Validate.required(keyword, "검색어");
         return ApiResponse.ok(searchService.searchAll(keyword));
     }
+
+    /**
+     * 인기 검색어(공개, CMS 1.2.38) — 최근 7일 2회 이상·결과가 있던 말, 금칙어·숨긴 말 제외, 많은 순 10개. 검색어 문자열만 싣는다.
+     * 주소는 CMS와 같다(이 저장소의 통합검색만 selectSearchAll.do로 다르다).
+     */
+    @RequestMapping("/selectSearchListPopular.do")
+    public ApiResponse<java.util.List<String>> popular() {
+        return ApiResponse.ok(searchService.popular());
+    }
 }
