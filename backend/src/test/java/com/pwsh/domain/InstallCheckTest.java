@@ -9,6 +9,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,13 +28,24 @@ class InstallCheckTest extends IntegrationTest {
     @Autowired
     private BatchService batchService;
 
+    /** 테스트 전 자동 실행 값 — 끝나면 이 값으로 되돌린다 */
+    private List<Map<String, Object>> savedJobs;
+
+    @BeforeEach
+    void saveJobs() {
+        savedJobs = jdbc.queryForList("SELECT job_cd, auto_yn FROM batch_job");
+    }
+
     @AfterEach
     void cleanup() {
         // 회원가입은 이 저장소 기본이 켜짐(V10) — 끈 채로 두면 뒤에 도는 테스트의 가입이 403이 된다
         jdbc.update("UPDATE config SET admin_otp_yn = 'N', acc_ip_yn = 'N', maint_yn = 'N', signup_yn = 'Y'");
         accessIpService.evict();
         jdbc.update("DELETE FROM flyway_schema_history WHERE version = '9999'");
-        jdbc.update("UPDATE batch_job SET auto_yn = 'Y'");
+        // 전부 'Y'로 써 넣으면 마이그레이션이 '자동 실행 꺼짐'으로 넣은 작업이 다음 테스트부터 가려진다(CMS 1.2.40) — 테스트 전 값으로
+        for (Map<String, Object> j : savedJobs) {
+            jdbc.update("UPDATE batch_job SET auto_yn = ? WHERE job_cd = ?", j.get("auto_yn"), j.get("job_cd"));
+        }
         jdbc.update("DELETE FROM batch_log");
         batchService.init();
     }

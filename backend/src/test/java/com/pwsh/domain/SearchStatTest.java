@@ -2,6 +2,7 @@ package com.pwsh.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.pwsh.domain.searchstat.service.SearchStatService;
 import com.pwsh.support.IntegrationTest;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
@@ -10,6 +11,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.util.AopTestUtils;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 검색 통계 · 인기 검색어(CMS 1.2.38) — 통합검색을 할 때마다 날짜·검색어별 횟수만 쌓는다(누가 검색했는지는 남기지 않는다).
@@ -19,6 +23,9 @@ import org.junit.jupiter.api.Test;
  * 그리고 통계(무엇을 검색하는지)를 관리자가 아닌 사람이 보는 것.
  */
 class SearchStatTest extends IntegrationTest {
+
+    @Autowired
+    private SearchStatService searchStatService;
 
     private String admin;
 
@@ -34,6 +41,7 @@ class SearchStatTest extends IntegrationTest {
         jdbc.update("DELETE FROM search_keyword_daily");
         jdbc.update("DELETE FROM search_keyword_hide");
         jdbc.update("DELETE FROM banword WHERE word LIKE 'zz%'");
+        jdbc.update("DELETE FROM batch_log WHERE job_cd = 'SEARCH_STAT_PURGE'");
         jdbc.update("DELETE FROM auth WHERE conn_id = 'MEMBER' AND menu_id IN (SELECT menu_id FROM menu WHERE link_url = '/adm/searchstat')");
     }
 
@@ -150,7 +158,60 @@ class SearchStatTest extends IntegrationTest {
                 .isEqualTo(400);
     }
 
+    @Test
+    @DisplayName("검색 통계 정리 배치(CMS 1.2.40): 1년(365일)이 지난 집계 행만 지운다 — 통계 화면 '최근 1년'에 보이는 행은 남기고, 숨긴 말 목록은 건드리지 않는다")
+    void purgeRemovesRowsOlderThanOneYear() throws Exception {
+        seed("zz정리 오늘", 0, 1, 0);
+        seed("zz정리 364일", 364, 1, 0);
+        seed("zz정리 365일", 365, 1, 0);
+        seed("zz정리 400일", 400, 1, 0);
+        assertThat(post("/api/adm/searchstat/updateSearchStatHide.do", "{\"keyword\":\"zz정리 400일\",\"hideYn\":\"Y\"}", admin).statusCode())
+                .isEqualTo(200);
+        String year = post("/api/adm/searchstat/selectSearchStatList.do", "{\"days\":\"365\",\"pageNo\":1,\"pageSize\":50}", admin).body();
+        assertThat(JsonPath.<List<String>>read(year, "$.data.list[*].keyword")).as("지우는 경계 = 통계 화면 1년의 경계")
+                .containsExactlyInAnyOrder("zz정리 오늘", "zz정리 364일");
+
+        Integer jobId = jdbc.queryForObject("SELECT batch_job_id FROM batch_job WHERE job_cd = 'SEARCH_STAT_PURGE'", Integer.class);
+        assertThat(post("/api/adm/batch/updateBatchRun.do", "{\"rowId\":\"" + jobId + "\"}", admin).statusCode()).isEqualTo(200);
+        Map<String, Object> log = awaitFinished("SEARCH_STAT_PURGE");
+        assertThat(log.get("status_cd")).isEqualTo("BATCH02");
+        assertThat((String) log.get("result_msg")).contains("검색 통계 2건 삭제");
+        assertThat(jdbc.queryForList("SELECT keyword FROM search_keyword_daily", String.class))
+                .containsExactlyInAnyOrder("zz정리 오늘", "zz정리 364일");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM search_keyword_hide WHERE use_yn = 'Y'", Integer.class))
+                .as("숨긴 말은 관리자 설정이라 남는다").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("검색 통계 보존 일수(search.stat.retention-days)가 0이면 지우지 않는다")
+    void purgeDisabledWhenZero() {
+        seed("zz정리 오래", 800, 1, 0);
+        // @Transactional 때문에 프록시다 — 값은 실제 객체에 넣는다
+        SearchStatService target = AopTestUtils.getUltimateTargetObject(searchStatService);
+        Object old = ReflectionTestUtils.getField(target, "retentionDays");
+        ReflectionTestUtils.setField(target, "retentionDays", 0);
+        try {
+            assertThat(searchStatService.purgeExpired()).isZero();
+        } finally {
+            ReflectionTestUtils.setField(target, "retentionDays", old);
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM search_keyword_daily", Integer.class)).isEqualTo(1);
+    }
+
     // ===== helpers =====
+
+    /** 백그라운드 실행이 끝날 때까지(실행 중이 아닐 때까지) 기다렸다가 마지막 이력을 돌려준다. */
+    private Map<String, Object> awaitFinished(String jobCd) throws InterruptedException {
+        for (int i = 0; i < 100; i++) {
+            List<Map<String, Object>> rows = jdbc.queryForList(
+                    "SELECT * FROM batch_log WHERE job_cd = ? ORDER BY batch_log_id DESC LIMIT 1", jobCd);
+            if (!rows.isEmpty() && !"BATCH01".equals(rows.get(0).get("status_cd"))) {
+                return rows.get(0);
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError(jobCd + " 실행이 10초 안에 끝나지 않았다");
+    }
 
     /** 이 저장소의 통합검색(취미·모집·게시글·페이지) — 비로그인으로 */
     private void search(String keyword) throws Exception {

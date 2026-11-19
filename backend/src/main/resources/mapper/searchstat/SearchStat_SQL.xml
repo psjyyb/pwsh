@@ -15,6 +15,11 @@
                 zero_cnt = search_keyword_daily.zero_cnt + EXCLUDED.zero_cnt
     </insert>
 
+    <!-- 보존기간 지난 집계 행 삭제(검색 통계 정리 배치, CMS 1.2.40) — 위 기간 조건의 반대쪽이라 "오늘 포함 #{days}일" 밖만 지운다 -->
+    <delete id="deleteExpired" parameterType="map">
+        DELETE FROM search_keyword_daily WHERE stat_date &lt;= CURRENT_DATE - #{days}::integer
+    </delete>
+
     <!--
       자주 검색된 말 — 기간 합계 minCount회 이상이고 결과가 한 번이라도 있었던 말, 숨긴 말 제외, 많은 순.
       인기 검색어(CMS 1.2.38)·자동완성·오타 교정(CMS 1.2.39)이 같은 거름으로 쓴다(자동완성은 keywordLike로 입력이 든 말만).

@@ -83,7 +83,13 @@ file:
 notification:
   retention-days: 90
 
-# ⚠ 배치 주기(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리·알림 정리·모집 하루 전 알림)는 v0.6.34(CMS 1.2.34)부터
+# 검색 통계 집계(search_keyword_daily) 보존기간(일). 통계 화면의 최대 기간(1년)과 같게 둔다 — 줄이면 화면의 긴 기간이 비어 보인다.
+#   자동완성·오타 교정(30일)·인기 검색어(7일)보다 짧게 잡지 않는다. 0이면 지우지 않는다. 주기는 배치 작업 관리(SEARCH_STAT_PURGE, CMS 1.2.40).
+search:
+  stat:
+    retention-days: 365
+
+# ⚠ 배치 주기(회원 라이프사이클·로그 보관 정리·고아 파일 정리·메일 이력 정리·알림 정리·검색 통계 정리·모집 하루 전 알림)는 v0.6.34(CMS 1.2.34)부터
 #   DB(batch_job)가 원본이다. 관리자 > 시스템관리 > 배치 작업 관리에서 바꾸면 재시작 없이 반영된다. 예전의 file.gc.cron·
 #   mail.log.cron·member.lifecycle.cron·log.retention.cron·recruit.remind.cron 키는 더 이상 읽지 않는다.
 

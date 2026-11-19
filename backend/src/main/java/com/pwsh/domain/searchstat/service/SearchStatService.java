@@ -7,9 +7,11 @@ import com.pwsh.common.message.Messages;
 import com.pwsh.domain.banword.service.BanwordService;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +48,10 @@ public class SearchStatService {
     private final CommonDAO commonDAO;
     private final BanwordService banwordService;
 
+    /** 집계 행 보존기간(일). 0이면 지우지 않는다(CMS 1.2.40, 사용자 결정: 1년 — 통계 화면의 최대 기간과 같다) */
+    @Value("${search.stat.retention-days:365}")
+    private int retentionDays;
+
     /** 검색어 정리 — 앞뒤 공백 제거·연속 공백 하나·소문자. 집계·숨김·인기 검색어가 모두 이 형태로 비교한다. */
     public static String normalize(String keyword) {
         return keyword == null ? "" : keyword.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
@@ -70,6 +76,24 @@ public class SearchStatService {
         } catch (RuntimeException e) {
             log.warn("[SearchStat] 검색 기록 실패: {}", e.getMessage());
         }
+    }
+
+    /**
+     * 보존기간(search.stat.retention-days) 지난 집계 행 삭제(CMS 1.2.40). 배치 작업 관리(BatchService, 작업 코드 SEARCH_STAT_PURGE)가 부른다.
+     * 경계는 통계 화면과 같은 "오늘 포함 N일"이다 — 1년(365)이면 화면의 '최근 1년'에 보이는 행은 남고 그 밖의 행만 지운다.
+     * 숨긴 말(search_keyword_hide)은 관리자 설정이라 지우지 않는다. 누가 검색했는지가 없는 집계라 법정 보존 대상이 아니다.
+     *
+     * @return 지운 행 수
+     */
+    public int purgeExpired() {
+        if (retentionDays <= 0) {
+            return 0;
+        }
+        int deleted = commonDAO.delete("searchStatDAO.deleteExpired", Map.of("days", String.valueOf(retentionDays)));
+        if (deleted > 0) {
+            log.info("검색 통계 정리: {}건 삭제(보존 {}일)", deleted, retentionDays);
+        }
+        return deleted;
     }
 
     /** 인기 검색어(공개) — 최근 7일 2회 이상·결과가 있던 말, 금칙어·숨긴 말 제외, 많은 순 10개. 횟수는 싣지 않는다. */

@@ -8,6 +8,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,21 +22,28 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 class BatchJobTest extends IntegrationTest {
 
-    /** CMS 5종(1.2.36 알림 정리 포함) + 이 저장소 전용 모집 하루 전 알림 */
-    private static final List<String> JOBS =
-            List.of("FILE_GC", "MAIL_LOG_PURGE", "MEMBER_LIFECYCLE", "LOG_RETENTION", "NOTIFICATION_PURGE", "RECRUIT_REMIND");
+    /** CMS 6종(1.2.36 알림 정리·1.2.40 검색 통계 정리 포함) + 이 저장소 전용 모집 하루 전 알림 */
+    private static final List<String> JOBS = List.of("FILE_GC", "MAIL_LOG_PURGE", "MEMBER_LIFECYCLE", "LOG_RETENTION", "NOTIFICATION_PURGE",
+            "SEARCH_STAT_PURGE", "RECRUIT_REMIND");
 
     @Autowired
     private BatchService batchService;
 
+    /** 테스트 전 주기·자동 실행 — 끝나면 이 값으로 되돌린다 */
+    private List<Map<String, Object>> savedJobs;
+
+    @BeforeEach
+    void saveJobs() {
+        savedJobs = jdbc.queryForList("SELECT job_cd, cron_expr, auto_yn FROM batch_job");
+    }
+
     @AfterEach
     void cleanup() {
-        jdbc.update("UPDATE batch_job SET cron_expr = '0 0 4 * * *', auto_yn = 'Y' WHERE job_cd = 'FILE_GC'");
-        jdbc.update("UPDATE batch_job SET cron_expr = '0 30 4 * * *', auto_yn = 'Y' WHERE job_cd = 'MAIL_LOG_PURGE'");
-        jdbc.update("UPDATE batch_job SET cron_expr = '0 0 3 * * *', auto_yn = 'Y' WHERE job_cd = 'MEMBER_LIFECYCLE'");
-        jdbc.update("UPDATE batch_job SET cron_expr = '0 30 3 * * *', auto_yn = 'Y' WHERE job_cd = 'LOG_RETENTION'");
-        jdbc.update("UPDATE batch_job SET cron_expr = '0 0 9 * * *', auto_yn = 'Y' WHERE job_cd = 'RECRUIT_REMIND'");
-        jdbc.update("UPDATE batch_job SET cron_expr = '0 0 5 * * *', auto_yn = 'Y' WHERE job_cd = 'NOTIFICATION_PURGE'");
+        // 기대값(자동 실행 켜짐 등)을 써 넣어 되돌리면 마이그레이션이 잘못 넣은 값이 두 번째 테스트부터 가려진다
+        // (CMS 1.2.40 mutation — 새 작업 행을 '자동 실행 꺼짐'으로 넣어도 통과했다). 그래서 테스트 전 값으로 되돌린다
+        for (Map<String, Object> j : savedJobs) {
+            jdbc.update("UPDATE batch_job SET cron_expr = ?, auto_yn = ? WHERE job_cd = ?", j.get("cron_expr"), j.get("auto_yn"), j.get("job_cd"));
+        }
         jdbc.update("DELETE FROM batch_job WHERE job_cd LIKE 'ZZ%'");
         jdbc.update("DELETE FROM batch_log");
         jdbc.update("DELETE FROM event_log WHERE target_table = 'zzbatch'");
@@ -47,7 +55,7 @@ class BatchJobTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("작업 6종(CMS 5종 + 모집 하루 전 알림)이 주기·자동 실행·다음 실행 시각과 함께 보이고, 스케줄러에 등록돼 있다")
+    @DisplayName("작업 7종(CMS 6종 + 모집 하루 전 알림)이 주기·자동 실행·다음 실행 시각과 함께 보이고, 스케줄러에 등록돼 있다")
     void listShowsJobs() throws Exception {
         String body = list(admin());
         assertThat(JsonPath.<List<String>>read(body, "$.data.list[*].jobCd")).containsExactlyInAnyOrderElementsOf(JOBS);
