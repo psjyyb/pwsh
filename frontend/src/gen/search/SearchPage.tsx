@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Card, Empty, Spin, Tag } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { AutoComplete, Card, Empty, Input, Spin, Tag } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SEARCH_PREVIEW_SIZE, searchApi } from '../../api/search'
 import type { SearchResult } from '../../api/search'
@@ -30,7 +30,13 @@ function highlight(text: string, keyword: string) {
   return <>{parts}</>
 }
 
-/** 통합 검색 결과(/gen/search?q=) — 취미·모집·게시글을 묶어 표시. */
+/** 자동완성 조회 간격 — 글자마다 서버를 부르지 않게 */
+const SUGGEST_DELAY_MS = 200
+
+/**
+ * 통합 검색(/gen/search?q=) — 취미·모집·게시글을 묶어 표시.
+ * 검색어는 주소(q)에 둔다 — 헤더 검색 아이콘·인기 검색어·교정 제안·뒤로가기가 모두 같은 경로를 탄다.
+ */
 export default function SearchPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -38,11 +44,55 @@ export default function SearchPage() {
   const [data, setData] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [popular, setPopular] = useState<string[]>([])
+  const [input, setInput] = useState(q)
+  const [options, setOptions] = useState<{ value: string }[]>([])
+  const suggestTimer = useRef<number>()
+  const suggestSeq = useRef(0)
+  const goTimer = useRef<number>()
 
   // 인기 검색어(CMS 1.2.38) — 실패해도 검색은 그대로(목록만 안 보인다)
   useEffect(() => {
     searchApi.popular().then(setPopular).catch(() => setPopular([]))
   }, [])
+
+  // 인기 검색어·교정 제안·뒤로가기로 주소(q)가 바뀌면 입력칸도 그 말로
+  useEffect(() => {
+    setInput(q)
+  }, [q])
+
+  useEffect(() => () => {
+    window.clearTimeout(suggestTimer.current)
+    window.clearTimeout(goTimer.current)
+  }, [])
+
+  // 자동완성(CMS 1.2.39) — 늦게 온 이전 응답이 최신 목록을 덮지 않게 순번으로 거른다. 실패하면 목록만 비운다
+  const changeInput = (v: string) => {
+    setInput(v)
+    window.clearTimeout(suggestTimer.current)
+    const seq = ++suggestSeq.current
+    if (!v.trim()) {
+      setOptions([])
+      return
+    }
+    suggestTimer.current = window.setTimeout(() => {
+      searchApi.suggest(v)
+        .then((list) => { if (seq === suggestSeq.current) setOptions(list.map((s) => ({ value: s }))) })
+        .catch(() => { if (seq === suggestSeq.current) setOptions([]) })
+    }, SUGGEST_DELAY_MS)
+  }
+
+  // 목록에서 Enter로 고르면 검색창의 Enter(입력한 말)가 먼저, 고른 말이 바로 뒤에 같은 틱으로 들어온다.
+  // 둘 다 주소에 넣으면 기록이 두 번 쌓이고 순서가 바뀌면 입력한 말로 검색된다 — 같은 틱에선 마지막 것만 쓴다
+  const go = (v: string) => {
+    window.clearTimeout(suggestTimer.current)
+    suggestSeq.current++
+    setOptions([])
+    window.clearTimeout(goTimer.current)
+    goTimer.current = window.setTimeout(() => {
+      const kw = v.trim()
+      navigate(kw ? `/gen/search?q=${encodeURIComponent(kw)}` : '/gen/search')
+    }, 0)
+  }
 
   useEffect(() => {
     if (!q) { setData(null); return }
@@ -74,6 +124,18 @@ export default function SearchPage() {
       />
       <PageBody narrow>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* 헤더 검색 아이콘은 이 화면으로 오기만 한다 — 입력은 여기서 받는다 */}
+      <AutoComplete
+        value={input}
+        options={options}
+        onChange={changeInput}
+        onSelect={(v: string) => go(v)}
+        // 첫 항목을 미리 잡아 두면 Enter가 입력한 말 대신 그 항목을 고른다 — 고르려면 화살표로 내려간다
+        defaultActiveFirstOption={false}
+        style={{ width: '100%' }}
+      >
+        <Input.Search size="large" placeholder="취미·모집·게시글 검색" allowClear autoFocus={!q} onSearch={go} />
+      </AutoComplete>
       {popular.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
           <span style={{ color: 'var(--gen-ink-soft)', fontSize: 13, marginRight: 4 }}>인기 검색어</span>
@@ -88,7 +150,19 @@ export default function SearchPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div>
       ) : !q ? null : total === 0 ? (
-        <Empty description="검색 결과가 없습니다." />
+        <Empty
+          description={
+            <>
+              <div>검색 결과가 없습니다.</div>
+              {/* 오타 교정(CMS 1.2.39) — 서버가 0건일 때만 준다. 바꿔 찾지 않고 제안만 한다 */}
+              {data?.suggest && (
+                <div style={{ marginTop: 8 }}>
+                  혹시 <a onClick={() => navigate(`/gen/search?q=${encodeURIComponent(data.suggest!)}`)}>‘{data.suggest}’</a>을(를) 찾으셨나요?
+                </div>
+              )}
+            </>
+          }
+        />
       ) : (
         <>
           {data!.hobbies.length > 0 && (

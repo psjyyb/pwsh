@@ -34,6 +34,12 @@ public class SearchStatService {
     static final int POPULAR_MIN_COUNT = 2;
     /** 금칙어를 거르고도 POPULAR_SIZE를 채우도록 넉넉히 뽑는 후보 수 */
     private static final int POPULAR_CANDIDATES = 50;
+    /** 자동완성·오타 교정이 보는 기간(오늘 포함) — 인기 검색어(7일)보다 넓게 잡아 드물게 찾는 말도 돕는다 */
+    static final int ASSIST_DAYS = 30;
+    static final int AUTOCOMPLETE_SIZE = 8;
+    private static final int AUTOCOMPLETE_CANDIDATES = 40;
+    /** 오타 교정 후보 수(많이 검색된 순) — 매 0건 검색마다 이만큼 편집 거리를 계산한다 */
+    private static final int CORRECT_CANDIDATES = 300;
     private static final int DEFAULT_DAYS = 7;
     private static final int MAX_DAYS = 365;
 
@@ -68,13 +74,115 @@ public class SearchStatService {
 
     /** 인기 검색어(공개) — 최근 7일 2회 이상·결과가 있던 말, 금칙어·숨긴 말 제외, 많은 순 10개. 횟수는 싣지 않는다. */
     public List<String> popular() {
+        return frequent(POPULAR_DAYS, POPULAR_CANDIDATES, null).stream().limit(POPULAR_SIZE).toList();
+    }
+
+    /**
+     * 자동완성(공개, CMS 1.2.39) — 최근 30일 2회 이상·결과가 있던 말 중 입력이 든 말. 앞이 맞는 말 먼저(각각 많은 순), 8개.
+     * 인기 검색어와 같은 거름(최소 횟수·결과 있던 말·금칙어·숨김)을 탄다 — 사용자 결정: 자주 검색된 말에서만
+     * (게시글 제목에서 뽑으면 권한마다 결과가 달라 비공개·비밀글 제목이 샐 수 있다).
+     */
+    public List<String> autocomplete(String input) {
+        String k = normalize(input);
+        if (k.isEmpty() || k.length() > MAX_KEYWORD) {
+            return List.of();
+        }
+        List<String> hits = frequent(ASSIST_DAYS, AUTOCOMPLETE_CANDIDATES, escapeLike(k));
+        return java.util.stream.Stream.concat(
+                        hits.stream().filter(h -> h.startsWith(k)),
+                        hits.stream().filter(h -> !h.startsWith(k)))
+                .limit(AUTOCOMPLETE_SIZE)
+                .toList();
+    }
+
+    /**
+     * 오타 교정 제안(CMS 1.2.39, 사용자 결정: 결과 0건일 때 제안만) — 자주 검색되고 결과가 있던 말 중 자모 단위로 가장 가까운 말.
+     * 차이가 길이에 비해 크면(짧으면 1, 보통 2, 길면 3 자모까지) 제안하지 않는다. 같은 거리면 많이 검색된 말.
+     * 한글을 초·중·종성으로 풀어 비교한다 — 글자 단위로 보면 '레'와 '래'처럼 모음 하나 틀린 것도 통째로 다른 글자가 된다.
+     *
+     * @return 제안할 말, 없으면 null
+     */
+    public String correct(String keyword) {
+        String k = normalize(keyword);
+        if (k.isEmpty() || k.length() > MAX_KEYWORD) {
+            return null;
+        }
+        String target = jamo(k);
+        int allowed = target.length() <= 6 ? 1 : target.length() <= 15 ? 2 : 3;
+        String best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (String candidate : frequent(ASSIST_DAYS, CORRECT_CANDIDATES, null)) { // 많은 순 — 같은 거리면 앞의 것이 남는다
+            if (candidate.equals(k)) {
+                continue;
+            }
+            int d = distance(target, jamo(candidate), allowed);
+            if (d <= allowed && d < bestDistance) {
+                best = candidate;
+                bestDistance = d;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * 자주 검색된 말 — 기간 합계 2회 이상·결과가 한 번이라도 있던 말, 숨긴 말 제외(SQL), 금칙어가 든 말 제외(여기), 많은 순.
+     * 인기 검색어·자동완성·오타 교정이 같은 거름을 쓴다.
+     */
+    private List<String> frequent(int days, int limit, String keywordLike) {
         SearchStatVO vo = new SearchStatVO();
-        vo.setDays(String.valueOf(POPULAR_DAYS));
+        vo.setDays(String.valueOf(days));
         vo.setMinCount(String.valueOf(POPULAR_MIN_COUNT));
-        vo.setLimitCnt(String.valueOf(POPULAR_CANDIDATES));
-        List<String> candidates = commonDAO.selectList("searchStatDAO.selectPopular", vo);
+        vo.setLimitCnt(String.valueOf(limit));
+        vo.setKeywordLike(keywordLike);
+        List<String> candidates = commonDAO.selectList("searchStatDAO.selectFrequent", vo);
         Predicate<String> banned = banwordService.matcher();
-        return candidates.stream().filter(banned.negate()).limit(POPULAR_SIZE).toList();
+        return candidates.stream().filter(banned.negate()).toList();
+    }
+
+    /** 한글 음절을 초·중·종성 자모로 푼다(그 밖의 글자는 그대로) — 오타 거리 계산용 */
+    static String jamo(String s) {
+        StringBuilder sb = new StringBuilder(s.length() * 3);
+        for (char c : s.toCharArray()) {
+            if (c >= 0xAC00 && c <= 0xD7A3) {
+                int i = c - 0xAC00;
+                sb.append((char) (0x1100 + i / 588));            // 초성
+                sb.append((char) (0x1161 + (i % 588) / 28));     // 중성
+                int jong = i % 28;
+                if (jong > 0) {
+                    sb.append((char) (0x11A7 + jong));           // 종성
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** 편집 거리(삽입·삭제·바꾸기 1씩). 길이 차가 한도를 넘으면 계산하지 않고 한도+1 */
+    static int distance(String a, String b, int limit) {
+        if (Math.abs(a.length() - b.length()) > limit) {
+            return limit + 1;
+        }
+        int[] prev = new int[b.length() + 1];
+        int[] cur = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) {
+            prev[j] = j;
+        }
+        for (int i = 1; i <= a.length(); i++) {
+            cur[0] = i;
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(Math.min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+            }
+            int[] t = prev;
+            prev = cur;
+            cur = t;
+        }
+        return prev[b.length()];
+    }
+
+    private static String escapeLike(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     /** 관리 화면: 기간 안 검색어 순위(금칙어 포함 여부는 서버가 계산해 싣는다) */
@@ -126,6 +234,6 @@ public class SearchStatService {
         vo.setDays(String.valueOf(Math.max(1, Math.min(MAX_DAYS, days))));
         String f = vo.getFilterKeyword() == null ? "" : normalize(vo.getFilterKeyword());
         vo.setFilterKeyword(f);
-        vo.setKeywordLike(f.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_"));
+        vo.setKeywordLike(escapeLike(f));
     }
 }

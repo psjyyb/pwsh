@@ -16,15 +16,17 @@
     </insert>
 
     <!--
-      인기 검색어 후보 — 기간 합계 minCount회 이상이고 결과가 한 번이라도 있었던 말, 숨긴 말 제외, 많은 순.
+      자주 검색된 말 — 기간 합계 minCount회 이상이고 결과가 한 번이라도 있었던 말, 숨긴 말 제외, 많은 순.
+      인기 검색어(CMS 1.2.38)·자동완성·오타 교정(CMS 1.2.39)이 같은 거름으로 쓴다(자동완성은 keywordLike로 입력이 든 말만).
       ★ 최소 횟수는 노출 방지 장치다 — 한두 번 들어온 말은 누군가의 이름·연락처일 수 있다.
       금칙어는 여기서 거르지 않는다(공백·대소문자를 무시한 부분일치라 서비스가 BanwordService 규칙으로 거른다).
     -->
-    <select id="selectPopular" parameterType="searchStatVO" resultType="string">
+    <select id="selectFrequent" parameterType="searchStatVO" resultType="string">
         SELECT d.keyword
         FROM search_keyword_daily d
         WHERE d.stat_date &gt; CURRENT_DATE - #{days}::integer
           AND NOT EXISTS (SELECT 1 FROM search_keyword_hide h WHERE h.keyword = d.keyword AND h.use_yn = 'Y')
+          <if test="keywordLike != null and keywordLike != ''">AND d.keyword ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'</if>
         GROUP BY d.keyword
         HAVING SUM(d.search_cnt) &gt;= #{minCount}::integer AND SUM(d.search_cnt) &gt; SUM(d.zero_cnt)
         ORDER BY SUM(d.search_cnt) DESC, d.keyword

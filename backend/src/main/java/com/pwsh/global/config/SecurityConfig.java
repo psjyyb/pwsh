@@ -111,6 +111,7 @@ public class SecurityConfig {
                                 "/api/adm/hobby/selectHobbyView.do",
                                 "/api/adm/search/selectSearchAll.do",
                                 "/api/adm/search/selectSearchListPopular.do", // 인기 검색어(검색어 목록만, 횟수 없음, CMS 1.2.38)
+                                "/api/adm/search/selectSearchListSuggest.do", // 자동완성(같은 거름, CMS 1.2.39)
                                 "/api/adm/review/selectReviewList.do",
                                 "/api/adm/review/selectReviewListStats.do").permitAll()
                         .anyRequest().authenticated())

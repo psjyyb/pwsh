@@ -3,11 +3,12 @@
 <!--
   통합 검색(공개 엔드포인트).
 
-  ★ 키워드는 두 가지로 받는다.
-      keywordLike — LIKE 특수문자(% _ \)를 이스케이프한 값. 모든 ILIKE는 ESCAPE '\' 를 명시한다.
-      keyword     — 원문. 스니펫 위치 계산(POSITION)에 쓴다.
+  ★ 키워드는 두 가지 목록으로 받는다(CMS 1.2.39 — 동의어 때문에 목록이다. 첫 말이 입력한 말, 그 뒤가 동의어 묶음의 나머지 말).
+      keywordLikes — LIKE 특수문자(% _ \)를 이스케이프한 값들. 모든 ILIKE는 ESCAPE '\' 를 명시한다.
+      keywords     — 원문들. 스니펫 위치 계산(POSITION)에 쓴다.
     하나로 합치면 안 된다 — 이스케이프한 값으로 POSITION을 하면 '50%' 같은 검색어에서
     위치를 못 찾아 스니펫이 조용히 사라진다.
+    조건은 아래 *Match 조각(목록을 OR로 묶는다)에만 둔다 — 유형마다 따로 쓰면 동의어가 일부 유형에만 걸린다.
 
   ★ 검색은 "권한 우회 통로"가 되기 쉽다. 목록·상세는 GenAccessGuard가 막아도, 검색이 제목·본문
     일부를 그대로 보여주면 열람 불가 콘텐츠가 새어 나간다. 게시글·페이지는 대상을 먼저 좁힌다.
@@ -18,6 +19,14 @@
 -->
 <mapper namespace="searchDAO">
 
+    <!-- 검색어 목록(입력한 말 + 동의어) 중 하나라도 든 것 -->
+    <sql id="hobbyMatch">
+        <foreach collection="keywordLikes" item="kl" open="(" separator=" OR " close=")">h.name ILIKE '%' || #{kl} || '%' ESCAPE '\' OR h.summary ILIKE '%' || #{kl} || '%' ESCAPE '\'</foreach>
+    </sql>
+    <sql id="recruitMatch">
+        <foreach collection="keywordLikes" item="kl" open="(" separator=" OR " close=")">r.title ILIKE '%' || #{kl} || '%' ESCAPE '\' OR r.content ILIKE '%' || #{kl} || '%' ESCAPE '\'</foreach>
+    </sql>
+
     <!-- 취미: 이름·소개 부분일치 -->
     <select id="searchHobbies" parameterType="map" resultType="hobbyVO">
         SELECT h.hobby_id::TEXT AS row_id, h.name AS hobby_name, h.summary,
@@ -25,8 +34,7 @@
         FROM hobby h
         LEFT JOIN code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'
         WHERE h.use_yn = 'Y'
-          AND (h.name ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
-               OR h.summary ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+          AND <include refid="hobbyMatch"/>
         ORDER BY h.sort_no, h.hobby_id
         LIMIT #{previewSize}
     </select>
@@ -34,8 +42,7 @@
     <select id="searchHobbiesCount" parameterType="map" resultType="int">
         SELECT COUNT(*) FROM hobby h
         WHERE h.use_yn = 'Y'
-          AND (h.name ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
-               OR h.summary ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+          AND <include refid="hobbyMatch"/>
     </select>
 
     <!-- 모집: 모임명·설명 부분일치 -->
@@ -46,8 +53,7 @@
         LEFT JOIN hobby ho ON ho.hobby_id = r.hobby_id
         LEFT JOIN code sc ON sc.code_id = r.status_cd AND sc.p_code_id = 'RECRUIT00'
         WHERE r.use_yn = 'Y'
-          AND (r.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
-               OR r.content ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+          AND <include refid="recruitMatch"/>
         ORDER BY r.recruit_id DESC
         LIMIT #{previewSize}
     </select>
@@ -55,8 +61,7 @@
     <select id="searchRecruitsCount" parameterType="map" resultType="int">
         SELECT COUNT(*) FROM recruit r
         WHERE r.use_yn = 'Y'
-          AND (r.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
-               OR r.content ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+          AND <include refid="recruitMatch"/>
     </select>
 
     <!--
@@ -93,12 +98,24 @@
       본문은 HTML이라 태그를 지운 평문으로 매칭·스니펫을 만든다
       (정규식의 '<'는 XML에서 &lt; 로 써야 한다 — 그대로 두면 매퍼 파싱이 깨진다).
     -->
+    <sql id="postTitleMatch">
+        <foreach collection="keywordLikes" item="kl" open="(" separator=" OR " close=")">p.title ILIKE '%' || #{kl} || '%' ESCAPE '\'</foreach>
+    </sql>
+    <sql id="postContentMatch">
+        <foreach collection="keywordLikes" item="kl" open="(" separator=" OR " close=")">regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g') ILIKE '%' || #{kl} || '%' ESCAPE '\'</foreach>
+    </sql>
+    <!--
+      스니펫 시작점 — 검색어 목록 중 본문에 가장 먼저 나온 자리(없으면 1).
+      입력한 말만 보면 동의어로 찾은 글의 조각이 본문 맨 앞이 된다.
+    -->
+    <sql id="postSnippetPos">
+        COALESCE(LEAST(<foreach collection="keywords" item="k" separator=", ">NULLIF(POSITION(LOWER(#{k}) IN LOWER(regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g'))), 0)</foreach>), 1)
+    </sql>
+
     <sql id="postHit">
         FROM post p
         WHERE p.use_yn = 'Y' AND p.p_post_id = 0 AND p.secret_yn = 'N'
-          AND (p.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
-               OR regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g')
-                  ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+          AND (<include refid="postTitleMatch"/> OR <include refid="postContentMatch"/>)
         <include refid="postScope"/>
     </sql>
 
@@ -108,15 +125,14 @@
                (SELECT b.name FROM board b WHERE b.board_id = p.board_id) AS board_name,
                TO_CHAR(p.reg_dt, 'YYYY-MM-DD') AS reg_dt,
                -- 본문에서 찾았을 때만 스니펫: 매칭 지점 앞 20자부터 120자를 잘라 문맥을 보여준다
-               CASE WHEN p.title NOT ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               CASE WHEN NOT <include refid="postTitleMatch"/>
                     THEN BTRIM(SUBSTRING(regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g')
-                         FROM GREATEST(1, POSITION(LOWER(#{keyword}) IN
-                                LOWER(regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g'))) - 20)
+                         FROM GREATEST(1, <include refid="postSnippetPos"/> - 20)
                          FOR 120))
                     END AS search_snippet
         <include refid="postHit"/>
         -- 제목에서 찾은 글을 본문에서만 찾은 글보다 앞에(간단한 관련도 정렬)
-        ORDER BY (p.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\') DESC, p.post_id DESC
+        ORDER BY (<include refid="postTitleMatch"/>) DESC, p.post_id DESC
         LIMIT #{previewSize}
     </select>
 
@@ -125,13 +141,21 @@
         <include refid="postHit"/>
     </select>
 
+    <sql id="pageTitleMatch">
+        <foreach collection="keywordLikes" item="kl" open="(" separator=" OR " close=")">g.title ILIKE '%' || #{kl} || '%' ESCAPE '\'</foreach>
+    </sql>
+    <sql id="pageContentMatch">
+        <foreach collection="keywordLikes" item="kl" open="(" separator=" OR " close=")">regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g') ILIKE '%' || #{kl} || '%' ESCAPE '\'</foreach>
+    </sql>
+    <sql id="pageSnippetPos">
+        COALESCE(LEAST(<foreach collection="keywords" item="k" separator=", ">NULLIF(POSITION(LOWER(#{k}) IN LOWER(regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g'))), 0)</foreach>), 1)
+    </sql>
+
     <!-- 일반페이지(안내 페이지): GEN 메뉴 + 그룹 권한으로 판정. 관리자는 통과. -->
     <sql id="pageHit">
         FROM page g
         WHERE g.use_yn = 'Y'
-          AND (g.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
-               OR regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g')
-                  ILIKE '%' || #{keywordLike} || '%' ESCAPE '\')
+          AND (<include refid="pageTitleMatch"/> OR <include refid="pageContentMatch"/>)
         <if test='!"Y".equals(adminYn)'>
             AND EXISTS (
                 SELECT 1 FROM menu m
@@ -151,14 +175,13 @@
     <select id="searchPages" parameterType="map" resultType="pageVO">
         SELECT g.page_id::TEXT AS row_id, g.title,
                TO_CHAR(g.reg_dt, 'YYYY-MM-DD') AS reg_dt,
-               CASE WHEN g.title NOT ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+               CASE WHEN NOT <include refid="pageTitleMatch"/>
                     THEN BTRIM(SUBSTRING(regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g')
-                         FROM GREATEST(1, POSITION(LOWER(#{keyword}) IN
-                                LOWER(regexp_replace(COALESCE(g.content, ''), '&lt;[^>]*>', ' ', 'g'))) - 20)
+                         FROM GREATEST(1, <include refid="pageSnippetPos"/> - 20)
                          FOR 120))
                     END AS search_snippet
         <include refid="pageHit"/>
-        ORDER BY (g.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\') DESC, g.page_id DESC
+        ORDER BY (<include refid="pageTitleMatch"/>) DESC, g.page_id DESC
         LIMIT #{previewSize}
     </select>
 

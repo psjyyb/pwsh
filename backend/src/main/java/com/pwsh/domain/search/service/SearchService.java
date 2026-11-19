@@ -2,7 +2,9 @@ package com.pwsh.domain.search.service;
 
 import com.pwsh.common.CommonDAO;
 import com.pwsh.domain.searchstat.service.SearchStatService;
+import com.pwsh.domain.searchsynonym.service.SearchSynonymService;
 import com.pwsh.global.security.SecurityUtil;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -30,7 +32,11 @@ public class SearchService {
 
     private final CommonDAO commonDAO;
     private final SearchStatService searchStatService;
+    private final SearchSynonymService searchSynonymService;
 
+    /**
+     * 통합 검색. 결과가 네 유형 모두 0건이면 오타 교정 제안({@code suggest})을 함께 싣는다(CMS 1.2.39, 사용자 결정: 0건일 때 제안만).
+     */
     public Map<String, Object> searchAll(String keyword) {
         Map<String, Object> p = prepare(keyword);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -53,8 +59,11 @@ public class SearchService {
         result.put("pages", commonDAO.selectList("searchDAO.searchPages", p));
         result.put("pageCount", (int) commonDAO.selectOne("searchDAO.searchPagesCount", p));
         // 검색 통계(CMS 1.2.38) — 날짜·검색어별 횟수만(누가 검색했는지는 남기지 않는다). 결과 수는 네 유형 합
-        searchStatService.record((String) p.get("keyword"), (int) result.get("hobbyCount") + (int) result.get("recruitCount")
-                + (int) result.get("postCount") + (int) result.get("pageCount"));
+        int total = (int) result.get("hobbyCount") + (int) result.get("recruitCount")
+                + (int) result.get("postCount") + (int) result.get("pageCount");
+        searchStatService.record((String) p.get("keyword"), total);
+        // 오타 교정(CMS 1.2.39) — 결과가 있으면 묻지 않는다
+        result.put("suggest", total == 0 ? searchStatService.correct((String) p.get("keyword")) : null);
         return result;
     }
 
@@ -63,12 +72,32 @@ public class SearchService {
         return searchStatService.popular();
     }
 
-    /** 검색어 정리 + 판정 기준 주입. 모든 진입점이 반드시 거친다. */
+    /** 자동완성(공개, CMS 1.2.39) — 자주 검색되고 결과가 있던 말에서(인기 검색어와 같은 거름) */
+    public List<String> autocomplete(String keyword) {
+        return searchStatService.autocomplete(keyword);
+    }
+
+    /**
+     * 검색어 정리 + 동의어 확장 + 판정 기준 주입. 모든 진입점이 반드시 거친다.
+     * 동의어(CMS 1.2.39): 검색어 전체가 묶음의 한 말과 같으면 입력한 말을 먼저, 묶음의 나머지 말을 뒤에 둔다 —
+     * 매퍼는 원문 목록(keywords)·이스케이프 목록(keywordLikes)을 foreach로 OR 묶는다.
+     */
     private Map<String, Object> prepare(String keyword) {
         String trimmed = keyword == null ? "" : keyword.trim();
+        List<String> terms = new ArrayList<>();
+        if (!trimmed.isEmpty()) {
+            terms.add(trimmed);
+            String self = SearchStatService.normalize(trimmed);
+            for (String w : searchSynonymService.expand(trimmed)) {
+                if (!w.equals(self)) {
+                    terms.add(w);
+                }
+            }
+        }
         Map<String, Object> p = new HashMap<>();
         p.put("keyword", trimmed);
-        p.put("keywordLike", escapeLike(trimmed));
+        p.put("keywords", terms);
+        p.put("keywordLikes", terms.stream().map(this::escapeLike).toList());
         p.put("previewSize", PREVIEW_SIZE);
         p.put("adminYn", SecurityUtil.isAdmin() ? "Y" : "N");
         String memberId = SecurityUtil.getCurrentMemberId();

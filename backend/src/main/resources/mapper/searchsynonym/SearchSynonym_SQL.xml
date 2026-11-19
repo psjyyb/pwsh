@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  검색 동의어 묶음(CMS 1.2.39). 한 행 = 한 묶음, words = 정리한 말들을 쉼표로 이은 것.
+  묶음 수가 많지 않아 겹침 검사·검색어 확장은 전건을 읽어 서비스가 대조한다.
+-->
+<mapper namespace="searchSynonymDAO">
+
+    <select id="selectList" parameterType="searchSynonymVO" resultType="searchSynonymVO">
+        SELECT synonym_id::TEXT AS row_id, words, use_yn, TO_CHAR(upd_dt, 'YYYY-MM-DD HH24:MI') AS upd_dt
+        FROM search_synonym
+        WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND words ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+        </if>
+        ORDER BY synonym_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="searchSynonymVO" resultType="int">
+        SELECT COUNT(*) FROM search_synonym WHERE use_yn = 'Y'
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND words ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'
+        </if>
+    </select>
+
+    <select id="selectView" parameterType="searchSynonymVO" resultType="searchSynonymVO">
+        SELECT synonym_id::TEXT AS row_id, words, use_yn
+        FROM search_synonym WHERE synonym_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <!-- 쓰는 묶음 전부(검색어 확장·겹침 검사용) -->
+    <select id="selectAll" parameterType="searchSynonymVO" resultType="searchSynonymVO">
+        SELECT synonym_id::TEXT AS row_id, words FROM search_synonym WHERE use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="searchSynonymVO">
+        INSERT INTO search_synonym (words, use_yn, reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{words}, 'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <update id="update" parameterType="searchSynonymVO">
+        UPDATE search_synonym SET words = #{words}, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE synonym_id = #{rowId}::integer AND use_yn = 'Y'
+    </update>
+
+    <update id="delete" parameterType="searchSynonymVO">
+        UPDATE search_synonym SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE synonym_id = #{rowId}::integer
+    </update>
+
+</mapper>
