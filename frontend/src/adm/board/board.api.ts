@@ -14,6 +14,8 @@ export interface Board {
   fileSizeLimitMb?: string
   noticeYn?: string
   newCnt?: string
+  /** 게시 승인 사용(CMS 1.2.41) — Y면 회원 글은 관리자 승인 전까지 작성자·관리자만 본다(취미 게시판도 같다) */
+  approvalYn?: string
   useYn?: string
 }
 

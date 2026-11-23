@@ -80,7 +80,7 @@ export default function BoardListPage() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ listCnt: '10', fileYn: 'N', fileCntLimit: '5', fileSizeLimitMb: '10', noticeYn: 'N', newCnt: '0' }}
+          initialValues={{ listCnt: '10', fileYn: 'N', fileCntLimit: '5', fileSizeLimitMb: '10', noticeYn: 'N', newCnt: '0', approvalYn: 'N' }}
         >
           <Form.Item name="boardName" label="게시판명" rules={[{ required: true, message: '게시판명을 입력하세요.' }]}>
             <Input />
@@ -96,6 +96,10 @@ export default function BoardListPage() {
               <Form.Item name="listCnt" label="목록당 글 수"><NumberInput /></Form.Item>
               <Form.Item name="newCnt" label="NEW 표시 일수"><NumberInput /></Form.Item>
               <Form.Item name="noticeYn" label="공지 사용"><YnSelect /></Form.Item>
+              {/* 게시 승인(CMS 1.2.41) — 켜면 회원 글은 관리자 > 게시판 관리 > 게시 승인에서 승인해야 공개된다(관리자 글은 바로 공개, 취미 게시판도 같다) */}
+              <Form.Item name="approvalYn" label="게시 승인" tooltip="회원 글을 관리자가 승인한 뒤에 공개합니다. 승인된 글을 작성자가 고치면 다시 승인을 받습니다.">
+                <YnSelect />
+              </Form.Item>
             </Space>
           </div>
           {!isFaqType && (

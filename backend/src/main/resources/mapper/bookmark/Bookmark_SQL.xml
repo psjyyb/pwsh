@@ -30,11 +30,16 @@
 
     <!-- 내 북마크 목록(게시글) — 삭제된 대상은 제외.
          ★ 남의 비밀글 제목은 가린다 — 공개 글일 때 북마크한 뒤 작성자가 비밀글로 바꾸면 여기로 제목이 샌다
-           (게시판 목록·상세와 같은 문구. 새로 북마크하는 건 BookmarkService가 막는다) -->
+           (게시판 목록·상세와 같은 문구. 새로 북마크하는 건 BookmarkService가 막는다)
+         ★ 남의 승인 전(대기·반려) 글 제목도 가린다(CMS 1.2.41) — 승인된 글을 북마크한 뒤 작성자가 고치면 다시 대기가 되는데,
+           가리지 않으면 아직 승인 안 된 바뀐 제목이 여기로 샌다 -->
     <select id="selectMyPostList" parameterType="bookmarkVO" resultType="bookmarkVO">
         SELECT bm.bookmark_id::TEXT AS row_id, bm.target_type, bm.target_id,
                CASE WHEN COALESCE(b.secret_yn, 'N') = 'Y' AND b.reg_id &lt;&gt; bm.member_id
-                    THEN '비밀글입니다.' ELSE b.title END AS title,
+                    THEN '비밀글입니다.'
+                    WHEN b.approval_cd &lt;&gt; 'APPROVAL02' AND b.reg_id &lt;&gt; bm.member_id
+                    THEN '공개되지 않은 글입니다.'
+                    ELSE b.title END AS title,
                b.board_id, bi.name AS sub_name,
                TO_CHAR(bm.reg_dt, 'YYYY-MM-DD') AS reg_dt
         FROM bookmark bm

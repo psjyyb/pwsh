@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  게시 승인(CMS 1.2.41) — 관리자 승인 화면. 표는 post 그대로 쓴다(승인 상태 approval_*).
+  대상은 "승인 절차를 탄 글"이다: 승인이 아닌 글(대기·반려) + 관리자가 승인한 글(approval_id 있음).
+  처음부터 공개였던 글(기존 글·관리자 글·승인을 안 쓰는 게시판의 글)은 넣지 않는다 — 넣으면 '승인' 목록이 사이트 전체 글이 된다.
+-->
+<mapper namespace="postApprovalDAO">
+
+    <sql id="listWhere">
+        WHERE p.use_yn = 'Y' AND b.use_yn = 'Y'
+          AND (p.approval_cd &lt;&gt; 'APPROVAL02' OR p.approval_id IS NOT NULL)
+        <if test="approvalCd != null and approvalCd != ''">AND p.approval_cd = #{approvalCd}</if>
+        <if test="boardId != null and boardId != ''">AND p.board_id = #{boardId}::integer</if>
+        <if test="keywordLike != null and keywordLike != ''">AND p.title ILIKE '%' || #{keywordLike} || '%' ESCAPE '\'</if>
+    </sql>
+
+    <sql id="columns">
+        p.post_id::TEXT AS row_id, p.board_id::TEXT AS board_id, b.name AS board_name, p.title, p.reg_id,
+        (SELECT COALESCE(u.nickname, '회원') FROM member u WHERE u.member_id = p.reg_id) AS reg_name,
+        CASE WHEN p.p_post_id &gt; 0 THEN 'Y' ELSE 'N' END AS reply_yn,
+        p.approval_cd, c.name AS approval_name, p.approval_memo, p.approval_id,
+        TO_CHAR(p.approval_dt, 'YYYY-MM-DD HH24:MI') AS approval_dt,
+        CASE WHEN p.approval_cd = 'APPROVAL01' AND p.approval_dt IS NOT NULL THEN 'Y' ELSE 'N' END AS resubmit_yn,
+        TO_CHAR(p.reg_dt, 'YYYY-MM-DD HH24:MI') AS reg_dt, TO_CHAR(p.upd_dt, 'YYYY-MM-DD HH24:MI') AS upd_dt
+    </sql>
+
+    <!-- 대기 글은 오래 기다린 것부터(고친 시각 기준), 그 밖은 최근 처리부터 -->
+    <select id="selectList" parameterType="postApprovalVO" resultType="postApprovalVO">
+        SELECT <include refid="columns"/>
+        FROM post p
+        JOIN board b ON b.board_id = p.board_id
+        LEFT JOIN code c ON c.code_id = p.approval_cd AND c.p_code_id = 'APPROVAL00'
+        <include refid="listWhere"/>
+        ORDER BY CASE WHEN p.approval_cd = 'APPROVAL01' THEN 0 ELSE 1 END,
+                 CASE WHEN p.approval_cd = 'APPROVAL01' THEN p.upd_dt END ASC,
+                 p.approval_dt DESC NULLS LAST, p.post_id DESC
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="postApprovalVO" resultType="int">
+        SELECT COUNT(*)
+        FROM post p
+        JOIN board b ON b.board_id = p.board_id
+        <include refid="listWhere"/>
+    </select>
+
+    <select id="selectView" parameterType="postApprovalVO" resultType="postApprovalVO">
+        SELECT <include refid="columns"/>, p.content
+        FROM post p
+        JOIN board b ON b.board_id = p.board_id
+        LEFT JOIN code c ON c.code_id = p.approval_cd AND c.p_code_id = 'APPROVAL00'
+        WHERE p.post_id = #{rowId}::integer AND p.use_yn = 'Y'
+    </select>
+
+    <!--
+      승인·반려. ★ 대기 글만 처리한다(approval_cd 조건) — 두 관리자가 같은 글을 동시에 처리해도 한 번만 바뀌고,
+      반려된 글은 작성자가 고쳐 다시 대기가 된 뒤에만 다시 처리된다. 바뀐 행이 0이면 서비스가 400을 낸다.
+      글 내용은 바꾸지 않으므로 upd_* 는 건드리지 않는다(처리 기록은 approval_id·approval_dt).
+    -->
+    <update id="updateDecision" parameterType="postApprovalVO">
+        UPDATE post SET approval_cd = #{approvalCd}, approval_memo = #{approvalMemo},
+               approval_id = #{approvalId}, approval_dt = NOW()
+        WHERE post_id = #{rowId}::integer AND use_yn = 'Y' AND approval_cd = 'APPROVAL01'
+    </update>
+
+</mapper>

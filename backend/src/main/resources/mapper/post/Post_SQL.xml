@@ -40,6 +40,18 @@
         </if>
     </sql>
 
+    <!--
+      게시 승인(CMS 1.2.41): 승인 전(대기·반려) 글은 작성자·관리자만 — 목록·건수가 같은 조각을 봐야 "목록 3건, 페이징 4건"이 안 된다.
+      검색어와 상관없이 늘 붙는다(listSearch는 검색어가 있을 때만이라 따로 둔다). viewerId·adminYn은 PostService가 세팅한다.
+      답글 스레드(아래 thread)도 같은 규칙을 c. 별칭으로 다시 쓴다 — 원글만 거르면 승인 전 답글이 원글 밑에 그대로 붙어 나온다.
+      ★ 이 저장소는 게시글을 읽는 쿼리가 더 있다(이번 주 베스트·공개 프로필·피드·취미 글 수·북마크·신고) — 거기도 같은 조건이 있다.
+    -->
+    <sql id="listApproval">
+        <if test='!"Y".equals(adminYn)'>
+            AND (approval_cd = 'APPROVAL02' OR reg_id = #{viewerId})
+        </if>
+    </sql>
+
     <!-- 목록: 원글(공지 상단 고정 후 최신순)을 페이지 단위로 뽑고, 각 원글의 답글(스레드)을 재귀로 이어붙여 반환.
          페이징은 원글 기준(totalCount=원글 수). depth=들여쓰기 레벨(0=원글). 답글은 원글 바로 아래 path 순으로 정렬. -->
     <select id="selectList" parameterType="postVO" resultType="postVO">
@@ -56,6 +68,7 @@
                   WHERE ub.member_id = #{viewerId} AND ub.blocked_id = post.reg_id
               )
             <include refid="listSearch"/>
+            <include refid="listApproval"/>
             ORDER BY notice_eff DESC, post_id DESC
             LIMIT #{pageSize} OFFSET #{offset}
         ),
@@ -66,9 +79,12 @@
             SELECT c.post_id, c.p_post_id, t.lvl + 1, t.root_notice, t.root_id, t.path || c.post_id
             FROM post c JOIN thread t ON c.p_post_id = t.post_id
             WHERE c.use_yn = 'Y'
+            <if test='!"Y".equals(adminYn)'>
+              AND (c.approval_cd = 'APPROVAL02' OR c.reg_id = #{viewerId})
+            </if>
         )
         <!-- 공개 목록: 작성자 로그인 ID(reg_id)는 내보내지 않는다. 표시=닉네임, 링크=handle, 소유자판정=mine_yn -->
-        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.notice_yn, b.secret_yn,
+        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.notice_yn, b.secret_yn, b.approval_cd,
                b.view_cnt, b.good_cnt, t.lvl AS depth,
                (SELECT u.nickname FROM member u WHERE u.member_id = b.reg_id) AS reg_name,
                (SELECT u.handle FROM member u WHERE u.member_id = b.reg_id) AS reg_handle,
@@ -85,9 +101,9 @@
         ORDER BY t.root_notice DESC, t.root_id DESC, t.path
     </select>
 
-    <!-- 내가 쓴 글(마이페이지): 본인 원글, 게시판명 조인 -->
+    <!-- 내가 쓴 글(마이페이지): 본인 원글, 게시판명 조인. 승인 전 글도 내 글이라 함께 — 상태(approval_cd)를 실어 화면이 표시한다(CMS 1.2.41) -->
     <select id="selectListMine" parameterType="postVO" resultType="postVO">
-        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.view_cnt,
+        SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.view_cnt, b.approval_cd,
                bi.name AS board_name,
                (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') AS comment_cnt,
                TO_CHAR(b.reg_dt, 'YYYY-MM-DD') AS reg_dt
@@ -100,7 +116,7 @@
     </select>
 
     <!--
-      주간 인기글(메인 '이번 주 베스트') — 최근 7일, 취미 공개 게시판·비밀글 제외.
+      주간 인기글(메인 '이번 주 베스트') — 최근 7일, 취미 공개 게시판·비밀글·승인 전 글(CMS 1.2.41) 제외.
       점수 = 좋아요*3 + 댓글*2 + 조회*0.1 (참여도 가중).
     -->
     <select id="selectListWeeklyBest" parameterType="postVO" resultType="postVO">
@@ -113,7 +129,7 @@
         FROM post b
         JOIN board bi ON bi.board_id = b.board_id
         JOIN hobby h ON h.board_id = b.board_id AND h.use_yn = 'Y'
-        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N'
+        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N' AND b.approval_cd = 'APPROVAL02'
           AND b.reg_dt >= NOW() - INTERVAL '7 days'
         ORDER BY (COALESCE(b.good_cnt,0) * 3
                   + (SELECT COUNT(*) FROM comment cm WHERE cm.post_id = b.post_id AND cm.use_yn = 'Y') * 2
@@ -122,7 +138,7 @@
         LIMIT 5
     </select>
 
-    <!-- 회원 공개 프로필용: 그 회원이 '취미(공개) 게시판'에 쓴 글만(비밀글·비공개 게시판 제외). -->
+    <!-- 회원 공개 프로필용: 그 회원이 '취미(공개) 게시판'에 쓴 글만(비밀글·비공개 게시판·승인 전 글 제외 — 본인이 봐도 공개 프로필이다). -->
     <select id="selectListByAuthor" parameterType="postVO" resultType="postVO">
         SELECT b.post_id::TEXT AS row_id, b.board_id, b.title, b.view_cnt, b.good_cnt,
                bi.name AS board_name,
@@ -131,7 +147,7 @@
         FROM post b
         JOIN board bi ON bi.board_id = b.board_id
         JOIN hobby h ON h.board_id = b.board_id AND h.use_yn = 'Y'
-        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N' AND b.reg_id = #{regId}
+        WHERE b.use_yn = 'Y' AND b.p_post_id = 0 AND b.secret_yn = 'N' AND b.approval_cd = 'APPROVAL02' AND b.reg_id = #{regId}
         ORDER BY b.post_id DESC
         LIMIT 20
     </select>
@@ -140,6 +156,7 @@
         SELECT COUNT(*) FROM post
         WHERE use_yn = 'Y' AND p_post_id = 0 AND board_id = #{boardId}::integer
         <include refid="listSearch"/>
+        <include refid="listApproval"/>
           <!-- 목록(selectList)과 동일한 차단 필터 — 총건수/페이징이 어긋나지 않도록 -->
           AND NOT EXISTS (
               SELECT 1 FROM member_block ub
@@ -154,6 +171,8 @@
                (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId} AND l.like_type = 'GOOD') THEN 'Y' ELSE 'N' END) AS liked_yn,
                (CASE WHEN EXISTS (SELECT 1 FROM content_like l WHERE l.target_type = 'POST' AND l.target_id = post.post_id AND l.member_id = #{viewerId} AND l.like_type = 'BAD') THEN 'Y' ELSE 'N' END) AS disliked_yn,
                notice_yn, notice_start_dt, notice_end_dt,
+               <!-- 승인 상태·반려 사유(CMS 1.2.41): 승인 전 글은 PostService가 작성자·관리자에게만 돌려준다 -->
+               approval_cd, approval_memo,
                reg_id, <!-- 서버 인가용(비밀글 작성자 판정). 응답 직전 PostService에서 제거 -->
                (SELECT u.nickname FROM member u WHERE u.member_id = post.reg_id) AS reg_name,
                (SELECT u.handle FROM member u WHERE u.member_id = post.reg_id) AS reg_handle,
@@ -166,13 +185,14 @@
     <insert id="insert" parameterType="postVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="post_id">
         INSERT INTO post (board_id, title, content, p_post_id, depth,
             sort_no, secret_yn, password, good_cnt, bad_cnt, view_cnt,
-            notice_yn, notice_start_dt, notice_end_dt, use_yn,
+            notice_yn, notice_start_dt, notice_end_dt, approval_cd, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{boardId}::integer, #{title}, #{content},
             COALESCE(NULLIF(#{pPostId}, '')::integer, 0), COALESCE(NULLIF(#{depth}, '')::integer, 1),
             (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM post WHERE board_id = #{boardId}::integer),
             COALESCE(#{secretYn}, 'N'), NULLIF(#{password}, ''), 0, 0, 0,
-            COALESCE(#{noticeYn}, 'N'), NULLIF(#{noticeStartDt}, ''), NULLIF(#{noticeEndDt}, ''), 'Y',
+            COALESCE(#{noticeYn}, 'N'), NULLIF(#{noticeStartDt}, ''), NULLIF(#{noticeEndDt}, ''),
+            #{approvalCd}, 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
@@ -183,6 +203,11 @@
             password = COALESCE(NULLIF(#{password}, ''), password),
             notice_yn = COALESCE(#{noticeYn}, 'N'),
             notice_start_dt = NULLIF(#{noticeStartDt}, ''), notice_end_dt = NULLIF(#{noticeEndDt}, ''),
+            <!-- 게시 승인(CMS 1.2.41): 값이 있을 때만 바꾼다(관리자 수정은 null — 상태를 건드리지 않는다).
+                 바뀌면 반려 사유는 지운다 — 고쳐서 다시 올린 글에 옛 사유가 남으면 작성자가 헷갈린다 -->
+            <if test="approvalCd != null and approvalCd != ''">
+                approval_cd = #{approvalCd}, approval_memo = NULL,
+            </if>
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE post_id = #{rowId}::integer
     </update>
@@ -197,9 +222,9 @@
         UPDATE post SET view_cnt = COALESCE(view_cnt, 0) + 1 WHERE post_id = #{rowId}::integer
     </update>
 
-    <!-- 글 단위 인가의 기본 정보(GenAccessGuard.canAccessPost) — 소속 게시판(취미 게시판 공개 판정)·삭제 여부·비밀글·작성자 -->
+    <!-- 글 단위 인가의 기본 정보(GenAccessGuard.canAccessPost) — 소속 게시판(취미 게시판 공개 판정)·삭제 여부·비밀글·승인 상태(CMS 1.2.41)·작성자 -->
     <select id="selectPostAccessGate" parameterType="map" resultType="postVO">
-        SELECT board_id::TEXT AS board_id, use_yn, secret_yn, reg_id FROM post WHERE post_id = #{postId}::integer
+        SELECT board_id::TEXT AS board_id, use_yn, secret_yn, approval_cd, reg_id FROM post WHERE post_id = #{postId}::integer
     </select>
 
 </mapper>

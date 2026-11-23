@@ -26,6 +26,10 @@ public class PostService {
 
     /** 남이 쓴 비밀글의 제목 — 상세 잠금과 목록이 같은 문구를 쓴다 */
     private static final String SECRET_TITLE = "비밀글입니다.";
+    /** 게시 승인 상태(CMS 1.2.41, code APPROVAL00) */
+    public static final String APPROVAL_WAIT = "APPROVAL01";
+    public static final String APPROVED = "APPROVAL02";
+    public static final String REJECTED = "APPROVAL03";
 
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
@@ -106,6 +110,10 @@ public class PostService {
             return null;
         }
         genAccessGuard.checkBoard(post.getBoardId());
+        // 승인 전 글은 없는 글처럼 — 비밀글 비밀번호보다 먼저 본다(비밀번호를 알아도 승인 전 글은 열리지 않는다)
+        if (!isVisible(post)) {
+            return null;
+        }
         if ("Y".equals(post.getSecretYn())) {
             String me = SecurityUtil.getCurrentMemberId();
             boolean owner = me != null && me.equals(post.getRegId());
@@ -143,7 +151,8 @@ public class PostService {
             PostVO key = new PostVO();
             key.setRowId(pId);
             PostVO parent = commonDAO.selectOne("postDAO.selectView", key);
-            if (parent == null) {
+            // 볼 수 없는 승인 전 글에 답글을 달면 그 글이 있다는 게 드러난다 — 없는 글과 같게
+            if (parent == null || !isVisible(parent)) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Messages.get("error.post.parentNotFound"));
             }
             vo.setBoardId(parent.getBoardId());
@@ -181,6 +190,9 @@ public class PostService {
      *   <li>1:1 문의(BOARD03): 항상 비밀글이고 공지가 될 수 없다(작성자·관리자만 보는 글).</li>
      *   <li>공지 고정: 관리자만, 그 게시판이 공지를 쓸 때만. 관리자가 아닌 수정은 <b>기존 공지 상태를 그대로</b> 둔다 —
      *       화면은 회원에게 공지 칸을 안 보여 'N'을 보내서, 받아들이면 관리자가 올린 공지가 작성자 수정으로 풀린다.</li>
+     *   <li>게시 승인(CMS 1.2.41): 승인을 쓰는 게시판(취미 게시판 포함)의 회원 글은 등록·수정 모두 승인 대기(승인받은 뒤 내용 바꿔치기를 막는다).
+     *       승인을 끈 게시판의 회원 글은 바로 승인(대기·반려였던 글도 고치면 풀린다). 관리자 글은 등록이면 승인, 수정이면 상태를 그대로 둔다(null).
+     *       요청에 실린 approvalCd는 언제나 덮어쓴다.</li>
      * </ul>
      *
      * @param current 수정 전 글(등록이면 null)
@@ -189,6 +201,11 @@ public class PostService {
         BoardVO key = new BoardVO();
         key.setRowId(boardId);
         BoardVO board = commonDAO.selectOne("boardDAO.selectView", key);
+        if (SecurityUtil.isAdmin()) {
+            vo.setApprovalCd(current == null ? APPROVED : null);
+        } else {
+            vo.setApprovalCd(board != null && "Y".equals(board.getApprovalYn()) ? APPROVAL_WAIT : APPROVED);
+        }
         boolean qna = board != null && "BOARD03".equals(board.getTypeCd());
         if (qna) {
             vo.setSecretYn("Y");
@@ -225,6 +242,18 @@ public class PostService {
     private String viewerId() {
         String me = SecurityUtil.getCurrentMemberId();
         return (me == null || "system".equals(me)) ? null : me;
+    }
+
+    /**
+     * 승인된 글이거나, 승인 전(대기·반려)이면 작성자·관리자일 때만 보인다(CMS 1.2.41).
+     * 목록·건수(Post_SQL listApproval)·글 단위 인가(GenAccessGuard.canAccessPost)·통합검색·이번 주 베스트·공개 프로필·피드가 같은 규칙을 갖는다.
+     */
+    private boolean isVisible(PostVO post) {
+        if (APPROVED.equals(post.getApprovalCd()) || SecurityUtil.isAdmin()) {
+            return true;
+        }
+        String me = SecurityUtil.getCurrentMemberId();
+        return me != null && me.equals(post.getRegId());
     }
 
     /** 수정/삭제 공통: 대상 로드 + 게시판 접근권 + 작성자/관리자 인가. 없으면 예외. */

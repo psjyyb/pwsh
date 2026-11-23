@@ -29,6 +29,9 @@ public class PostVO extends BaseVO {
     private String noticeYn;
     private String noticeStartDt;
     private String noticeEndDt;
+    // 게시 승인(CMS 1.2.41) — 승인(APPROVAL02)이 아니면 작성자·관리자만 본다. 상태는 서버(PostService)가 정한다(요청 값을 믿지 않는다)
+    private String approvalCd;     // code APPROVAL00: 01 대기 / 02 승인 / 03 반려
+    private String approvalMemo;   // 반려 사유(작성자·관리자에게만 나간다 — 다른 사람에겐 글 자체가 없다)
     // 조회 계산/표시용
     private String boardName;      // 게시판명(board 조인) — 내 글/인기글 등 여러 게시판 혼합 목록 표시용
     private String regName;          // 작성자 표시명(닉네임, member 조인)

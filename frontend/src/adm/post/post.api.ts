@@ -30,6 +30,16 @@ export interface Post {
   noticeEff?: string // 'Y'=공지 유효(목록 상단)
   pPostId?: string // 답글: 원글 post_id(작성 시 전송)
   depth?: string // 스레드 들여쓰기 레벨(0=원글) — 목록 조회 응답
+  /** 게시 승인 상태(CMS 1.2.41) — APPROVAL01 대기 / 02 승인 / 03 반려. 서버가 정한다(보내도 무시) */
+  approvalCd?: string
+  /** 반려 사유 — 작성자·관리자에게만 온다 */
+  approvalMemo?: string
+}
+
+/** 승인 전 글 표시(목록·상세·내 글 공용) — 승인된 글이면 없음 */
+export const APPROVAL_LABEL: Record<string, { text: string; color: string }> = {
+  APPROVAL01: { text: '승인 대기', color: 'gold' },
+  APPROVAL03: { text: '반려', color: 'red' },
 }
 
 export const POST_LIST_URL = '/adm/post/selectPostList.do'

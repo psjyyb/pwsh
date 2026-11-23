@@ -19,4 +19,5 @@ public class BoardVO extends BaseVO {
     private String fileSizeLimitMb;       // 첨부 용량 제한 MB(기본 10)
     private String noticeYn;       // 공지 사용
     private String newCnt;         // NEW 표시 일수
+    private String approvalYn;     // 게시 승인 사용(CMS 1.2.41) — Y면 회원 글은 관리자 승인 전까지 작성자·관리자만 본다
 }

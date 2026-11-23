@@ -112,9 +112,10 @@
         COALESCE(LEAST(<foreach collection="keywords" item="k" separator=", ">NULLIF(POSITION(LOWER(#{k}) IN LOWER(regexp_replace(COALESCE(p.content, ''), '&lt;[^>]*>', ' ', 'g'))), 0)</foreach>), 1)
     </sql>
 
+    <!-- ⚠ 승인 전(대기·반려) 글은 비밀글과 같은 이유로 뺀다(CMS 1.2.41) — 통합검색은 공개된 글만(작성자·관리자에게도) -->
     <sql id="postHit">
         FROM post p
-        WHERE p.use_yn = 'Y' AND p.p_post_id = 0 AND p.secret_yn = 'N'
+        WHERE p.use_yn = 'Y' AND p.p_post_id = 0 AND p.secret_yn = 'N' AND p.approval_cd = 'APPROVAL02'
           AND (<include refid="postTitleMatch"/> OR <include refid="postContentMatch"/>)
         <include refid="postScope"/>
     </sql>

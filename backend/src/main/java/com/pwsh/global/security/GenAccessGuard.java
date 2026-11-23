@@ -85,6 +85,12 @@ public class GenAccessGuard {
         if ("Y".equals(gate.getSecretYn()) && (me == null || !me.equals(gate.getRegId()))) {
             return false;
         }
+        // 승인 전(대기·반려) 글도 작성자만(CMS 1.2.41) — 같은 이유로 취미 게시판 통과보다 먼저. 빠지면 상세는 막혀도
+        // 공개 취미 게시판의 승인 전 글 댓글·추천·첨부·사진이 비로그인에게까지 열린다
+        if (!com.pwsh.domain.post.service.PostService.APPROVED.equals(gate.getApprovalCd())
+                && (me == null || !me.equals(gate.getRegId()))) {
+            return false;
+        }
         // 취미(hobby) 연결 게시판의 글은 커뮤니티 공개 — checkBoard와 동일 규칙(메뉴 권한 무관).
         if (isHobbyBoard(gate.getBoardId())) {
             return true;

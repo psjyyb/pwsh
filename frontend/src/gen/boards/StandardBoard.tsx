@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Card, Checkbox, Empty, Form, Input, Popconfirm, Select, Space, Spin, Table, Tag, message } from 'antd'
+import { Alert, Button, Card, Checkbox, Empty, Form, Input, Popconfirm, Select, Space, Spin, Table, Tag, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiPost } from '../../api/http'
@@ -24,7 +24,7 @@ import MentionText from '../../common/gen/components/MentionText'
 import ReportAction from '../../common/gen/components/ReportAction'
 import { extractEditorImageIds } from '../../common/util/editorImages'
 import type { Board } from '../../adm/board/board.api'
-import { POST_LIST_URL, postApi } from '../../adm/post/post.api'
+import { APPROVAL_LABEL, POST_LIST_URL, postApi } from '../../adm/post/post.api'
 import type { Post } from '../../adm/post/post.api'
 import { commentApi } from '../../adm/post/comment.api'
 import type { Comment } from '../../adm/post/comment.api'
@@ -100,6 +100,11 @@ export default function StandardBoard({ board }: { board: Board }) {
     const t = new Date(`${regDt}T00:00:00`).getTime()
     return !Number.isNaN(t) && Date.now() - t <= n * 86400000
   }
+  /** 승인 전(대기·반려) 표시 — 서버는 이런 글을 작성자·관리자에게만 준다(CMS 1.2.41) */
+  const approvalTag = (cd?: string) => {
+    const a = cd ? APPROVAL_LABEL[cd] : undefined
+    return a ? <Tag color={a.color} style={{ marginLeft: 6 }}>{a.text}</Tag> : null
+  }
   const secretWatch = Form.useWatch('secretYn', form)
   const noticeWatch = Form.useWatch('noticeYn', form)
 
@@ -134,6 +139,11 @@ export default function StandardBoard({ board }: { board: Board }) {
     try {
       const countUp = !hasViewedRecently(postId)
       let p = await postApi.view(postId, undefined, countUp)
+      // 삭제됐거나 승인 전인 남의 글은 서버가 빈 값을 준다 — 그대로 진행하면 댓글·첨부 요청이 403으로 떨어진다
+      if (!p) {
+        message.warning('글을 찾을 수 없습니다.')
+        return
+      }
       if (p?.secretLocked === 'Y') {
         const pw = window.prompt(isQna ? '작성자와 관리자만 열람할 수 있습니다. 비밀번호를 입력하세요.' : '비밀글입니다. 비밀번호를 입력하세요.')
         if (!pw) return
@@ -268,7 +278,8 @@ export default function StandardBoard({ board }: { board: Board }) {
       }
       // 본문 에디터 삽입 이미지 추적(고아 판별용)
       await fileApi.saveMapping(id, EDITOR_LOC, extractEditorImageIds(html))
-      message.success('저장되었습니다.')
+      // 게시 승인을 쓰는 게시판의 회원 글은 등록·수정 모두 승인 대기가 된다(서버 규칙) — 바로 안 보이는 이유를 알려 준다
+      message.success(board.approvalYn === 'Y' && !isAdmin() ? '저장되었습니다. 관리자 승인 후 게시됩니다.' : '저장되었습니다.')
       setMode('list')
       loadList(editKey ? pageNo : 1)
     } catch (e) {
@@ -368,6 +379,7 @@ export default function StandardBoard({ board }: { board: Board }) {
         {r.noticeEff === 'Y' && <Tag color="red">공지</Tag>}
         {r.secretYn === 'Y' && <span style={{ marginRight: 4 }}>🔒</span>}
         {r.title}
+        {approvalTag(r.approvalCd)}
         {isNew(r.regDt) && <Tag color="green" style={{ marginLeft: 6 }}>NEW</Tag>}
         {Number(r.commentCnt) > 0 && <span style={{ color: '#1677ff', marginLeft: 6 }}>[{r.commentCnt}]</span>}
       </span>
@@ -415,6 +427,7 @@ export default function StandardBoard({ board }: { board: Board }) {
               <div style={{ padding: 8 }}>
                 <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.title}
+                  {approvalTag(r.approvalCd)}
                   {isNew(r.regDt) && <Tag color="green" style={{ marginLeft: 4 }}>NEW</Tag>}
                 </div>
                 <div style={{ color: '#999', fontSize: 12 }}>{r.regDt}</div>
@@ -511,7 +524,8 @@ export default function StandardBoard({ board }: { board: Board }) {
           title={post.title}
           right={
             <Space wrap>
-              {!isGallery && !isQna && <Button onClick={openReply}>답글</Button>}
+              {/* 승인 전 글에는 답글을 받지 않는다 — 남에겐 보이지 않는 글이다 */}
+              {!isGallery && !isQna && !APPROVAL_LABEL[post.approvalCd ?? ''] && <Button onClick={openReply}>답글</Button>}
               {canEdit(post.mineYn) && <Button onClick={openEdit}>수정</Button>}
               {canEdit(post.mineYn) && (
                 <Popconfirm title="삭제하시겠습니까?" onConfirm={removePost} okText="삭제" cancelText="취소">
@@ -524,6 +538,19 @@ export default function StandardBoard({ board }: { board: Board }) {
         />
         <PageBody>
         <Card>
+        {/* 승인 전 글 안내(작성자·관리자에게만 이 글이 온다). 반려면 사유 — 고쳐 저장하면 다시 승인 대기가 된다 */}
+        {post.approvalCd === 'APPROVAL01' && (
+          <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="관리자 승인을 기다리는 글입니다. 승인되면 다른 사람에게도 보입니다." />
+        )}
+        {post.approvalCd === 'APPROVAL03' && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="반려된 글입니다. 고쳐서 저장하면 다시 승인을 요청합니다."
+            description={post.approvalMemo ? `사유: ${post.approvalMemo}` : undefined}
+          />
+        )}
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <MemberAvatar fileId={post.regProfileFileId} name={post.regName || '-'} handle={post.regHandle} size={24} />
           <span>· {post.regDt} · 조회 {post.viewCnt}</span>

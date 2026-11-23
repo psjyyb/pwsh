@@ -28,6 +28,8 @@ public class NotificationService {
 
     /** 내 신청(폼)의 처리상태 변경(CMS 1.2.35) — 수신 설정과 상관없이 항상 받는다(내 신청의 결과라 끌 이유가 적다) */
     public static final String FORM = "FORM";
+    /** 내 글 승인·반려(CMS 1.2.41) — 폼 결과와 같은 이유로 수신 설정과 상관없이 항상 받는다(내 글의 처리 결과·반려 사유다) */
+    public static final String POST_APPROVAL = "POST_APPROVAL";
     private static final int TITLE_MAX = 40;
 
     private final CommonDAO commonDAO;
@@ -104,6 +106,17 @@ public class NotificationService {
         notify(memberId, FORM, "신청하신 '" + cut(formTitle) + "' 처리상태가 '" + statusName + "'(으)로 바뀌었습니다.", null);
     }
 
+    /**
+     * 내 글 승인·반려(CMS 1.2.41, 반려는 사유와 함께). 반려 사유는 작성자에게만 가는 알림이라 문구에 담는다.
+     * 이동 주소는 그 글(이 저장소 게시판 주소 형식 ?post=) — 반려된 글도 작성자는 열어 사유를 보고 고칠 수 있다.
+     */
+    public void notifyPostApproval(String memberId, String boardId, String postId, String title, boolean approved, String memo) {
+        String content = approved
+                ? "'" + cut(title) + "' 글이 승인되어 게시되었습니다."
+                : "'" + cut(title) + "' 글이 반려되었습니다. 사유: " + memo;
+        notify(memberId, POST_APPROVAL, content, "/gen/board/" + boardId + "?post=" + postId);
+    }
+
     private static String cut(String s) {
         if (s == null) {
             return "";
@@ -114,13 +127,13 @@ public class NotificationService {
     /**
      * 수신자가 이 유형의 알림을 받도록 설정했는지. 설정 행이 없으면 기본 수신(Y).
      * 유형 매핑: APPLY/ACCEPT/REJECT/REMIND/NEWRECRUIT→applyYn, COMMENT·MENTION→commentYn,
-     * MESSAGE→messageYn, REVIEW→reviewYn, FORM→항상 받음.
+     * MESSAGE→messageYn, REVIEW→reviewYn, FORM·POST_APPROVAL→항상 받음.
      * (REMIND=모임 하루 전 리마인더, NEWRECRUIT=담은 취미에 새 모집 —
      *  둘 다 모임 관련이라 '모임 알림' 설정을 함께 따른다. 설정을 더 쪼개려면 notification_setting에 컬럼 추가가 필요하다)
      */
     private boolean isEnabled(String memberId, String type) {
-        if (FORM.equals(type)) {
-            return true; // 아래 마지막 줄(모임 알림)로 떨어지면 모임 알림을 끈 회원이 신청 결과도 못 받는다
+        if (FORM.equals(type) || POST_APPROVAL.equals(type)) {
+            return true; // 아래 마지막 줄(모임 알림)로 떨어지면 모임 알림을 끈 회원이 신청 결과·글 승인 결과도 못 받는다
         }
         try {
             NotificationVO p = new NotificationVO();

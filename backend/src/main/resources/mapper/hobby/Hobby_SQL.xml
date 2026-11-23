@@ -15,7 +15,9 @@
                dc.name AS difficulty_name,
                bi.name AS board_name,
                <include refid="thumb"/> AS thumb_id,
-               (SELECT COUNT(*) FROM post b WHERE b.board_id = h.board_id AND b.use_yn = 'Y' AND b.p_post_id = 0) AS post_cnt,
+               <!-- 공개 숫자라 승인 전(대기·반려) 글은 세지 않는다(CMS 1.2.41) -->
+               (SELECT COUNT(*) FROM post b WHERE b.board_id = h.board_id AND b.use_yn = 'Y' AND b.p_post_id = 0
+                  AND b.approval_cd = 'APPROVAL02') AS post_cnt,
                (SELECT COUNT(*) FROM member_hobby uh WHERE uh.hobby_id = h.hobby_id AND uh.use_yn = 'Y') AS member_cnt
         FROM hobby h
         LEFT JOIN code dc ON dc.code_id = h.difficulty_cd AND dc.p_code_id = 'HOBBYLV00'

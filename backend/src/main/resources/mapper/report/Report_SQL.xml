@@ -12,7 +12,9 @@
     <!-- 신고 대상 존재 확인(유형별) — 없는 콘텐츠 신고로 고아행이 생기지 않도록 -->
     <select id="countTarget" parameterType="reportVO" resultType="int">
         SELECT CASE #{targetType}
-                 WHEN 'POST'     THEN (SELECT COUNT(*) FROM post     WHERE post_id = #{targetId}::integer AND use_yn = 'Y')
+                 <!-- 승인 전 글은 남에게 없는 글이다(CMS 1.2.41) — 신고가 받아지면 그 번호의 글이 있다는 게 드러난다 -->
+                 WHEN 'POST'     THEN (SELECT COUNT(*) FROM post     WHERE post_id = #{targetId}::integer AND use_yn = 'Y'
+                                         AND approval_cd = 'APPROVAL02')
                  WHEN 'COMMENT' THEN (SELECT COUNT(*) FROM comment WHERE comment_id = #{targetId}::integer AND use_yn = 'Y')
                  WHEN 'RECRUIT' THEN (SELECT COUNT(*) FROM recruit WHERE recruit_id = #{targetId}::integer AND use_yn = 'Y')
                  WHEN 'CHAT'    THEN (SELECT COUNT(*) FROM recruit_chat WHERE chat_id = #{targetId}::integer AND use_yn = 'Y')

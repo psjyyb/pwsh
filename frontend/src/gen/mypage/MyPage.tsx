@@ -9,6 +9,7 @@ import PolicyViewModal from '../../common/gen/components/PolicyViewModal'
 import { fileApi } from '../../api/file'
 import { applyApi } from '../recruit/recruit.api'
 import type { Recruit, RecruitApply } from '../recruit/recruit.api'
+import { APPROVAL_LABEL } from '../../adm/post/post.api'
 import type { Post } from '../../adm/post/post.api'
 import { myPosts, myRecruits, changeNickname } from './mypage.api'
 import ScheduleCalendar from './ScheduleCalendar'
@@ -326,7 +327,14 @@ export default function MyPage() {
 
   const postCols: TableColumnsType<Post> = [
     { title: '게시판', dataIndex: 'boardName', width: 130 },
-    { title: '제목', render: (_, r) => r.title },
+    {
+      title: '제목',
+      // 승인 전(대기·반려) 글은 나와 관리자만 본다(CMS 1.2.41) — 왜 남에게 안 보이는지 알 수 있게 상태를 붙인다
+      render: (_, r) => {
+        const a = APPROVAL_LABEL[r.approvalCd ?? '']
+        return <span>{r.title}{a && <Tag color={a.color} style={{ marginLeft: 6 }}>{a.text}</Tag>}</span>
+      },
+    },
     { title: '댓글', width: 60, align: 'center', render: (_, r) => Number(r.commentCnt) || 0 },
     { title: '작성일', dataIndex: 'regDt', width: 120 },
   ]

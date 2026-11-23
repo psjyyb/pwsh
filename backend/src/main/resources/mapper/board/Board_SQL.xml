@@ -5,7 +5,7 @@
     <select id="selectList" parameterType="boardVO" resultType="boardVO">
         SELECT b.board_id::TEXT AS row_id, b.name AS board_name, b.type_cd, c.name AS board_cd_name,
                b.description, b.list_cnt, b.file_yn, b.file_cnt_limit, b.file_size_limit_mb,
-               b.notice_yn, b.new_cnt, b.use_yn
+               b.notice_yn, b.new_cnt, b.approval_yn, b.use_yn
         FROM board b
         LEFT JOIN code c ON c.code_id = b.type_cd AND c.p_code_id = 'BOARD00'
         WHERE b.use_yn = 'Y'
@@ -21,10 +21,11 @@
         <if test="filterKeyword != null and filterKeyword != ''">AND name LIKE '%' || #{filterKeyword} || '%'</if>
     </select>
 
-    <!-- 단건(게시판 설정 조회, 사용자 게시판 화면에서도 사용 → 권한 예외) -->
+    <!-- 단건(게시판 설정 조회, 사용자 게시판 화면에서도 사용 → 권한 예외).
+         approval_yn은 글 등록 시 승인 대기 판정(PostService)과 사용자 화면 안내("승인 후 게시")에 함께 쓴다(CMS 1.2.41) -->
     <select id="selectView" parameterType="boardVO" resultType="boardVO">
         SELECT board_id::TEXT AS row_id, name AS board_name, type_cd, description, list_cnt,
-               file_yn, file_cnt_limit, file_size_limit_mb, notice_yn, new_cnt, use_yn
+               file_yn, file_cnt_limit, file_size_limit_mb, notice_yn, new_cnt, approval_yn, use_yn
         FROM board WHERE board_id = #{rowId}::integer AND use_yn = 'Y'
     </select>
 
@@ -36,14 +37,15 @@
 
     <insert id="insert" parameterType="boardVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="board_id">
         INSERT INTO board (name, type_cd, description, list_cnt,
-            file_yn, file_cnt_limit, file_size_limit_mb, notice_yn, new_cnt, use_yn,
+            file_yn, file_cnt_limit, file_size_limit_mb, notice_yn, new_cnt, approval_yn, use_yn,
             reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
         VALUES (#{boardName}, #{typeCd}, #{description},
             COALESCE(NULLIF(#{listCnt}, '')::integer, 10),
             COALESCE(#{fileYn}, 'N'),
             COALESCE(NULLIF(#{fileCntLimit}, '')::integer, 5),
             COALESCE(NULLIF(#{fileSizeLimitMb}, '')::integer, 10),
-            COALESCE(#{noticeYn}, 'N'), COALESCE(NULLIF(#{newCnt}, '')::integer, 0), 'Y',
+            COALESCE(#{noticeYn}, 'N'), COALESCE(NULLIF(#{newCnt}, '')::integer, 0),
+            COALESCE(NULLIF(#{approvalYn}, ''), 'N'), 'Y',
             #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
     </insert>
 
@@ -56,6 +58,7 @@
             file_size_limit_mb = COALESCE(NULLIF(#{fileSizeLimitMb}, '')::integer, 10),
             notice_yn = COALESCE(#{noticeYn}, 'N'),
             new_cnt = COALESCE(NULLIF(#{newCnt}, '')::integer, 0),
+            approval_yn = COALESCE(NULLIF(#{approvalYn}, ''), 'N'),
             upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
         WHERE board_id = #{rowId}::integer
     </update>

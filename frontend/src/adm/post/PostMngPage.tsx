@@ -16,13 +16,19 @@ import { extractEditorImageIds } from '../../common/util/editorImages'
 import SafeHtml from '../../common/SafeHtml'
 import { boardApi } from '../board/board.api'
 import type { Board } from '../board/board.api'
-import { POST_LIST_URL, postApi } from './post.api'
+import { APPROVAL_LABEL, POST_LIST_URL, postApi } from './post.api'
 import type { Post } from './post.api'
 import { commentApi } from './comment.api'
 import type { Comment } from './comment.api'
 
 type Mode = 'list' | 'view' | 'write'
 const FILE_TYPE = 'POST' // 첨부파일
+
+/** 승인 전(대기·반려) 표시(CMS 1.2.41) — 처리는 게시판 관리 > 게시 승인에서 한다 */
+const approvalTag = (cd?: string) => {
+  const a = cd ? APPROVAL_LABEL[cd] : undefined
+  return a ? <Tag color={a.color} style={{ marginLeft: 6 }}>{a.text}</Tag> : null
+}
 const IMG_LOC = 'POST_IMG' // 갤러리 사진(캡션 포함)
 const EDITOR_LOC = 'POST_EDITOR' // 본문 에디터 삽입 이미지(고아 추적용)
 
@@ -233,7 +239,7 @@ export default function PostMngPage() {
               <span style={{ color: '#ccc' }}>없음</span>
             ),
         },
-        { title: '제목', render: (_, r) => (<span>{r.title}{isNew(r.regDt) && <Tag color="green" style={{ marginLeft: 6 }}>NEW</Tag>}</span>) },
+        { title: '제목', render: (_, r) => (<span>{r.title}{approvalTag(r.approvalCd)}{isNew(r.regDt) && <Tag color="green" style={{ marginLeft: 6 }}>NEW</Tag>}</span>) },
         regCol,
         dtCol,
       ]
@@ -245,7 +251,7 @@ export default function PostMngPage() {
           render: (_, r) => (
             <span>
               {r.secretYn === 'Y' && <span style={{ marginRight: 4 }}>🔒</span>}
-              {r.title}
+              {r.title}{approvalTag(r.approvalCd)}
               {Number(r.commentCnt) > 0 && <span style={{ color: '#1677ff', marginLeft: 6 }}>[{r.commentCnt}]</span>}
             </span>
           ),
@@ -257,7 +263,7 @@ export default function PostMngPage() {
     } else if (isFaq) {
       // FAQ: 질문 목록
       columns = [
-        { title: '질문', render: (_, r) => (<span><b style={{ color: '#1677ff', marginRight: 6 }}>Q</b>{r.title}</span>) },
+        { title: '질문', render: (_, r) => (<span><b style={{ color: '#1677ff', marginRight: 6 }}>Q</b>{r.title}{approvalTag(r.approvalCd)}</span>) },
         regCol,
         dtCol,
       ]
@@ -270,7 +276,7 @@ export default function PostMngPage() {
             <span>
               {r.noticeEff === 'Y' && <Tag color="red">공지</Tag>}
               {r.secretYn === 'Y' && <span style={{ marginRight: 4 }}>🔒</span>}
-              {r.title}
+              {r.title}{approvalTag(r.approvalCd)}
               {isNew(r.regDt) && <Tag color="green" style={{ marginLeft: 6 }}>NEW</Tag>}
               {Number(r.commentCnt) > 0 && <span style={{ color: '#1677ff', marginLeft: 6 }}>[{r.commentCnt}]</span>}
             </span>
@@ -326,6 +332,7 @@ export default function PostMngPage() {
         <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
           작성자 {post.regName || post.regId} · {post.regDt} · 조회 {post.viewCnt}
           {post.secretYn === 'Y' && <Tag style={{ marginLeft: 8 }}>비밀글</Tag>}
+          {approvalTag(post.approvalCd)}
           {isQna && <Tag color={comments.length > 0 ? 'blue' : undefined} style={{ marginLeft: 8 }}>{comments.length > 0 ? '답변완료' : '답변대기'}</Tag>}
         </div>
         {isGallery && viewGallery.length > 0 && (
