@@ -195,6 +195,23 @@ class PostApprovalTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("관리자 대시보드의 승인 대기 건수(CMS 1.2.42) — 대기 목록의 총건수(한 줄만 받아도 전체 수), 처리하면 줄어든다")
+    void pendingCountForDashboard() throws Exception {
+        String a = newPost(owner, "ZZ승인 건수1 " + KW);
+        newPost(owner, "ZZ승인 건수2 " + KW);
+        newPost(admin, "ZZ승인 건수 관리자 " + KW); // 바로 승인 — 세지 않는다
+        String body = post("/api/adm/postapproval/selectPostApprovalList.do",
+                "{\"approvalCd\":\"APPROVAL01\",\"pageNo\":1,\"pageSize\":1}", admin).body();
+        assertThat(JsonPath.<Integer>read(body, "$.data.totalCount")).isEqualTo(2);
+        assertThat(JsonPath.<List<Object>>read(body, "$.data.list")).hasSize(1);
+
+        assertThat(decide(a, "APPROVAL03", "ZZ사유")).isEqualTo(200);
+        assertThat(JsonPath.<Integer>read(post("/api/adm/postapproval/selectPostApprovalList.do",
+                "{\"approvalCd\":\"APPROVAL01\",\"pageNo\":1,\"pageSize\":1}", admin).body(), "$.data.totalCount"))
+                .as("반려한 글은 대기 건수에서 빠진다").isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("승인 화면은 관리자 메뉴 권한이 있어야 한다 — 비로그인 401, 일반 회원 403")
     void approvalNeedsAdminMenu() throws Exception {
         String id = newPost(owner, "ZZ승인 권한 " + KW);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Col, Row, Space, Spin, Statistic, Table, Tag, Typography } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { apiPost } from '../../api/http'
@@ -14,6 +15,7 @@ import { POPUP_LIST_URL } from '../popup/popup.api'
 import { POLICY_LIST_URL } from '../policy/policy.api'
 import { EVENTLOG_LIST_URL } from '../eventlog/eventlog.api'
 import type { Eventlog } from '../eventlog/eventlog.api'
+import { POST_APPROVAL_LIST_URL } from '../postapproval/postapproval.api'
 import TrendChart from './TrendChart'
 import type { TrendPoint } from './TrendChart'
 
@@ -50,8 +52,15 @@ export default function DashboardPage() {
   const [logLoading, setLogLoading] = useState(true)
   const [siteTitle, setSiteTitle] = useState('취만사')
   const [stats, setStats] = useState<StatsResp | null>(null)
+  // 게시 승인 대기 건수(CMS 1.2.42) — undefined=로딩, null=게시 승인 메뉴 권한이 없거나 실패(카드를 숨긴다)
+  const [pending, setPending] = useState<number | null | undefined>(undefined)
+  const navigate = useNavigate()
 
   useEffect(() => {
+    // 새 대기 글이 생겨도 관리자에게 따로 알리지 않는다 — 들어오자마자 여기서 보이게 한다. 대기 목록의 총건수만 쓴다(한 줄만 받는다)
+    apiPost<ListResult<unknown>>(POST_APPROVAL_LIST_URL, { approvalCd: 'APPROVAL01', pageNo: 1, pageSize: 1 })
+      .then((r) => setPending(r.totalCount))
+      .catch(() => setPending(null))
     CARDS.forEach((c) => {
       apiPost<ListResult<unknown>>(c.url, { pageNo: 1, pageSize: 1 })
         .then((r) => setCounts((prev) => ({ ...prev, [c.title]: r.totalCount })))
@@ -79,6 +88,18 @@ export default function DashboardPage() {
   return (
     <div>
       <Typography.Title level={4} style={{ marginTop: 0 }}>{siteTitle} 관리</Typography.Title>
+      {typeof pending === 'number' && (
+        <Card
+          hoverable
+          onClick={() => navigate('/adm/postapproval')}
+          style={{ marginBottom: 16, borderLeft: `4px solid ${pending > 0 ? '#fa541c' : '#d9d9d9'}` }}
+          styles={{ body: { padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } }}
+        >
+          <span style={{ fontWeight: 600 }}>게시 승인 대기</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: pending > 0 ? '#fa541c' : '#999' }}>{pending.toLocaleString()}건</span>
+          <span style={{ color: '#888' }}>{pending > 0 ? '승인·반려하러 가기 →' : '기다리는 글이 없습니다.'}</span>
+        </Card>
+      )}
       <Row gutter={[16, 16]}>
         {CARDS.map((c) => {
           const v = counts[c.title]
