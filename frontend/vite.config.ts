@@ -11,6 +11,17 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      // 검색엔진은 사이트 루트에서 찾는다(1.2.43) — 백엔드의 공개 출력으로 넘긴다. 운영 앞단(nginx 등)도 같은 연결이 필요하다
+      '/sitemap.xml': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: () => '/api/pub/seo/sitemap.xml',
+      },
+      '/robots.txt': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: () => '/api/pub/seo/robots.txt',
+      },
     },
   },
 })

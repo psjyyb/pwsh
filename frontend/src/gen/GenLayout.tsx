@@ -7,6 +7,7 @@ import { tokenStore, isAdmin } from '../auth/token'
 import { logout as authLogout } from '../api/auth'
 import { configApi } from '../adm/config/config.api'
 import { pubConfigItemApi } from '../adm/configitem/configitem.api'
+import { setSiteMeta } from '../common/seo'
 import { menuApi } from '../adm/menu/menu.api'
 import type { Menu as MenuVO } from '../adm/menu/menu.api'
 import { useIdleLogout } from '../common/hooks/useIdleLogout'
@@ -181,12 +182,14 @@ export default function GenLayout() {
         /* 메뉴 미시드 시 빈 메뉴 */
       })
     policyApi.publicList().then(setPolicies).catch(() => setPolicies([]))
-    // 공개 확장설정의 푸터 문구. 조회 실패·미설정이면 기본 문구로 둔다
+    // 공개 확장설정의 푸터 문구·검색엔진 설명/키워드(CMS 1.2.43). 조회 실패·미설정이면 기본 문구·index.html 값으로 둔다
     pubConfigItemApi
       .list()
       .then((rows) => {
         const found = rows.find((r) => r.configKey === 'site.footer-text')
         if (found) setFooterTemplate(found.value ?? '')
+        const value = (key: string) => rows.find((r) => r.configKey === key)?.value ?? undefined
+        setSiteMeta(value('seo.description'), value('seo.keywords'))
       })
       .catch(() => {})
     configApi

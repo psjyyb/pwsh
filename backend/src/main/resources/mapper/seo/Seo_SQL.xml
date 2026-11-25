@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  RSS · sitemap(CMS 1.2.43) — 로그인 없이 읽히는 출력이라 "비로그인이 볼 수 있는 것"만 뽑는다.
+  ★ 기준은 사용자 화면과 같다 — 취미 게시판(커뮤니티 공개, GenAccessGuard.isHobbyBoard) 또는 GEN 메뉴 + GUEST 권한
+    (menuDAO.countGenContentPerm의 비로그인 경로), 비밀글·승인 전 글·삭제된 글·답글 제외. 통합검색 postScope의 비로그인 갈래와 같다.
+    조건을 여기서 줄이면 RSS 리더·검색엔진에 비공개 게시판 글이 그대로 실린다.
+  1:1 문의(BOARD03)는 글이 전부 비밀글이라 뺀다.
+-->
+<mapper namespace="seoDAO">
+
+    <!--
+      비로그인이 그 게시판을 읽을 수 있는가 — b = board.
+      ★ 두 갈래다: ① 살아 있는 취미에 걸린 게시판(GEN 메뉴가 없다) ② 비로그인(GUEST)이 그 게시판을 노출하는 GEN 메뉴 권한을 가진 게시판.
+        ②만 보면 취미 게시판 RSS·sitemap이 통째로 사라지고, ①만 보면 공지사항이 빠진다.
+    -->
+    <sql id="guestBoard">
+        (EXISTS (SELECT 1 FROM hobby h WHERE h.board_id = b.board_id AND h.use_yn = 'Y')
+         OR EXISTS (SELECT 1 FROM menu m
+                JOIN auth a ON a.menu_id = m.menu_id AND a.type = 'GRP' AND a.menu_yn = 'Y' AND a.use_yn = 'Y' AND a.conn_id = 'GUEST'
+                WHERE m.area = 'GEN' AND m.use_yn = 'Y' AND m.conn_cd = 'MENU02' AND m.conn_id = b.board_id))
+    </sql>
+
+    <!-- 공개 원글 — p = post -->
+    <sql id="publicPost">
+        p.use_yn = 'Y' AND p.p_post_id = 0 AND p.secret_yn = 'N' AND p.approval_cd = 'APPROVAL02'
+    </sql>
+
+    <!-- RSS를 줄 수 있는 게시판(없으면 404) -->
+    <select id="selectRssBoard" parameterType="seoVO" resultType="seoVO">
+        SELECT b.board_id::TEXT AS board_id, b.name AS board_name, b.description
+        FROM board b
+        WHERE b.board_id = #{boardId}::integer AND b.use_yn = 'Y' AND b.type_cd &lt;&gt; 'BOARD03'
+          AND <include refid="guestBoard"/>
+    </select>
+
+    <!-- RSS 항목 — 최신 공개 원글 20개. 작성 시각은 서버 시간대 기준 문자열(서비스가 RFC 1123으로 바꾼다) -->
+    <select id="selectRssItems" parameterType="seoVO" resultType="seoVO">
+        SELECT p.post_id::TEXT AS row_id, p.title, p.content,
+               (SELECT u.nickname FROM member u WHERE u.member_id = p.reg_id) AS reg_name,
+               TO_CHAR(p.reg_dt, 'YYYY-MM-DD"T"HH24:MI:SS') AS reg_dt
+        FROM post p
+        WHERE p.board_id = #{boardId}::integer AND <include refid="publicPost"/>
+        ORDER BY p.post_id DESC
+        LIMIT 20
+    </select>
+
+    <!--
+      sitemap 화면 — 비로그인에게 권한이 있는 GEN 메뉴(그룹 메뉴 MENU04는 주소가 없어 뺀다).
+      연결 대상이 지워진 메뉴는 화면이 404라 뺀다. MENU01 주소는 서비스가 사이트 안쪽(/gen/...)만 쓴다.
+    -->
+    <select id="selectSitemapMenus" resultType="seoVO">
+        SELECT m.conn_cd, m.conn_id::TEXT AS conn_id, m.link_url
+        FROM menu m
+        WHERE m.area = 'GEN' AND m.use_yn = 'Y' AND m.conn_cd IN ('MENU01', 'MENU02', 'MENU03', 'MENU05')
+          AND EXISTS (SELECT 1 FROM auth a WHERE a.menu_id = m.menu_id AND a.type = 'GRP'
+                      AND a.menu_yn = 'Y' AND a.use_yn = 'Y' AND a.conn_id = 'GUEST')
+          AND (m.conn_cd &lt;&gt; 'MENU02' OR EXISTS (SELECT 1 FROM board b WHERE b.board_id = m.conn_id AND b.use_yn = 'Y'))
+          AND (m.conn_cd &lt;&gt; 'MENU03' OR EXISTS (SELECT 1 FROM page g WHERE g.page_id = m.conn_id AND g.use_yn = 'Y'))
+          AND (m.conn_cd &lt;&gt; 'MENU05' OR EXISTS (SELECT 1 FROM form f WHERE f.form_id = m.conn_id AND f.use_yn = 'Y'))
+        ORDER BY m.p_menu_id, m.sort_no, m.menu_id
+    </select>
+
+    <!-- sitemap 취미 화면(/gen/hobby/{id}) — 살아 있는 취미(취미 조회 API가 비로그인에게 열려 있다) -->
+    <select id="selectSitemapHobbies" resultType="seoVO">
+        SELECT h.hobby_id::TEXT AS row_id, TO_CHAR(h.upd_dt, 'YYYY-MM-DD') AS upd_dt
+        FROM hobby h
+        WHERE h.use_yn = 'Y'
+        ORDER BY h.sort_no, h.hobby_id
+    </select>
+
+    <!-- sitemap 모집 상세(/gen/recruit/{id}) — 삭제 안 된 모집, 최신 1000개(모집 상세 조회와 같은 조건 — 마감된 모집도 화면이 열린다) -->
+    <select id="selectSitemapRecruits" resultType="seoVO">
+        SELECT r.recruit_id::TEXT AS row_id, TO_CHAR(r.upd_dt, 'YYYY-MM-DD') AS upd_dt
+        FROM recruit r
+        WHERE r.use_yn = 'Y'
+        ORDER BY r.recruit_id DESC
+        LIMIT 1000
+    </select>
+
+    <!-- sitemap 게시글 — 공개 게시판의 공개 원글, 최신 5000개(sitemap 한 파일 한도 5만에 넉넉히 못 미치게) -->
+    <select id="selectSitemapPosts" resultType="seoVO">
+        SELECT p.post_id::TEXT AS row_id, p.board_id::TEXT AS board_id, TO_CHAR(p.upd_dt, 'YYYY-MM-DD') AS upd_dt
+        FROM post p
+        JOIN board b ON b.board_id = p.board_id AND b.use_yn = 'Y' AND b.type_cd &lt;&gt; 'BOARD03'
+        WHERE <include refid="publicPost"/>
+          AND <include refid="guestBoard"/>
+        ORDER BY p.post_id DESC
+        LIMIT 5000
+    </select>
+
+</mapper>

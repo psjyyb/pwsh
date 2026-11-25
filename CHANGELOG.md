@@ -23,6 +23,37 @@ pwsh는 **직접 만든 CMS(`framework` 저장소)를 복사해 만든 파생 �
 
 ---
 
+## 0.6.43 (CMS 1.2.43) — RSS · SEO(sitemap.xml · robots.txt · 화면 메타) 흡수
+
+CMS 1.2.43을 흡수했다. 규칙은 CMS와 같다(자세한 내용은 framework CHANGELOG 1.2.43) — 요약:
+
+- **사이트 주소**(확장설정 > 사이트 > `site.url`, 기본 빈 값, 비공개)로만 절대 링크를 만든다(요청 Host로 추정하지 않는다). 비었거나 형식이 틀리면 RSS·sitemap은 404, 설치 점검 `SITE_URL` 경고.
+- **RSS 2.0**(`GET /api/pub/seo/rss/{boardId}`) — 비로그인이 읽는 게시판의 최신 공개 원글 20개(비밀글·승인 전·삭제·답글 제외, 1:1 문의 제외), 제목 + 본문 앞부분 200자.
+  게시판 화면에 RSS가 있을 때만 [RSS] 버튼과 자동 발견 링크(게시판 상세 응답 `rssYn` — 서버 계산).
+- **sitemap.xml · robots.txt**(`/api/pub/seo/...`), **화면 메타**(확장설정 > 검색엔진(SEO) `seo.description`·`seo.keywords` + 게시글 상세의 제목·설명). OG(SNS 미리보기)는 범위 밖.
+
+**CMS와 다르게 옮긴 곳**
+
+- ★ **비로그인 공개 게시판이 두 갈래다** — 살아 있는 취미에 걸린 게시판(GEN 메뉴 없음, 커뮤니티 공개) 또는 GEN 메뉴 GUEST 권한 게시판(`seoDAO.guestBoard`, 통합검색 `postScope`의 비로그인 갈래와 같다).
+  CMS 조건 그대로면 취미 게시판 RSS·sitemap이 통째로 빠진다. 취미를 내리면(`use_yn='N'`) 그 게시판도 빠진다.
+- 글 링크는 이 저장소 화면 규칙대로 `/gen/board/{id}?post=`(CMS는 `?postId=` — 그대로 두면 눌러도 목록만 열린다).
+- sitemap에 이 저장소 공개 화면을 더했다: **취미 화면**(`/gen/hobby/{id}`, 살아 있는 취미)·**모집 상세**(`/gen/recruit/{id}`, 삭제 안 된 모집 최신 1000개 — 마감된 모집도 화면이 열린다).
+- robots.txt에 이 저장소 개인·계정 화면을 더 막았다: `/signup`·`/forgot`·`/gen/message`·`/gen/feed`·`/gen/myhobby`·`/gen/onboarding`.
+- 사이트 설명·키워드 기본값은 이 저장소 `index.html` 메타와 같게 넣었다(적용 직후 화면이 바뀌지 않게).
+
+⚠ **배포 — 사이트 루트 연결이 필요하다**(CMS와 같다). 개발은 `vite.config.ts` 프록시(**프론트 개발 서버 재시작 필요**), 운영은 앞단(nginx 등)에서
+`/robots.txt`·`/sitemap.xml`을 `/api/pub/seo/robots.txt`·`/api/pub/seo/sitemap.xml`로 넘긴다. 적용 뒤 확장설정에서 **사이트 주소**를 넣어야 RSS·sitemap이 켜진다.
+
+### 테스트
+
+- `SeoTest` 신설(7) — CMS 6건(링크 `?post=`) + 취미 게시판 RSS(메뉴 없이 공개·내린 취미는 404), 게시판 `rssYn`에 취미 게시판, sitemap에 취미 화면·취미 글·모집(내린 취미·그 게시판 글·삭제한 모집 제외),
+  robots에 추가로 막은 경로. 수정 전 7건 실패 확인 → 통과.
+- mutation 30건 전부 잡음 — CMS 19건(“끝의 / 안 뗌”은 CMS와 같은 `//` 변이) + 이 저장소 11건(취미 갈래 제거·내린 취미 공개·sitemap 내린 취미/지운 모집 포함·링크 `?postId=`·sitemap 취미/모집 빠짐·robots 추가 줄·설치 점검 형식 오류). 전체 **360개 통과**.
+
+**DB** — `V16__rss_seo.sql`(CMS의 `V20`): 확장설정 `site.url`(비공개)·`seo.description`·`seo.keywords`(공개).
+
+---
+
 ## 0.6.42 (CMS 1.2.42) — 관리자 대시보드에 게시 승인 대기 건수 흡수
 
 CMS 1.2.42를 흡수했다. 관리자 대시보드 맨 위에 **"게시 승인 대기 N건"** 카드(누르면 게시 승인 화면, 대기 있으면 강조). 건수는 게시 승인 목록(대기)의 총건수 —

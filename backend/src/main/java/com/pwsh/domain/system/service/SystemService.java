@@ -7,6 +7,7 @@ import com.pwsh.domain.config.service.ConfigService;
 import com.pwsh.domain.config.service.ConfigVO;
 import com.pwsh.domain.mail.service.MailService;
 import com.pwsh.domain.policy.service.PolicyService;
+import com.pwsh.domain.seo.service.SeoService;
 import com.pwsh.global.config.CacheConfig;
 import com.pwsh.global.config.DataInitializer;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -54,6 +55,7 @@ public class SystemService {
     private final ConfigService configService;
     private final AccessIpService accessIpService;
     private final PolicyService policyService;
+    private final SeoService seoService;
     private final PasswordEncoder passwordEncoder;
     private final CacheManager cacheManager;
     private final Environment environment;
@@ -272,6 +274,18 @@ public class SystemService {
                     "SITE_LOGIN_URL을 운영 주소로 — 휴면 안내메일의 로그인 버튼이 이 주소로 간다");
         } else {
             add(list, "LOGIN_URL", "운영", "안내메일 로그인 링크", OK, siteLoginUrl, null);
+        }
+
+        // RSS·sitemap(CMS 1.2.43) — 사이트 주소는 요청 Host로 추정하지 않으므로 비어 있으면 둘 다 꺼진다
+        String rawSite = seoService.rawSiteUrl();
+        if (rawSite.isEmpty()) {
+            add(list, "SITE_URL", "운영", "사이트 주소", WARN, "비어 있다 — RSS·sitemap.xml을 내지 않고 robots.txt에 sitemap 위치가 없다",
+                    "확장설정 > 사이트 > 사이트 주소에 https://도메인을 넣는다");
+        } else if (seoService.siteUrl() == null) {
+            add(list, "SITE_URL", "운영", "사이트 주소", WARN, "형식이 맞지 않아(" + rawSite + ") RSS·sitemap.xml이 꺼져 있다",
+                    "http:// 또는 https://로 시작하는 주소로 고친다(질의문자열 없이)");
+        } else {
+            add(list, "SITE_URL", "운영", "사이트 주소", OK, seoService.siteUrl(), null);
         }
 
         List<String> off = new ArrayList<>();

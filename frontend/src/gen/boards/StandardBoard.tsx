@@ -29,6 +29,7 @@ import type { Post } from '../../adm/post/post.api'
 import { commentApi } from '../../adm/post/comment.api'
 import type { Comment } from '../../adm/post/comment.api'
 import { PageBody, PageHead } from '../../common/gen/components/PageShell'
+import { plainExcerpt, usePageMeta, useRssLink } from '../../common/seo'
 
 type Mode = 'list' | 'view' | 'write'
 const FILE_TYPE = 'POST' // 첨부파일
@@ -107,6 +108,11 @@ export default function StandardBoard({ board }: { board: Board }) {
   }
   const secretWatch = Form.useWatch('secretYn', form)
   const noticeWatch = Form.useWatch('noticeYn', form)
+  // RSS(CMS 1.2.43) — 서버가 rssYn으로 알려 준 게시판만(사이트 주소가 있고 비로그인이 읽는 게시판·취미 게시판). 머무는 동안 자동 발견 링크도 둔다
+  const rssHref = board.rssYn === 'Y' ? `/api/pub/seo/rss/${boardId}` : undefined
+  useRssLink(rssHref, board.boardName)
+  // 게시글 상세: 문서 제목·설명을 그 글로(검색엔진이 글 화면을 글 내용으로 보게). 목록으로 나가면 되돌린다
+  usePageMeta(mode === 'view' && post ? post.title : undefined, mode === 'view' && post ? plainExcerpt(post.content) : undefined)
 
   const loadList = useCallback(
     async (p = 1, kw = keyword, fd = field) => {
@@ -459,9 +465,14 @@ export default function StandardBoard({ board }: { board: Board }) {
           eyebrow="게시판"
           title={board.boardName ?? '게시판'}
           lead={board.description}
-          right={meId
-            ? <Button type="primary" onClick={openWrite}>글쓰기</Button>
-            : <Button onClick={() => navigate('/login')}>로그인하고 글쓰기</Button>}
+          right={
+            <Space>
+              {rssHref && <Button href={rssHref} target="_blank" rel="noopener">RSS</Button>}
+              {meId
+                ? <Button type="primary" onClick={openWrite}>글쓰기</Button>
+                : <Button onClick={() => navigate('/login')}>로그인하고 글쓰기</Button>}
+            </Space>
+          }
         />
         <PageBody>
         <Card>

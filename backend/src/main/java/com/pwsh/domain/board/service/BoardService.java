@@ -3,6 +3,7 @@ package com.pwsh.domain.board.service;
 import com.pwsh.common.CommonDAO;
 import com.pwsh.common.exception.BusinessException;
 import com.pwsh.common.exception.ErrorCode;
+import com.pwsh.domain.seo.service.SeoService;
 import com.pwsh.global.security.GenAccessGuard;
 import com.pwsh.global.security.SecurityUtil;
 import java.util.List;
@@ -19,6 +20,7 @@ public class BoardService {
 
     private final CommonDAO commonDAO;
     private final GenAccessGuard genAccessGuard;
+    private final SeoService seoService;
 
     public List<BoardVO> selectList(BoardVO vo) {
         return commonDAO.selectList("boardDAO.selectList", vo);
@@ -42,7 +44,12 @@ public class BoardService {
 
     public BoardVO selectView(BoardVO vo) {
         genAccessGuard.checkBoard(vo.getRowId());
-        return commonDAO.selectOne("boardDAO.selectView", vo);
+        BoardVO board = commonDAO.selectOne("boardDAO.selectView", vo);
+        if (board != null) {
+            // RSS 링크 표시 여부(CMS 1.2.43) — 화면이 알 수 없는 조건(사이트 주소·취미 연결·GUEST 메뉴 권한)이라 서버가 정한다
+            board.setRssYn(seoService.rssAvailable(board.getRowId()) ? "Y" : "N");
+        }
+        return board;
     }
 
     public void insert(BoardVO vo) {
