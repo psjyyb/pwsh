@@ -19,6 +19,7 @@
 | `ReportAction` | 신고 버튼(글·댓글·모집 공용) |
 | `PolicyViewModal` | 약관 전문 보기(가입 동의 문서와 같은 내용) |
 | `PlacePicker` · `PlaceMap` | 모임 장소 선택(지도) · 표시 |
+| `AnalyticsConsent` | 분석 쿠키 동의 배너(CMS 1.2.44) — `GenLayout`이 띄운다. 동의 전에는 분석 스크립트를 불러오지 않는다(`common/util/analytics.ts`). |
 
 같은 폴더 밖: `common/gen/useEventStream.ts`(SSE 구독 훅 — 알림·쪽지 배지, 단체 대화).
 

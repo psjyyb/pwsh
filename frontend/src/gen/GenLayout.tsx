@@ -21,6 +21,17 @@ import hobbyPattern from '../assets/hobby-pattern.svg'
 import MenuGlyph from '../common/adm/components/MenuGlyph'
 import PolicyViewModal from '../common/gen/components/PolicyViewModal'
 import { CrumbProvider, PageBody } from '../common/gen/components/PageShell'
+import AnalyticsConsent from '../common/gen/components/AnalyticsConsent'
+import {
+  analyticsIds,
+  getConsent,
+  hasAnalytics,
+  saveConsent,
+  startAnalytics,
+  trackPageView,
+  withdrawAnalytics,
+} from '../common/util/analytics'
+import type { AnalyticsIds, Consent } from '../common/util/analytics'
 import { policyApi } from '../adm/policy/policy.api'
 import type { Policy } from '../adm/policy/policy.api'
 import { useEventStream } from '../common/gen/useEventStream'
@@ -166,6 +177,10 @@ export default function GenLayout() {
   const [footerTemplate, setFooterTemplate] = useState('© {year} {title}. All rights reserved.')
   const [solid, setSolid] = useState(false)   // 스크롤로 헤더가 유리면으로 굳었는지
   const [showTop, setShowTop] = useState(false)
+  // 분석 도구(CMS 1.2.44) — 확장설정 ID(형식이 맞는 것만) + 방문자 동의. 배너는 아직 안 골랐거나 '쿠키 설정'으로 다시 열었을 때
+  const [analytics, setAnalytics] = useState<AnalyticsIds>({})
+  const [consent, setConsent] = useState<Consent>(getConsent)
+  const [consentOpen, setConsentOpen] = useState(false)
   const loggedIn = !!tokenStore.get() // 비로그인(게스트)도 /gen 접근 가능 — 메뉴는 GUEST 권한그룹 기준
   const { warningOpen, remainingSec, extend, logoutNow } = useIdleLogout(loggedIn ? idleMinutes : 0)
 
@@ -190,6 +205,7 @@ export default function GenLayout() {
         if (found) setFooterTemplate(found.value ?? '')
         const value = (key: string) => rows.find((r) => r.configKey === key)?.value ?? undefined
         setSiteMeta(value('seo.description'), value('seo.keywords'))
+        setAnalytics(analyticsIds(value('analytics.ga4-id'), value('analytics.naver-id')))
       })
       .catch(() => {})
     configApi
@@ -206,6 +222,22 @@ export default function GenLayout() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 동의한 방문자에게만 분석 스크립트를 붙인다(동의 전·거부면 아무것도 불러오지 않는다)
+  useEffect(() => {
+    if (consent === 'Y' && hasAnalytics(analytics)) startAnalytics(analytics)
+  }, [analytics, consent])
+
+  const acceptAnalytics = () => {
+    saveConsent('Y')
+    setConsent('Y')
+    setConsentOpen(false)
+  }
+  const rejectAnalytics = () => {
+    setConsent('N')
+    setConsentOpen(false)
+    withdrawAnalytics() // 이미 불러왔으면 GA 쿠키를 지우고 새로 고친다
+  }
 
   /** 안 읽음 배지 갱신(알림·쪽지) — 푸시 수신 시/폴백 주기에 호출. */
   const refreshBadges = useCallback(() => {
@@ -297,6 +329,12 @@ export default function GenLayout() {
   // 현재 경로의 메뉴명을 문서 제목에 반영(없으면 사이트명만)
   useDocumentTitle(labels.get(location.pathname), siteTitle)
 
+  // 화면 이동 집계(네이버 — GA4는 브라우저 기록 이벤트로 스스로 잡는다). 문서 제목을 바꾼 뒤에 돌도록 그 아래에 둔다.
+  // 스크립트가 아직 없으면(동의 전·불러오는 중) 아무 일도 하지 않는다 — 첫 화면은 스크립트가 불러온 직후 스스로 센다
+  useEffect(() => {
+    trackPageView()
+  }, [location.pathname, location.search])
+
   const logout = async () => {
     await authLogout() // 서버 token_ver 증가(토큰 무효화) + 로컬 정리
     navigate('/login', { replace: true })
@@ -315,7 +353,9 @@ export default function GenLayout() {
         return idx < 0 ? [...nav, myHobbyNode] : [...nav.slice(0, idx), myHobbyNode, ...nav.slice(idx)]
       })()
     : nav
-  const displayItems: MenuItem[] = loggedIn ? [...items, { key: '/gen/myhobby', label: '나의 취미' }] : items
+  // 모바일 메뉴(Drawer) 맨 위에 통합검색 — 헤더의 검색 아이콘은 좁은 화면에서 숨기므로(!isMobile) 여기가 모바일의 유일한 검색 입구다(v0.6.45 전엔 없었다)
+  const searchItem: MenuItem = { key: '/gen/search', label: '통합검색' }
+  const displayItems: MenuItem[] = [searchItem, ...(loggedIn ? [...items, { key: '/gen/myhobby', label: '나의 취미' }] : items)]
 
   /*
     ★ 모든 화면의 최상단이 어두운 비주얼(메인=히어로, 하위=헤드 밴드)이므로 헤더는 그 위에
@@ -501,11 +541,22 @@ export default function GenLayout() {
                   {p.title}
                 </span>
               ))}
+              {/* 분석 도구를 쓸 때만 — 동의를 거두거나 다시 하는 길(CMS 1.2.44). 약관 옆이 찾기 쉽다 */}
+              {hasAnalytics(analytics) && (
+                <span className="gen-foot-link" role="button" tabIndex={0} onClick={() => setConsentOpen(true)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setConsentOpen(true) } }}>
+                  쿠키 설정
+                </span>
+              )}
             </Space>
             <span>Made with 💜 for hobby lovers</span>
           </div>
         </Layout.Footer>
       </Layout>
+
+      {hasAnalytics(analytics) && (consent === null || consentOpen) && (
+        <AnalyticsConsent ids={analytics} onAccept={acceptAnalytics} onReject={rejectAnalytics} />
+      )}
 
       <button
         type="button"

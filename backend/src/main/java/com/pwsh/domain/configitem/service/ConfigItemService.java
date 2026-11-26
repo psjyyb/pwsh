@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,20 @@ public class ConfigItemService {
 
     /** 값 조회는 화면·로직 여러 곳에서 반복되므로 캐시한다. 저장 시 즉시 비운다. */
     private static final long CACHE_TTL_MS = 60_000L;
+
+    /**
+     * 형식이 정해진 값 — 저장할 때 앞뒤 공백을 떼고 형식을 본다(빈 값은 "쓰지 않음"이라 통과).
+     * 분석 도구 ID(CMS 1.2.44)는 공개되어 사용자 화면의 스크립트 주소·전역 변수로 들어간다 — 틀린 값은 추적이 조용히 안 되고,
+     * 엉뚱한 글자는 주입 통로가 된다. 화면(common/util/analytics.ts)도 같은 형식만 쓰지만, 받는 쪽에서 막아야 운영자가 바로 안다.
+     */
+    private record Format(Pattern pattern, String label, String hint) {
+    }
+
+    private static final Map<String, Format> FORMATS = Map.of(
+            "analytics.ga4-id", new Format(Pattern.compile("^G-[A-Z0-9]{4,20}$"),
+                    "Google Analytics 4 측정 ID", "G-로 시작하는 대문자·숫자여야 합니다(예: G-AB12CD34EF, 구버전 UA- 는 쓸 수 없습니다)."),
+            "analytics.naver-id", new Format(Pattern.compile("^[A-Za-z0-9_-]{4,40}$"),
+                    "네이버 애널리틱스 사이트 ID", "영문·숫자·밑줄·하이픈 4~40자여야 합니다."));
 
     private final CommonDAO commonDAO;
 
@@ -67,6 +82,7 @@ public class ConfigItemService {
             return;
         }
         for (ConfigItemVO item : items) {
+            checkFormat(item);
             int updated = commonDAO.update("configItemDAO.updateValue", item);
             if (updated == 0) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT,
@@ -105,6 +121,19 @@ public class ConfigItemService {
             return defaultValue;
         }
         return "Y".equalsIgnoreCase(value.trim());
+    }
+
+    /** 형식이 정해진 키면 공백을 떼어 값에 되돌려 넣고 형식을 본다. 틀리면 400 — 트랜잭션이라 같이 보낸 다른 값도 저장되지 않는다 */
+    private static void checkFormat(ConfigItemVO item) {
+        Format f = FORMATS.get(item.getConfigKey());
+        if (f == null) {
+            return;
+        }
+        String v = item.getValue() == null ? "" : item.getValue().trim();
+        item.setValue(v);
+        if (!v.isEmpty() && !f.pattern().matcher(v).matches()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, Messages.get("error.configitem.format", f.label(), f.hint()));
+        }
     }
 
     /** 캐시 무효화 — DB에서 값을 직접 바꿨을 때 즉시 반영시키는 용도. */

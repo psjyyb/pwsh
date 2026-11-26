@@ -631,6 +631,60 @@
   filter: brightness(1.12);
 }
 
+/* ── 분석 쿠키 동의 배너(CMS 1.2.44) — 화면을 막지 않는 하단 띠. TOP 버튼(90)보다 위, 모바일 메뉴 Drawer(AntD 1000)보다 아래 ── */
+.gen-consent {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 150;
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 22px;
+  border-radius: var(--gen-r-lg);
+  background: var(--gen-hero-dark);
+  color: #fff;
+  box-shadow: var(--gen-shadow-lg);
+}
+.gen-consent p {
+  margin: 0;
+  flex: 1;
+  font-size: var(--gen-fs-sm);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+.gen-consent-btns {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.gen-consent-btns button {
+  appearance: none;
+  font: inherit;
+  font-size: var(--gen-fs-sm);
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: filter 0.25s, background 0.25s;
+}
+.gen-consent-btns button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.gen-consent-btns button.is-primary {
+  border-color: var(--gen-primary);
+  background: var(--gen-primary);
+}
+.gen-consent-btns button.is-primary:hover {
+  filter: brightness(1.12);
+}
+
 /* ============================ 반응형 ============================ */
 @media (max-width: 1024px) {
   .gen-news {
@@ -667,5 +721,14 @@
   }
   .gen-page {
     padding: 22px 0 56px;
+  }
+  .gen-consent {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+  .gen-consent-btns button {
+    flex: 1;
   }
 }

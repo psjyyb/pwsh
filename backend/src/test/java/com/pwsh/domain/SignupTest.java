@@ -149,6 +149,25 @@ class SignupTest extends IntegrationTest {
     // ===== 비밀번호 찾기 =====
 
     @Test
+    @DisplayName("가입 아이디는 영문·숫자·밑줄 4~30자(CMS와 같다) — 짧거나 길거나 공백·하이픈·특수문자·한글이면 400이고 인증 코드를 쓰지 않는다")
+    void memberIdFormat() throws Exception {
+        seedCode("zzid20@example.com", "SIGNUP", "123456");
+        for (String bad : List.of("zzi", "z".repeat(31), "zz id20", "zz-id20", "zzid20!", "zz아이디20")) {
+            HttpResponse<String> r = signupRaw(bad, "zz가입20", "zzid20@example.com", "123456", requiredPlus());
+            assertThat(r.statusCode()).as(bad).isEqualTo(400);
+            assertThat((String) JsonPath.read(r.body(), "$.error.message")).as(bad).contains("4~30자");
+        }
+        assertThat(count("SELECT COUNT(*) FROM email_verification")).as("형식이 틀린 요청은 코드를 쓰지 않는다").isEqualTo(1);
+        assertThat(signupRaw("zz_id20", "zz가입20", "zzid20@example.com", "123456", requiredPlus()).statusCode()).as("밑줄").isEqualTo(200);
+
+        // 경계: 4자·30자
+        seedCode("zzid21@example.com", "SIGNUP", "123456");
+        assertThat(signupRaw("zzi4", "zz가입21", "zzid21@example.com", "123456", requiredPlus()).statusCode()).isEqualTo(200);
+        seedCode("zzid22@example.com", "SIGNUP", "123456");
+        assertThat(signupRaw("zzid" + "9".repeat(26), "zz가입22", "zzid22@example.com", "123456", requiredPlus()).statusCode()).isEqualTo(200);
+    }
+
+    @Test
     @DisplayName("비밀번호 찾기: 코드로 새 비밀번호를 정하면 기존 로그인은 끊기고 새 비밀번호로 들어온다 — 쓴 코드는 다시 못 쓴다")
     void resetPassword() throws Exception {
         assertThat(signup("zzsu10", "zz가입10", "zzsu10@example.com").statusCode()).isEqualTo(200);

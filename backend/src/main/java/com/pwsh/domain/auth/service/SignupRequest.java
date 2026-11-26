@@ -1,17 +1,23 @@
 package com.pwsh.domain.auth.service;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 
 /**
  * 셀프 회원가입 요청. 아이디·비밀번호·닉네임·이메일·인증코드 필수.
  * (이메일 인증코드 검증·중복/일치 검사는 AuthService.signup, 비밀번호 복잡도는 컨트롤러 PasswordPolicy)
  *
+ * 아이디는 영문·숫자·밑줄 4~30자(v0.6.45, CMS 1.2.35와 같은 규칙 — member_id 길이). 그 전엔 제한이 없어
+ * 공백·특수문자가 들어갔고(화면·로그에서 다른 아이디와 헷갈린다) 30자를 넘으면 DB 길이 초과로 500이 났다.
+ * 이미 가입한 회원의 아이디는 그대로 둔다(로그인은 형식을 보지 않는다).
+ *
  * agreedPolicyIds: 동의한 약관 ID. 필수동의(policy.req_yn='Y') 약관이 전부 포함돼야 가입된다.
  *   화면 체크박스만으로는 우회가 가능하므로 서버(AuthService.signup)에서 다시 판정한다.
  */
 public record SignupRequest(
-        @NotBlank(message = "아이디는 필수입니다.") String memberId,
+        @NotBlank(message = "아이디는 필수입니다.")
+        @Pattern(regexp = "[A-Za-z0-9_]{4,30}", message = "아이디는 영문·숫자·밑줄(_) 4~30자입니다.") String memberId,
         @NotBlank(message = "비밀번호는 필수입니다.") String password,
         @NotBlank(message = "비밀번호 확인은 필수입니다.") String pwConfirm,
         @NotBlank(message = "닉네임은 필수입니다.") String nickname,

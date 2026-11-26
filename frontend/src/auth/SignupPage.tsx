@@ -128,9 +128,13 @@ export default function SignupPage() {
           <Form.Item
             name="memberId"
             label="아이디"
-            rules={[{ required: true, message: '아이디를 입력하세요.' }]}
+            rules={[
+              { required: true, message: '아이디를 입력하세요.' },
+              // 서버(SignupRequest)와 같은 규칙 — v0.6.45
+              { pattern: /^[A-Za-z0-9_]{4,30}$/, message: '영문·숫자·밑줄(_) 4~30자로 입력하세요.' },
+            ]}
           >
-            <Input autoFocus placeholder="로그인에 사용할 아이디" autoComplete="username" />
+            <Input autoFocus placeholder="영문·숫자·밑줄(_) 4~30자" autoComplete="username" />
           </Form.Item>
           <Form.Item
             name="nickname"

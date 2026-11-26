@@ -31,16 +31,16 @@ class PublicIdentityTest extends IntegrationTest {
         String boardId = JsonPath.read(post("/api/adm/hobby/selectHobbyView.do",
                 "{\"rowId\":\"" + hobbyId + "\"}", null).body(), "$.data.boardId");
 
-        assertEquals(200, signup("ida", "식별자A", "ida@test.local").statusCode());
-        assertEquals(200, signup("idb", "식별자B", "idb@test.local").statusCode());
-        String ta = accessToken("ida", "Test1234!@");
-        String tb = accessToken("idb", "Test1234!@");
+        assertEquals(200, signup("idaa", "식별자A", "idaa@test.local").statusCode());
+        assertEquals(200, signup("idbb", "식별자B", "idbb@test.local").statusCode());
+        String ta = accessToken("idaa", "Test1234!@");
+        String tb = accessToken("idbb", "Test1234!@");
 
         // 내 handle 확인 — me()는 handle을 주고 memberId는 주지 않는다
         String meBody = post("/api/auth/me", "{}", ta).body();
         String handleA = JsonPath.read(meBody, "$.data.handle");
         assertNotNull(handleA);
-        assertFalse(handleA.equals("idA") || handleA.equals("ida"), "handle이 로그인 ID와 같으면 익명성이 없다");
+        assertFalse(handleA.equals("idAA") || handleA.equals("idaa"), "handle이 로그인 ID와 같으면 익명성이 없다");
         assertNoKey(meBody, "cryptoKey", "me");
 
         // 게시글 — 목록/상세 모두 regHandle만
@@ -96,7 +96,7 @@ class PublicIdentityTest extends IntegrationTest {
         assertNoKey(threadBody, "receiverId", "쪽지 스레드");
 
         // 후기 — 참여자가 주최자에게(모임 종료 후). 목록에 대상 로그인 ID가 없어야 한다
-        String applyOk = applyAndAccept(rid, ta, tb, "idb");
+        String applyOk = applyAndAccept(rid, ta, tb, "idbb");
         assertEquals("APPLY02", applyOk);
         assertEquals(200, post("/api/adm/recruit/updateRecruitStatus.do",
                 "{\"rowId\":\"" + rid + "\",\"statusCd\":\"RECRUIT02\"}", ta).statusCode());

@@ -9,6 +9,7 @@ const GROUP_LABEL: Record<string, string> = {
   SITE: '사이트',
   MAIN: '메인 화면',
   SEO: '검색엔진(SEO)',
+  ANALYTICS: '분석 도구',
 }
 
 const YN_OPTIONS = [
