@@ -331,6 +331,75 @@
   margin: 0;
 }
 
+/* ── 자주찾는 서비스(CMS 1.2.45) — 히어로 바로 아래 바로가기 줄. 색·모서리·그림자는 이 저장소 토큰 ── */
+.gen-quick {
+  padding: 40px 0;
+  background: var(--gen-surface);
+  border-bottom: 1px solid var(--gen-line);
+}
+.gen-quick-title {
+  font-size: var(--gen-fs-h2);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--gen-ink);
+  margin: 0 0 16px;
+}
+.gen-quick-list {
+  display: grid;
+  /* auto-fit — 버튼이 적어도 줄 전체를 고르게 채운다(auto-fill이면 빈 칸이 남아 왼쪽에 몰려 보인다, CMS에서 화면 확인) */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gen-quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 22px 12px;
+  border-radius: var(--gen-r-lg);
+  background: var(--gen-surface-2);
+  border: 1px solid var(--gen-line);
+  color: var(--gen-ink);
+  font-size: var(--gen-fs-body);
+  font-weight: 700;
+  text-align: center;
+  /* 버튼 이름은 한 글자만 떨어지지 않게 어절 단위로 끊는다 */
+  word-break: keep-all;
+  text-decoration: none;
+  transition: transform 0.3s var(--gen-ease), box-shadow 0.3s var(--gen-ease), background 0.3s, color 0.3s;
+}
+.gen-quick-item:hover,
+.gen-quick-item:focus-visible {
+  background: var(--gen-surface);
+  color: var(--gen-primary);
+  box-shadow: var(--gen-shadow-md);
+  transform: translateY(-3px);
+}
+.gen-quick-item:focus-visible {
+  outline: 2px solid var(--gen-primary);
+  outline-offset: 2px;
+}
+.gen-quick-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--gen-primary-soft);
+  color: var(--gen-primary);
+  transition: background 0.3s, color 0.3s;
+}
+.gen-quick-item:hover .gen-quick-ico,
+.gen-quick-item:focus-visible .gen-quick-ico {
+  background: var(--gen-primary);
+  color: #fff;
+}
+
 /* ============================ 하위 페이지 공통 셸 ============================ */
 /* 메인만 랜딩처럼 보이고 나머지 화면은 제각각이면 사이트가 두 개처럼 보인다. 그래서 모든
    사용자 화면이 같은 셸을 쓴다 — 전체폭 헤드 밴드(분류·제목·설명·액션) + 같은 폭의 본문.
@@ -699,6 +768,22 @@
 @media (max-width: 768px) {
   .gen-section {
     padding: 64px 0;
+  }
+  .gen-quick {
+    padding: 28px 0;
+  }
+  .gen-quick-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .gen-quick-item {
+    gap: 8px;
+    padding: 16px 6px;
+    font-size: var(--gen-fs-sm);
+  }
+  .gen-quick-ico {
+    width: 42px;
+    height: 42px;
   }
   .gen-hero-ctrl {
     right: 16px;

@@ -7,15 +7,15 @@ plugins {
 
 group = 'com.pwsh'
 // 프론트(frontend/package.json)와 같은 값을 유지한다 — 한쪽만 올리면 어느 버전이 배포됐는지 추적이 깨진다.
-version = '0.6.45'
+version = '0.6.46'
 description = 'pwsh'
 
 // ★ 이 프로젝트는 직접 만든 CMS(framework 저장소)를 복사해 만든 파생 서비스다.
 //   위 version은 pwsh 자체 버전이고, 아래 cmsVersion은 "바탕 CMS의 어느 버전까지 흡수했는지"다.
 //   둘은 따로 움직인다 — pwsh 기능만 추가하면 version만 오르고, CMS를 따라가면 cmsVersion만 오른다.
 //   CMS의 최신 버전과 버전별 적용 방법(DDL 포함)은 framework 저장소의 CHANGELOG.md를 본다.
-//   현재: 분석 도구(CMS 1.2.44)까지 흡수. (CMS 1.2.45의 게시글 제목 덮어쓰기 수정만 v0.6.45에 먼저 넣었다 — 1.2.45 흡수 때 그 부분은 이미 있다)
-ext.cmsVersion = '1.2.44'
+//   현재: 자주찾는 서비스(CMS 1.2.45)까지 흡수(1.2.45의 게시글 제목 수정은 v0.6.45, 자주찾는 서비스는 v0.6.46).
+ext.cmsVersion = '1.2.45'
 
 java {
 	toolchain {

@@ -17,6 +17,7 @@ import { recruitApi } from './recruit/recruit.api'
 import type { Recruit } from './recruit/recruit.api'
 import { gen, hobbyColor } from './theme'
 import HeroSection from './main/HeroSection'
+import QuickLinkSection from './main/QuickLinkSection'
 import StatsSection from './main/StatsSection'
 import NewsSection from './main/NewsSection'
 import Reveal from './main/Reveal'
@@ -207,6 +208,9 @@ export default function GenMain() {
   return (
     <>
       <HeroSection badge={heroBadge} siteTitle={siteTitle} loggedIn={loggedIn} onNavigate={go} />
+
+      {/* 자주찾는 서비스(CMS 1.2.45) — 관리자가 정한 바로가기. 노출된 게 없으면 렌더하지 않는다 */}
+      <QuickLinkSection onNavigate={go} />
 
       <StatsSection
         hobbyCount={categories.length}

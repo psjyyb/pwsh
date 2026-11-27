@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  자주찾는 서비스(CMS 1.2.45) — 사용자 메인 바로가기 버튼.
+  use_yn = 삭제 여부, display_yn = 메인 노출 여부. 순서 교환·당김은 삭제 안 된 행(숨긴 것 포함) 기준이라
+  숨겼다 다시 켜면 원래 자리로 돌아온다.
+-->
+<mapper namespace="quickLinkDAO">
+
+    <sql id="search">
+        <if test="filterKeyword != null and filterKeyword != ''">
+            AND (name LIKE '%' || #{filterKeyword} || '%' OR link_url LIKE '%' || #{filterKeyword} || '%')
+        </if>
+    </sql>
+
+    <select id="selectList" parameterType="quickLinkVO" resultType="quickLinkVO">
+        SELECT quick_link_id::TEXT AS row_id, name, link_url, icon, target_yn, display_yn, sort_no
+        FROM quick_link
+        WHERE use_yn = 'Y'
+        <include refid="search"/>
+        ORDER BY sort_no, quick_link_id
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="selectListTotalCount" parameterType="quickLinkVO" resultType="int">
+        SELECT COUNT(*) FROM quick_link WHERE use_yn = 'Y'
+        <include refid="search"/>
+    </select>
+
+    <!-- 사용자 메인 — 비로그인도 읽는다. 화면에 필요한 값만(등록자·노출 여부 등 관리용 값은 싣지 않는다) -->
+    <select id="selectMainList" resultType="quickLinkVO">
+        SELECT quick_link_id::TEXT AS row_id, name, link_url, icon, target_yn
+        FROM quick_link
+        WHERE use_yn = 'Y' AND display_yn = 'Y'
+        ORDER BY sort_no, quick_link_id
+    </select>
+
+    <select id="selectView" parameterType="quickLinkVO" resultType="quickLinkVO">
+        SELECT quick_link_id::TEXT AS row_id, name, link_url, icon, target_yn, display_yn, sort_no
+        FROM quick_link
+        WHERE quick_link_id = #{rowId}::integer AND use_yn = 'Y'
+    </select>
+
+    <insert id="insert" parameterType="quickLinkVO" useGeneratedKeys="true" keyProperty="rowId" keyColumn="quick_link_id">
+        INSERT INTO quick_link (name, link_url, icon, target_yn, display_yn, sort_no, use_yn,
+            reg_id, upd_id, reg_dt, upd_dt, reg_ip, upd_ip)
+        VALUES (#{name}, #{linkUrl}, #{icon}, #{targetYn}, #{displayYn},
+            -- 맨 뒤(삭제 안 된 것 중 최대 + 1) — 등록할 때마다 순서를 묻지 않는다
+            (SELECT COALESCE(MAX(sort_no), 0) + 1 FROM quick_link WHERE use_yn = 'Y'),
+            'Y', #{regId}, #{updId}, NOW(), NOW(), #{regIp}, #{updIp})
+    </insert>
+
+    <!-- 순서는 바꾸지 않는다(▲▼로만) -->
+    <update id="update" parameterType="quickLinkVO">
+        UPDATE quick_link SET
+            name = #{name}, link_url = #{linkUrl}, icon = #{icon}, target_yn = #{targetYn}, display_yn = #{displayYn},
+            upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE quick_link_id = #{rowId}::integer AND use_yn = 'Y'
+    </update>
+
+    <!-- 순서 교환용: 인접 행 (UP=바로 위, 그 외=바로 아래) — 숨긴 행도 자리를 가진다 -->
+    <select id="selectAdjacentSort" parameterType="quickLinkVO" resultType="quickLinkVO">
+        SELECT quick_link_id::TEXT AS row_id, sort_no
+        FROM quick_link
+        WHERE use_yn = 'Y'
+        <choose>
+            <when test='"UP".equals(direction)'>
+                AND sort_no &lt; #{sortNo}::integer ORDER BY sort_no DESC
+            </when>
+            <otherwise>
+                AND sort_no &gt; #{sortNo}::integer ORDER BY sort_no ASC
+            </otherwise>
+        </choose>
+        LIMIT 1
+    </select>
+
+    <update id="updateSort" parameterType="quickLinkVO">
+        UPDATE quick_link SET sort_no = #{sortNo}::integer, upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE quick_link_id = #{rowId}::integer
+    </update>
+
+    <update id="delete" parameterType="quickLinkVO">
+        UPDATE quick_link SET use_yn = 'N', upd_id = #{updId}, upd_dt = NOW(), upd_ip = #{updIp}
+        WHERE quick_link_id = #{rowId}::integer AND use_yn = 'Y'
+    </update>
+
+    <!-- 삭제 후 순서 당김: 지운 행보다 뒤(삭제 안 된 것)를 -1 -->
+    <update id="shiftSortAfterDelete" parameterType="quickLinkVO">
+        UPDATE quick_link SET sort_no = sort_no - 1, upd_dt = NOW()
+        WHERE use_yn = 'Y'
+          AND sort_no &gt; (SELECT sort_no FROM quick_link WHERE quick_link_id = #{rowId}::integer)
+    </update>
+
+</mapper>

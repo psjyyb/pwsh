@@ -37,6 +37,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
             "/policy/selectPolicyView.do",
             "/popup/selectPopupListMain.do",
             "/banner/selectBannerListMain.do",
+            "/quicklink/selectQuickLinkListMain.do", // 메인 자주찾는 서비스(CMS 1.2.45) — 관리 목록·저장은 메뉴 권한
             // 폼 조회·제출은 사용자 화면의 콘텐츠다(메뉴 권한은 GenAccessGuard가 폼 단위로 본다)
             "/form/selectFormView.do",
             "/formanswer/insertFormAnswer.do",
